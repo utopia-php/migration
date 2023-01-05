@@ -1,0 +1,7 @@
+composer.lock
+/vendor/
+/.idea/
+*.cache
+.env
+test-service-account.json
+.DS_Store
