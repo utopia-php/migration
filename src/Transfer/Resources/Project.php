@@ -26,4 +26,12 @@ class Project extends Resource
         $this->id = $id;
         return $this;
     }
+
+    public function asArray(): array
+    {
+        return [
+            'name' => $this->name,
+            'id' => $this->id,
+        ];
+    }
 }

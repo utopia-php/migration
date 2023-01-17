@@ -5,7 +5,7 @@ namespace Utopia\Transfer\Destinations;
 use Appwrite\Client;
 use Appwrite\Services\Users;
 use Utopia\Transfer\Destination;
-use Utopia\Transfer\Hash;
+use Utopia\Transfer\Resources\Hash;
 use Utopia\Transfer\Log;
 use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
@@ -47,19 +47,31 @@ class Appwrite extends Destination {
 
     public function check(array $resources = []): bool
     {
-        //TODO: Implement check() method.
+        $auth = new Users($this->client);
+        
+        try {
+            $auth->list();
+        } catch (\Exception $e) {
+            $this->logs[Log::ERROR] = new Log($e->getMessage());
+            return false;
+        }
+
         return true;
     }
 
-    public function importPasswordUser(User $user): void
+    public function importPasswordUser(User $user): array|null
     {
-        $authentication = new Users($this->client);
+        $auth = new Users($this->client);
         $hash = $user->getPasswordHash();
         $result = null;
 
+        if (empty($hash->getHash()) || empty($hash->getSalt())) {
+            throw new \Exception('User password hash is empty');
+        }
+
         switch ($hash->getAlgorithm()) {
             case Hash::SCRYPT_MODIFIED: 
-                $result = $authentication->createScryptModifiedUser(
+                $result = $auth->createScryptModifiedUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
@@ -70,7 +82,7 @@ class Appwrite extends Destination {
                 );
                 break;
             case Hash::BCRYPT:
-                $result = $authentication->createBcryptUser(
+                $result = $auth->createBcryptUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
@@ -78,23 +90,24 @@ class Appwrite extends Destination {
                 );
                 break;
             case Hash::ARGON2:
-                $result = $authentication->createArgon2User(
+                $result = $auth->createArgon2User(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
                     $user->getEmail()
                 );
                 break;
-            case Hash::SHA:
-                $result = $authentication->createShaUser(
+            case Hash::SHA256:
+                $result = $auth->createShaUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
+                    'sha256',
                     $user->getEmail()
                 );
                 break;
             case Hash::PHPASS:
-                $result = $authentication->createPHPassUser(
+                $result = $auth->createPHPassUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
@@ -102,7 +115,7 @@ class Appwrite extends Destination {
                 );
                 break;
             case Hash::SCRYPT:
-                $result = $authentication->createScryptUser(
+                $result = $auth->createScryptUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
@@ -116,26 +129,30 @@ class Appwrite extends Destination {
                 break;
         }
 
-        if (!$result) {
-            throw new \Exception('Failed to import user: "'.$user->getId().'"');
-        }
+        return $result;
     }
 
     public function importUsers(array $users): void
     {
+        $auth = new Users($this->client);
+
         foreach ($users as $user) {
             /** @var \Utopia\Transfer\Resources\User $user */
             try {
-                switch ($user->getType()) {
-                    case User::AUTH_EMAIL:
-                        $this->importPasswordUser($user);
-                        break;
-                    default:
-                        $this->logs[] = new Log(Log::WARNING, 'Not copying user: "'.$user->getId().'" due to it being an account type: "'.$user->getType().'".', \time(), $user);
-                    //TODO: Implement other auth types, talk to Eldadfux about API's requried (Might have to resort to using Console SDK).
+                $createdUser = in_array(User::TYPE_EMAIL, $user->getTypes()) ? $this->importPasswordUser($user) : $auth->create($user->getId(), $user->getEmail(), $user->getPhone(), null, $user->getName());
+
+                if (!$createdUser) {
+                    $this->logs[Log::ERROR][] = new Log('Failed to import user', \time(), $user);
+                } else {
+                    // Add more data to the user
+                    $auth->updateName($user->getId(), $user->getUsername());
+                    $auth->updatePhone($user->getId(), $user->getPhone());
+                    $auth->updateEmailVerification($user->getId(), $user->getEmailVerified());
+                    $auth->updatePhoneVerification($user->getId(), $user->getPhoneVerified());
+                    $auth->updateStatus($user->getId(), !$user->getDisabled());
                 }
             } catch (\Exception $e) {
-                $this->logs[] = new Log(Log::ERROR, $e->getMessage(), \time(), $user);
+                $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $user);
             }
         }
     }

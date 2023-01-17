@@ -1,23 +1,30 @@
 <?php
 
-namespace Utopia\Transfer;
+namespace Utopia\Transfer\Resources;
+
+use Utopia\Transfer\Resource;
 
 /**
  * Helper class for hashing.
  */
 
-class Hash {
+class Hash extends Resource {
     public const SCRYPT_MODIFIED = 'ScryptModified';
     public const BCRYPT = 'Bcrypt';
     public const MD5 = 'MD5';
     public const ARGON2 = 'Argon2';
-    public const SHA = 'SHA';
+    public const SHA256 = 'SHA256';
     public const PHPASS = 'PHPass';
     public const SCRYPT = 'Scrypt';
 
 
-    public function __construct(private string $hash, private string $salt = '', private string $algorithm = 'sha256', private string $separator = '', private string $signingKey = '', private int $passwordCpu = 0, private int $passwordMemory = 0, private int $passwordParallel = 0, private int $passwordLength = 0)
+    public function __construct(private string $hash, private string $salt = '', private string $algorithm = self::SHA256, private string $separator = '', private string $signingKey = '', private int $passwordCpu = 0, private int $passwordMemory = 0, private int $passwordParallel = 0, private int $passwordLength = 0)
     {
+    }
+
+    public function getName(): string
+    {
+        return 'hash';
     }
 
     /**
@@ -216,5 +223,25 @@ class Hash {
     {
         $this->passwordLength = $passwordLength;
         return $this;
+    }
+
+    /**
+     * As Array
+     * 
+     * @returns array
+     */
+    public function asArray(): array
+    {
+        return [
+            'hash' => $this->hash,
+            'salt' => $this->salt,
+            'algorithm' => $this->algorithm,
+            'separator' => $this->separator,
+            'signingKey' => $this->signingKey,
+            'passwordCpu' => $this->passwordCpu,
+            'passwordMemory' => $this->passwordMemory,
+            'passwordParallel' => $this->passwordParallel,
+            'passwordLength' => $this->passwordLength,
+        ];
     }
 }

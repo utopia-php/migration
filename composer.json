@@ -23,7 +23,6 @@
         "php": ">=8.0",
         "utopia-php/cli": "^0.14.0",
         "google/apiclient": "^2.12.1",
-        "kreait/firebase-php": "^7.0",
         "appwrite/appwrite": "^7.2"
     },
     "require-dev": {

@@ -23,6 +23,13 @@ abstract class Source
     protected $logs = [];
 
     /**
+     * Resource Cache
+     * 
+     * @var array $resourceCache
+     */
+    protected $resourceCache = [];
+
+    /**
      * Internal Adapter State
      * 
      * @var array $state
@@ -60,6 +67,15 @@ abstract class Source
     }
 
     /**
+     * Register Resource Cache
+     * 
+     * @param array &$cache
+     */
+    public function registerResourceCache(array &$cache): void {
+        $this->resourceCache = &$cache;
+    }
+
+    /**
      * Transfer Resources into destination
      * 
      * @param array $resources
@@ -73,17 +89,10 @@ abstract class Source
 
             switch ($resource) {
                 case Transfer::RESOURCE_USERS: {
-                    $resourceCache = [];
-
-                    while (true) {
-                        $users = $this->exportUsers(1000);
-                        $resourceCache = array_merge($resourceCache, $users);
-                        $callback(new Log(Log::INFO, 'Exporting Users...'), Transfer::RESOURCE_USERS, $resourceCache);
-
-                        if (count($users) < 1000) {
-                            break;
-                        }
-                    }
+                    $this->exportUsers(500, function (array $users) use ($callback) {
+                        $this->resourceCache = array_merge($this->resourceCache, $users);
+                        $callback(new Log('Exporting Users...'), Transfer::RESOURCE_USERS, $users);
+                    });
                     break;
                 }
             }
@@ -228,10 +237,12 @@ abstract class Source
     /**
      * Export Users
      * 
-     * @param int $chunk
+     * @param int $batchSize
+     * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
+     * 
      * @returns User[] 
      */
-    public function exportUsers(int $chunk = 1000)
+    public function exportUsers(int $batchSize, callable $callback): array
     {
         throw new Exception('Unimplemented, Please check if your source adapter supports this method.');
     }

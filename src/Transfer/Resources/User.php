@@ -3,23 +3,28 @@
 namespace Utopia\Transfer\Resources;
 
 use Utopia\Transfer\Resource;
-use Utopia\Transfer\Hash;
+use Utopia\Transfer\Resources\Hash;
 
 class User extends Resource
 {
-    const AUTH_EMAIL = 'email';
-    const AUTH_PHONE = 'phone';
-    const AUTH_ANONYMOUS = 'anonymous';
-    const AUTH_MAGIC = 'magic';
-    const AUTH_OAUTH = 'oauth';
+    const TYPE_EMAIL = 'email';
+    const TYPE_PHONE = 'phone';
+    const TYPE_ANONYMOUS = 'anonymous';
+    const TYPE_MAGIC = 'magic';
+    const TYPE_OAUTH = 'oauth';
 
     public function __construct(
         protected string $id = '',
         protected string $email = '',
+        protected string $username = '',
         protected Hash $passwordHash = new Hash(''),
         protected string $phone = '',
-        protected string $type = self::AUTH_ANONYMOUS,
-        protected string $oauthProvider = ''
+        protected array $types = [Self::TYPE_ANONYMOUS],
+        protected string $oauthProvider = '',
+        protected bool $emailVerified = false,
+        protected bool $phoneVerified = false,
+        protected bool $disabled = false,
+        protected array $preferences = []
     ){}
 
     /**
@@ -77,6 +82,28 @@ class User extends Resource
     }
 
     /**
+     * Get Username
+     * 
+     * @returns string
+     */
+    public function getUsername(): string
+    {
+        return $this->username;
+    }
+
+    /**
+     * Set Username
+     * 
+     * @param string $username
+     * @returns self
+     */
+    public function setUsername(string $username): self
+    {
+        $this->username = $username;
+        return $this;
+    }
+
+    /**
      * Get Password Hash
      * 
      * @returns Hash
@@ -123,22 +150,22 @@ class User extends Resource
     /**
      * Get Type
      * 
-     * @returns string
+     * @returns array
      */
-    public function getType(): string
+    public function getTypes(): array
     {
-        return $this->type;
+        return $this->types;
     }
 
     /**
-     * Set Type
+     * Set Types
      * 
-     * @param string $type
+     * @param string $types
      * @returns self
      */
-    public function setType(string $type): self
+    public function setTypes(string $types): self
     {
-        $this->type = $type;
+        $this->types = $types;
         return $this;
     }
 
@@ -162,5 +189,113 @@ class User extends Resource
     {
         $this->oauthProvider = $oauthProvider;
         return $this;
+    }
+
+    /**
+     * Get Email Verified
+     * 
+     * @returns bool
+     */
+    public function getEmailVerified(): bool
+    {
+        return $this->emailVerified;
+    }
+
+    /**
+     * Set Email Verified
+     * 
+     * @param bool $verified
+     * @returns self
+     */
+    public function setEmailVerified(bool $verified): self
+    {
+        $this->emailVerified = $verified;
+        return $this;
+    }
+
+    /**
+     * Get Email Verified
+     * 
+     * @returns bool
+     */
+    public function getPhoneVerified(): bool
+    {
+        return $this->phoneVerified;
+    }
+
+    /**
+     * Set Phone Verified
+     * 
+     * @param bool $verified
+     * @returns self
+     */
+    public function setPhoneVerified(bool $verified): self
+    {
+        $this->phoneVerified = $verified;
+        return $this;
+    }
+
+    /**
+     * Get Disabled
+     * 
+     * @returns bool
+     */
+    public function getDisabled(): bool
+    {
+        return $this->disabled;
+    }
+
+    /**
+     * Set Disabled
+     * 
+     * @param bool $disabled
+     * @returns self
+     */
+    public function setDisabled(bool $disabled): self
+    {
+        $this->disabled = $disabled;
+        return $this;
+    }
+
+    /**
+     * Get Preferences
+     * 
+     * @returns array
+     */
+    public function getPreferences(): array
+    {
+        return $this->preferences;
+    }
+
+    /**
+     * Set Preferences
+     * 
+     * @param array $preferences
+     * @returns self
+     */
+    public function setPreferences(array $preferences): self
+    {
+        $this->preferences = $preferences;
+        return $this;
+    }
+
+    /**
+     * As Array
+     * 
+     * @returns array
+     */
+    public function asArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'email' => $this->email,
+            'username' => $this->username,
+            'passwordHash' => $this->passwordHash->asArray(),
+            'phone' => $this->phone,
+            'types' => $this->types,
+            'oauthProvider' => $this->oauthProvider,
+            'emailVerified' => $this->emailVerified,
+            'phoneVerified' => $this->phoneVerified,
+        ];
     }
 }

@@ -6,41 +6,19 @@ class Log {
     const INFO = 'info';
     const WARNING = 'warning';
     const ERROR = 'error';
+    const FATAL = 'fatal';
     const DEBUG = 'debug';
 
-    public function __construct(private string $level = Log::INFO, private string $message = '', private int $timestamp = 0, protected Resource $resource = null)
+    public function __construct(private string $message = '', private int $timestamp = 0, protected Resource|null $resource = null)
     {
         $timestamp = \time();
     }
-
-    /** 
-     * Get Level
-     * 
-     * @returns string
-    */
-    public function getLevel(): string
-    {
-        return $this->level;
-    }
-
-    /**
-     * Set Level
-     * 
-     * @param string $level
-     * @returns self
-     */
-    public function setLevel(string $level)
-    {
-        $this->level = $level;
-        return $this;
-    }
-
     /**
      * Get Message
      * 
      * @returns string
      */
-    public function getMessage()
+    public function getMessage(): string
     {
         return $this->message;
     }
@@ -51,7 +29,7 @@ class Log {
      * @param string $message
      * @returns self
      */
-    public function setMessage(string $message)
+    public function setMessage(string $message): self
     {
         $this->message = $message;
         return $this;
@@ -60,9 +38,9 @@ class Log {
     /**
      * Get Timestamp
      * 
-     * @returns string
+     * @returns int
      */
-    public function getTimestamp()
+    public function getTimestamp(): int
     {
         return $this->timestamp;
     }
@@ -70,12 +48,36 @@ class Log {
     /**
      * Set Timestamp
      * 
-     * @param string $timestamp
+     * @param int $timestamp
      * @returns self
      */
-    public function setTimestamp(string $timestamp)
+    public function setTimestamp(int $timestamp): self
     {
         $this->timestamp = $timestamp;
         return $this;
+    }
+
+    /**
+     * Get Resource
+     * 
+     * @returns Resource|null
+     */
+    public function getResource(): ?Resource
+    {
+        return $this->resource;
+    }
+
+    /**
+     * As Array
+     * 
+     * @returns array
+    */
+    public function asArray(): array
+    {
+        return [
+            'message' => $this->message,
+            'timestamp' => $this->timestamp,
+            'resource' => $this->resource ? $this->resource->asArray() : null,
+        ];
     }
 }

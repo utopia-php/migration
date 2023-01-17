@@ -23,6 +23,13 @@ abstract class Destination
     protected $logs = [];
 
     /**
+     * Resource Cache
+     * 
+     * @var array $resourceCache
+     */
+    protected $resourceCache = [];
+
+    /**
      * Internal Adapter State
      * 
      * @var array $state
@@ -63,7 +70,16 @@ abstract class Destination
     }
 
     /**
-     * Transfer Resources between adapters
+     * Register Resource Cache
+     * 
+     * @param array &$cache
+     */
+    public function registerResourceCache(array &$cache): void {
+        $this->resourceCache = &$cache;
+    }
+
+    /**
+     * Transfer Resources to Destination from Source callback
      * 
      * @param array $resources
      * @param callable $callback
@@ -71,17 +87,18 @@ abstract class Destination
     public function run(array $resources, callable $callback, Source $source): void {
         foreach ($resources as $resource) {
             if (!in_array($resource, $this->getSupportedResources())) {
+                $this->logs[Log::FATAL] = new Log("Cannot Transfer unsupported resource: '".$resource."'");
                 throw new \Exception("Cannot Transfer unsupported resource: '".$resource."'");
             }
 
-            $source->run($resources, function (Log $currentLog, string $resource, array &$resourceCache) {
-                switch ($resource) {
+            $source->run($resources, function (Log $currentLog, string $resourceType, array $resource) use ($callback) {
+                switch ($resourceType) {
                     case Transfer::RESOURCE_USERS: {
-                        $this->importUsers($resourceCache);
-                        $resourceCache = [];
+                        $this->importUsers($resource);
                         break;
                     }
                 }
+                $callback($currentLog, $resourceType, $resource);
             });
         }
     }

@@ -34,4 +34,11 @@ abstract class Resource
         $this->id = $id;
         return $this;
     }
+
+    /**
+     * As Array
+     * 
+     * @returns array
+     */
+    abstract public function asArray(): array;
 }
