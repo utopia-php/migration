@@ -100,14 +100,6 @@ abstract class Source
     }
 
     /**
-     * Get Projects
-     * Get all the currently accessible projects.
-     * 
-     * @return array
-     */
-    abstract public function getProjects(): array;
-
-    /**
      * Check Requirements
      * Performs a suite of API Checks, Resource Checks, etc... to ensure the adapter is ready to be used.
      * This is highly recommended to be called before any other method after initialization.
@@ -242,7 +234,7 @@ abstract class Source
      * 
      * @returns User[] 
      */
-    public function exportUsers(int $batchSize, callable $callback): array
+    public function exportUsers(int $batchSize, callable $callback): void
     {
         throw new Exception('Unimplemented, Please check if your source adapter supports this method.');
     }

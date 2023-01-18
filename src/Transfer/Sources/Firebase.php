@@ -8,6 +8,7 @@ use Utopia\Transfer\Resources\Project;
 use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Log;
+use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Hash;
 
 class Firebase extends Source
@@ -123,9 +124,9 @@ class Firebase extends Source
      * @param int $batchSize Max 500
      * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
      * 
-     * @returns User[] 
+     * @returns void
      */
-    public function exportUsers(int $batchSize, callable $callback): array
+    public function exportUsers(int $batchSize, callable $callback): void
     {
         if (!$this->project || !$this->project->getId()) {
             $this->logs[Log::FATAL][] = new Log('Project not set');
@@ -177,16 +178,13 @@ class Firebase extends Source
             foreach ($result as $user) {
                 /** @var array $user */
 
-                // Figure out what type of user it is.
-                $types = $this->calculateUserType($user['providerUserInfo'] ?? []);
-
                 $users[] = new User(
                     $user["localId"] ?? '',
                     $user["email"] ?? '',
                     $user["displayName"] ?? $user["email"] ?? '',
                     new Hash($user["passwordHash"] ?? '', $user["salt"] ?? '', Hash::SCRYPT_MODIFIED, $hashConfig["saltSeparator"], $hashConfig["signerKey"]),
                     $user["phoneNumber"] ?? '',
-                    $types,
+                    $this->calculateTypes($user['providerUserInfo'] ?? []),
                     '',
                     $user["emailVerified"],
                     false, // Can't get phone number status on firebase :/
@@ -202,11 +200,9 @@ class Firebase extends Source
                 break;
             }
         }
-
-        return $users;
     }
 
-    function calculateUserType(array $providerData): array {
+    function calculateTypes(array $providerData): array {
         if (count($providerData) === 0) {
             return [User::TYPE_ANONYMOUS];
         }
@@ -232,6 +228,47 @@ class Firebase extends Source
 
     function check(array $resources = []): bool
     {
+        if (!$this->googleClient) {
+            $this->logs[Log::FATAL][] = new Log('Google Client not initialized');
+            return false;
+        }
+
+        if (!$this->project || !$this->project->getId()) {
+            $this->logs[Log::FATAL][] = new Log('Project not set');
+            return false;
+        }
+
+        foreach ($resources as $resource) {
+            switch ($resource)
+            {
+                case Transfer::RESOURCE_USERS:
+                    $firebase = new \Google\Service\FirebaseManagement($this->googleClient);
+
+                    $request = $firebase->projects->listProjects();
+
+                    if (!$request['results']) {
+                        $this->logs[Log::FATAL][] = new Log('Unable to fetch projects');
+                        return false;
+                    }
+
+                    $found = false;
+
+                    foreach ($request['results'] as $project) {
+                        if ($project['projectId'] === $this->project->getId()) {
+                            $found = true;
+                            break;
+                        }
+                    }
+
+                    if (!$found) {
+                        $this->logs[Log::FATAL][] = new Log('Project not found');
+                        return false;
+                    }
+
+                    break;
+            }
+        }
+
         return true;
     }
 }

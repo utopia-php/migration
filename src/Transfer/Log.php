@@ -7,6 +7,7 @@ class Log {
     const WARNING = 'warning';
     const ERROR = 'error';
     const FATAL = 'fatal';
+    const SUCCESS = 'success';
     const DEBUG = 'debug';
 
     public function __construct(private string $message = '', private int $timestamp = 0, protected Resource|null $resource = null)

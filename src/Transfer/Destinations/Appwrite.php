@@ -65,7 +65,7 @@ class Appwrite extends Destination {
         $hash = $user->getPasswordHash();
         $result = null;
 
-        if (empty($hash->getHash()) || empty($hash->getSalt())) {
+        if (empty($hash->getHash())) {
             throw new \Exception('User password hash is empty');
         }
 
@@ -78,7 +78,7 @@ class Appwrite extends Destination {
                     $hash->getSalt(),
                     $hash->getSeparator(),
                     $hash->getSigningKey(),
-                    $user->getEmail()
+                    $user->getUsername()
                 );
                 break;
             case Hash::BCRYPT:
@@ -86,7 +86,7 @@ class Appwrite extends Destination {
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    $user->getEmail()
+                    $user->getUsername()
                 );
                 break;
             case Hash::ARGON2:
@@ -94,7 +94,7 @@ class Appwrite extends Destination {
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    $user->getEmail()
+                    $user->getUsername()
                 );
                 break;
             case Hash::SHA256:
@@ -103,7 +103,7 @@ class Appwrite extends Destination {
                     $user->getEmail(),
                     $hash->getHash(),
                     'sha256',
-                    $user->getEmail()
+                    $user->getUsername()
                 );
                 break;
             case Hash::PHPASS:
@@ -111,7 +111,7 @@ class Appwrite extends Destination {
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    $user->getEmail()
+                    $user->getUsername()
                 );
                 break;
             case Hash::SCRYPT:
@@ -124,7 +124,7 @@ class Appwrite extends Destination {
                     $hash->getPasswordMemory(),
                     $hash->getPasswordParallel(),
                     $hash->getPasswordLength(),
-                    $user->getEmail()
+                    $user->getUsername()
                 );
                 break;
         }
@@ -145,11 +145,27 @@ class Appwrite extends Destination {
                     $this->logs[Log::ERROR][] = new Log('Failed to import user', \time(), $user);
                 } else {
                     // Add more data to the user
-                    $auth->updateName($user->getId(), $user->getUsername());
-                    $auth->updatePhone($user->getId(), $user->getPhone());
-                    $auth->updateEmailVerification($user->getId(), $user->getEmailVerified());
-                    $auth->updatePhoneVerification($user->getId(), $user->getPhoneVerified());
-                    $auth->updateStatus($user->getId(), !$user->getDisabled());
+                    if ($user->getUsername()) {
+                        $auth->updateName($user->getId(), $user->getUsername());
+                    }
+
+                    if ($user->getPhone()) {
+                        $auth->updatePhone($user->getId(), $user->getPhone());
+                    }
+
+                    if ($user->getEmailVerified()) {
+                        $auth->updateEmailVerification($user->getId(), $user->getEmailVerified());
+                    }
+
+                    if ($user->getPhoneVerified()) {
+                        $auth->updatePhoneVerification($user->getId(), $user->getPhoneVerified());
+                    }
+
+                    if ($user->getDisabled()) {
+                        $auth->updateStatus($user->getId(), !$user->getDisabled());
+                    }
+
+                    $this->logs[Log::SUCCESS][] = new Log('User imported successfully', \time(), $user);
                 }
             } catch (\Exception $e) {
                 $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $user);

@@ -33,7 +33,7 @@ class FirebaseTest extends TestCase
     
     public function setUp(): void
     {
-        $this->serviceAccount = json_decode(App::getEnv("FIREBASE_TEST_ACCOUNT"), true);
+        $this->serviceAccount = json_decode(getEnv("FIREBASE_TEST_ACCOUNT"), true);
 
         $this->firebase = new Firebase(
             $this->serviceAccount,

@@ -67,7 +67,8 @@ class Transfer
         Log::ERROR => [],
         Log::WARNING => [],
         Log::INFO => [],
-        Log::FATAL => []
+        Log::FATAL => [],
+        Log::SUCCESS => []
     ];
 
     /**
