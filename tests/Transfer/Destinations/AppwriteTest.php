@@ -79,7 +79,6 @@ class AppwriteTest extends TestCase
         $this->assertEquals($user->getEmail(), $response['email']);
         $this->assertEquals($user->getPasswordHash()->getHash(), $response['password']);
 
-
         // Cleanup
         $users->delete($user->getId());
     }

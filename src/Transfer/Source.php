@@ -30,11 +30,11 @@ abstract class Source
     protected $resourceCache = [];
 
     /**
-     * Internal Adapter State
+     * Counters
      * 
-     * @var array $state
+     * @var array $counters
      */
-    protected $state = [];
+    protected $counters = [];
 
     /**
      * Endpoint
@@ -42,6 +42,28 @@ abstract class Source
      * @var string $endpoint
      */
     protected $endpoint = '';
+
+    /**
+     * Get Resource Counters
+     * 
+     * @param string $resource
+     * 
+     * @returns array
+     */
+    public function &getCounter(string $resource): array {
+        if ($this->counters[$resource]) {
+            return $this->counters[$resource];
+        } else {
+            $this->counters[$resource] = [
+                'total' => 0,
+                'current' => 0,
+                'failed' => 0,
+                'skipped' => 0,
+            ];
+
+            return $this->counters[$resource];
+        }
+    }
 
     /**
      * Gets the name of the adapter.
@@ -67,12 +89,16 @@ abstract class Source
     }
 
     /**
-     * Register Resource Cache
+     * Register Transfer Hooks
      * 
      * @param array &$cache
+     * @param array &$counters
+     * 
+     * @return void
      */
-    public function registerResourceCache(array &$cache): void {
+    public function registerTransferHooks(array &$cache, array &$counters): void {
         $this->resourceCache = &$cache;
+        $this->counters = &$counters;
     }
 
     /**
@@ -89,9 +115,9 @@ abstract class Source
 
             switch ($resource) {
                 case Transfer::RESOURCE_USERS: {
-                    $this->exportUsers(500, function (array $users) use ($callback) {
+                    $this->exportUsers(100, function (array $users) use ($callback) {
                         $this->resourceCache = array_merge($this->resourceCache, $users);
-                        $callback(new Log('Exporting Users...'), Transfer::RESOURCE_USERS, $users);
+                        $callback(Transfer::RESOURCE_USERS, $users);
                     });
                     break;
                 }

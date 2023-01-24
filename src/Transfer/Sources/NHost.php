@@ -65,7 +65,7 @@ class NHost extends Source
                     $user['display_name'] ?? '',
                     new Hash($user['password_hash'], '', Hash::BCRYPT),
                     $user['phone_number'] ?? '',
-                    $this->calculateTypes($user),
+                    $this->calculateUserTypes($user),
                     '',
                     $user['email_verified'],
                     $user['phone_number_verified'],
@@ -78,7 +78,7 @@ class NHost extends Source
         }
     }
 
-    private function calculateTypes(array $user): array
+    private function calculateUserTypes(array $user): array
     {
         if (empty($user['password_hash']) && empty($user['phone_number']))
         {

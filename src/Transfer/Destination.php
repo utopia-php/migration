@@ -30,21 +30,23 @@ abstract class Destination
     protected $resourceCache = [];
 
     /**
-     * Internal Adapter State
-     * 
-     * @var array $state
+     * @var string
      */
-    protected $state = [];
+    protected string $endpoint = '';
 
     /**
-     * Constructor, mainly handles state initialization.
+     * Counters
      * 
-     * Automatically detects if we are running within Swoole and uses a Swoole table instead of a PHP array.
+     * @var array $counter
      */
-    public function __construct(protected string $endpoint, protected string $projectID, protected string $key)
-    {
-        $this->state = [];
-    }
+    protected $counters = [];
+
+    /**
+     * Source
+     * 
+     * @var Source $source
+     */
+    protected Source $source;
 
     /**
      * Gets the name of the adapter.
@@ -61,6 +63,27 @@ abstract class Destination
     abstract public function getSupportedResources(): array;
 
     /**
+     * Get Source
+     * 
+     * @return Source
+     */
+    public function getSource(): Source {
+        return $this->source;
+    }
+
+    /**
+     * Set Soruce
+     * 
+     * @param Source $source
+     * 
+     * @returns self
+     */
+    public function setSource(Source $source): self {
+        $this->source = $source;
+        return $this;
+    }
+
+    /**
      * Register Logs Array
      * 
      * @param array &$logs
@@ -70,12 +93,38 @@ abstract class Destination
     }
 
     /**
-     * Register Resource Cache
+     * Get Resource Counters
+     * 
+     * @param string $resource
+     * 
+     * @returns array
+     */
+    public function &getCounter(string $resource): array {
+        if ($this->counters[$resource]) {
+            return $this->counters[$resource];
+        } else {
+            $this->counters[$resource] = [
+                'total' => 0,
+                'current' => 0,
+                'failed' => 0,
+                'skipped' => 0,
+            ];
+
+            return $this->counters[$resource];
+        }
+    }
+
+    /**
+     * Register Transfer Hooks
      * 
      * @param array &$cache
+     * @param array &$counters
+     * 
+     * @return void
      */
-    public function registerResourceCache(array &$cache): void {
+    public function registerTransferHooks(array &$cache, array &$counters): void {
         $this->resourceCache = &$cache;
+        $this->counters = &$counters;
     }
 
     /**
@@ -85,20 +134,21 @@ abstract class Destination
      * @param callable $callback
      */
     public function run(array $resources, callable $callback, Source $source): void {
+        $this->source = $source;
+        
         foreach ($resources as $resource) {
             if (!in_array($resource, $this->getSupportedResources())) {
                 $this->logs[Log::FATAL] = new Log("Cannot Transfer unsupported resource: '".$resource."'");
                 throw new \Exception("Cannot Transfer unsupported resource: '".$resource."'");
             }
 
-            $source->run($resources, function (Log $currentLog, string $resourceType, array $resource) use ($callback) {
+            $source->run($resources, function (string $resourceType, array $resource) use ($callback) {
                 switch ($resourceType) {
                     case Transfer::RESOURCE_USERS: {
-                        $this->importUsers($resource);
+                        $this->importUsers($resource, $callback);
                         break;
                     }
                 }
-                $callback($currentLog, $resourceType, $resource);
             });
         }
     }
@@ -234,8 +284,9 @@ abstract class Destination
      * Import Users
      * 
      * @param array $users
+     * @param callable $callback (Progress $progress)
      */
-    protected function importUsers(array $users): void {
+    protected function importUsers(array $users, callable $callback): void {
         throw new \Exception("Not Implemented");
     }
 }

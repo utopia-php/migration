@@ -25,9 +25,9 @@ class Transfer
         $this->destination = $destination;
 
         $this->source->registerLogs($this->logs);
-        $this->source->registerResourceCache($this->resources);
+        $this->source->registerTransferHooks($this->resources, $this->counters);
         $this->destination->registerLogs($this->logs);
-        $this->destination->registerResourceCache($this->resources);
+        $this->destination->registerTransferHooks($this->resources, $this->counters);
 
         return $this;
     }
@@ -41,6 +41,44 @@ class Transfer
      * @var Destination
      */
     protected Destination $destination;
+
+    /**
+     * Counters
+     * 
+     * @var array $counter
+     */
+    protected $counters = [
+        Transfer::RESOURCE_USERS => [
+            'total' => 0,
+            'current' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+        ],
+        Transfer::RESOURCE_FILES => [
+            'total' => 0,
+            'current' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+        ],
+        Transfer::RESOURCE_FUNCTIONS => [
+            'total' => 0,
+            'current' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+        ],
+        Transfer::RESOURCE_DATABASES => [
+            'total' => 0,
+            'current' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+        ],
+        Transfer::RESOURCE_COLLECTIONS => [
+            'total' => 0,
+            'current' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+        ]
+    ];
 
     /**
      * A local cache of resources that were transferred.
@@ -85,7 +123,7 @@ class Transfer
      * Transfer Resources between adapters
      * 
      * @param array $resources
-     * @param callable $callback
+     * @param callable $callback (Progress $progress)
      */
     public function run(array $resources, callable $callback): void
     {
@@ -116,5 +154,15 @@ class Transfer
         array_multisort($timestamps, SORT_ASC, $mergedLogs);
 
         return $mergedLogs;
+    }
+
+    /**
+     * Get Resource Cache
+     * 
+     * @returns array
+     */
+    public function getResourceCache(): array
+    {
+        return $this->resources;
     }
 }

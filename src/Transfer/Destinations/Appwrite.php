@@ -7,13 +7,14 @@ use Appwrite\Services\Users;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resources\Hash;
 use Utopia\Transfer\Log;
+use Utopia\Transfer\Progress;
 use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
 
 class Appwrite extends Destination {
     protected Client $client;
 
-    public function __construct(protected string $projectID, protected string $endpoint, private string $apiKey) 
+    public function __construct(protected string $projectID, string $endpoint, private string $apiKey) 
     {
         $this->client = new Client();
         $this->client->setEndpoint($endpoint);
@@ -132,7 +133,7 @@ class Appwrite extends Destination {
         return $result;
     }
 
-    public function importUsers(array $users): void
+    public function importUsers(array $users, callable $callback): void
     {
         $auth = new Users($this->client);
 
@@ -143,6 +144,8 @@ class Appwrite extends Destination {
 
                 if (!$createdUser) {
                     $this->logs[Log::ERROR][] = new Log('Failed to import user', \time(), $user);
+                    $userCounters = &$this->getCounter(Transfer::RESOURCE_USERS);
+                    $userCounters['failed']++;
                 } else {
                     // Add more data to the user
                     if ($user->getUsername()) {
@@ -166,9 +169,24 @@ class Appwrite extends Destination {
                     }
 
                     $this->logs[Log::SUCCESS][] = new Log('User imported successfully', \time(), $user);
+                    $userCounters = &$this->getCounter(Transfer::RESOURCE_USERS);
+                    $userCounters['current']++;
+
+                    $callback(
+                        new Progress(
+                            Transfer::RESOURCE_USERS,
+                            time(),
+                            $userCounters['total'],
+                            $userCounters['current'],
+                            $userCounters['failed'],
+                            $userCounters['skipped']
+                        )
+                    );
                 }
             } catch (\Exception $e) {
                 $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $user);
+                $counter = &$this->getCounter(Transfer::RESOURCE_USERS);
+                $counter['failed']++;
             }
         }
     }

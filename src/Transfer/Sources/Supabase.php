@@ -65,7 +65,7 @@ class Supabase extends Source
                     '',
                     new Hash($user['encrypted_password'], '', Hash::BCRYPT),
                     $user['phone'] ?? '',
-                    $this->calculateTypes($user),
+                    $this->calculateAuthTypes($user),
                     '',
                     !empty($user['email_confirmed_at']),
                     !empty($user['phone_confirmed_at']),
@@ -78,7 +78,7 @@ class Supabase extends Source
         }
     }
 
-    private function calculateTypes(array $user): array
+    private function calculateAuthTypes(array $user): array
     {
         if (empty($user['encrypted_password']) && empty($user['phone']))
         {
