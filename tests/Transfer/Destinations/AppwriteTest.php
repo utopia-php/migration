@@ -36,16 +36,16 @@ class AppwriteTest extends TestCase
     public function setUp(): void
     {
         $this->appwrite = new Appwrite(
-            getenv("APPWRITE_TEST_PROJECT"),
+            getenv("DESTINATION_APPWRITE_TEST_PROJECT"),
             getenv("APPWRITE_TEST_ENDPOINT"),
-            getenv("APPWRITE_TEST_KEY")
+            getenv("DESTINATION_APPWRITE_TEST_KEY")
         );
 
         $this->client = new Client();
         $this->client
             ->setEndpoint(getenv("APPWRITE_TEST_ENDPOINT"))
-            ->setProject(getenv("APPWRITE_TEST_PROJECT"))
-            ->setKey(getenv("APPWRITE_TEST_KEY"));
+            ->setProject(getenv("DESTINATION_APPWRITE_TEST_PROJECT"))
+            ->setKey(getenv("DESTINATION_APPWRITE_TEST_KEY"));
     }
 
     public function testGetSupportedResources(): void

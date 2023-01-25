@@ -148,7 +148,6 @@ class Firebase extends Source
             throw new \Exception('Unable to fetch hash config');
         }
 
-        $count = 0;
         $nextPageToken = null;
 
         while (true) {
@@ -190,8 +189,6 @@ class Firebase extends Source
                     false, // Can't get phone number status on firebase :/
                     $user["disabled"]
                 );
-
-                $count++;
             }
 
             $callback($users);

@@ -57,16 +57,16 @@ class FirebaseToAppwriteTest extends TestCase
         $this->firebase->setProject($serviceAccount['project_id']);
 
         $this->appwrite = new Appwrite(
-            getenv("APPWRITE_TEST_PROJECT"),
+            getenv("DESTINATION_APPWRITE_TEST_PROJECT"),
             getenv("APPWRITE_TEST_ENDPOINT"),
-            getenv("APPWRITE_TEST_KEY")
+            getenv("DESTINATION_APPWRITE_TEST_KEY")
         );
 
         $this->appwriteClient = new AppwriteClient();
         $this->appwriteClient
             ->setEndpoint(getenv("APPWRITE_TEST_ENDPOINT"))
-            ->setProject(getenv("APPWRITE_TEST_PROJECT"))
-            ->setKey(getenv("APPWRITE_TEST_KEY"));
+            ->setProject(getenv("DESTINATION_APPWRITE_TEST_PROJECT"))
+            ->setKey(getenv("DESTINATION_APPWRITE_TEST_KEY"));
 
         $this->transfer = new Transfer($this->firebase, $this->appwrite);
     }
