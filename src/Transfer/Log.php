@@ -17,7 +17,7 @@ class Log {
     /**
      * Get Message
      * 
-     * @returns string
+     * @return string
      */
     public function getMessage(): string
     {
@@ -28,7 +28,7 @@ class Log {
      * Set Message
      * 
      * @param string $message
-     * @returns self
+     * @return self
      */
     public function setMessage(string $message): self
     {
@@ -39,7 +39,7 @@ class Log {
     /**
      * Get Timestamp
      * 
-     * @returns int
+     * @return int
      */
     public function getTimestamp(): int
     {
@@ -50,7 +50,7 @@ class Log {
      * Set Timestamp
      * 
      * @param int $timestamp
-     * @returns self
+     * @return self
      */
     public function setTimestamp(int $timestamp): self
     {
@@ -61,7 +61,7 @@ class Log {
     /**
      * Get Resource
      * 
-     * @returns Resource|null
+     * @return Resource|null
      */
     public function getResource(): ?Resource
     {
@@ -71,7 +71,7 @@ class Log {
     /**
      * As Array
      * 
-     * @returns array
+     * @return array
     */
     public function asArray(): array
     {

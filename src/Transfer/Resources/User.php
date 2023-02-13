@@ -30,7 +30,7 @@ class User extends Resource
     /**
      * Get Name
      * 
-     * @returns string
+     * @return string
      */
     public function getName(): string
     {
@@ -40,7 +40,7 @@ class User extends Resource
     /** 
      * Get ID
      * 
-     * @returns string
+     * @return string
     */
     public function getId(): string
     {
@@ -51,7 +51,7 @@ class User extends Resource
      * Set ID
      * 
      * @param string $id
-     * @returns self
+     * @return self
      */
     public function setId(string $id): self
     {
@@ -62,7 +62,7 @@ class User extends Resource
     /**
      * Get Email
      * 
-     * @returns string
+     * @return string
      */
     public function getEmail(): string
     {
@@ -73,7 +73,7 @@ class User extends Resource
      * Set Email
      * 
      * @param string $email
-     * @returns self
+     * @return self
      */
     public function setEmail(string $email): self
     {
@@ -84,7 +84,7 @@ class User extends Resource
     /**
      * Get Username
      * 
-     * @returns string
+     * @return string
      */
     public function getUsername(): string
     {
@@ -95,7 +95,7 @@ class User extends Resource
      * Set Username
      * 
      * @param string $username
-     * @returns self
+     * @return self
      */
     public function setUsername(string $username): self
     {
@@ -106,7 +106,7 @@ class User extends Resource
     /**
      * Get Password Hash
      * 
-     * @returns Hash
+     * @return Hash
      */
     public function getPasswordHash(): Hash
     {
@@ -117,7 +117,7 @@ class User extends Resource
      * Set Password Hash
      * 
      * @param Hash $passwordHash
-     * @returns self
+     * @return self
      */
     public function setPasswordHash(Hash $passwordHash): self
     {
@@ -128,7 +128,7 @@ class User extends Resource
     /**
      * Get Phone
      * 
-     * @returns string
+     * @return string
      */
     public function getPhone(): string
     {
@@ -139,7 +139,7 @@ class User extends Resource
      * Set Phone
      * 
      * @param string $phone
-     * @returns self
+     * @return self
      */
     public function setPhone(string $phone): self
     {
@@ -150,7 +150,7 @@ class User extends Resource
     /**
      * Get Type
      * 
-     * @returns array
+     * @return array
      */
     public function getTypes(): array
     {
@@ -161,7 +161,7 @@ class User extends Resource
      * Set Types
      * 
      * @param string $types
-     * @returns self
+     * @return self
      */
     public function setTypes(string $types): self
     {
@@ -172,7 +172,7 @@ class User extends Resource
     /**
      * Get OAuth Provider
      * 
-     * @returns string
+     * @return string
      */
     public function getOAuthProvider(): string
     {
@@ -183,7 +183,7 @@ class User extends Resource
      * Set OAuth Provider
      * 
      * @param string $oauthProvider
-     * @returns self
+     * @return self
      */
     public function setOAuthProvider(string $oauthProvider): self
     {
@@ -194,7 +194,7 @@ class User extends Resource
     /**
      * Get Email Verified
      * 
-     * @returns bool
+     * @return bool
      */
     public function getEmailVerified(): bool
     {
@@ -205,7 +205,7 @@ class User extends Resource
      * Set Email Verified
      * 
      * @param bool $verified
-     * @returns self
+     * @return self
      */
     public function setEmailVerified(bool $verified): self
     {
@@ -216,7 +216,7 @@ class User extends Resource
     /**
      * Get Email Verified
      * 
-     * @returns bool
+     * @return bool
      */
     public function getPhoneVerified(): bool
     {
@@ -227,7 +227,7 @@ class User extends Resource
      * Set Phone Verified
      * 
      * @param bool $verified
-     * @returns self
+     * @return self
      */
     public function setPhoneVerified(bool $verified): self
     {
@@ -238,7 +238,7 @@ class User extends Resource
     /**
      * Get Disabled
      * 
-     * @returns bool
+     * @return bool
      */
     public function getDisabled(): bool
     {
@@ -249,7 +249,7 @@ class User extends Resource
      * Set Disabled
      * 
      * @param bool $disabled
-     * @returns self
+     * @return self
      */
     public function setDisabled(bool $disabled): self
     {
@@ -260,7 +260,7 @@ class User extends Resource
     /**
      * Get Preferences
      * 
-     * @returns array
+     * @return array
      */
     public function getPreferences(): array
     {
@@ -271,7 +271,7 @@ class User extends Resource
      * Set Preferences
      * 
      * @param array $preferences
-     * @returns self
+     * @return self
      */
     public function setPreferences(array $preferences): self
     {
@@ -282,7 +282,7 @@ class User extends Resource
     /**
      * As Array
      * 
-     * @returns array
+     * @return array
      */
     public function asArray(): array
     {

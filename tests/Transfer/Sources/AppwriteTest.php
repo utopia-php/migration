@@ -49,7 +49,6 @@ class AppwriteTest extends TestCase
             $result = array_merge($result, $users);
         });
 
-
         foreach ($result as $user) {
             /** @var User $user */
             $this->assertIsObject($user);
@@ -59,5 +58,14 @@ class AppwriteTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertNotEmpty($result);
+    }
+
+    public function testGetDatabases(): void
+    {
+        $result = [];
+
+        $this->appwrite->exportDatabases(100, function (array $users) use (&$result) {
+            $result = array_merge($result, $users);
+        });
     }
 }

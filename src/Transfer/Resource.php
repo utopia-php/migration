@@ -38,7 +38,7 @@ abstract class Resource
     /**
      * As Array
      * 
-     * @returns array
+     * @return array
      */
     abstract public function asArray(): array;
 }

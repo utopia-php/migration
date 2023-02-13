@@ -48,7 +48,7 @@ abstract class Source
      * 
      * @param string $resource
      * 
-     * @returns array
+     * @return array
      */
     public function &getCounter(string $resource): array {
         if ($this->counters[$resource]) {
@@ -118,6 +118,13 @@ abstract class Source
                     $this->exportUsers(100, function (array $users) use ($callback) {
                         $this->resourceCache = array_merge($this->resourceCache, $users);
                         $callback(Transfer::RESOURCE_USERS, $users);
+                    });
+                    break;
+                }
+                case Transfer::RESOURCE_DATABASES: {
+                    $this->exportDatabases(100, function (array $databases) use ($callback) {
+                        $this->resourceCache = array_merge($this->resourceCache, $databases);
+                        $callback(Transfer::RESOURCE_DATABASES, $databases);
                     });
                     break;
                 }
@@ -258,9 +265,22 @@ abstract class Source
      * @param int $batchSize
      * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
      * 
-     * @returns User[] 
+     * @return User[] 
      */
     public function exportUsers(int $batchSize, callable $callback): void
+    {
+        throw new Exception('Unimplemented, Please check if your source adapter supports this method.');
+    }
+
+    /**
+     * Export Databases
+     * 
+     * @param int $batchSize Max 100
+     * @param callable $callback Callback function to be called after each database, $callback(database[] $batch);
+     * 
+     * @return void
+     */
+    public function exportDatabases(int $batchSize, callable $callback): void
     {
         throw new Exception('Unimplemented, Please check if your source adapter supports this method.');
     }

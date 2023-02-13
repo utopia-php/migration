@@ -1,0 +1,102 @@
+{
+    "databases": [
+        {
+            "name": "Default",
+            "id": "Default",
+            "collections": [
+                {
+                    "name": "test\/test2\/test3",
+                    "id": "test\/test2\/test3",
+                    "columns": [
+                        {
+                            "key": "hello",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        }
+                    ],
+                    "indexes": []
+                },
+                {
+                    "name": "test",
+                    "id": "test",
+                    "columns": [
+                        {
+                            "key": "null",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
+                            "key": "string",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
+                            "key": "geopoint",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
+                            "key": "timestamp",
+                            "required": false,
+                            "array": false,
+                            "type": "dateTimeAttribute"
+                        },
+                        {
+                            "key": "number",
+                            "required": false,
+                            "array": false,
+                            "type": "intAttribute",
+                            "min": 0,
+                            "max": 0,
+                            "default": null
+                        },
+                        {
+                            "key": "boolean",
+                            "required": false,
+                            "array": false,
+                            "type": "boolAttribute",
+                            "default": null
+                        },
+                        {
+                            "key": "array2",
+                            "required": false,
+                            "array": true,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
+                            "key": "map",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
+                            "key": "reference",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
+                            "key": "test",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        }
+                    ],
+                    "indexes": []
+                }
+            ]
+        }
+    ]
+}

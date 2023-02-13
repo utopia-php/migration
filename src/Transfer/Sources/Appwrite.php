@@ -5,12 +5,25 @@ namespace Utopia\Transfer\Sources;
 use Utopia\Transfer\Source;
 use Appwrite\Client;
 use Appwrite\Query;
+use Utopia\Transfer\Resources\Attribute;
 use Utopia\Transfer\Resources\Project;
 use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Log;
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Resources\Attributes\BoolAttribute;
+use Utopia\Transfer\Resources\Attributes\DateTimeAttribute;
+use Utopia\Transfer\Resources\Attributes\EmailAttribute;
+use Utopia\Transfer\Resources\Attributes\EnumAttribute;
+use Utopia\Transfer\Resources\Attributes\FloatAttribute;
+use Utopia\Transfer\Resources\Attributes\IntAttribute;
+use Utopia\Transfer\Resources\Attributes\IPAttribute;
+use Utopia\Transfer\Resources\Attributes\StringAttribute;
+use Utopia\Transfer\Resources\Attributes\URLAttribute;
+use Utopia\Transfer\Resources\Collection;
+use Utopia\Transfer\Resources\Database;
 use Utopia\Transfer\Resources\Hash;
+use Utopia\Transfer\Resources\Index;
 
 class Appwrite extends Source
 {
@@ -22,16 +35,15 @@ class Appwrite extends Source
     /**
      * Constructor
      * 
-     * @param string $endpoint
      * @param string $project
+     * @param string $endpoint
      * @param string $key
      * 
-     * @returns self
+     * @return self
      */
-    function __construct(string $endpoint, string $project, string $key)
+    function __construct(string $project, string $endpoint, string $key)
     {
-        $this->appwriteClient = new Client();
-        $this->appwriteClient
+        $this->appwriteClient = (new Client())
             ->setEndpoint($endpoint)
             ->setProject($project)
             ->setKey($key);
@@ -40,7 +52,7 @@ class Appwrite extends Source
     /**
      * Get Name
      * 
-     * @returns string
+     * @return string
      */
     public function getName(): string
     {
@@ -50,12 +62,13 @@ class Appwrite extends Source
     /**
      * Get Supported Resources
      * 
-     * @returns array
+     * @return array
      */
     public function getSupportedResources(): array
     {
         return [
             Transfer::RESOURCE_USERS,
+            Transfer::RESOURCE_DATABASES
         ];
     }
 
@@ -64,7 +77,7 @@ class Appwrite extends Source
      * 
      * @param array $resources
      * 
-     * @returns bool
+     * @return bool
      */
     public function check(array $resources = []): bool
     {
@@ -74,10 +87,10 @@ class Appwrite extends Source
     /**
      * Export Users
      * 
-     * @param int $batchSize Max 500
+     * @param int $batchSize Max 100
      * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
      * 
-     * @returns void
+     * @return void
      */
     public function exportUsers(int $batchSize, callable $callback): void
     {
@@ -125,12 +138,113 @@ class Appwrite extends Source
         }
     }
 
+    function convertAttribute(array $value): Attribute
+    {
+        switch ($value['type']) {
+            case 'string':
+                {
+                    if (!isset($value['format']))
+                        return new StringAttribute($value['key'], $value['required'], $value['array'], $value['default'], $value['size'] ?? 0);
+
+                    switch ($value['format']) {
+                        case 'email':
+                            return new EmailAttribute($value['key'], $value['required'], $value['array'], $value['default']);
+                        case 'enum':
+                            return new EnumAttribute($value['key'], $value['elements'], $value['required'], $value['array'], $value['default']);
+                        case 'url':
+                            return new URLAttribute($value['key'], $value['required'], $value['array'], $value['default']);
+                        case 'ip':
+                            return new IPAttribute($value['key'], $value['required'], $value['array'], $value['default']);
+                        case 'datetime':
+                            return new DateTimeAttribute($value['key'], $value['required'], $value['array'], $value['default']);
+                        default:
+                            return new StringAttribute($value['key'], $value['required'], $value['array'], $value['default'], $value['size'] ?? 0);
+                    }
+                }
+            case 'boolean':
+                return new BoolAttribute($value['key'], $value['required'], $value['array'], $value['default']);
+            case 'integer':
+                return new IntAttribute($value['key'], $value['required'], $value['array'], $value['default'], $value['min'] ?? 0, $value['max'] ?? 0);
+            case 'double':
+                return new FloatAttribute($value['key'], $value['required'], $value['array'], $value['default'], $value['min'] ?? 0, $value['max'] ?? 0);
+        }
+
+        throw new \Exception('Unknown attribute type: ' . $value['type']);
+    }
+
+    /**
+     * Export Databases
+     * 
+     * @param int $batchSize Max 100
+     * @param callable $callback Callback function to be called after each database, $callback(database[] $batch);
+     * 
+     * @return void
+     */
+    public function exportDatabases(int $batchSize, callable $callback): void
+    {
+        $databaseClient = new \Appwrite\Services\Databases($this->appwriteClient);
+
+        $lastDocument = null;
+
+        while (true) {
+            $queries = [
+                Query::limit($batchSize)
+            ];
+
+            $databases = [];
+
+            if ($lastDocument) {
+                $queries[] = Query::cursorAfter($lastDocument);
+            }
+
+            $response = $databaseClient->list($queries);
+
+            foreach ($response['databases'] as $database) {
+                $newDatabase = new Database($database['name'], $database['$id']);
+
+                $collections = $databaseClient->listCollections($database['$id']);
+
+                $generalCollections = [];
+                foreach ($collections['collections'] as $collection) {
+                    $newCollection = new Collection($collection['name'], $collection['$id']);
+                    
+                    $attributes = [];
+                    $indexes = [];
+
+                    foreach ($collection['attributes'] as $attribute) {
+                        $attributes[] = $this->convertAttribute($attribute);
+                    }
+
+                    foreach($collection['indexes'] as $index) {
+                        $indexes[] = new Index($index['key'], $index['type'], $index['attributes'], $index['orders']);
+                    }
+
+                    $newCollection->setAttributes($attributes);
+                    $newCollection->setIndexes($indexes);
+                    
+                    $generalCollections[] = $newCollection;
+                }
+
+                $newDatabase->setCollections($generalCollections);
+                $databases[] = $newDatabase;
+
+                $lastDocument = $database['$id'];
+            }
+
+            $callback($databases);
+
+            if (count($response['databases']) < $batchSize) {
+                break;
+            }
+        }
+    }
+
     /**
      * Calculate Types
      * 
      * @param array $user
      * 
-     * @returns array
+     * @return array
      */
     protected function calculateTypes(array $user): array
     {

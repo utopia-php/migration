@@ -2,24 +2,39 @@
 
 namespace Utopia\Transfer\Destinations;
 
+use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Services\Users;
+use Appwrite\Services\Databases as DatabasesService;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resources\Hash;
 use Utopia\Transfer\Log;
 use Utopia\Transfer\Progress;
+use Utopia\Transfer\Resources\Attribute;
 use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
+use Utopia\Transfer\Resources\Database;
+use Utopia\Transfer\Resources\Collection;
+use Utopia\Transfer\Resources\Attributes\BoolAttribute;
+use Utopia\Transfer\Resources\Attributes\DateTimeAttribute;
+use Utopia\Transfer\Resources\Attributes\EmailAttribute;
+use Utopia\Transfer\Resources\Attributes\EnumAttribute;
+use Utopia\Transfer\Resources\Attributes\FloatAttribute;
+use Utopia\Transfer\Resources\Attributes\IntAttribute;
+use Utopia\Transfer\Resources\Attributes\IPAttribute;
+use Utopia\Transfer\Resources\Attributes\StringAttribute;
+use Utopia\Transfer\Resources\Attributes\URLAttribute;
+use Utopia\Transfer\Resources\Index;
 
 class Appwrite extends Destination {
     protected Client $client;
 
-    public function __construct(protected string $projectID, string $endpoint, private string $apiKey) 
+    public function __construct(protected string $project, string $endpoint, private string $key) 
     {
-        $this->client = new Client();
-        $this->client->setEndpoint($endpoint);
-        $this->client->setProject($projectID);
-        $this->client->setKey($apiKey);
+        $this->client = (new Client())
+            ->setEndpoint($endpoint)
+            ->setProject($project)
+            ->setKey($key);
     }
 
     /**
@@ -40,7 +55,7 @@ class Appwrite extends Destination {
         return [
             Transfer::RESOURCE_USERS,
             Transfer::RESOURCE_DATABASES,
-            Transfer::RESOURCE_COLLECTIONS,
+            Transfer::RESOURCE_DOCUMENTS,
             Transfer::RESOURCE_FILES,
             Transfer::RESOURCE_FUNCTIONS
         ];
@@ -135,6 +150,7 @@ class Appwrite extends Destination {
 
     public function importUsers(array $users, callable $callback): void
     {
+        $userCounters = &$this->getCounter(Transfer::RESOURCE_USERS);
         $auth = new Users($this->client);
 
         foreach ($users as $user) {
@@ -169,19 +185,7 @@ class Appwrite extends Destination {
                     }
 
                     $this->logs[Log::SUCCESS][] = new Log('User imported successfully', \time(), $user);
-                    $userCounters = &$this->getCounter(Transfer::RESOURCE_USERS);
                     $userCounters['current']++;
-
-                    $callback(
-                        new Progress(
-                            Transfer::RESOURCE_USERS,
-                            time(),
-                            $userCounters['total'],
-                            $userCounters['current'],
-                            $userCounters['failed'],
-                            $userCounters['skipped']
-                        )
-                    );
                 }
             } catch (\Exception $e) {
                 $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $user);
@@ -189,5 +193,170 @@ class Appwrite extends Destination {
                 $counter['failed']++;
             }
         }
+
+        $callback(
+            new Progress(
+                Transfer::RESOURCE_USERS,
+                time(),
+                $userCounters['total'],
+                $userCounters['current'],
+                $userCounters['failed'],
+                $userCounters['skipped']
+            )
+        );
+    }
+
+    public function createAttribute(Attribute $attribute, Collection $collection, Database $database): void
+    {
+        $databaseService = new DatabasesService($this->client);
+        
+        try {
+            switch ($attribute->getName()) {
+                case Attribute::TYPE_STRING:
+                    /** @var StringAttribute $attribute */
+                    $databaseService->createStringAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getSize(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                    break;
+                case Attribute::TYPE_INTEGER:
+                    /** @var IntAttribute $attribute */
+                    $databaseService->createIntegerAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getMin(), $attribute->getMax(), $attribute->getDefault(), $attribute->getArray());
+                    break;
+                case Attribute::TYPE_FLOAT:
+                    /** @var FloatAttribute $attribute */
+                    $databaseService->createFloatAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                    break;
+                case Attribute::TYPE_BOOLEAN:
+                    /** @var BoolAttribute $attribute */
+                    $databaseService->createBooleanAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                    break;
+                case Attribute::TYPE_DATETIME:
+                    /** @var DateTimeAttribute $attribute */
+                    $databaseService->createDateTimeAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                    break;
+                case Attribute::TYPE_EMAIL:
+                    /** @var EmailAttribute $attribute */
+                    $databaseService->createEmailAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                    break;
+                case Attribute::TYPE_IP:
+                    /** @var IPAttribute $attribute */
+                    $databaseService->createIPAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                    break;
+                case Attribute::TYPE_URL:
+                    /** @var URLAttribute $attribute */
+                    $databaseService->createUrlAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                    break;
+                case Attribute::TYPE_ENUM:
+                    /** @var EnumAttribute $attribute */
+                    $databaseService->createEnumAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getElements(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                    break;
+            }
+        } catch (\Exception $e) {
+            $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $attribute);
+        }
+    }
+
+    /**
+     * Validate Attributes Creation
+     * 
+     * @param Attribute[] $attributes
+     * @param Collection $collection
+     * @param Database $database
+     * 
+     * @return bool
+     */
+    public function validateAttributesCreation(array $attributes, Collection $collection, Database $database): bool
+    {
+        $databaseService = new DatabasesService($this->client);
+        $destinationAttributes = $databaseService->listAttributes($database->getId(), $collection->getId())['attributes'];
+
+        foreach ($attributes as $attribute) {
+            /** @var Attribute $attribute */
+            $foundAttribute = null;
+
+            foreach ($destinationAttributes as $destinationAttribute) {
+                if ($destinationAttribute['key'] === $attribute->getKey()) {
+                    $foundAttribute = $destinationAttribute;
+                    break;
+                }
+            }
+
+            if ($foundAttribute) {
+                if ($foundAttribute['status'] !== 'available') {
+                    return false;
+                } else {
+                    continue;
+                }
+            } else {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Import Databases
+     * 
+     * @param array $databases
+     * @param callable $callback
+     * 
+     * @return void
+     */
+    public function importDatabases(array $databases, callable $callback): void
+    {
+        $databaseCounters = &$this->getCounter(Transfer::RESOURCE_DATABASES);
+        $databaseService = new DatabasesService($this->client);
+
+        foreach ($databases as $database) {
+            /** @var Database $database */
+            try {
+                $databaseService->create($database->getId(), $database->getDBName());
+            
+                foreach ($database->getCollections() as $collection) {
+                    /** @var Collection $collection */
+                    var_dump($collection->getCollectionName());
+                    var_dump(preg_replace('/[^a-zA-Z0-9_ -]/s','_', $collection->getCollectionName()));
+                    $databaseService->createCollection($database->getId(), $collection->getId(), preg_replace('/[^a-zA-Z0-9_ -]/s','_', $collection->getCollectionName()));
+    
+                    foreach ($collection->getAttributes() as $attribute) {
+                        /** @var Attribute $attribute */
+                        $this->createAttribute($attribute, $collection, $database);
+                    }
+
+                    // We need to wait for all the attributes to be created before creating the indexes.
+                    $timeout = 0;
+
+                    while (!$this->validateAttributesCreation($collection->getAttributes(), $collection, $database)) {
+                        if ($timeout > 10) {
+                            throw new AppwriteException('Timeout while waiting for attributes to be created');
+                        }
+
+                        $timeout++;
+                        \sleep(1);
+                    }
+    
+                    foreach ($collection->getIndexes() as $index) {
+                        /** @var Index $index */
+                        $databaseService->createIndex($database->getId(), $collection->getId(), $index->getKey(), $index->getType(), $index->getAttributes(), $index->getOrders());
+                    }
+                }
+
+                $this->logs[Log::SUCCESS][] = new Log('Database imported successfully', \time(), $database);
+                $databaseCounters['current']++;
+            } catch (AppwriteException $e) {
+                $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $database);
+                $databaseCounters['failed']++;
+            }
+        }
+
+        $callback(
+            new Progress(
+                Transfer::RESOURCE_DATABASES,
+                time(),
+                $databaseCounters['total'],
+                $databaseCounters['current'],
+                $databaseCounters['failed'],
+                $databaseCounters['skipped']
+            )
+        );
     }
 }

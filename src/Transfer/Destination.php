@@ -76,7 +76,7 @@ abstract class Destination
      * 
      * @param Source $source
      * 
-     * @returns self
+     * @return self
      */
     public function setSource(Source $source): self {
         $this->source = $source;
@@ -97,7 +97,7 @@ abstract class Destination
      * 
      * @param string $resource
      * 
-     * @returns array
+     * @return array
      */
     public function &getCounter(string $resource): array {
         if ($this->counters[$resource]) {
@@ -146,6 +146,10 @@ abstract class Destination
                 switch ($resourceType) {
                     case Transfer::RESOURCE_USERS: {
                         $this->importUsers($resource, $callback);
+                        break;
+                    }
+                    case Transfer::RESOURCE_DATABASES: {
+                        $this->importDatabases($resource, $callback);
                         break;
                     }
                 }
@@ -287,6 +291,16 @@ abstract class Destination
      * @param callable $callback (Progress $progress)
      */
     protected function importUsers(array $users, callable $callback): void {
+        throw new \Exception("Not Implemented");
+    }
+
+    /**
+     * Import Database
+     * 
+     * @param array $databases
+     * @param callable $callback (Progress $progress)
+     */
+    protected function importDatabases(array $databases, callable $callback): void {
         throw new \Exception("Not Implemented");
     }
 }

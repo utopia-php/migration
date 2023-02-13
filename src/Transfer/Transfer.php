@@ -11,7 +11,7 @@ class Transfer
     const RESOURCE_FILES = 'files';
     const RESOURCE_FUNCTIONS = 'functions';
     const RESOURCE_DATABASES = 'databases';
-    const RESOURCE_COLLECTIONS = 'collections';
+    const RESOURCE_DOCUMENTS = 'documents';
 
     /**
      * @param Source $source
@@ -72,7 +72,7 @@ class Transfer
             'failed' => 0,
             'skipped' => 0,
         ],
-        Transfer::RESOURCE_COLLECTIONS => [
+        Transfer::RESOURCE_DOCUMENTS => [
             'total' => 0,
             'current' => 0,
             'failed' => 0,
@@ -86,7 +86,7 @@ class Transfer
      * @var array
      */
     protected array $resources = [
-        self::RESOURCE_COLLECTIONS => [],
+        self::RESOURCE_DOCUMENTS => [],
         self::RESOURCE_DATABASES => [],
         self::RESOURCE_FILES => [],
         self::RESOURCE_FUNCTIONS => [],
@@ -159,7 +159,7 @@ class Transfer
     /**
      * Get Resource Cache
      * 
-     * @returns array
+     * @return array
      */
     public function getResourceCache(): array
     {

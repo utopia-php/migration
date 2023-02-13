@@ -30,7 +30,7 @@ class Hash extends Resource {
     /**
      * Get Hash
      * 
-     * @returns string
+     * @return string
      */
     public function getHash(): string
     {
@@ -41,7 +41,7 @@ class Hash extends Resource {
      * Set Hash
      * 
      * @param string $hash
-     * @returns self
+     * @return self
      */
     public function setHash(string $hash): self
     {
@@ -52,7 +52,7 @@ class Hash extends Resource {
     /**
      * Get Salt
      * 
-     * @returns string
+     * @return string
      */
     public function getSalt(): string
     {
@@ -63,7 +63,7 @@ class Hash extends Resource {
      * Set Salt
      * 
      * @param string $salt
-     * @returns self
+     * @return self
      */
     public function setSalt(string $salt): self
     {
@@ -74,7 +74,7 @@ class Hash extends Resource {
     /**
      * Get Algorithm
      * 
-     * @returns string
+     * @return string
      */
     public function getAlgorithm(): string
     {
@@ -85,7 +85,7 @@ class Hash extends Resource {
      * Set Algorithm
      * 
      * @param string $algorithm
-     * @returns self
+     * @return self
      */
     public function setAlgorithm(string $algorithm): self
     {
@@ -96,7 +96,7 @@ class Hash extends Resource {
     /**
      * Get Separator
      * 
-     * @returns string
+     * @return string
      */
     public function getSeparator(): string
     {
@@ -107,7 +107,7 @@ class Hash extends Resource {
      * Set Separator
      * 
      * @param string $separator
-     * @returns self
+     * @return self
      */
     public function setSeparator(string $separator): self
     {
@@ -118,7 +118,7 @@ class Hash extends Resource {
     /**
      * Get Signing Key
      * 
-     * @returns string
+     * @return string
      */
     public function getSigningKey(): string
     {
@@ -129,7 +129,7 @@ class Hash extends Resource {
      * Set Signing Key
      * 
      * @param string $signingKey
-     * @returns self
+     * @return self
      */
     public function setSigningKey(string $signingKey): self
     {
@@ -140,7 +140,7 @@ class Hash extends Resource {
     /**
      * Get Password CPU
      * 
-     * @returns int
+     * @return int
      */
     public function getPasswordCpu(): int
     {
@@ -151,7 +151,7 @@ class Hash extends Resource {
      * Set Password CPU
      * 
      * @param int $passwordCpu
-     * @returns self
+     * @return self
      */
     public function setPasswordCpu(int $passwordCpu): self
     {
@@ -162,7 +162,7 @@ class Hash extends Resource {
     /**
      * Get Password Memory
      * 
-     * @returns int
+     * @return int
      */
     public function getPasswordMemory(): int
     {
@@ -173,7 +173,7 @@ class Hash extends Resource {
      * Set Password Memory
      * 
      * @param int $passwordMemory
-     * @returns self
+     * @return self
      */
     public function setPasswordMemory(int $passwordMemory): self
     {
@@ -184,7 +184,7 @@ class Hash extends Resource {
     /**
      * Get Password Parallel
      * 
-     * @returns int
+     * @return int
      */
     public function getPasswordParallel(): int
     {
@@ -195,7 +195,7 @@ class Hash extends Resource {
      * Set Password Parallel
      * 
      * @param int $passwordParallel
-     * @returns self
+     * @return self
      */
     public function setPasswordParallel(int $passwordParallel): self
     {
@@ -206,7 +206,7 @@ class Hash extends Resource {
     /**
      * Get Password Length
      * 
-     * @returns int
+     * @return int
      */
     public function getPasswordLength(): int
     {
@@ -217,7 +217,7 @@ class Hash extends Resource {
      * Set Password Length
      * 
      * @param int $passwordLength
-     * @returns self
+     * @return self
      */
     public function setPasswordLength(int $passwordLength): self
     {
@@ -228,7 +228,7 @@ class Hash extends Resource {
     /**
      * As Array
      * 
-     * @returns array
+     * @return array
      */
     public function asArray(): array
     {

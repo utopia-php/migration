@@ -2,11 +2,21 @@
 
 namespace Utopia\Transfer\Sources;
 
+use Exception;
 use Utopia\Transfer\Source;
 use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Log;
 use Utopia\Transfer\Resources\Hash;
+use Utopia\Transfer\Resources\Attributes\BoolAttribute;
+use Utopia\Transfer\Resources\Attributes\DateTimeAttribute;
+use Utopia\Transfer\Resources\Attributes\FloatAttribute;
+use Utopia\Transfer\Resources\Attributes\IntAttribute;
+use Utopia\Transfer\Resources\Attributes\StringAttribute;
+use Utopia\Transfer\Resources\Collection;
+use Utopia\Transfer\Resources\Attribute;
+use Utopia\Transfer\Resources\Database;
+use Utopia\Transfer\Resources\Index;
 
 class Supabase extends Source
 {
@@ -28,7 +38,8 @@ class Supabase extends Source
     function getSupportedResources(): array
     {
         return [
-            Transfer::RESOURCE_USERS
+            Transfer::RESOURCE_USERS,
+            Transfer::RESOURCE_DATABASES
         ];
     }
 
@@ -38,7 +49,7 @@ class Supabase extends Source
      * @param int $batchSize Max 500
      * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
      * 
-     * @returns User[] 
+     * @return User[] 
      */
     public function exportUsers(int $batchSize, callable $callback): void
     {
@@ -76,6 +87,136 @@ class Supabase extends Source
 
             $callback($transferUsers);
         }
+    }
+
+    /**
+     * Convert Collection
+     * 
+     * @param string $tableName
+     * @return Collection
+     */
+    private function convertCollection(string $tableName): Collection
+    {
+        $statement = $this->pdo->prepare('SELECT * FROM information_schema."columns" where "table_name" = :tableName');
+        $statement->bindValue(':tableName', $tableName, \PDO::PARAM_STR);
+        $statement->execute();
+        $databaseCollection = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+        $convertedCollection = new Collection($tableName, $tableName);
+
+        $attributes = [];
+
+        foreach ($databaseCollection as $column) {
+            $attributes[] = $this->convertAttribute($column);
+        }
+        $convertedCollection->setAttributes($attributes);
+
+        return $convertedCollection;
+    }
+
+    /**
+     * Convert Attribute
+     * 
+     * @param array $column
+     * @return Attribute
+     */
+    private function convertAttribute(array $column): Attribute
+    {
+        $isArray = $column['data_type'] === 'ARRAY';
+
+        switch ($isArray ? str_replace('_', '', $column['udt_name']) : $column['data_type']) {
+            // Numbers
+            case 'boolean':
+            case 'bool':
+                return new BoolAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+            case 'smallint':
+            case 'int2':
+                return new IntAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -32768, 32767);
+            case 'integer':
+            case 'int4':
+                return new IntAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -2147483648, 2147483647);
+            case 'bigint':
+            case 'int8':
+            case 'numeric':
+                return new IntAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+            case 'decimal':
+            case 'real':
+            case 'double precision':
+            case 'float4':
+            case 'float8':
+                return new FloatAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+            // Time (Conversion happens with documents)
+            case 'timestamp with time zone':
+            case 'date':
+            case 'time with time zone':
+            case 'timestamp without time zone':
+            case 'timestamptz':
+            case 'timestamp':
+            case 'time':
+            case 'timetz':
+                return new DateTimeAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, ($column['column_default'] === 'now()') ? 'now()' : ($column['column_default'] ?? null));
+                break;
+            // Strings and Objects
+            case 'uuid':
+            case 'character varying':
+            case 'text':
+            case 'character':
+            case 'json':
+            case 'jsonb':
+            case 'varchar':
+                return new StringAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, 
+                    $column['column_default'], 
+                    $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760);
+                break;
+            default: {
+                $this->logs[Log::WARNING][] = new Log('Unknown data type: ' . $column['data_type'] . ' for column: ' . $column['column_name'] . ' Falling back to string.', \time());
+                return new StringAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, 
+                    $column['column_default'], 
+                    $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760);
+                break;
+            }
+        }
+    }
+
+    /**
+     * Export Databases
+     * 
+     * @param int $batchSize Max 100
+     * @param callable $callback Callback function to be called after each database, $callback(database[] $batch);
+     * 
+     * @return void
+     */
+    public function exportDatabases(int $batchSize, callable $callback): void
+    {
+        $total = $this->pdo->query('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'')->fetchColumn();
+
+        $offset = 0;
+
+        // We'll only transfer the public database for now, since it's the only one that exists by default.
+        //TODO: Handle edge cases where there are user created databases.
+
+        $transferDatabase = new Database('public', 'public');
+
+        while ($offset < $total) {
+            $statement = $this->pdo->prepare('SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\' order by table_name LIMIT :limit OFFSET :offset');
+            $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
+            $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
+            $statement->execute();
+
+            $tables = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+            $offset += $batchSize;
+
+            $transferCollections = [];
+
+            foreach ($tables as $table) {
+                $transferCollections[] = $this->convertCollection($table['table_name']);
+            }
+
+            $transferDatabase->setCollections($transferCollections);
+        }
+
+        $callback([$transferDatabase]);
     }
 
     private function calculateAuthTypes(array $user): array
