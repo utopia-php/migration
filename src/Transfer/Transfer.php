@@ -43,6 +43,11 @@ class Transfer
     protected Destination $destination;
 
     /**
+     * @var string
+     */
+    protected string $currentResource;
+
+    /**
      * Counters
      * 
      * @var array $counter
@@ -127,7 +132,11 @@ class Transfer
      */
     public function run(array $resources, callable $callback): void
     {
-        $this->destination->run($resources, $callback, $this->source);
+        $this->destination->run($resources, function (Progress $progress) use ($callback) {
+            $this->currentResource = $progress->getResourceType();
+
+            $callback($progress);
+        }, $this->source);
     }
 
     /**
@@ -164,5 +173,16 @@ class Transfer
     public function getResourceCache(): array
     {
         return $this->resources;
+    }
+
+    /**
+     *  Get Current Resource
+     * 
+     * @return string
+     **/
+
+    public function getCurrentResource(): string
+    {
+        return $this->currentResource;
     }
 }
