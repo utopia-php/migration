@@ -5,6 +5,20 @@
             "id": "Default",
             "collections": [
                 {
+                    "name": "test\/test2\/test2",
+                    "id": "test\/test2\/test2",
+                    "columns": [
+                        {
+                            "key": "test",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        }
+                    ],
+                    "indexes": []
+                },
+                {
                     "name": "test\/test2\/test3",
                     "id": "test\/test2\/test3",
                     "columns": [
@@ -19,11 +33,39 @@
                     "indexes": []
                 },
                 {
+                    "name": "test\/test2\/test4",
+                    "id": "test\/test2\/test4",
+                    "columns": [
+                        {
+                            "key": "asd",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        }
+                    ],
+                    "indexes": []
+                },
+                {
                     "name": "test",
                     "id": "test",
                     "columns": [
                         {
-                            "key": "null",
+                            "key": "array2",
+                            "required": false,
+                            "array": true,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
+                            "key": "boolean",
+                            "required": false,
+                            "array": false,
+                            "type": "boolAttribute",
+                            "default": null
+                        },
+                        {
+                            "key": "map",
                             "required": false,
                             "array": false,
                             "type": "stringAttribute",
@@ -38,6 +80,20 @@
                         },
                         {
                             "key": "geopoint",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
+                            "key": "null",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
+                            "key": "reference",
                             "required": false,
                             "array": false,
                             "type": "stringAttribute",
@@ -59,35 +115,63 @@
                             "default": null
                         },
                         {
-                            "key": "boolean",
+                            "key": "test",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        }
+                    ],
+                    "indexes": []
+                },
+                {
+                    "name": "users\/C2n8vRP0ldL1haX46zM5\/preferences",
+                    "id": "users\/C2n8vRP0ldL1haX46zM5\/preferences",
+                    "columns": [
+                        {
+                            "key": "test",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        }
+                    ],
+                    "indexes": []
+                },
+                {
+                    "name": "users\/qN9XWIunUqKcnuwupjsl\/preferences",
+                    "id": "users\/qN9XWIunUqKcnuwupjsl\/preferences",
+                    "columns": [
+                        {
+                            "key": "tet",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
+                            "key": "hjasbdjhsabd",
                             "required": false,
                             "array": false,
                             "type": "boolAttribute",
                             "default": null
-                        },
+                        }
+                    ],
+                    "indexes": []
+                },
+                {
+                    "name": "users",
+                    "id": "users",
+                    "columns": [
                         {
-                            "key": "array2",
-                            "required": false,
-                            "array": true,
-                            "type": "stringAttribute",
-                            "size": 1000000
-                        },
-                        {
-                            "key": "map",
-                            "required": false,
-                            "array": false,
-                            "type": "stringAttribute",
-                            "size": 1000000
-                        },
-                        {
-                            "key": "reference",
+                            "key": "username",
                             "required": false,
                             "array": false,
                             "type": "stringAttribute",
                             "size": 1000000
                         },
                         {
-                            "key": "test",
+                            "key": "username",
                             "required": false,
                             "array": false,
                             "type": "stringAttribute",

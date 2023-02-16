@@ -62,7 +62,7 @@ $sourceFirebase->setProject($sourceFirebase->getProjects()[0]);
 
 $transfer = new Transfer(
     $sourceFirebase,
-    $destinationLocal
+    $destinationAppwrite
 );
 
 /** Run Transfer */
@@ -75,5 +75,3 @@ if (!empty($transfer->getLogs(Log::ERROR))) {
 
     var_dump($transfer->getLogs(Log::ERROR));
 }
-
-var_dump($transfer->getLogs(Log::WARNING));

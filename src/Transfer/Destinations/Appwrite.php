@@ -26,10 +26,11 @@ use Utopia\Transfer\Resources\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Attributes\URLAttribute;
 use Utopia\Transfer\Resources\Index;
 
-class Appwrite extends Destination {
+class Appwrite extends Destination
+{
     protected Client $client;
 
-    public function __construct(protected string $project, string $endpoint, private string $key) 
+    public function __construct(protected string $project, string $endpoint, private string $key)
     {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
@@ -42,7 +43,8 @@ class Appwrite extends Destination {
      * 
      * @return string
      */
-    public function getName(): string {
+    public function getName(): string
+    {
         return 'Appwrite';
     }
 
@@ -51,7 +53,8 @@ class Appwrite extends Destination {
      * 
      * @return array
      */
-    public function getSupportedResources(): array {
+    public function getSupportedResources(): array
+    {
         return [
             Transfer::RESOURCE_USERS,
             Transfer::RESOURCE_DATABASES,
@@ -64,7 +67,7 @@ class Appwrite extends Destination {
     public function check(array $resources = []): bool
     {
         $auth = new Users($this->client);
-        
+
         try {
             $auth->list();
         } catch (\Exception $e) {
@@ -86,7 +89,7 @@ class Appwrite extends Destination {
         }
 
         switch ($hash->getAlgorithm()) {
-            case Hash::SCRYPT_MODIFIED: 
+            case Hash::SCRYPT_MODIFIED:
                 $result = $auth->createScryptModifiedUser(
                     $user->getId(),
                     $user->getEmail(),
@@ -209,7 +212,7 @@ class Appwrite extends Destination {
     public function createAttribute(Attribute $attribute, Collection $collection, Database $database): void
     {
         $databaseService = new DatabasesService($this->client);
-        
+
         try {
             switch ($attribute->getName()) {
                 case Attribute::TYPE_STRING:
@@ -310,14 +313,47 @@ class Appwrite extends Destination {
             /** @var Database $database */
             try {
                 $databaseService->create($database->getId(), $database->getDBName());
-            
+
+                $createdCollections = [];
+
                 foreach ($database->getCollections() as $collection) {
                     /** @var Collection $collection */
-                    var_dump($collection->getCollectionName());
-                    var_dump(preg_replace('/[^a-zA-Z0-9_ -]/s','_', $collection->getCollectionName()));
-                    $databaseService->createCollection($database->getId(), $collection->getId(), preg_replace('/[^a-zA-Z0-9_ -]/s','_', $collection->getCollectionName()));
-    
-                    foreach ($collection->getAttributes() as $attribute) {
+                    $createdAttributes = [];
+
+                    // Get filename and parent directory
+                    $path = \explode('/', $collection->getCollectionName());
+
+                    $collectionName = $path[count($path) - 1];
+
+                    if (isset($path[count($path) - 2])) {
+                        $collectionName = $path[count($path) - 2]."/".$collectionName;
+                    }
+
+                    // Handle special chars
+                    $collectionName = \str_replace([' ', '(', ')', '[', ']', '{', '}', '<', '>', ':', ';', ',', '.', '?', '\\', '|', '=', '+', '*', '&', '^', '%', '$', '#', '@', '!', '~', '`', '"', "'"], '_', $collectionName);
+
+                    // Check name length
+                    if (\strlen($collectionName) > 120) {
+                        $collectionName = \substr($collectionName, 0, 120);
+                    }
+
+                    $newCollection = $databaseService->createCollection($database->getId(), "unique()", $collectionName);
+                    $collection->setId($newCollection['$id']);
+
+                    // Remove duplicate attributes
+                    $filteredAttributes = \array_filter($collection->getAttributes(), function ($attribute) use (&$createdAttributes) {
+                        if (\in_array($attribute->getKey(), $createdAttributes)) {
+                            return false;
+                        }
+
+                        $createdAttributes[] = $attribute->getKey();
+
+                        return true;
+                    });
+
+                    $filteredAttributes[] = new StringAttribute($collection->getId(), false, false, null, 1000000);
+
+                    foreach ($filteredAttributes as $attribute) {
                         /** @var Attribute $attribute */
                         $this->createAttribute($attribute, $collection, $database);
                     }
@@ -326,18 +362,32 @@ class Appwrite extends Destination {
                     $timeout = 0;
 
                     while (!$this->validateAttributesCreation($collection->getAttributes(), $collection, $database)) {
-                        if ($timeout > 10) {
+                        if ($timeout > 60) {
                             throw new AppwriteException('Timeout while waiting for attributes to be created');
                         }
 
                         $timeout++;
                         \sleep(1);
                     }
-    
+
                     foreach ($collection->getIndexes() as $index) {
                         /** @var Index $index */
                         $databaseService->createIndex($database->getId(), $collection->getId(), $index->getKey(), $index->getType(), $index->getAttributes(), $index->getOrders());
                     }
+
+                    $createdCollections[] = $collection;
+                }
+
+                $refCollectionID = $databaseService->createCollection($database->getId(), 'refs', 'References')['$id'];
+                $databaseService->createStringAttribute($database->getId(), $refCollectionID, 'original_name', 1000000, true);
+
+                sleep(2);
+
+                foreach ($createdCollections as $collection) {
+                    /** @var Collection $collection */
+                    $result = $databaseService->createDocument($database->getId(), $refCollectionID, $collection->getId(), [
+                        'original_name' => $collection->getCollectionName()
+                    ]);
                 }
 
                 $this->logs[Log::SUCCESS][] = new Log('Database imported successfully', \time(), $database);
