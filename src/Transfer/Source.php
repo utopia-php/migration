@@ -265,7 +265,7 @@ abstract class Source
      * @param int $batchSize
      * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
      * 
-     * @return User[] 
+     * @return void
      */
     public function exportUsers(int $batchSize, callable $callback): void
     {
