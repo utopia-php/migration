@@ -21,7 +21,7 @@
     },
     "require": {
         "php": ">=8.0",
-        "utopia-php/cli": "^0.14.0",
+        "utopia-php/cli": "^0.13.0",
         "google/apiclient": "^2.12.1",
         "appwrite/appwrite": "^7.2"
     },
