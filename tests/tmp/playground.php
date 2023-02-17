@@ -62,7 +62,7 @@ $sourceFirebase->setProject($sourceFirebase->getProjects()[0]);
 
 $transfer = new Transfer(
     $sourceFirebase,
-    $destinationAppwrite
+    $destinationLocal
 );
 
 /** Run Transfer */

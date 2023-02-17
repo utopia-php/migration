@@ -17,9 +17,27 @@ class Hash extends Resource {
     public const PHPASS = 'PHPass';
     public const SCRYPT = 'Scrypt';
 
+    private string $hash;
+    private string $salt = '';
+    private string $algorithm = self::SHA256;
+    private string $separator = '';
+    private string $signingKey = '';
+    private int $passwordCpu = 0;
+    private int $passwordMemory = 0;
+    private int $passwordParallel = 0;
+    private int $passwordLength = 0;
 
-    public function __construct(private string $hash, private string $salt = '', private string $algorithm = self::SHA256, private string $separator = '', private string $signingKey = '', private int $passwordCpu = 0, private int $passwordMemory = 0, private int $passwordParallel = 0, private int $passwordLength = 0)
+    public function __construct(string $hash, string $salt = '', string $algorithm = self::SHA256, string $separator = '', string $signingKey = '', int $passwordCpu = 0, int $passwordMemory = 0, int $passwordParallel = 0, int $passwordLength = 0)
     {
+        $this->hash = $hash;
+        $this->salt = $salt;
+        $this->algorithm = $algorithm;
+        $this->separator = $separator;
+        $this->signingKey = $signingKey;
+        $this->passwordCpu = $passwordCpu;
+        $this->passwordMemory = $passwordMemory;
+        $this->passwordParallel = $passwordParallel;
+        $this->passwordLength = $passwordLength;
     }
 
     public function getName(): string

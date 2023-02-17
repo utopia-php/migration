@@ -23,9 +23,50 @@ class NHost extends Source
      */
     public $pdo;
 
-    function __construct(private string $host, private string $databaseName, private string $username, private string $password, private string $port = '5432')
+    /**
+     * @var string
+     */
+    public string $host;
+
+    /**
+     * @var string
+     */
+    public string $databaseName;
+
+    /**
+     * @var string
+     */
+    public string $username;
+
+    /**
+     * @var string
+     */
+    public string $password;
+
+    /**
+     * @var string
+     */
+    public string $port;
+
+    /**
+     * Constructor
+     * 
+     * @param string $host
+     * @param string $databaseName
+     * @param string $username
+     * @param string $password
+     * @param string $port
+     * 
+     * @return self
+     */
+    function __construct(string $host, string $databaseName, string $username, string $password, string $port = '5432')
     {
-        $this->pdo = new \PDO("pgsql:host={$this->host};port={$this->port};dbname={$this->databaseName}", $this->username, $this->password);
+        $this->host = $host;
+        $this->databaseName = $databaseName;
+        $this->username = $username;
+        $this->password = $password;
+        $this->port = $port;
+        $this->pdo = new \PDO("pgsql:host=".$this->host.";port=".$this->port.";dbname=".$this->databaseName, $this->username, $this->password);
     }
 
     function getName(): string
@@ -93,7 +134,7 @@ class NHost extends Source
      * @param string $tableName
      * @return Collection
      */
-    private function convertCollection(string $tableName): Collection
+    public function convertCollection(string $tableName): Collection
     {
         $statement = $this->pdo->prepare('SELECT * FROM information_schema."columns" where "table_name" = :tableName');
         $statement->bindValue(':tableName', $tableName, \PDO::PARAM_STR);
@@ -118,7 +159,7 @@ class NHost extends Source
      * @param array $column
      * @return Attribute
      */
-    private function convertAttribute(array $column): Attribute
+    public function convertAttribute(array $column): Attribute
     {
         $isArray = $column['data_type'] === 'ARRAY';
 

@@ -51,35 +51,7 @@
                     "id": "test",
                     "columns": [
                         {
-                            "key": "array2",
-                            "required": false,
-                            "array": true,
-                            "type": "stringAttribute",
-                            "size": 1000000
-                        },
-                        {
-                            "key": "boolean",
-                            "required": false,
-                            "array": false,
-                            "type": "boolAttribute",
-                            "default": null
-                        },
-                        {
-                            "key": "map",
-                            "required": false,
-                            "array": false,
-                            "type": "stringAttribute",
-                            "size": 1000000
-                        },
-                        {
                             "key": "string",
-                            "required": false,
-                            "array": false,
-                            "type": "stringAttribute",
-                            "size": 1000000
-                        },
-                        {
-                            "key": "geopoint",
                             "required": false,
                             "array": false,
                             "type": "stringAttribute",
@@ -91,6 +63,13 @@
                             "array": false,
                             "type": "stringAttribute",
                             "size": 1000000
+                        },
+                        {
+                            "key": "boolean",
+                            "required": false,
+                            "array": false,
+                            "type": "boolAttribute",
+                            "default": null
                         },
                         {
                             "key": "reference",
@@ -106,6 +85,13 @@
                             "type": "dateTimeAttribute"
                         },
                         {
+                            "key": "map",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
                             "key": "number",
                             "required": false,
                             "array": false,
@@ -113,6 +99,20 @@
                             "min": 0,
                             "max": 0,
                             "default": null
+                        },
+                        {
+                            "key": "geopoint",
+                            "required": false,
+                            "array": false,
+                            "type": "stringAttribute",
+                            "size": 1000000
+                        },
+                        {
+                            "key": "array2",
+                            "required": false,
+                            "array": true,
+                            "type": "stringAttribute",
+                            "size": 1000000
                         },
                         {
                             "key": "test",

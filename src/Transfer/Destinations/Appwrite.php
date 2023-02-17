@@ -30,8 +30,16 @@ class Appwrite extends Destination
 {
     protected Client $client;
 
-    public function __construct(protected string $project, string $endpoint, private string $key)
+    protected string $project;
+    protected string $endpoint;
+    protected string $key;
+
+    public function __construct(string $project, string $endpoint, string $key)
     {
+        $this->project = $project;
+        $this->endpoint = $endpoint;
+        $this->key = $key;
+
         $this->client = (new Client())
             ->setEndpoint($endpoint)
             ->setProject($project)

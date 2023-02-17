@@ -15,6 +15,9 @@ class Attribute extends Resource {
     const TYPE_IP = 'IPAttribute';
     const TYPE_URL = 'URLAttribute';
 
+    protected string $key;
+    protected bool $required;
+    protected bool $array;
 
     /**
      * @param string $key
@@ -22,8 +25,11 @@ class Attribute extends Resource {
      * @param bool $array
      * @param int $size
      */
-    function __construct(protected string $key, protected bool $required, protected bool $array)
+    function __construct(string $key, bool $required = false, bool $array = false)
     {
+        $this->key = $key;
+        $this->required = $required;
+        $this->array = $array;
     }
     
     function getName(): string

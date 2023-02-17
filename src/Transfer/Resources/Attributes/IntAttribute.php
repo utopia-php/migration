@@ -5,6 +5,10 @@ namespace Utopia\Transfer\Resources\Attributes;
 use Utopia\Transfer\Resources\Attribute;
 
 class IntAttribute extends Attribute {
+    protected ?int $default;
+    protected int $min;
+    protected int $max;
+
     /**
      * @param string $key
      * @param bool $required
@@ -13,8 +17,12 @@ class IntAttribute extends Attribute {
      * @param int $min
      * @param int $max
      */
-    function __construct(protected string $key, protected bool $required, protected bool $array, protected ?int $default, protected int $min = 0, protected int $max = 0)
+    function __construct(string $key, bool $required = false, bool $array = false, ?int $default = null, int $min = 0, int $max = 0)
     {
+        parent::__construct($key, $required, $array);
+        $this->default = $default;
+        $this->min = $min;
+        $this->max = $max;
     }
 
     function getName(): string

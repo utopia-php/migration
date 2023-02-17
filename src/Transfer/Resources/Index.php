@@ -6,6 +6,11 @@ use Utopia\Transfer\Resource;
 
 class Index extends Resource {
 
+    protected string $key;
+    protected string $type;
+    protected array $attributes;
+    protected array $orders;
+
     /**
      * @param string $key
      * @param string $type
@@ -13,8 +18,12 @@ class Index extends Resource {
      * @param array $orders
      */
 
-    public function __construct(protected string $key, protected string $type, protected array $attributes, protected array $orders)
+    public function __construct(string $key, string $type = '', array $attributes = [], array $orders = [])
     {
+        $this->key = $key;
+        $this->type = $type;
+        $this->attributes = $attributes;
+        $this->orders = $orders;
     }
 
     public function getName(): string

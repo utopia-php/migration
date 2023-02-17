@@ -5,6 +5,10 @@ namespace Utopia\Transfer\Resources\Attributes;
 use Utopia\Transfer\Resources\Attribute;
 
 class FloatAttribute extends Attribute {
+    protected ?float $default;
+    protected float $min;
+    protected float $max;
+
     /**
      * @param string $key
      * @param bool $required
@@ -13,8 +17,12 @@ class FloatAttribute extends Attribute {
      * @param float $min
      * @param float $max
      */
-    function __construct(protected string $key, protected bool $required, protected bool $array, protected ?float $default, protected float $min = 0, protected float $max = 0)
+    function __construct(string $key, bool $required = false, bool $array = false, ?float $default = null, float $min = 0, float $max = 0)
     {
+        parent::__construct($key, $required, $array);
+        $this->default = $default;
+        $this->min = $min;
+        $this->max = $max;
     }
 
     function getName(): string

@@ -5,14 +5,18 @@ namespace Utopia\Transfer\Resources\Attributes;
 use Utopia\Transfer\Resources\Attribute;
 
 class IPAttribute extends Attribute {
+    protected ?string $default;
+
     /**
      * @param string $key
      * @param bool $required
      * @param bool $array
      * @param string $default
      */
-    function __construct(protected string $key, protected bool $required, protected bool $array, protected ?string $default)
+    function __construct(string $key, bool $required = false, bool $array = false, ?string $default = null)
     {
+        parent::__construct($key, $required, $array);
+        $this->default = $default;
     }
 
     function getDefault(): ?string

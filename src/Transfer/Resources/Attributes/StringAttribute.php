@@ -5,6 +5,9 @@ namespace Utopia\Transfer\Resources\Attributes;
 use Utopia\Transfer\Resources\Attribute;
 
 class StringAttribute extends Attribute {
+    protected ?string $default;
+    protected int $size = 256;
+
     /**
      * @param string $key
      * @param bool $required
@@ -12,8 +15,11 @@ class StringAttribute extends Attribute {
      * @param ?string $default
      * @param int $size
      */
-    function __construct(protected string $key, protected bool $required, protected bool $array, protected ?string $default, protected int $size)
+    function __construct(string $key, bool $required = false, bool $array = false, ?string $default = null, int $size = 256)
     {
+        parent::__construct($key, $required, $array);
+        $this->default = $default;
+        $this->size = $size;
     }
 
     function getName(): string

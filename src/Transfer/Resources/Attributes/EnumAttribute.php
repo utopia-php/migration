@@ -5,6 +5,9 @@ namespace Utopia\Transfer\Resources\Attributes;
 use Utopia\Transfer\Resources\Attribute;
 
 class EnumAttribute extends Attribute {
+    protected ?string $default;
+    protected array $elements;
+
     /**
      * @param string $key
      * @param string[] $elements
@@ -12,8 +15,11 @@ class EnumAttribute extends Attribute {
      * @param bool $array
      * @param ?string $default
      */
-    function __construct(protected string $key, protected array $elements, protected bool $required, protected bool $array, protected ?string $default)
+    function __construct(string $key, array $elements, bool $required, bool $array, ?string $default)
     {
+        parent::__construct($key, $required, $array);
+        $this->default = $default;
+        $this->elements = $elements;
     }
 
     function getName(): string

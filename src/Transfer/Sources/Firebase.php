@@ -2,16 +2,13 @@
 
 namespace Utopia\Transfer\Sources;
 
-use Attribute;
 use Utopia\Transfer\Source;
 use Google\Client;
-use Google\Service\Firestore\BatchGetDocumentsRequest;
 use Google\Service\Firestore\ListCollectionIdsRequest;
 use Utopia\Transfer\Resources\Project;
 use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Log;
-use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Attribute as ResourcesAttribute;
 use Utopia\Transfer\Resources\Attributes\BoolAttribute;
 use Utopia\Transfer\Resources\Attributes\DateTimeAttribute;
@@ -21,8 +18,6 @@ use Utopia\Transfer\Resources\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Collection;
 use Utopia\Transfer\Resources\Database;
 use Utopia\Transfer\Resources\Hash;
-
-use function PHPSTORM_META\type;
 
 class Firebase extends Source
 {

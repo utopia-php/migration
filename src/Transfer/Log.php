@@ -10,9 +10,15 @@ class Log {
     const SUCCESS = 'success';
     const DEBUG = 'debug';
 
-    public function __construct(private string $message = '', private int $timestamp = 0, protected Resource|null $resource = null)
+    private string $message = '';
+    private int $timestamp = 0;
+    protected ?Resource $resource = null;
+
+    public function __construct(string $message = '', int $timestamp = 0, ?Resource $resource = null)
     {
-        $timestamp = \time();
+        $this->message = $message;
+        $this->timestamp = $timestamp ?? \time();
+        $this->resource = $resource;
     }
     /**
      * Get Message

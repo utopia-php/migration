@@ -6,9 +6,13 @@ use Utopia\Transfer\Resource;
 
 class Project extends Resource
 {
-    public function __construct(protected string $name, protected string $id)
+    protected string $name;
+    protected string $id;
+
+    public function __construct(string $name = '', string $id = '')
     {
-        
+        $this->name = $name;
+        $this->id = $id;
     }
 
     public function getName(): string

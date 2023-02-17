@@ -17,8 +17,13 @@ class Collection extends Resource
      */
     private array $indexes = [];
 
-    public function __construct(protected string $name, protected string $id)
+    protected string $name;
+    protected string $id;
+
+    public function __construct(string $name = '', string $id = '')
     {
+        $this->name = $name;
+        $this->id = $id;
     }
 
     public function getName(): string

@@ -4,15 +4,29 @@ namespace Utopia\Transfer;
 
 class Progress
 {
+    private string $resourceType;
+    private int $timestamp;
+    private int $total = 0;
+    private int $current = 0;
+    private int $failed = 0;
+    private int $skipped = 0;
+
     function __construct(
-        private string $resourceType,
-        private int $timestamp, 
-        private int $total = 0, 
-        private int $current = 0, 
-        private int $failed = 0, 
-        private int $skipped = 0
-        ){}
-    
+        string $resourceType = '',
+        int $timestamp = 0,
+        int $total = 0,
+        int $current = 0,
+        int $failed = 0,
+        int $skipped = 0
+    ) {
+        $this->resourceType = $resourceType;
+        $this->timestamp = $timestamp ?? \time();
+        $this->total = $total;
+        $this->current = $current;
+        $this->failed = $failed;
+        $this->skipped = $skipped;
+    }
+
     /**
      * Get Resource Type
      * 
@@ -195,5 +209,4 @@ class Progress
             'eta' => $this->getETA(),
         ];
     }
-
 }

@@ -21,8 +21,12 @@ use Utopia\Transfer\Transfer;
 class Local extends Destination {
     private array $data = [];
 
-    public function __construct(protected string $path) 
-    {}
+    protected string $path;
+
+    public function __construct(string $path) 
+    {
+        $this->path = $path;
+    }
 
     /**
      * Get Name

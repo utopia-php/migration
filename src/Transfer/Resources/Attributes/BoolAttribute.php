@@ -5,14 +5,21 @@ namespace Utopia\Transfer\Resources\Attributes;
 use Utopia\Transfer\Resources\Attribute;
 
 class BoolAttribute extends Attribute {
+    protected string $key;
+    protected bool $required;
+    protected bool $array;
+    protected ?bool $default;
+
     /**
      * @param string $key
      * @param bool $required
      * @param bool $array
      * @param ?bool $default
      */
-    function __construct(protected string $key, protected bool $required, protected bool $array, protected ?bool $default)
+    function __construct(string $key, bool $required = false, bool $array = false, ?bool $default = null)
     {
+        parent::__construct($key, $required, $array);
+        $this->default = $default;
     }
 
     function getName(): string
