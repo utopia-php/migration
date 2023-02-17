@@ -13,23 +13,23 @@ class User extends Resource
     const TYPE_MAGIC = 'magic';
     const TYPE_OAUTH = 'oauth';
 
-    private string $id = '';
-    private string $email = '';
-    private string $username = '';
-    private Hash $passwordHash = new Hash('');
-    private string $phone = '';
-    private array $types = [Self::TYPE_ANONYMOUS];
-    private string $oauthProvider = '';
-    private bool $emailVerified = false;
-    private bool $phoneVerified = false;
-    private bool $disabled = false;
-    private array $preferences = [];
+    protected string $id = '';
+    protected string $email = '';
+    protected string $username = '';
+    protected ?Hash $passwordHash = null;
+    protected string $phone = '';
+    protected array $types = [Self::TYPE_ANONYMOUS];
+    protected string $oauthProvider = '';
+    protected bool $emailVerified = false;
+    protected bool $phoneVerified = false;
+    protected bool $disabled = false;
+    protected array $preferences = [];
 
     public function __construct(
         string $id = '',
         string $email = '',
         string $username = '',
-        Hash $passwordHash = new Hash(''),
+        ?Hash $passwordHash = null,
         string $phone = '',
         array $types = [Self::TYPE_ANONYMOUS],
         string $oauthProvider = '',
