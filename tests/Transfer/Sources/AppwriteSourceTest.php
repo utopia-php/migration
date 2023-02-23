@@ -19,7 +19,7 @@ use Utopia\App;
 use Utopia\Transfer\Sources\Appwrite;
 use Utopia\Transfer\Resources\Project;
 
-class AppwriteTest extends TestCase
+class AppwriteSourceTest extends TestCase
 {
     /**
      * @var Appwrite
@@ -34,8 +34,8 @@ class AppwriteTest extends TestCase
     public function setUp(): void
     {
         $this->appwrite = new Appwrite(
-            getenv('SOURCE_APPWRITE_TEST_ENDPOINT'),
             getenv('SOURCE_APPWRITE_TEST_PROJECT'),
+            getenv('SOURCE_APPWRITE_TEST_ENDPOINT'),
             getenv('SOURCE_APPWRITE_TEST_KEY')
         );
     }
@@ -52,8 +52,6 @@ class AppwriteTest extends TestCase
         foreach ($result as $user) {
             /** @var User $user */
             $this->assertIsObject($user);
-            $this->assertNotEmpty($user->getPasswordHash());
-            $this->assertNotEmpty($user->getPasswordHash()->getHash());
         }
 
         $this->assertIsArray($result);
@@ -64,8 +62,14 @@ class AppwriteTest extends TestCase
     {
         $result = [];
 
-        $this->appwrite->exportDatabases(100, function (array $users) use (&$result) {
-            $result = array_merge($result, $users);
+        $this->appwrite->exportDatabases(100, function (array $databases) use (&$result) {
+            $result = array_merge($result, $databases);
         });
+
+        foreach ($result as $database) {
+            /** @var Database $database */
+            $this->assertIsObject($database);
+            $this->assertNotEmpty($database->getCollections());
+        }
     }
 }

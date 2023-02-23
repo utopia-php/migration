@@ -288,11 +288,17 @@ class NHost extends Source
         return $types;
     }
 
-    function check(array $resources = []): bool
+    function check(array $resources = []): array
     {
+        if (empty($resources)) {
+            $resources = $this->getSupportedResources();
+        }
+
         if ($this->pdo->errorCode() !== '00000') {
             $this->logs[Log::FATAL] = new Log('Failed to connect to database. Error: ' . $this->pdo->errorInfo()[2]);
         }
+
+        $completedResources = [];
 
         foreach ($resources as $resource) {
             switch ($resource) {
@@ -303,10 +309,22 @@ class NHost extends Source
                     if ($statement->errorCode() !== '00000') {
                         $this->logs[Log::FATAL] = new Log('Failed to access users table. Error: ' . $statement->errorInfo()[2]);
                     }
+
+                    $completedResources[] = Transfer::RESOURCE_USERS;
+                    break;
+                case Transfer::RESOURCE_DATABASES:
+                    $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
+                    $statement->execute();
+
+                    if ($statement->errorCode() !== '00000') {
+                        $this->logs[Log::FATAL] = new Log('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
+                    }
+
+                    $completedResources[] = Transfer::RESOURCE_DATABASES;
                     break;
             }
         }
 
-        return true;
+        return $completedResources;
     }
 }

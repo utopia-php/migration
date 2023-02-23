@@ -5,6 +5,8 @@ namespace Utopia\Transfer\Sources;
 use Utopia\Transfer\Source;
 use Appwrite\Client;
 use Appwrite\Query;
+use Appwrite\Services\Databases;
+use Appwrite\Services\Users;
 use Utopia\Transfer\Resources\Attribute;
 use Utopia\Transfer\Resources\Project;
 use Utopia\Transfer\Resources\User;
@@ -30,7 +32,7 @@ class Appwrite extends Source
     /**
      * @var Client|null
      */
-    protected $appwriteClient = null;
+    protected $client = null;
 
     /**
      * Constructor
@@ -43,7 +45,7 @@ class Appwrite extends Source
      */
     function __construct(string $project, string $endpoint, string $key)
     {
-        $this->appwriteClient = (new Client())
+        $this->client = (new Client())
             ->setEndpoint($endpoint)
             ->setProject($project)
             ->setKey($key);
@@ -77,11 +79,59 @@ class Appwrite extends Source
      * 
      * @param array $resources
      * 
-     * @return bool
+     * @return array
      */
-    public function check(array $resources = []): bool
+    public function check(array $resources = []): array
     {
-        return true;
+        $completedResources = [];
+
+        if (empty($resources)) {
+            $resources = $this->getSupportedResources();
+        }
+
+        foreach ($resources as $resource) {
+            switch ($resource) {
+                case Transfer::RESOURCE_DATABASES:
+                    $databases = new Databases($this->client);
+                    try {
+                        $databases->list();
+                    } catch (\Exception $e) {
+                        $this->logs[Log::ERROR] = new Log($e->getMessage());
+                        return false;
+                    }
+                    break;
+                case Transfer::RESOURCE_USERS:
+                    $auth = new Users($this->client);
+                    try {
+                        $auth->list();
+                    } catch (\Exception $e) {
+                        $this->logs[Log::ERROR] = new Log($e->getMessage());
+                        return false;
+                    }
+                    break;
+                case Transfer::RESOURCE_DOCUMENTS:
+                    $databases = new Databases($this->client);
+                    try {
+                        $database = $databases->list()[0];
+                        $collection = $databases->listCollections($database['$id'])[0];
+                        $documents = $databases->listDocuments($database, $collection['$id']);
+                        $document = $database->getDocument($documents[0]['$id']);
+
+                        if (empty($document)) {
+                            $this->logs[Log::ERROR] = new Log('Failed to get document');
+                            return false;
+                        }
+                    } catch (\Exception $e) {
+                        $this->logs[Log::ERROR] = new Log($e->getMessage());
+                        return false;
+                    }
+                    break;
+            }
+
+            $completedResources[] = $resource;
+        }
+
+        return $completedResources;
     }
 
     /**
@@ -94,7 +144,7 @@ class Appwrite extends Source
      */
     public function exportUsers(int $batchSize, callable $callback): void
     {
-        $usersClient = new \Appwrite\Services\Users($this->appwriteClient);
+        $usersClient = new Users($this->client);
 
         $lastDocument = null;
 
@@ -108,7 +158,6 @@ class Appwrite extends Source
             if ($lastDocument) {
                 $queries[] = Query::cursorAfter($lastDocument);
             }
-
 
             $response = $usersClient->list($queries);
 
@@ -182,7 +231,7 @@ class Appwrite extends Source
      */
     public function exportDatabases(int $batchSize, callable $callback): void
     {
-        $databaseClient = new \Appwrite\Services\Databases($this->appwriteClient);
+        $databaseClient = new Databases($this->client);
 
         $lastDocument = null;
 

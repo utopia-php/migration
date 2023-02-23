@@ -400,8 +400,14 @@ class Firebase extends Source
         return $types;
     }
 
-    function check(array $resources = []): bool
+    function check(array $resources = []): array
     {
+        $completedResources = [];
+
+        if (empty($resources)) {
+            $resources = $this->getSupportedResources();
+        }
+
         if (!$this->googleClient) {
             $this->logs[Log::FATAL][] = new Log('Google Client not initialized');
             return false;
@@ -438,10 +444,25 @@ class Firebase extends Source
                         return false;
                     }
 
+                    $completedResources[] = Transfer::RESOURCE_USERS;
+                    break;
+                case Transfer::RESOURCE_DATABASES:
+                    $firestore = new \Google\Service\Firestore($this->googleClient);
+
+                    $request = $firestore->projects_databases_documents->listDocuments('projects/' . $this->project->getId() . '/databases/(default)/documents', '', [
+                        'pageSize' => 1
+                    ]);
+
+                    if (!$request['documents']) {
+                        $this->logs[Log::FATAL][] = new Log('Unable to fetch documents');
+                        return false;
+                    }
+
+                    $completedResources[] = Transfer::RESOURCE_DATABASES;
                     break;
             }
         }
 
-        return true;
+        return $completedResources;
     }
 }

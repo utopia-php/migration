@@ -138,12 +138,13 @@ abstract class Source
      * This is highly recommended to be called before any other method after initialization.
      * 
      * If no resources are provided, the method should check all resources.
+     * Returns an array of working resources.
      * 
-     * @array $resources
+     * @string[] $resources
      * 
-     * @return bool
+     * @return string[]
      */
-    abstract public function check(array $resources = []): bool;
+    abstract public function check(array $resources = []): array;
 
     /**
      * Call

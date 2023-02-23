@@ -56,11 +56,20 @@ class Local extends Destination {
      * Check if destination is valid
      * 
      * @param array $resources
-     * @return bool
+     * @return array
      */
-    public function check(array $resources = []): bool
+    public function check(array $resources = []): array
     {
-        return true;
+        if (empty($resources)) {
+            $resources = $this->getSupportedResources();
+        }
+
+        // Check we can write to the file
+        if (!\is_writable($this->path)) {
+            throw new \Exception('Unable to write to file: ' . $this->path);
+        }
+
+        return $resources;
     }
 
     public function syncFile(): void

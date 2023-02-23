@@ -10,6 +10,7 @@ use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resources\Hash;
 use Utopia\Transfer\Log;
 use Utopia\Transfer\Progress;
+use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Attribute;
 use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
@@ -72,18 +73,57 @@ class Appwrite extends Destination
         ];
     }
 
-    public function check(array $resources = []): bool
+    public function check(array $resources = []): array
     {
-        $auth = new Users($this->client);
+        $completedResources = [];
 
-        try {
-            $auth->list();
-        } catch (\Exception $e) {
-            $this->logs[Log::ERROR] = new Log($e->getMessage());
-            return false;
+        if (empty($resources)) {
+            $resources = $this->getSupportedResources();
         }
 
-        return true;
+        foreach ($resources as $resource) {
+            switch ($resource) {
+                case Transfer::RESOURCE_DATABASES:
+                    $databases = new DatabasesService($this->client);
+                    try {
+                        $databases->list();
+                    } catch (\Exception $e) {
+                        $this->logs[Log::ERROR] = new Log($e->getMessage());
+                        return false;
+                    }
+                    break;
+                case Transfer::RESOURCE_USERS:
+                    $auth = new Users($this->client);
+                    try {
+                        $auth->list();
+                    } catch (\Exception $e) {
+                        $this->logs[Log::ERROR] = new Log($e->getMessage());
+                        return false;
+                    }
+                    break;
+                case Transfer::RESOURCE_DOCUMENTS:
+                    $databases = new DatabasesService($this->client);
+                    try {
+                        $database = $databases->list()[0];
+                        $collection = $databases->listCollections($database['$id'])[0];
+                        $documents = $databases->listDocuments($database, $collection['$id']);
+                        $document = $database->getDocument($documents[0]['$id']);
+
+                        if (empty($document)) {
+                            $this->logs[Log::ERROR] = new Log('Failed to get document');
+                            return false;
+                        }
+                    } catch (\Exception $e) {
+                        $this->logs[Log::ERROR] = new Log($e->getMessage());
+                        return false;
+                    }
+                    break;
+            }
+
+            $completedResources[] = $resource;
+        }
+
+        return $completedResources;
     }
 
     public function importPasswordUser(User $user): array|null
