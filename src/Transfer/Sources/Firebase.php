@@ -403,11 +403,11 @@ class Firebase extends Source
     public function check(array $resources = []): array
     {
         $report = [
-            'Users' => true,
-            'Databases' => true,
-            'Documents' => true,
-            'Files' => true,
-            'Functions' => true
+            'Users' => [],
+            'Databases' => [],
+            'Documents' => [],
+            'Files' => [],
+            'Functions' => []
         ];
 
         if (empty($resources)) {
