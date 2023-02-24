@@ -3,11 +3,11 @@
 /**
  * Utopia PHP Framework
  *
- * @package Transfer
+ * @package    Transfer
  * @subpackage Tests
  *
- * @link https://github.com/utopia-php/transfer
- * @author Bradley Schofield <bradley@appwrite.io>
+ * @link    https://github.com/utopia-php/transfer
+ * @author  Bradley Schofield <bradley@appwrite.io>
  * @version 1.0 RC1
  * @license The MIT License (MIT) <http://www.opensource.org/licenses/mit-license.php>
  */
@@ -45,12 +45,16 @@ class AppwriteSourceTest extends TestCase
     {
         $result = [];
 
-        $this->appwrite->exportUsers(100, function (array $users) use (&$result) {
-            $result = array_merge($result, $users);
-        });
+        $this->appwrite->exportUsers(
+            100, function (array $users) use (&$result) {
+                $result = array_merge($result, $users);
+            }
+        );
 
         foreach ($result as $user) {
-            /** @var User $user */
+            /**
+ * @var User $user 
+*/
             $this->assertIsObject($user);
         }
 
@@ -62,12 +66,16 @@ class AppwriteSourceTest extends TestCase
     {
         $result = [];
 
-        $this->appwrite->exportDatabases(100, function (array $databases) use (&$result) {
-            $result = array_merge($result, $databases);
-        });
+        $this->appwrite->exportDatabases(
+            100, function (array $databases) use (&$result) {
+                $result = array_merge($result, $databases);
+            }
+        );
 
         foreach ($result as $database) {
-            /** @var Database $database */
+            /**
+ * @var Database $database 
+*/
             $this->assertIsObject($database);
             $this->assertNotEmpty($database->getCollections());
         }

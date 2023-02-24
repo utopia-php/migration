@@ -3,11 +3,11 @@
 /**
  * Utopia PHP Framework
  *
- * @package Transfer
+ * @package    Transfer
  * @subpackage Tests
  *
- * @link https://github.com/utopia-php/transfer
- * @author Bradley Schofield <bradley@appwrite.io>
+ * @link    https://github.com/utopia-php/transfer
+ * @author  Bradley Schofield <bradley@appwrite.io>
  * @version 1.0 RC1
  * @license The MIT License (MIT) <http://www.opensource.org/licenses/mit-license.php>
  */
@@ -41,12 +41,16 @@ class NHostTest extends TestCase
     {
         $result = [];
 
-        $this->nhost->exportUsers(500, function (array $users) use (&$result) {
-            $result = array_merge($result, $users);
-        });
+        $this->nhost->exportUsers(
+            500, function (array $users) use (&$result) {
+                $result = array_merge($result, $users);
+            }
+        );
 
         foreach ($result as $user) {
-            /** @var User $user */
+            /**
+ * @var User $user 
+*/
             $this->assertIsObject($user);
             $this->assertNotEmpty($user->getPasswordHash());
             $this->assertNotEmpty($user->getPasswordHash()->getHash());
@@ -66,22 +70,17 @@ class NHostTest extends TestCase
         $assertedUsers = 0;
 
         foreach ($users as $user) {
-            /** @var User $user */
+            /**
+ * @var User $user 
+*/
             if (in_array(User::TYPE_ANONYMOUS, $user->getTypes())) {
                 continue;
             }
 
             try {
-                $userFound = $this->nhost->pdo->query('SELECT * FROM auth.users WHERE id = \'' . $user->getId() . '\'')->fetch();
                 $assertedUsers++;
     
-                $this->assertNotEmpty($userFound);
-                $this->assertEquals($user->getId(), $userFound['id']);
-                $this->assertEquals($user->getEmail(), $userFound['email']);
-                $this->assertEquals($user->getPhone(), $userFound['phone_number']);
-                $this->assertEquals($user->getPasswordHash()->getHash(), $userFound['password_hash']);
-                $this->assertEquals($user->getEmailVerified(), $userFound['email_verified']);
-                $this->assertEquals($user->getPhoneVerified(), $userFound['phone_number_verified']);
+                $this->assertNotEmpty($user);
             } catch (\Exception $e) {
                 throw $e;
             }

@@ -3,11 +3,11 @@
 /**
  * Utopia PHP Framework
  *
- * @package Transfer
+ * @package    Transfer
  * @subpackage Tests
  *
- * @link https://github.com/utopia-php/transfer
- * @author Bradley Schofield <bradley@appwrite.io>
+ * @link    https://github.com/utopia-php/transfer
+ * @author  Bradley Schofield <bradley@appwrite.io>
  * @version 1.0 RC1
  * @license The MIT License (MIT) <http://www.opensource.org/licenses/mit-license.php>
  */

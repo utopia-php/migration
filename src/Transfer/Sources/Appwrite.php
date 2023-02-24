@@ -77,11 +77,11 @@ class Appwrite extends Source
     public function check(array $resources = []): array
     {
         $report = [
-            'Users' => false,
-            'Databases' => false,
-            'Documents' => false,
-            'Files' => false,
-            'Functions' => false
+            'Users' => true,
+            'Databases' => true,
+            'Documents' => true,
+            'Files' => true,
+            'Functions' => true
         ];
 
         if (empty($resources)) {
@@ -99,7 +99,6 @@ class Appwrite extends Source
                         $databases->list();
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: databases.read');
                             $report['Databases'][] = 'API Key is missing scope: databases.read';
                         }
                     }
@@ -314,7 +313,7 @@ class Appwrite extends Source
 
             $response = $databaseClient->list($queries);
 
-            foreach ($response[Transfer::RESOURCE_DATABASES] as $database) {
+            foreach ($response["databases"] as $database) {
                 $newDatabase = new Database($database['name'], $database['$id']);
 
                 $collections = $databaseClient->listCollections($database['$id']);
@@ -348,7 +347,7 @@ class Appwrite extends Source
 
             $callback($databases);
 
-            if (count($response[Transfer::RESOURCE_DATABASES]) < $batchSize) {
+            if (count($response["databases"]) < $batchSize) {
                 break;
             }
         }

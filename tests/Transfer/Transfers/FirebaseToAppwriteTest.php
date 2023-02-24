@@ -3,11 +3,11 @@
 /**
  * Utopia PHP Framework
  *
- * @package Transfer
+ * @package    Transfer
  * @subpackage Tests
  *
- * @link https://github.com/utopia-php/transfer
- * @author Bradley Schofield <bradley@appwrite.io>
+ * @link    https://github.com/utopia-php/transfer
+ * @author  Bradley Schofield <bradley@appwrite.io>
  * @version 1.0 RC1
  * @license The MIT License (MIT) <http://www.opensource.org/licenses/mit-license.php>
  */
@@ -58,13 +58,13 @@ class FirebaseToAppwriteTest extends TestCase
 
         $this->appwrite = new Appwrite(
             getenv("DESTINATION_APPWRITE_TEST_PROJECT"),
-            getenv("APPWRITE_TEST_ENDPOINT"),
+            getenv("DESTINATION_APPWRITE_TEST_ENDPOINT"),
             getenv("DESTINATION_APPWRITE_TEST_KEY")
         );
 
         $this->appwriteClient = new AppwriteClient();
         $this->appwriteClient
-            ->setEndpoint(getenv("APPWRITE_TEST_ENDPOINT"))
+            ->setEndpoint(getenv("DESTINATION_APPWRITE_TEST_ENDPOINT"))
             ->setProject(getenv("DESTINATION_APPWRITE_TEST_PROJECT"))
             ->setKey(getenv("DESTINATION_APPWRITE_TEST_KEY"));
 
@@ -73,8 +73,10 @@ class FirebaseToAppwriteTest extends TestCase
 
     public function testTransferUsers(): void
     {
-        $this->transfer->run([Transfer::RESOURCE_USERS], function () {
-        });
+        $this->transfer->run(
+            [Transfer::RESOURCE_USERS], function () {
+            }
+        );
 
         // Check for Fatal Errors in Transfer Log
         $this->assertEmpty($this->transfer->getLogs(Log::FATAL));
@@ -89,25 +91,29 @@ class FirebaseToAppwriteTest extends TestCase
 
         $assertedUsers = false;
 
-        $this->firebase->exportUsers(500, function (array $users) use ($userClient, &$assertedUsers) {
-            foreach ($users as $user) {
-                /** @var User $user */
-                if (in_array(User::TYPE_ANONYMOUS, $user->getTypes())) {
-                    continue;
-                }
+        $this->firebase->exportUsers(
+            500, function (array $users) use ($userClient, &$assertedUsers) {
+                foreach ($users as $user) {
+                    /**
+            * @var User $user 
+            */
+                    if (in_array(User::TYPE_ANONYMOUS, $user->getTypes())) {
+                        continue;
+                    }
 
-                try {
-                    $userFound = $userClient->get($user->getId());
-                } catch (\Exception $e) {
-                    throw $e;
-                }
-                $this->assertNotEmpty($userFound);
+                    try {
+                        $userFound = $userClient->get($user->getId());
+                    } catch (\Exception $e) {
+                        throw $e;
+                    }
+                    $this->assertNotEmpty($userFound);
 
-                $this->assertEquals($user->getEmail(), $userFound['email']);
-                $this->assertEquals($user->getPhone(), $userFound['phone']);
-                $assertedUsers = true;
+                    $this->assertEquals($user->getEmail(), $userFound['email']);
+                    $this->assertEquals($user->getPhone(), $userFound['phone']);
+                    $assertedUsers = true;
+                }
             }
-        });
+        );
 
         $this->assertTrue($assertedUsers);
     }

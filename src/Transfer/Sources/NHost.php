@@ -288,17 +288,23 @@ class NHost extends Source
         return $types;
     }
 
-    function check(array $resources = []): array
+    public function check(array $resources = []): array
     {
+        $report = [
+            'Users' => true,
+            'Databases' => true,
+            'Documents' => true,
+            'Files' => true,
+            'Functions' => true
+        ];
+
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
         }
 
         if ($this->pdo->errorCode() !== '00000') {
-            $this->logs[Log::FATAL] = new Log('Failed to connect to database. Error: ' . $this->pdo->errorInfo()[2]);
+            $report['Databases'][] = 'Failed to connect to database. Error: ' . $this->pdo->errorInfo()[2];
         }
-
-        $completedResources = [];
 
         foreach ($resources as $resource) {
             switch ($resource) {
@@ -307,24 +313,22 @@ class NHost extends Source
                     $statement->execute();
 
                     if ($statement->errorCode() !== '00000') {
-                        $this->logs[Log::FATAL] = new Log('Failed to access users table. Error: ' . $statement->errorInfo()[2]);
+                        $report['Users'][] = 'Failed to access users table. Error: ' . $statement->errorInfo()[2];
                     }
 
-                    $completedResources[] = Transfer::RESOURCE_USERS;
                     break;
                 case Transfer::RESOURCE_DATABASES:
                     $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
                     $statement->execute();
 
                     if ($statement->errorCode() !== '00000') {
-                        $this->logs[Log::FATAL] = new Log('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
+                        $report['Databases'][] = 'Failed to access tables table. Error: ' . $statement->errorInfo()[2];
                     }
 
-                    $completedResources[] = Transfer::RESOURCE_DATABASES;
                     break;
             }
         }
 
-        return $completedResources;
+        return $report;
     }
 }

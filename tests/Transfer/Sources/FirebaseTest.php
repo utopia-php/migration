@@ -3,11 +3,11 @@
 /**
  * Utopia PHP Framework
  *
- * @package Transfer
+ * @package    Transfer
  * @subpackage Tests
  *
- * @link https://github.com/utopia-php/transfer
- * @author Bradley Schofield <bradley@appwrite.io>
+ * @link    https://github.com/utopia-php/transfer
+ * @author  Bradley Schofield <bradley@appwrite.io>
  * @version 1.0 RC1
  * @license The MIT License (MIT) <http://www.opensource.org/licenses/mit-license.php>
  */
@@ -59,7 +59,9 @@ class FirebaseTest extends TestCase
         $testProject = null;
 
         foreach($projects as $project) {
-            /** @var Project $project */
+            /**
+ * @var Project $project 
+*/
             if($project->getId() == $this->serviceAccount['project_id']) {
                 $testProject = $project;
                 break;
@@ -82,12 +84,16 @@ class FirebaseTest extends TestCase
 
         $result = [];
 
-        $this->firebase->exportUsers(500, function (array $users) use (&$result) {
-            $result = array_merge($result, $users);
-        });
+        $this->firebase->exportUsers(
+            500, function (array $users) use (&$result) {
+                $result = array_merge($result, $users);
+            }
+        );
 
         foreach ($result as $user) {
-            /** @var User $user */
+            /**
+ * @var User $user 
+*/
             $this->assertIsObject($user);
             $this->assertNotEmpty($user->getPasswordHash());
             $this->assertNotEmpty($user->getPasswordHash()->getHash());

@@ -60,16 +60,25 @@ class Local extends Destination {
      */
     public function check(array $resources = []): array
     {
+        $report = [
+            'Users' => true,
+            'Databases' => true,
+            'Documents' => true,
+            'Files' => true,
+            'Functions' => true
+        ];
+
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
         }
 
         // Check we can write to the file
         if (!\is_writable($this->path)) {
+            $report['Databases'][] = 'Unable to write to file: ' . $this->path;
             throw new \Exception('Unable to write to file: ' . $this->path);
         }
 
-        return $resources;
+        return $report;
     }
 
     public function syncFile(): void

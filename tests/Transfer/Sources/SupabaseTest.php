@@ -3,11 +3,11 @@
 /**
  * Utopia PHP Framework
  *
- * @package Transfer
+ * @package    Transfer
  * @subpackage Tests
  *
- * @link https://github.com/utopia-php/transfer
- * @author Bradley Schofield <bradley@appwrite.io>
+ * @link    https://github.com/utopia-php/transfer
+ * @author  Bradley Schofield <bradley@appwrite.io>
  * @version 1.0 RC1
  * @license The MIT License (MIT) <http://www.opensource.org/licenses/mit-license.php>
  */
@@ -41,12 +41,16 @@ class SupabaseTest extends TestCase
     {
         $result = [];
 
-        $this->supabase->exportUsers(500, function (array $users) use (&$result) {
-            $result = array_merge($result, $users);
-        });
+        $this->supabase->exportUsers(
+            500, function (array $users) use (&$result) {
+                $result = array_merge($result, $users);
+            }
+        );
 
         foreach ($result as $user) {
-            /** @var User $user */
+            /**
+ * @var User $user 
+*/
             $this->assertIsObject($user);
             $this->assertNotEmpty($user->getPasswordHash());
             $this->assertNotEmpty($user->getPasswordHash()->getHash());
@@ -66,7 +70,9 @@ class SupabaseTest extends TestCase
         $assertedUsers = 0;
 
         foreach ($users as $user) {
-            /** @var User $user */
+            /**
+ * @var User $user 
+*/
             if (in_array(User::TYPE_ANONYMOUS, $user->getTypes())) {
                 continue;
             }

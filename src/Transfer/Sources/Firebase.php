@@ -400,9 +400,15 @@ class Firebase extends Source
         return $types;
     }
 
-    function check(array $resources = []): array
+    public function check(array $resources = []): array
     {
-        $completedResources = [];
+        $report = [
+            'Users' => true,
+            'Databases' => true,
+            'Documents' => true,
+            'Files' => true,
+            'Functions' => true
+        ];
 
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
@@ -410,12 +416,14 @@ class Firebase extends Source
 
         if (!$this->googleClient) {
             $this->logs[Log::FATAL][] = new Log('Google Client not initialized');
-            return false;
+            $report['Users'][] = 'Google Client not initialized';
+            return $report;
         }
 
         if (!$this->project || !$this->project->getId()) {
             $this->logs[Log::FATAL][] = new Log('Project not set');
-            return false;
+            $report['Users'][] = 'Project not set';
+            return $report;
         }
 
         foreach ($resources as $resource) {
@@ -426,8 +434,8 @@ class Firebase extends Source
                     $request = $firebase->projects->listProjects();
 
                     if (!$request['results']) {
-                        $this->logs[Log::FATAL][] = new Log('Unable to fetch projects');
-                        return false;
+                        $report['Users'][] = 'Unable to fetch projects';
+                        return $report;
                     }
 
                     $found = false;
@@ -440,8 +448,8 @@ class Firebase extends Source
                     }
 
                     if (!$found) {
-                        $this->logs[Log::FATAL][] = new Log('Project not found');
-                        return false;
+                        $report['Users'][] = 'Project not found';
+                        return $report;
                     }
 
                     $completedResources[] = Transfer::RESOURCE_USERS;
@@ -454,15 +462,13 @@ class Firebase extends Source
                     ]);
 
                     if (!$request['documents']) {
-                        $this->logs[Log::FATAL][] = new Log('Unable to fetch documents');
-                        return false;
+                        $report['Databases'][] = 'Unable to fetch documents';
+                        return $report;
                     }
-
-                    $completedResources[] = Transfer::RESOURCE_DATABASES;
                     break;
             }
         }
 
-        return $completedResources;
+        return $report;
     }
 }

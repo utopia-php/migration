@@ -21,7 +21,9 @@ use Dotenv\Dotenv;
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
-/** Initialise All Source Adapters */
+/**
+ * Initialise All Source Adapters 
+*/
 $sourceAppwrite = new Appwrite(
     $_ENV['SOURCE_APPWRITE_TEST_PROJECT'],
     $_ENV['SOURCE_APPWRITE_TEST_ENDPOINT'],
@@ -47,7 +49,9 @@ $sourceSupabase = new Supabase(
     $_ENV["SUPABASE_TEST_PASSWORD"] ?? '',
 );
 
-/** Initialise All Destination Adapters */
+/**
+ * Initialise All Destination Adapters 
+*/
 $destinationAppwrite = new AppwriteDestination(
     $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
     $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
@@ -56,7 +60,9 @@ $destinationAppwrite = new AppwriteDestination(
 
 $destinationLocal = new Local(__DIR__ . '/databaseDMP.json');
 
-/** Initialise Transfer Class */
+/**
+ * Initialise Transfer Class 
+*/
 
 $sourceFirebase->setProject($sourceFirebase->getProjects()[0]);
 
@@ -65,10 +71,15 @@ $transfer = new Transfer(
     $destinationLocal
 );
 
-/** Run Transfer */
-$transfer->run([
+/**
+ * Run Transfer 
+*/
+$transfer->run(
+    [
     Transfer::RESOURCE_DATABASES
-], function () {});
+    ], function () {
+    }
+);
 
 if (!empty($transfer->getLogs(Log::ERROR))) {
     echo "\e[41m\e[97mFAILED\e[0m\n";

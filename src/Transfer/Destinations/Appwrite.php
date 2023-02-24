@@ -76,11 +76,11 @@ class Appwrite extends Destination
     public function check(array $resources = []): array
     {
         $report = [
-            'Users' => false,
-            'Databases' => false,
-            'Documents' => false,
-            'Files' => false,
-            'Functions' => false
+            'Users' => true,
+            'Databases' => true,
+            'Documents' => true,
+            'Files' => true,
+            'Functions' => true
         ];
 
         if (empty($resources)) {

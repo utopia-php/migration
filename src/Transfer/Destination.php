@@ -163,7 +163,8 @@ abstract class Destination
      * This is highly recommended to be called before any other method after initialization.
      * 
      * If no resources are provided, the method should check all resources.
-     * Returns an array of working resources.
+     * Returns a object with all the keys of the resources provided and a true|string value if the resource is available or not.
+     * If the resource is not available, the value should be a string with the error message.
      * 
      * @string[] $resources
      * 
