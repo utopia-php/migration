@@ -30,7 +30,7 @@ class Database extends Resource
 
     public function getName(): string
     {
-        return 'database';
+        return 'Database';
     }
 
     public function getDBName(): string

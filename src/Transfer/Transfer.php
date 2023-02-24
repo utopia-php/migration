@@ -7,11 +7,11 @@ use Utopia\Transfer\Source;
 
 class Transfer
 {
-    const RESOURCE_USERS = 'users';
-    const RESOURCE_FILES = 'files';
-    const RESOURCE_FUNCTIONS = 'functions';
-    const RESOURCE_DATABASES = 'databases';
-    const RESOURCE_DOCUMENTS = 'documents';
+    const RESOURCE_USERS = 'Users';
+    const RESOURCE_FILES = 'Files';
+    const RESOURCE_FUNCTIONS = 'Functions';
+    const RESOURCE_DATABASES = 'Databases';
+    const RESOURCE_DOCUMENTS = 'Documents';
 
     /**
      * @param Source $source

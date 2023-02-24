@@ -91,7 +91,7 @@ class Local extends Destination {
 
         foreach ($users as $user) {
             /** @var User $user */
-            $this->data['users'][] = $user->asArray();
+            $this->data[Transfer::RESOURCE_USERS][] = $user->asArray();
             $this->logs[Log::SUCCESS][] = new Log('Users imported successfully', \time(), $user);
             $userCounters['current']++;
         }
@@ -124,7 +124,7 @@ class Local extends Destination {
 
         foreach ($databases as $database) {
             /** @var Database $database */
-            $this->data['databases'][] = $database->asArray();
+            $this->data[Transfer::RESOURCE_DATABASES][] = $database->asArray();
             $this->logs[Log::SUCCESS][] = new Log('Database imported successfully', \time(), $database);
             $databaseCounters['current']++;
         }

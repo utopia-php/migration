@@ -248,7 +248,7 @@ class Appwrite extends Source
 
             $response = $databaseClient->list($queries);
 
-            foreach ($response['databases'] as $database) {
+            foreach ($response[Transfer::RESOURCE_DATABASES] as $database) {
                 $newDatabase = new Database($database['name'], $database['$id']);
 
                 $collections = $databaseClient->listCollections($database['$id']);
@@ -282,7 +282,7 @@ class Appwrite extends Source
 
             $callback($databases);
 
-            if (count($response['databases']) < $batchSize) {
+            if (count($response[Transfer::RESOURCE_DATABASES]) < $batchSize) {
                 break;
             }
         }
