@@ -74,20 +74,22 @@ class Appwrite extends Source
         ];
     }
 
-    /**
-     * Check
-     * 
-     * @param array $resources
-     * 
-     * @return array
-     */
     public function check(array $resources = []): array
     {
-        $completedResources = [];
+        $report = [
+            'Users' => false,
+            'Databases' => false,
+            'Documents' => false,
+            'Files' => false,
+            'Functions' => false
+        ];
 
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
         }
+
+        // Most of these API calls are purposely wrong. Appwrite will throw a 403 before a 400.
+        // We want to make sure the API key has the correct permissions.
 
         foreach ($resources as $resource) {
             switch ($resource) {
@@ -98,6 +100,7 @@ class Appwrite extends Source
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
                             $this->logs[Log::ERROR][] = new Log('API Key is missing scope: databases.read');
+                            $report['Databases'][] = 'API Key is missing scope: databases.read';
                         }
                     }
                     break;
@@ -107,7 +110,7 @@ class Appwrite extends Source
                         $auth->list();
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: users.read');
+                            $report['Users'][] = 'API Key is missing scope: users.read';
                         }
                     }
                     break;
@@ -117,7 +120,7 @@ class Appwrite extends Source
                         $databases->list();
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: databases.read');
+                            $report['Databases'][] = 'API Key is missing scope: databases.read';
                         }
                     }
 
@@ -125,7 +128,7 @@ class Appwrite extends Source
                         $databases->create('', '');
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: databases.write');
+                            $report['Databases'][] = 'API Key is missing scope: databases.write';
                         }
                     }
 
@@ -133,7 +136,7 @@ class Appwrite extends Source
                         $databases->listCollections('', [], '');
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: collections.write');
+                            $report['Databases'][] = 'API Key is missing scope: collections.write';
                         }
                     }
 
@@ -141,7 +144,7 @@ class Appwrite extends Source
                         $databases->createCollection('', '', '', []);
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: collections.write');
+                            $report['Databases'][] = 'API Key is missing scope: collections.write';
                         }
                     }
 
@@ -149,7 +152,7 @@ class Appwrite extends Source
                         $databases->listDocuments('', '', []);
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: documents.write');
+                            $report['Databases'][] = 'API Key is missing scope: documents.write';
                         }
                     }
 
@@ -157,7 +160,7 @@ class Appwrite extends Source
                         $databases->createDocument('', '', '', [], []);
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: documents.write');
+                            $report['Documents'][] = 'API Key is missing scope: documents.write';
                         }
                     }
 
@@ -165,7 +168,7 @@ class Appwrite extends Source
                         $databases->listIndexes('', '');
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: indexes.read');
+                            $report['Databases'][] = 'API Key is missing scope: indexes.read';
                         }
                     }
 
@@ -173,7 +176,7 @@ class Appwrite extends Source
                         $databases->createIndex('', '', '', '', [], []);
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: indexes.write');
+                            $report['Databases'][] = 'API Key is missing scope: indexes.write';
                         }
                     }
 
@@ -181,7 +184,7 @@ class Appwrite extends Source
                         $databases->listAttributes('', '');
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: attributes.read');
+                            $report['Databases'][] = 'API Key is missing scope: attributes.read';
                         }
                     }
 
@@ -189,15 +192,13 @@ class Appwrite extends Source
                         $databases->createStringAttribute('', '', '', 0, false, false);
                     } catch (\Throwable $e) {
                         if ($e->getCode() !== 403) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: attributes.write');
+                            $report['Databases'][] = 'API Key is missing scope: attributes.write';
                         }
                     }
             }
-
-            $completedResources[] = $resource;
         }
 
-        return $completedResources;
+        return $report;
     }
 
     /**
