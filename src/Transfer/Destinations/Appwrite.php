@@ -5,7 +5,7 @@ namespace Utopia\Transfer\Destinations;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Services\Users;
-use Appwrite\Services\Databases as DatabasesService;
+use Appwrite\Services\Databases;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resources\Hash;
 use Utopia\Transfer\Log;
@@ -81,43 +81,112 @@ class Appwrite extends Destination
             $resources = $this->getSupportedResources();
         }
 
+        // Most of these API calls are purposely wrong. Appwrite will throw a 403 before a 400.
+        // We want to make sure the API key has the correct permissions.
+
         foreach ($resources as $resource) {
             switch ($resource) {
                 case Transfer::RESOURCE_DATABASES:
-                    $databases = new DatabasesService($this->client);
+                    $databases = new Databases($this->client);
                     try {
                         $databases->list();
-                    } catch (\Exception $e) {
-                        $this->logs[Log::ERROR] = new Log($e->getMessage());
-                        return false;
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: databases.read');
+                        }
                     }
                     break;
                 case Transfer::RESOURCE_USERS:
                     $auth = new Users($this->client);
                     try {
                         $auth->list();
-                    } catch (\Exception $e) {
-                        $this->logs[Log::ERROR] = new Log($e->getMessage());
-                        return false;
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: users.read');
+                        }
                     }
                     break;
                 case Transfer::RESOURCE_DOCUMENTS:
-                    $databases = new DatabasesService($this->client);
+                    $databases = new Databases($this->client);
                     try {
-                        $database = $databases->list()[0];
-                        $collection = $databases->listCollections($database['$id'])[0];
-                        $documents = $databases->listDocuments($database, $collection['$id']);
-                        $document = $database->getDocument($documents[0]['$id']);
-
-                        if (empty($document)) {
-                            $this->logs[Log::ERROR] = new Log('Failed to get document');
-                            return false;
+                        $databases->list();
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: databases.read');
                         }
-                    } catch (\Exception $e) {
-                        $this->logs[Log::ERROR] = new Log($e->getMessage());
-                        return false;
                     }
-                    break;
+
+                    try {
+                        $databases->create('', '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: databases.write');
+                        }
+                    }
+
+                    try {
+                        $databases->listCollections('', [], '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: collections.write');
+                        }
+                    }
+
+                    try {
+                        $databases->createCollection('', '', '', []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: collections.write');
+                        }
+                    }
+
+                    try {
+                        $databases->listDocuments('', '', []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: documents.write');
+                        }
+                    }
+
+                    try {
+                        $databases->createDocument('', '', '', [], []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: documents.write');
+                        }
+                    }
+
+                    try {
+                        $databases->listIndexes('', '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: indexes.read');
+                        }
+                    }
+
+                    try {
+                        $databases->createIndex('', '', '', '', [], []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: indexes.write');
+                        }
+                    }
+
+                    try {
+                        $databases->listAttributes('', '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: attributes.read');
+                        }
+                    }
+
+                    try {
+                        $databases->createStringAttribute('', '', '', 0, false, false);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: attributes.write');
+                        }
+                    }
             }
 
             $completedResources[] = $resource;
@@ -259,7 +328,7 @@ class Appwrite extends Destination
 
     public function createAttribute(Attribute $attribute, Collection $collection, Database $database): void
     {
-        $databaseService = new DatabasesService($this->client);
+        $databaseService = new Databases($this->client);
 
         try {
             switch ($attribute->getName()) {
@@ -316,7 +385,7 @@ class Appwrite extends Destination
      */
     public function validateAttributesCreation(array $attributes, Collection $collection, Database $database): bool
     {
-        $databaseService = new DatabasesService($this->client);
+        $databaseService = new Databases($this->client);
         $destinationAttributes = $databaseService->listAttributes($database->getId(), $collection->getId())['attributes'];
 
         foreach ($attributes as $attribute) {
@@ -355,7 +424,7 @@ class Appwrite extends Destination
     public function importDatabases(array $databases, callable $callback): void
     {
         $databaseCounters = &$this->getCounter(Transfer::RESOURCE_DATABASES);
-        $databaseService = new DatabasesService($this->client);
+        $databaseService = new Databases($this->client);
 
         foreach ($databases as $database) {
             /** @var Database $database */

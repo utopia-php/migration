@@ -95,37 +95,103 @@ class Appwrite extends Source
                     $databases = new Databases($this->client);
                     try {
                         $databases->list();
-                    } catch (\Exception $e) {
-                        $this->logs[Log::ERROR] = new Log($e->getMessage());
-                        return false;
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: databases.read');
+                        }
                     }
                     break;
                 case Transfer::RESOURCE_USERS:
                     $auth = new Users($this->client);
                     try {
                         $auth->list();
-                    } catch (\Exception $e) {
-                        $this->logs[Log::ERROR] = new Log($e->getMessage());
-                        return false;
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: users.read');
+                        }
                     }
                     break;
                 case Transfer::RESOURCE_DOCUMENTS:
                     $databases = new Databases($this->client);
                     try {
-                        $database = $databases->list()[0];
-                        $collection = $databases->listCollections($database['$id'])[0];
-                        $documents = $databases->listDocuments($database, $collection['$id']);
-                        $document = $database->getDocument($documents[0]['$id']);
-
-                        if (empty($document)) {
-                            $this->logs[Log::ERROR] = new Log('Failed to get document');
-                            return false;
+                        $databases->list();
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: databases.read');
                         }
-                    } catch (\Exception $e) {
-                        $this->logs[Log::ERROR] = new Log($e->getMessage());
-                        return false;
                     }
-                    break;
+
+                    try {
+                        $databases->create('', '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: databases.write');
+                        }
+                    }
+
+                    try {
+                        $databases->listCollections('', [], '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: collections.write');
+                        }
+                    }
+
+                    try {
+                        $databases->createCollection('', '', '', []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: collections.write');
+                        }
+                    }
+
+                    try {
+                        $databases->listDocuments('', '', []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: documents.write');
+                        }
+                    }
+
+                    try {
+                        $databases->createDocument('', '', '', [], []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: documents.write');
+                        }
+                    }
+
+                    try {
+                        $databases->listIndexes('', '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: indexes.read');
+                        }
+                    }
+
+                    try {
+                        $databases->createIndex('', '', '', '', [], []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: indexes.write');
+                        }
+                    }
+
+                    try {
+                        $databases->listAttributes('', '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: attributes.read');
+                        }
+                    }
+
+                    try {
+                        $databases->createStringAttribute('', '', '', 0, false, false);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() !== 403) {
+                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: attributes.write');
+                        }
+                    }
             }
 
             $completedResources[] = $resource;
@@ -190,8 +256,7 @@ class Appwrite extends Source
     function convertAttribute(array $value): Attribute
     {
         switch ($value['type']) {
-            case 'string':
-                {
+            case 'string': {
                     if (!isset($value['format']))
                         return new StringAttribute($value['key'], $value['required'], $value['array'], $value['default'], $value['size'] ?? 0);
 
@@ -256,7 +321,7 @@ class Appwrite extends Source
                 $generalCollections = [];
                 foreach ($collections['collections'] as $collection) {
                     $newCollection = new Collection($collection['name'], $collection['$id']);
-                    
+
                     $attributes = [];
                     $indexes = [];
 
@@ -264,13 +329,13 @@ class Appwrite extends Source
                         $attributes[] = $this->convertAttribute($attribute);
                     }
 
-                    foreach($collection['indexes'] as $index) {
+                    foreach ($collection['indexes'] as $index) {
                         $indexes[] = new Index($index['key'], $index['type'], $index['attributes'], $index['orders']);
                     }
 
                     $newCollection->setAttributes($attributes);
                     $newCollection->setIndexes($indexes);
-                    
+
                     $generalCollections[] = $newCollection;
                 }
 
@@ -297,20 +362,17 @@ class Appwrite extends Source
      */
     protected function calculateTypes(array $user): array
     {
-        if (empty($user['email']) && empty($user['phone']))
-        {
+        if (empty($user['email']) && empty($user['phone'])) {
             return [User::TYPE_ANONYMOUS];
         }
 
         $types = [];
 
-        if (!empty($user['email']))
-        {
+        if (!empty($user['email'])) {
             $types[] = User::TYPE_EMAIL;
         }
 
-        if (!empty($user['phone']))
-        {
+        if (!empty($user['phone'])) {
             $types[] = User::TYPE_PHONE;
         }
 
