@@ -167,6 +167,10 @@ class Progress
      */
     public function getProgress(): float
     {
+        if ($this->total === 0) {
+            return 0;
+        }
+
         return ($this->current / $this->total) * 100;
     }
 

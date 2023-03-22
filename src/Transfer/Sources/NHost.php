@@ -302,8 +302,8 @@ class NHost extends Source
             $resources = $this->getSupportedResources();
         }
 
-        if ($this->pdo->errorCode() !== '00000') {
-            $report['Databases'][] = 'Failed to connect to database. Error: ' . $this->pdo->errorInfo()[2];
+        if (!empty($this->pdo->errorCode())) {
+            $report['Databases'][] = 'Failed to connect to database. PDO Code: '. $this->pdo->errorCode() . (empty($this->pdo->errorInfo()[2]) ? '' : ' Error: ' . $this->pdo->errorInfo()[2]);
         }
 
         foreach ($resources as $resource) {

@@ -95,12 +95,12 @@ abstract class Destination
     /**
      * Get Resource Counters
      * 
-     * @param string $resource
+     * @param string $resource = null
      * 
      * @return array
      */
-    public function &getCounter(string $resource): array {
-        if ($this->counters[$resource]) {
+    public function &getCounter(?string $resource = null): array {
+        if ($resource && $this->counters[$resource]) {
             return $this->counters[$resource];
         } else {
             $this->counters[$resource] = [
