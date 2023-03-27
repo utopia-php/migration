@@ -14,6 +14,9 @@ const TYPE_NULL = 'null';
 
 class Database extends Resource
 {
+    const DB_RELATIONAL = 'relational';
+    const DB_NON_RELATIONAL = 'non-relational';
+
     /**
      * @var list<Collection> $collections
      */
@@ -21,11 +24,13 @@ class Database extends Resource
 
     protected string $name;
     protected string $id;
+    protected string $type;
 
-    public function __construct(string $name = '', string $id = '')
+    public function __construct(string $name = '', string $id = '', string $type = self::DB_RELATIONAL)
     {
         $this->name = $name;
         $this->id = $id;
+        $this->type = $type;
     }
 
     public function getName(): string
@@ -46,6 +51,17 @@ class Database extends Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+        return $this;
+    }
+
+    public function getType(): string
+    {
+        return $this->type;
+    }
+
+    public function setType(string $type): self
+    {
+        $this->type = $type;
         return $this;
     }
 

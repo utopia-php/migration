@@ -368,7 +368,7 @@ class Firebase extends Source
         // Let's grab the root collections. (google's params technically doesn't allow this, however they do it in their own console)
         $request = $firestore->projects_databases_documents->listCollectionIds('projects/' . $this->project->getId() . '/databases/(default)/documents', new ListCollectionIdsRequest());
 
-        $database = new Database('Default', 'Default');
+        $database = new Database('Default', 'Default', Database::DB_NON_RELATIONAL);
 
         $database->setCollections($this->handleCollections($request['collectionIds']));
 

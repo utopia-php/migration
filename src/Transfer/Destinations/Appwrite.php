@@ -10,7 +10,6 @@ use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resources\Hash;
 use Utopia\Transfer\Log;
 use Utopia\Transfer\Progress;
-use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Attribute;
 use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
@@ -442,13 +441,16 @@ class Appwrite extends Destination
                     /** @var Collection $collection */
                     $createdAttributes = [];
 
-                    // Get filename and parent directory
-                    $path = \explode('/', $collection->getCollectionName());
+                    if ($database->getType() == Database::DB_NON_RELATIONAL) {
+                        $path = \explode('/', $collection->getCollectionName());
 
-                    $collectionName = $path[count($path) - 1];
+                        $collectionName = $path[count($path) - 1];
 
-                    if (isset($path[count($path) - 2])) {
-                        $collectionName = $path[count($path) - 2]."/".$collectionName;
+                        if (isset($path[count($path) - 2])) {
+                            $collectionName = $path[count($path) - 2] . "/" . $collectionName;
+                        }
+                    } else {
+                        $collectionName = $collection->getCollectionName();
                     }
 
                     // Handle special chars
@@ -462,7 +464,7 @@ class Appwrite extends Destination
                     $newCollection = $databaseService->createCollection($database->getId(), "unique()", $collectionName);
                     $collection->setId($newCollection['$id']);
 
-                    // Remove duplicate attributes
+                    // Remove duplicate attributes, TODO: Merge them together.
                     $filteredAttributes = \array_filter($collection->getAttributes(), function ($attribute) use (&$createdAttributes) {
                         if (\in_array($attribute->getKey(), $createdAttributes)) {
                             return false;
@@ -500,16 +502,19 @@ class Appwrite extends Destination
                     $createdCollections[] = $collection;
                 }
 
-                $refCollectionID = $databaseService->createCollection($database->getId(), 'refs', 'References')['$id'];
-                $databaseService->createStringAttribute($database->getId(), $refCollectionID, 'original_name', 1000000, true);
-
-                sleep(2);
-
-                foreach ($createdCollections as $collection) {
-                    /** @var Collection $collection */
-                    $result = $databaseService->createDocument($database->getId(), $refCollectionID, $collection->getId(), [
-                        'original_name' => $collection->getCollectionName()
-                    ]);
+                // TODO: Rewrite to use new Appwrite relations
+                if ($database->getType() == Database::DB_NON_RELATIONAL) {
+                    $refCollectionID = $databaseService->createCollection($database->getId(), 'refs', 'References')['$id'];
+                    $databaseService->createStringAttribute($database->getId(), $refCollectionID, 'original_name', 1000000, true);
+    
+                    sleep(2);
+    
+                    foreach ($createdCollections as $collection) {
+                        /** @var Collection $collection */
+                        $result = $databaseService->createDocument($database->getId(), $refCollectionID, $collection->getId(), [
+                            'original_name' => $collection->getCollectionName()
+                        ]);
+                    }
                 }
 
                 $this->logs[Log::SUCCESS][] = new Log('Database imported successfully', \time(), $database);

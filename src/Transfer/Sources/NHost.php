@@ -159,12 +159,12 @@ class NHost extends Source
 
         $databaseIndexes = $indexStatement->fetchAll(\PDO::FETCH_ASSOC);
         $indexes = [];
-
         foreach ($databaseIndexes as $index) {
             $result = $this->convertIndex($index);
 
             $indexes[] = $result;
         }
+        $convertedCollection->setIndexes($indexes);
 
         return $convertedCollection;
     }
@@ -211,7 +211,7 @@ class NHost extends Source
             case 'time':
             case 'timetz':
             case 'interval':
-                return new DateTimeAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, ($column['column_default'] === 'now()') ? 'now()' : ($column['column_default'] ?? null));
+                return new DateTimeAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, null);
                 break;
                 // Strings and Objects
             case 'uuid':
