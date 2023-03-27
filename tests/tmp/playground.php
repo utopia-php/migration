@@ -35,12 +35,12 @@ $sourceFirebase = new Firebase(
     Firebase::AUTH_SERVICEACCOUNT
 );
 
-$sourceNHost = new NHost(
-    $_ENV["NHOST_TEST_HOST"] ?? '',
-    $_ENV["NHOST_TEST_DATABASE"] ?? '',
-    $_ENV["NHOST_TEST_USERNAME"] ?? '',
-    $_ENV["NHOST_TEST_PASSWORD"] ?? '',
-);
+// $sourceNHost = new NHost(
+//     $_ENV["NHOST_TEST_HOST"] ?? '',
+//     $_ENV["NHOST_TEST_DATABASE"] ?? '',
+//     $_ENV["NHOST_TEST_USERNAME"] ?? '',
+//     $_ENV["NHOST_TEST_PASSWORD"] ?? '',
+// );
 
 $sourceSupabase = new Supabase(
     $_ENV["SUPABASE_TEST_HOST"] ?? '',
@@ -67,7 +67,7 @@ $destinationLocal = new Local(__DIR__ . '/databaseDMP.json');
 $sourceFirebase->setProject($sourceFirebase->getProjects()[0]);
 
 $transfer = new Transfer(
-    $sourceAppwrite,
+    $sourceSupabase,
     $destinationLocal
 );
 

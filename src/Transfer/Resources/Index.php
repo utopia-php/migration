@@ -11,6 +11,10 @@ class Index extends Resource {
     protected array $attributes;
     protected array $orders;
 
+    const TYPE_UNIQUE = 'unique';
+    const TYPE_FULLTEXT = 'fulltext';
+    const TYPE_KEY = 'key';
+
     /**
      * @param string $key
      * @param string $type
