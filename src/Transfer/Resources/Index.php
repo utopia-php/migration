@@ -11,6 +11,10 @@ class Index extends Resource {
     protected array $attributes;
     protected array $orders;
 
+    const TYPE_UNIQUE = 'unique';
+    const TYPE_FULLTEXT = 'fulltext';
+    const TYPE_KEY = 'key';
+
     /**
      * @param string $key
      * @param string $type
@@ -18,8 +22,9 @@ class Index extends Resource {
      * @param array $orders
      */
 
-    public function __construct(string $key, string $type = '', array $attributes = [], array $orders = [])
+    public function __construct(string $id, string $key, string $type = '', array $attributes = [], array $orders = [])
     {
+        $this->id = $id;
         $this->key = $key;
         $this->type = $type;
         $this->attributes = $attributes;

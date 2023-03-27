@@ -15,6 +15,7 @@ use Utopia\Transfer\Resources\Attributes\FloatAttribute;
 use Utopia\Transfer\Resources\Attributes\IntAttribute;
 use Utopia\Transfer\Resources\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Collection;
+use Utopia\Transfer\Resources\Index;
 
 class NHost extends Source
 {
@@ -150,6 +151,21 @@ class NHost extends Source
         }
         $convertedCollection->setAttributes($attributes);
 
+        // Handle Indexes
+
+        $indexStatement = $this->pdo->prepare('SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :tableName');
+        $indexStatement->bindValue(':tableName', $tableName, \PDO::PARAM_STR);
+        $indexStatement->execute();
+
+        $databaseIndexes = $indexStatement->fetchAll(\PDO::FETCH_ASSOC);
+        $indexes = [];
+        foreach ($databaseIndexes as $index) {
+            $result = $this->convertIndex($index);
+
+            $indexes[] = $result;
+        }
+        $convertedCollection->setIndexes($indexes);
+
         return $convertedCollection;
     }
 
@@ -195,7 +211,7 @@ class NHost extends Source
             case 'time':
             case 'timetz':
             case 'interval':
-                return new DateTimeAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, ($column['column_default'] === 'now()') ? 'now()' : ($column['column_default'] ?? null));
+                return new DateTimeAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, null);
                 break;
                 // Strings and Objects
             case 'uuid':
@@ -229,6 +245,58 @@ class NHost extends Source
     }
 
     /**
+     * Convert Index
+     * 
+     * @param string $table
+     * @return Index|false
+     */
+    public function convertIndex(array $index): Index|false
+    {
+        $pattern = "/CREATE (?<type>\w+)? INDEX (?<name>\w+) ON (?<table>\w+\.\w+) USING (?<method>\w+) \((?<columns>\w+)\)/";
+
+        if (\preg_match($pattern, $index['indexdef'], $matches)) {
+            // We only support BTree indexes
+            if ($matches['method'] !== 'btree') {
+                $this->logs[Log::ERROR][] = new Log('Skipping index due to unsupported type: ' . $matches['method'] . ' for index: ' . $matches['name'] . '. Transfers only support BTree.', \time());
+
+                return false;
+            }
+
+            $type = "";
+
+            if ($matches['type'] === 'UNIQUE') {
+                $type = Index::TYPE_UNIQUE;
+            } else if ($matches['type'] === 'FULLTEXT') {
+                $type = Index::TYPE_FULLTEXT;
+            } else {
+                $type = Index::TYPE_KEY;
+            }
+
+            $attributes = [];
+            $order = [];
+
+            $targets = explode(",", $matches['columns']);
+
+            foreach ($targets as $target) {
+                if (\strpos($target, ' ') !== false) {
+                    $target = \explode(' ', $target);
+                    $attributes[] = $target[0];
+                    $order[] = $target[1];
+                } else {
+                    $attributes[] = $target;
+                    $order[] = "ASC";
+                }
+            }
+
+            return new Index($matches['name'], $matches['name'], $type, $attributes, $order);
+        } else {
+            $this->logs[Log::ERROR][] = new Log('Skipping index due to unsupported format: ' . $index['indexdef'] . ' for index: ' . $index['indexname'] . '. Transfers only support BTree.', \time());
+
+            return false;
+        }
+    }
+
+    /**
      * Export Databases
      * 
      * @param int $batchSize Max 100
@@ -243,7 +311,7 @@ class NHost extends Source
         $offset = 0;
 
         // We'll only transfer the public database for now, since it's the only one that exists by default.
-        //TODO: Handle edge cases where there are user created databases.
+        //TODO: Handle edge cases where there are user created databases and data.
 
         $transferDatabase = new Database('public', 'public');
 
