@@ -4,6 +4,10 @@ namespace Utopia\Transfer;
 
 abstract class Resource
 {
+    /**
+     * ID of the resource, if any.
+     * If "unique()" then handle it using a random ID of the destination platform.
+     */
     protected string $id = '';
 
     /**

@@ -22,8 +22,9 @@ class Index extends Resource {
      * @param array $orders
      */
 
-    public function __construct(string $key, string $type = '', array $attributes = [], array $orders = [])
+    public function __construct(string $id, string $key, string $type = '', array $attributes = [], array $orders = [])
     {
+        $this->id = $id;
         $this->key = $key;
         $this->type = $type;
         $this->attributes = $attributes;

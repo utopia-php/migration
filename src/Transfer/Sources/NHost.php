@@ -161,7 +161,9 @@ class NHost extends Source
         $indexes = [];
 
         foreach ($databaseIndexes as $index) {
-            $indexes[] = $this->convertIndex($index);
+            $result = $this->convertIndex($index);
+
+            $indexes[] = $result;
         }
 
         return $convertedCollection;
@@ -250,7 +252,7 @@ class NHost extends Source
      */
     public function convertIndex(array $index): Index|false
     {
-        $pattern = "/CREATE (?<unique>UNIQUE)? INDEX (?<name>\w+) ON (?<table>\w+\.\w+) USING (?<method>\w+) \((?<columns>\w+)\)/";
+        $pattern = "/CREATE (?<type>\w+)? INDEX (?<name>\w+) ON (?<table>\w+\.\w+) USING (?<method>\w+) \((?<columns>\w+)\)/";
 
         if (\preg_match($pattern, $index['indexdef'], $matches)) {
             // We only support BTree indexes
@@ -262,15 +264,31 @@ class NHost extends Source
 
             $type = "";
 
-            if ($matches['unique'] === 'UNIQUE') {
+            if ($matches['type'] === 'UNIQUE') {
                 $type = Index::TYPE_UNIQUE;
-            } else {
+            } else if ($matches['type'] === 'FULLTEXT') {
                 $type = Index::TYPE_FULLTEXT;
+            } else {
+                $type = Index::TYPE_KEY;
             }
 
-            $targets = explode(" ", $matches['columns']);
+            $attributes = [];
+            $order = [];
 
-            return new Index($matches['name'], $type, $targets, ["ASC"]);
+            $targets = explode(",", $matches['columns']);
+
+            foreach ($targets as $target) {
+                if (\strpos($target, ' ') !== false) {
+                    $target = \explode(' ', $target);
+                    $attributes[] = $target[0];
+                    $order[] = $target[1];
+                } else {
+                    $attributes[] = $target;
+                    $order[] = "ASC";
+                }
+            }
+
+            return new Index($matches['name'], $matches['name'], $type, $attributes, $order);
         } else {
             $this->logs[Log::ERROR][] = new Log('Skipping index due to unsupported format: ' . $index['indexdef'] . ' for index: ' . $index['indexname'] . '. Transfers only support BTree.', \time());
 
