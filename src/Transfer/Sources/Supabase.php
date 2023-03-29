@@ -13,14 +13,6 @@ class Supabase extends NHost
         return 'Supabase';
     }
 
-    function getSupportedResources(): array
-    {
-        return [
-            Transfer::RESOURCE_USERS,
-            Transfer::RESOURCE_DATABASES
-        ];
-    }
-
     /**
      * Export Users
      * 

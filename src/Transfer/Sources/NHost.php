@@ -15,6 +15,7 @@ use Utopia\Transfer\Resources\Attributes\FloatAttribute;
 use Utopia\Transfer\Resources\Attributes\IntAttribute;
 use Utopia\Transfer\Resources\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Collection;
+use Utopia\Transfer\Resources\Document;
 use Utopia\Transfer\Resources\Index;
 
 class NHost extends Source
@@ -67,7 +68,7 @@ class NHost extends Source
         $this->username = $username;
         $this->password = $password;
         $this->port = $port;
-        $this->pdo = new \PDO("pgsql:host=".$this->host.";port=".$this->port.";dbname=".$this->databaseName, $this->username, $this->password);
+        $this->pdo = new \PDO("pgsql:host=" . $this->host . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
     }
 
     function getName(): string
@@ -79,7 +80,8 @@ class NHost extends Source
     {
         return [
             Transfer::RESOURCE_USERS,
-            Transfer::RESOURCE_DATABASES
+            Transfer::RESOURCE_DATABASES,
+            Transfer::RESOURCE_DOCUMENTS,
         ];
     }
 
@@ -337,6 +339,61 @@ class NHost extends Source
         $callback([$transferDatabase]);
     }
 
+    /**
+     * Export Documents
+     * 
+     * @param int $batchSize Max 100
+     * @param callable $callback Callback function to be called after each batch, $callback(document[] $batch);
+     * 
+     * @return void
+     */
+    public function exportDocuments(int $batchSize, callable $callback): void
+    {
+        $databases = $this->resourceCache[Transfer::RESOURCE_DATABASES];
+
+        foreach ($databases as $database) {
+            /** @var Database $database */
+            $collections = $database->getCollections();
+
+            foreach ($collections as $collection) {
+                $total = $this->pdo->query('SELECT COUNT(*) FROM ' . $collection->getCollectionName())->fetchColumn();
+
+                $offset = 0;
+
+                while ($offset < $total) {
+                    $statement = $this->pdo->prepare('SELECT row_to_json(t) FROM (SELECT * FROM ' . $collection->getCollectionName() . ' LIMIT :limit OFFSET :offset) t;');
+                    $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
+                    $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
+                    $statement->execute();
+
+                    $documents = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+                    $offset += $batchSize;
+
+                    $transferDocuments = [];
+
+                    foreach ($documents as $document) {
+                        $data = json_decode($document['row_to_json'], true);
+
+                        $processedData = [];
+                        foreach ($collection->getAttributes() as $attribute) {
+                            /* @var Attribute $attribute */
+                            if (!$attribute->getArray() && \is_array($data[$attribute->getKey()])) {
+                                $processedData[$attribute->getKey()] = json_encode($data[$attribute->getKey()]);
+                            } else {
+                                $processedData[$attribute->getKey()] = $data[$attribute->getKey()];
+                            }
+                        }
+
+                        $transferDocuments[] = new Document('unique()', 'public', $collection, $processedData);
+                    }
+
+                    $callback($transferDocuments);
+                }
+            }
+        }
+    }
+
     private function calculateUserTypes(array $user): array
     {
         if (empty($user['password_hash']) && empty($user['phone_number'])) {
@@ -371,7 +428,7 @@ class NHost extends Source
         }
 
         if (!empty($this->pdo->errorCode())) {
-            $report['Databases'][] = 'Failed to connect to database. PDO Code: '. $this->pdo->errorCode() . (empty($this->pdo->errorInfo()[2]) ? '' : ' Error: ' . $this->pdo->errorInfo()[2]);
+            $report['Databases'][] = 'Failed to connect to database. PDO Code: ' . $this->pdo->errorCode() . (empty($this->pdo->errorInfo()[2]) ? '' : ' Error: ' . $this->pdo->errorInfo()[2]);
         }
 
         foreach ($resources as $resource) {
@@ -394,6 +451,10 @@ class NHost extends Source
                     }
 
                     break;
+                case Transfer::RESOURCE_DOCUMENTS:
+                    if (!in_array(Transfer::RESOURCE_DATABASES, $resources)) {
+                        $report['Documents'][] = 'Documents resource requires Databases resource to be enabled.';
+                    }
             }
         }
 

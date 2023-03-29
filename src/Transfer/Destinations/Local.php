@@ -151,4 +151,37 @@ class Local extends Destination {
 
         $this->syncFile();
     }
+
+    /**
+     * Import Documents
+     * 
+     * @param array $documents
+     * @param callable $callback
+     * 
+     * @return void
+     */
+    public function importDocuments(array $documents, callable $callback): void
+    {
+        $documentCounters = &$this->getCounter(Transfer::RESOURCE_DOCUMENTS);
+
+        foreach ($documents as $document) {
+            /** @var Database $document */
+            $this->data[Transfer::RESOURCE_DOCUMENTS][] = $document->asArray();
+            $this->logs[Log::SUCCESS][] = new Log('Document imported successfully', \time(), $document);
+            $documentCounters['current']++;
+        }
+
+        $callback(
+            new Progress(
+                Transfer::RESOURCE_DOCUMENTS,
+                time(),
+                $documentCounters['total'],
+                $documentCounters['current'],
+                $documentCounters['failed'],
+                $documentCounters['skipped']
+            )
+        );
+
+        $this->syncFile();
+    }
 }

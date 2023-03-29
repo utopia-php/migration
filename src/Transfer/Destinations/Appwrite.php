@@ -15,6 +15,7 @@ use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Resources\Database;
 use Utopia\Transfer\Resources\Collection;
+use Utopia\Transfer\Resources\Document;
 use Utopia\Transfer\Resources\Attributes\BoolAttribute;
 use Utopia\Transfer\Resources\Attributes\DateTimeAttribute;
 use Utopia\Transfer\Resources\Attributes\EmailAttribute;
@@ -33,6 +34,8 @@ class Appwrite extends Destination
     protected string $project;
     protected string $endpoint;
     protected string $key;
+
+    private array $conversionTable = [];
 
     public function __construct(string $project, string $endpoint, string $key)
     {
@@ -342,11 +345,11 @@ class Appwrite extends Destination
                     break;
                 case Attribute::TYPE_INTEGER:
                     /** @var IntAttribute $attribute */
-                    $databaseService->createIntegerAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getMin(), $attribute->getMax(), $attribute->getDefault(), $attribute->getArray());
+                    $databaseService->createIntegerAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getMin(), $attribute->getMax() ?? null, $attribute->getDefault(), $attribute->getArray());
                     break;
                 case Attribute::TYPE_FLOAT:
                     /** @var FloatAttribute $attribute */
-                    $databaseService->createFloatAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                    $databaseService->createFloatAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), null, null, $attribute->getDefault(), $attribute->getArray());
                     break;
                 case Attribute::TYPE_BOOLEAN:
                     /** @var BoolAttribute $attribute */
@@ -461,7 +464,7 @@ class Appwrite extends Destination
                         $collectionName = \substr($collectionName, 0, 120);
                     }
 
-                    $newCollection = $databaseService->createCollection($database->getId(), "unique()", $collectionName);
+                    $newCollection = $databaseService->createCollection($database->getId(), $collection->getId(), $collectionName);
                     $collection->setId($newCollection['$id']);
 
                     // Remove duplicate attributes, TODO: Merge them together.
@@ -533,6 +536,43 @@ class Appwrite extends Destination
                 $databaseCounters['current'],
                 $databaseCounters['failed'],
                 $databaseCounters['skipped']
+            )
+        );
+    }
+
+
+    /**
+     * Import Documents
+     * 
+     * @param array $documents
+     * @param callable $callback (Progress $progress)
+     */
+    protected function importDocuments(array $documents, callable $callback): void {
+        $documentCounters = &$this->getCounter(Transfer::RESOURCE_DOCUMENTS);
+        $databaseService = new Databases($this->client);
+
+        foreach ($documents as $document) {
+            /** @var Document $document */
+
+            try {
+                $databaseService->createDocument($document->getDatabase(), $document->getCollection()->getId(), 'unique()', $document->getData());
+
+                $this->logs[Log::SUCCESS][] = new Log('Document imported successfully', \time(), $document);
+                $documentCounters['current']++;
+            } catch (AppwriteException $e) {
+                $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $document);
+                $documentCounters['failed']++;
+            }
+        }
+
+        $callback(
+            new Progress(
+                Transfer::RESOURCE_DOCUMENTS,
+                time(),
+                $documentCounters['total'],
+                $documentCounters['current'],
+                $documentCounters['failed'],
+                $documentCounters['skipped']
             )
         );
     }

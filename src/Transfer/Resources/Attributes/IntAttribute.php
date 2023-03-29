@@ -6,18 +6,18 @@ use Utopia\Transfer\Resources\Attribute;
 
 class IntAttribute extends Attribute {
     protected ?int $default;
-    protected int $min;
-    protected int $max;
+    protected ?int $min;
+    protected ?int $max;
 
     /**
      * @param string $key
      * @param bool $required
      * @param bool $array
      * @param ?int $default
-     * @param int $min
-     * @param int $max
+     * @param ?int $min
+     * @param ?int $max
      */
-    function __construct(string $key, bool $required = false, bool $array = false, ?int $default = null, int $min = 0, int $max = 0)
+    function __construct(string $key, bool $required = false, bool $array = false, ?int $default = null, int $min = null, int $max = null)
     {
         parent::__construct($key, $required, $array);
         $this->default = $default;
@@ -30,23 +30,23 @@ class IntAttribute extends Attribute {
         return 'intAttribute';
     }
 
-    function getMin(): int
+    function getMin(): int|null
     {
         return $this->min;
     }
 
-    function getMax(): int
+    function getMax(): int|null
     {
         return $this->max;
     }
 
-    function setMin(int $min): self
+    function setMin(int|null $min): self
     {
         $this->min = $min;
         return $this;
     }
 
-    function setMax(int $max): self
+    function setMax(int|null $max): self
     {
         $this->max = $max;
         return $this;

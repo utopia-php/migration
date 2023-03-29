@@ -65,6 +65,9 @@ class Database extends Resource
         return $this;
     }
 
+    /**
+     * @return list<Collection>
+     */
     public function getCollections(): array
     {
         return $this->collections;

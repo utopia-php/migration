@@ -76,7 +76,8 @@ $transfer = new Transfer(
 */
 $transfer->run(
     [
-    Transfer::RESOURCE_DATABASES
+    Transfer::RESOURCE_DATABASES,
+    Transfer::RESOURCE_DOCUMENTS,
     ], function () {
     }
 );

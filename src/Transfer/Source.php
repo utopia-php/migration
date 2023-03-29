@@ -27,7 +27,13 @@ abstract class Source
      * 
      * @var array $resourceCache
      */
-    protected $resourceCache = [];
+    protected $resourceCache = [
+        Transfer::RESOURCE_DATABASES => [],
+        Transfer::RESOURCE_DOCUMENTS => [],
+        Transfer::RESOURCE_FILES => [],
+        Transfer::RESOURCE_FUNCTIONS => [],
+        Transfer::RESOURCE_USERS => [],
+    ];
 
     /**
      * Counters
@@ -116,15 +122,36 @@ abstract class Source
             switch ($resource) {
                 case Transfer::RESOURCE_USERS: {
                     $this->exportUsers(100, function (array $users) use ($callback) {
-                        $this->resourceCache = array_merge($this->resourceCache, $users);
+                        $this->resourceCache[Transfer::RESOURCE_USERS] = array_merge($this->resourceCache[Transfer::RESOURCE_USERS], $users);
                         $callback(Transfer::RESOURCE_USERS, $users);
                     });
                     break;
                 }
                 case Transfer::RESOURCE_DATABASES: {
                     $this->exportDatabases(100, function (array $databases) use ($callback) {
-                        $this->resourceCache = array_merge($this->resourceCache, $databases);
+                        $this->resourceCache[Transfer::RESOURCE_DATABASES] = array_merge($this->resourceCache[Transfer::RESOURCE_DATABASES], $databases);
                         $callback(Transfer::RESOURCE_DATABASES, $databases);
+                    });
+                    break;
+                }
+                case Transfer::RESOURCE_DOCUMENTS: {
+                    $this->exportDocuments(100, function (array $documents) use ($callback) {
+                        $this->resourceCache[Transfer::RESOURCE_DOCUMENTS] = array_merge($this->resourceCache[Transfer::RESOURCE_DOCUMENTS], $documents);
+                        $callback(Transfer::RESOURCE_DOCUMENTS, $documents);
+                    });
+                    break;
+                }
+                case Transfer::RESOURCE_FILES: {
+                    $this->exportFiles(5, function (array $files) use ($callback) {
+                        $this->resourceCache[Transfer::RESOURCE_FILES] = array_merge($this->resourceCache[Transfer::RESOURCE_FILES], $files);
+                        $callback(Transfer::RESOURCE_FILES, $files);
+                    });
+                    break;
+                }
+                case Transfer::RESOURCE_FUNCTIONS: {
+                    $this->exportFunctions(100, function (array $functions) use ($callback) {
+                        $this->resourceCache[Transfer::RESOURCE_FUNCTIONS] = array_merge($this->resourceCache, $functions);
+                        $callback(Transfer::RESOURCE_FUNCTIONS, $functions);
                     });
                     break;
                 }
@@ -283,6 +310,45 @@ abstract class Source
      * @return void
      */
     public function exportDatabases(int $batchSize, callable $callback): void
+    {
+        throw new Exception('Unimplemented, Please check if your source adapter supports this method.');
+    }
+
+    /**
+     * Export Documents
+     * 
+     * @param int $batchSize Max 100
+     * @param callable $callback Callback function to be called after each document, $callback(document[] $batch);
+     * 
+     * @return void
+     */
+    public function exportDocuments(int $batchSize, callable $callback): void
+    {
+        throw new Exception('Unimplemented, Please check if your source adapter supports this method.');
+    }
+
+    /**
+     * Export Files
+     * 
+     * @param int $batchSize Max 100
+     * @param callable $callback Callback function to be called after each file, $callback(file[] $batch);
+     * 
+     * @return void
+     */
+    public function exportFiles(int $batchSize, callable $callback): void
+    {
+        throw new Exception('Unimplemented, Please check if your source adapter supports this method.');
+    }
+
+    /**
+     * Export Functions
+     * 
+     * @param int $batchSize Max 100
+     * @param callable $callback Callback function to be called after each function, $callback(function[] $batch);
+     * 
+     * @return void
+     */
+    public function exportFunctions(int $batchSize, callable $callback): void
     {
         throw new Exception('Unimplemented, Please check if your source adapter supports this method.');
     }

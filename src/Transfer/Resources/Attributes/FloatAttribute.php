@@ -6,18 +6,18 @@ use Utopia\Transfer\Resources\Attribute;
 
 class FloatAttribute extends Attribute {
     protected ?float $default;
-    protected float $min;
-    protected float $max;
+    protected ?float $min;
+    protected ?float $max;
 
     /**
      * @param string $key
      * @param bool $required
      * @param bool $array
      * @param ?float $default
-     * @param float $min
-     * @param float $max
+     * @param ?float $min
+     * @param ?float $max
      */
-    function __construct(string $key, bool $required = false, bool $array = false, ?float $default = null, float $min = 0, float $max = 0)
+    function __construct(string $key, bool $required = false, bool $array = false, ?float $default = null, float $min = null, float $max = null)
     {
         parent::__construct($key, $required, $array);
         $this->default = $default;
@@ -30,12 +30,12 @@ class FloatAttribute extends Attribute {
         return 'floatAttribute';
     }
 
-    function getMin(): float
+    function getMin(): float|null
     {
         return $this->min;
     }
 
-    function getMax(): float
+    function getMax(): float|null
     {
         return $this->max;
     }

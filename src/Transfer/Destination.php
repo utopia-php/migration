@@ -27,7 +27,13 @@ abstract class Destination
      * 
      * @var array $resourceCache
      */
-    protected $resourceCache = [];
+    protected $resourceCache = [
+        Transfer::RESOURCE_DATABASES => [],
+        Transfer::RESOURCE_DOCUMENTS => [],
+        Transfer::RESOURCE_FILES => [],
+        Transfer::RESOURCE_FUNCTIONS => [],
+        Transfer::RESOURCE_USERS => []
+    ];
 
     /**
      * @var string
@@ -67,7 +73,8 @@ abstract class Destination
      * 
      * @return Source
      */
-    public function getSource(): Source {
+    public function getSource(): Source
+    {
         return $this->source;
     }
 
@@ -78,7 +85,8 @@ abstract class Destination
      * 
      * @return self
      */
-    public function setSource(Source $source): self {
+    public function setSource(Source $source): self
+    {
         $this->source = $source;
         return $this;
     }
@@ -88,7 +96,8 @@ abstract class Destination
      * 
      * @param array &$logs
      */
-    public function registerLogs(array &$logs): void {
+    public function registerLogs(array &$logs): void
+    {
         $this->logs = &$logs;
     }
 
@@ -99,7 +108,8 @@ abstract class Destination
      * 
      * @return array
      */
-    public function &getCounter(?string $resource = null): array {
+    public function &getCounter(?string $resource = null): array
+    {
         if ($resource && $this->counters[$resource]) {
             return $this->counters[$resource];
         } else {
@@ -122,7 +132,8 @@ abstract class Destination
      * 
      * @return void
      */
-    public function registerTransferHooks(array &$cache, array &$counters): void {
+    public function registerTransferHooks(array &$cache, array &$counters): void
+    {
         $this->resourceCache = &$cache;
         $this->counters = &$counters;
     }
@@ -133,28 +144,30 @@ abstract class Destination
      * @param array $resources
      * @param callable $callback
      */
-    public function run(array $resources, callable $callback, Source $source): void {
+    public function run(array $resources, callable $callback, Source $source): void
+    {
         $this->source = $source;
-        
-        foreach ($resources as $resource) {
-            if (!in_array($resource, $this->getSupportedResources())) {
-                $this->logs[Log::FATAL] = new Log("Cannot Transfer unsupported resource: '".$resource."'");
-                throw new \Exception("Cannot Transfer unsupported resource: '".$resource."'");
-            }
 
-            $source->run($resources, function (string $resourceType, array $resource) use ($callback) {
-                switch ($resourceType) {
-                    case Transfer::RESOURCE_USERS: {
+        $source->run($resources, function (string $resourceType, array $resource) use ($callback) {
+            switch ($resourceType) {
+                case Transfer::RESOURCE_USERS: {
                         $this->importUsers($resource, $callback);
                         break;
                     }
-                    case Transfer::RESOURCE_DATABASES: {
+                case Transfer::RESOURCE_DATABASES: {
                         $this->importDatabases($resource, $callback);
                         break;
                     }
-                }
-            });
-        }
+                case Transfer::RESOURCE_DOCUMENTS: {
+                        $this->importDocuments($resource, $callback);
+                        break;
+                    }
+                case Transfer::RESOURCE_FILES: {
+                        $this->importFiles($resource, $callback);
+                        break;
+                    }
+            }
+        });
     }
 
     /**
@@ -292,7 +305,8 @@ abstract class Destination
      * @param array $users
      * @param callable $callback (Progress $progress)
      */
-    protected function importUsers(array $users, callable $callback): void {
+    protected function importUsers(array $users, callable $callback): void
+    {
         throw new \Exception("Not Implemented");
     }
 
@@ -302,7 +316,30 @@ abstract class Destination
      * @param array $databases
      * @param callable $callback (Progress $progress)
      */
-    protected function importDatabases(array $databases, callable $callback): void {
+    protected function importDatabases(array $databases, callable $callback): void
+    {
+        throw new \Exception("Not Implemented");
+    }
+
+    /**
+     * Import Documents
+     * 
+     * @param array $documents
+     * @param callable $callback (Progress $progress)
+     */
+    protected function importDocuments(array $documents, callable $callback): void
+    {
+        throw new \Exception("Not Implemented");
+    }
+
+    /**
+     * Import Files
+     * 
+     * @param array $files
+     * @param callable $callback (Progress $progress)
+     */
+    protected function importFiles(array $files, callable $callback): void
+    {
         throw new \Exception("Not Implemented");
     }
 }
