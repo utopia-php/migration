@@ -11,14 +11,14 @@ abstract class Resource
 
     /**
      * Gets the name of the adapter.
-     * 
+     *
      * @return string
      */
     abstract public function getName(): string;
 
     /**
      * Get ID
-     * 
+     *
      * @return string
      */
     public function getId(): string
@@ -28,7 +28,7 @@ abstract class Resource
 
     /**
      * Set ID
-     * 
+     *
      * @param string $id
      * @return self
      */
@@ -40,7 +40,7 @@ abstract class Resource
 
     /**
      * As Array
-     * 
+     *
      * @return array
      */
     abstract public function asArray(): array;

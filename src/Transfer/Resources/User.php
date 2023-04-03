@@ -7,18 +7,18 @@ use Utopia\Transfer\Resources\Hash;
 
 class User extends Resource
 {
-    const TYPE_EMAIL = 'email';
-    const TYPE_PHONE = 'phone';
-    const TYPE_ANONYMOUS = 'anonymous';
-    const TYPE_MAGIC = 'magic';
-    const TYPE_OAUTH = 'oauth';
+    public const TYPE_EMAIL = 'email';
+    public const TYPE_PHONE = 'phone';
+    public const TYPE_ANONYMOUS = 'anonymous';
+    public const TYPE_MAGIC = 'magic';
+    public const TYPE_OAUTH = 'oauth';
 
     protected string $id = '';
     protected string $email = '';
     protected string $username = '';
     protected ?Hash $passwordHash = null;
     protected string $phone = '';
-    protected array $types = [Self::TYPE_ANONYMOUS];
+    protected array $types = [self::TYPE_ANONYMOUS];
     protected string $oauthProvider = '';
     protected bool $emailVerified = false;
     protected bool $phoneVerified = false;
@@ -31,13 +31,13 @@ class User extends Resource
         string $username = '',
         ?Hash $passwordHash = null,
         string $phone = '',
-        array $types = [Self::TYPE_ANONYMOUS],
+        array $types = [self::TYPE_ANONYMOUS],
         string $oauthProvider = '',
         bool $emailVerified = false,
         bool $phoneVerified = false,
         bool $disabled = false,
         array $preferences = []
-    ){
+    ) {
         $this->id = $id;
         $this->email = $email;
         $this->username = $username;
@@ -53,7 +53,7 @@ class User extends Resource
 
     /**
      * Get Name
-     * 
+     *
      * @return string
      */
     public function getName(): string
@@ -61,9 +61,9 @@ class User extends Resource
         return 'user';
     }
 
-    /** 
+    /**
      * Get ID
-     * 
+     *
      * @return string
     */
     public function getId(): string
@@ -73,7 +73,7 @@ class User extends Resource
 
     /**
      * Set ID
-     * 
+     *
      * @param string $id
      * @return self
      */
@@ -85,7 +85,7 @@ class User extends Resource
 
     /**
      * Get Email
-     * 
+     *
      * @return string
      */
     public function getEmail(): string
@@ -95,7 +95,7 @@ class User extends Resource
 
     /**
      * Set Email
-     * 
+     *
      * @param string $email
      * @return self
      */
@@ -107,7 +107,7 @@ class User extends Resource
 
     /**
      * Get Username
-     * 
+     *
      * @return string
      */
     public function getUsername(): string
@@ -117,7 +117,7 @@ class User extends Resource
 
     /**
      * Set Username
-     * 
+     *
      * @param string $username
      * @return self
      */
@@ -129,7 +129,7 @@ class User extends Resource
 
     /**
      * Get Password Hash
-     * 
+     *
      * @return Hash
      */
     public function getPasswordHash(): Hash
@@ -139,7 +139,7 @@ class User extends Resource
 
     /**
      * Set Password Hash
-     * 
+     *
      * @param Hash $passwordHash
      * @return self
      */
@@ -151,7 +151,7 @@ class User extends Resource
 
     /**
      * Get Phone
-     * 
+     *
      * @return string
      */
     public function getPhone(): string
@@ -161,7 +161,7 @@ class User extends Resource
 
     /**
      * Set Phone
-     * 
+     *
      * @param string $phone
      * @return self
      */
@@ -173,7 +173,7 @@ class User extends Resource
 
     /**
      * Get Type
-     * 
+     *
      * @return array
      */
     public function getTypes(): array
@@ -183,7 +183,7 @@ class User extends Resource
 
     /**
      * Set Types
-     * 
+     *
      * @param string $types
      * @return self
      */
@@ -195,7 +195,7 @@ class User extends Resource
 
     /**
      * Get OAuth Provider
-     * 
+     *
      * @return string
      */
     public function getOAuthProvider(): string
@@ -205,7 +205,7 @@ class User extends Resource
 
     /**
      * Set OAuth Provider
-     * 
+     *
      * @param string $oauthProvider
      * @return self
      */
@@ -217,7 +217,7 @@ class User extends Resource
 
     /**
      * Get Email Verified
-     * 
+     *
      * @return bool
      */
     public function getEmailVerified(): bool
@@ -227,7 +227,7 @@ class User extends Resource
 
     /**
      * Set Email Verified
-     * 
+     *
      * @param bool $verified
      * @return self
      */
@@ -239,7 +239,7 @@ class User extends Resource
 
     /**
      * Get Email Verified
-     * 
+     *
      * @return bool
      */
     public function getPhoneVerified(): bool
@@ -249,7 +249,7 @@ class User extends Resource
 
     /**
      * Set Phone Verified
-     * 
+     *
      * @param bool $verified
      * @return self
      */
@@ -261,7 +261,7 @@ class User extends Resource
 
     /**
      * Get Disabled
-     * 
+     *
      * @return bool
      */
     public function getDisabled(): bool
@@ -271,7 +271,7 @@ class User extends Resource
 
     /**
      * Set Disabled
-     * 
+     *
      * @param bool $disabled
      * @return self
      */
@@ -283,7 +283,7 @@ class User extends Resource
 
     /**
      * Get Preferences
-     * 
+     *
      * @return array
      */
     public function getPreferences(): array
@@ -293,7 +293,7 @@ class User extends Resource
 
     /**
      * Set Preferences
-     * 
+     *
      * @param array $preferences
      * @return self
      */
@@ -305,7 +305,7 @@ class User extends Resource
 
     /**
      * As Array
-     * 
+     *
      * @return array
      */
     public function asArray(): array

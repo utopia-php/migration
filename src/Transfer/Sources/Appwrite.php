@@ -37,14 +37,14 @@ class Appwrite extends Source
 
     /**
      * Constructor
-     * 
+     *
      * @param string $project
      * @param string $endpoint
      * @param string $key
-     * 
+     *
      * @return self
      */
-    function __construct(string $project, string $endpoint, string $key)
+    public function __construct(string $project, string $endpoint, string $key)
     {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
@@ -54,17 +54,17 @@ class Appwrite extends Source
 
     /**
      * Get Name
-     * 
+     *
      * @return string
      */
     public function getName(): string
     {
-        return 'Appwrite';
+        return "Appwrite";
     }
 
     /**
      * Get Supported Resources
-     * 
+     *
      * @return array
      */
     public function getSupportedResources(): array
@@ -79,11 +79,11 @@ class Appwrite extends Source
     public function check(array $resources = []): array
     {
         $report = [
-            'Users' => [],
-            'Databases' => [],
-            'Documents' => [],
-            'Files' => [],
-            'Functions' => []
+            "Users" => [],
+            "Databases" => [],
+            "Documents" => [],
+            "Files" => [],
+            "Functions" => [],
         ];
 
         if (empty($resources)) {
@@ -101,7 +101,8 @@ class Appwrite extends Source
                         $databases->list();
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: databases.read';
+                            $report["Databases"][] =
+                                "API Key is missing scope: databases.read";
                         }
                     }
                     break;
@@ -111,7 +112,8 @@ class Appwrite extends Source
                         $auth->list();
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Users'][] = 'API Key is missing scope: users.read';
+                            $report["Users"][] =
+                                "API Key is missing scope: users.read";
                         }
                     }
                     break;
@@ -121,79 +123,96 @@ class Appwrite extends Source
                         $databases->list();
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: databases.read';
+                            $report["Databases"][] =
+                                "API Key is missing scope: databases.read";
                         }
                     }
 
                     try {
-                        $databases->create('', '');
+                        $databases->create("", "");
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: databases.write';
+                            $report["Databases"][] =
+                                "API Key is missing scope: databases.write";
                         }
                     }
 
                     try {
-                        $databases->listCollections('', [], '');
+                        $databases->listCollections("", [], "");
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: collections.write';
+                            $report["Databases"][] =
+                                "API Key is missing scope: collections.write";
                         }
                     }
 
                     try {
-                        $databases->createCollection('', '', '', []);
+                        $databases->createCollection("", "", "", []);
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: collections.write';
+                            $report["Databases"][] =
+                                "API Key is missing scope: collections.write";
                         }
                     }
 
                     try {
-                        $databases->listDocuments('', '', []);
+                        $databases->listDocuments("", "", []);
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: documents.write';
+                            $report["Databases"][] =
+                                "API Key is missing scope: documents.write";
                         }
                     }
 
                     try {
-                        $databases->createDocument('', '', '', [], []);
+                        $databases->createDocument("", "", "", [], []);
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Documents'][] = 'API Key is missing scope: documents.write';
+                            $report["Documents"][] =
+                                "API Key is missing scope: documents.write";
                         }
                     }
 
                     try {
-                        $databases->listIndexes('', '');
+                        $databases->listIndexes("", "");
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: indexes.read';
+                            $report["Databases"][] =
+                                "API Key is missing scope: indexes.read";
                         }
                     }
 
                     try {
-                        $databases->createIndex('', '', '', '', [], []);
+                        $databases->createIndex("", "", "", "", [], []);
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: indexes.write';
+                            $report["Databases"][] =
+                                "API Key is missing scope: indexes.write";
                         }
                     }
 
                     try {
-                        $databases->listAttributes('', '');
+                        $databases->listAttributes("", "");
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: attributes.read';
+                            $report["Databases"][] =
+                                "API Key is missing scope: attributes.read";
                         }
                     }
 
                     try {
-                        $databases->createStringAttribute('', '', '', 0, false, false);
+                        $databases->createStringAttribute(
+                            "",
+                            "",
+                            "",
+                            0,
+                            false,
+                            false
+                        );
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: attributes.write';
+                            $report["Databases"][] =
+                                "API Key is missing scope: attributes.write";
                         }
                     }
             }
@@ -204,10 +223,10 @@ class Appwrite extends Source
 
     /**
      * Export Users
-     * 
+     *
      * @param int $batchSize Max 100
      * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
-     * 
+     *
      * @return void
      */
     public function exportUsers(int $batchSize, callable $callback): void
@@ -219,9 +238,7 @@ class Appwrite extends Source
         while (true) {
             $users = [];
 
-            $queries = [
-                Query::limit($batchSize)
-            ];
+            $queries = [Query::limit($batchSize)];
 
             if ($lastDocument) {
                 $queries[] = Query::cursorAfter($lastDocument);
@@ -229,19 +246,19 @@ class Appwrite extends Source
 
             $response = $usersClient->list($queries);
 
-            foreach ($response['users'] as $user) {
+            foreach ($response["users"] as $user) {
                 $users[] = new User(
                     $user['$id'],
-                    $user['email'],
-                    $user['name'],
-                    new Hash($user['password'], $user['hash']),
-                    $user['phone'],
+                    $user["email"],
+                    $user["name"],
+                    new Hash($user["password"], $user["hash"]),
+                    $user["phone"],
                     $this->calculateTypes($user),
-                    '',
-                    $user['emailVerification'],
-                    $user['phoneVerification'],
-                    !$user['status'],
-                    $user['prefs']
+                    "",
+                    $user["emailVerification"],
+                    $user["phoneVerification"],
+                    !$user["status"],
+                    $user["prefs"]
                 );
 
                 $lastDocument = $user['$id'];
@@ -255,45 +272,102 @@ class Appwrite extends Source
         }
     }
 
-    function convertAttribute(array $value): Attribute
+    public function convertAttribute(array $value): Attribute
     {
-        switch ($value['type']) {
-            case 'string': {
-                    if (!isset($value['format']))
-                        return new StringAttribute($value['key'], $value['required'], $value['array'], $value['default'], $value['size'] ?? 0);
-
-                    switch ($value['format']) {
-                        case 'email':
-                            return new EmailAttribute($value['key'], $value['required'], $value['array'], $value['default']);
-                        case 'enum':
-                            return new EnumAttribute($value['key'], $value['elements'], $value['required'], $value['array'], $value['default']);
-                        case 'url':
-                            return new URLAttribute($value['key'], $value['required'], $value['array'], $value['default']);
-                        case 'ip':
-                            return new IPAttribute($value['key'], $value['required'], $value['array'], $value['default']);
-                        case 'datetime':
-                            return new DateTimeAttribute($value['key'], $value['required'], $value['array'], $value['default']);
-                        default:
-                            return new StringAttribute($value['key'], $value['required'], $value['array'], $value['default'], $value['size'] ?? 0);
-                    }
+        switch ($value["type"]) {
+            case "string":
+                if (!isset($value["format"])) {
+                    return new StringAttribute(
+                        $value["key"],
+                        $value["required"],
+                        $value["array"],
+                        $value["default"],
+                        $value["size"] ?? 0
+                    );
                 }
-            case 'boolean':
-                return new BoolAttribute($value['key'], $value['required'], $value['array'], $value['default']);
-            case 'integer':
-                return new IntAttribute($value['key'], $value['required'], $value['array'], $value['default'], $value['min'] ?? 0, $value['max'] ?? 0);
-            case 'double':
-                return new FloatAttribute($value['key'], $value['required'], $value['array'], $value['default'], $value['min'] ?? 0, $value['max'] ?? 0);
+
+                switch ($value["format"]) {
+                    case "email":
+                        return new EmailAttribute(
+                            $value["key"],
+                            $value["required"],
+                            $value["array"],
+                            $value["default"]
+                        );
+                    case "enum":
+                        return new EnumAttribute(
+                            $value["key"],
+                            $value["elements"],
+                            $value["required"],
+                            $value["array"],
+                            $value["default"]
+                        );
+                    case "url":
+                        return new URLAttribute(
+                            $value["key"],
+                            $value["required"],
+                            $value["array"],
+                            $value["default"]
+                        );
+                    case "ip":
+                        return new IPAttribute(
+                            $value["key"],
+                            $value["required"],
+                            $value["array"],
+                            $value["default"]
+                        );
+                    case "datetime":
+                        return new DateTimeAttribute(
+                            $value["key"],
+                            $value["required"],
+                            $value["array"],
+                            $value["default"]
+                        );
+                    default:
+                        return new StringAttribute(
+                            $value["key"],
+                            $value["required"],
+                            $value["array"],
+                            $value["default"],
+                            $value["size"] ?? 0
+                        );
+                }
+            case "boolean":
+                return new BoolAttribute(
+                    $value["key"],
+                    $value["required"],
+                    $value["array"],
+                    $value["default"]
+                );
+            case "integer":
+                return new IntAttribute(
+                    $value["key"],
+                    $value["required"],
+                    $value["array"],
+                    $value["default"],
+                    $value["min"] ?? 0,
+                    $value["max"] ?? 0
+                );
+            case "double":
+                return new FloatAttribute(
+                    $value["key"],
+                    $value["required"],
+                    $value["array"],
+                    $value["default"],
+                    $value["min"] ?? 0,
+                    $value["max"] ?? 0
+                );
         }
 
-        throw new \Exception('Unknown attribute type: ' . $value['type']);
+        throw new \Exception("Unknown attribute type: " . $value["type"]);
     }
 
     /**
      * Export Databases
-     * 
+     *
      * @param int $batchSize Max 100
      * @param callable $callback Callback function to be called after each database, $callback(database[] $batch);
-     * 
+     *
      * @return void
      */
     public function exportDatabases(int $batchSize, callable $callback): void
@@ -303,9 +377,7 @@ class Appwrite extends Source
         $lastDocument = null;
 
         while (true) {
-            $queries = [
-                Query::limit($batchSize)
-            ];
+            $queries = [Query::limit($batchSize)];
 
             $databases = [];
 
@@ -316,23 +388,39 @@ class Appwrite extends Source
             $response = $databaseClient->list($queries);
 
             foreach ($response["databases"] as $database) {
-                $newDatabase = new Database($database['name'], $database['$id']);
+                $newDatabase = new Database(
+                    $database["name"],
+                    $database['$id']
+                );
 
-                $collections = $databaseClient->listCollections($database['$id']);
+                $collections = $databaseClient->listCollections(
+                    $database['$id']
+                );
 
                 $generalCollections = [];
-                foreach ($collections['collections'] as $collection) {
-                    $newCollection = new Collection($collection['name'], $collection['$id'], $collection['documentSecurity'], $collection['$permissions']);
+                foreach ($collections["collections"] as $collection) {
+                    $newCollection = new Collection(
+                        $collection["name"],
+                        $collection['$id'],
+                        $collection["documentSecurity"],
+                        $collection['$permissions']
+                    );
 
                     $attributes = [];
                     $indexes = [];
 
-                    foreach ($collection['attributes'] as $attribute) {
+                    foreach ($collection["attributes"] as $attribute) {
                         $attributes[] = $this->convertAttribute($attribute);
                     }
 
-                    foreach ($collection['indexes'] as $index) {
-                        $indexes[] = new Index('unique()', $index['key'], $index['type'], $index['attributes'], $index['orders']);
+                    foreach ($collection["indexes"] as $index) {
+                        $indexes[] = new Index(
+                            "unique()",
+                            $index["key"],
+                            $index["type"],
+                            $index["attributes"],
+                            $index["orders"]
+                        );
                     }
 
                     $newCollection->setAttributes($attributes);
@@ -357,10 +445,10 @@ class Appwrite extends Source
 
     /**
      * Export Documents
-     * 
+     *
      * @param int $batchSize Max 100
      * @param callable $callback Callback function to be called after each batch, $callback(document[] $batch);
-     * 
+     *
      * @return void
      */
     public function exportDocuments(int $batchSize, callable $callback): void
@@ -378,9 +466,7 @@ class Appwrite extends Source
                 $lastDocument = null;
 
                 while (true) {
-                    $queries = [
-                        Query::limit($batchSize)
-                    ];
+                    $queries = [Query::limit($batchSize)];
 
                     $documents = [];
 
@@ -388,7 +474,11 @@ class Appwrite extends Source
                         $queries[] = Query::cursorAfter($lastDocument);
                     }
 
-                    $response = $databaseClient->listDocuments($database->getId(), $collection->getId(), $queries);
+                    $response = $databaseClient->listDocuments(
+                        $database->getId(),
+                        $collection->getId(),
+                        $queries
+                    );
 
                     foreach ($response["documents"] as $document) {
                         $id = $document['$id'];
@@ -400,7 +490,13 @@ class Appwrite extends Source
                         unset($document['$createdAt']);
                         unset($document['$databaseId']);
 
-                        $documents[] = new Document($id, $database, $collection, $document, $permissions);
+                        $documents[] = new Document(
+                            $id,
+                            $database,
+                            $collection,
+                            $document,
+                            $permissions
+                        );
                         $lastDocument = $id;
                     }
 
@@ -416,24 +512,24 @@ class Appwrite extends Source
 
     /**
      * Calculate Types
-     * 
+     *
      * @param array $user
-     * 
+     *
      * @return array
      */
     protected function calculateTypes(array $user): array
     {
-        if (empty($user['email']) && empty($user['phone'])) {
+        if (empty($user["email"]) && empty($user["phone"])) {
             return [User::TYPE_ANONYMOUS];
         }
 
         $types = [];
 
-        if (!empty($user['email'])) {
+        if (!empty($user["email"])) {
             $types[] = User::TYPE_EMAIL;
         }
 
-        if (!empty($user['phone'])) {
+        if (!empty($user["phone"])) {
             $types[] = User::TYPE_PHONE;
         }
 

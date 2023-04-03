@@ -4,7 +4,8 @@ namespace Utopia\Transfer\Resources\Attributes;
 
 use Utopia\Transfer\Resources\Attribute;
 
-class StringAttribute extends Attribute {
+class StringAttribute extends Attribute
+{
     protected ?string $default;
     protected int $size = 256;
 
@@ -15,40 +16,40 @@ class StringAttribute extends Attribute {
      * @param ?string $default
      * @param int $size
      */
-    function __construct(string $key, bool $required = false, bool $array = false, ?string $default = null, int $size = 256)
+    public function __construct(string $key, bool $required = false, bool $array = false, ?string $default = null, int $size = 256)
     {
         parent::__construct($key, $required, $array);
         $this->default = $default;
         $this->size = $size;
     }
 
-    function getName(): string
+    public function getName(): string
     {
         return 'stringAttribute';
     }
 
-    function getSize(): int
+    public function getSize(): int
     {
         return $this->size;
     }
 
-    function setSize(int $size): self
+    public function setSize(int $size): self
     {
         $this->size = $size;
         return $this;
     }
 
-    function getDefault(): ?string
+    public function getDefault(): ?string
     {
         return $this->default;
     }
 
-    function setDefault(string $default): void
+    public function setDefault(string $default): void
     {
         $this->default = $default;
     }
 
-    function asArray(): array
+    public function asArray(): array
     {
         return array_merge(parent::asArray(), [
             'size' => $this->size,

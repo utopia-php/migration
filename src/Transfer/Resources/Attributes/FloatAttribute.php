@@ -4,7 +4,8 @@ namespace Utopia\Transfer\Resources\Attributes;
 
 use Utopia\Transfer\Resources\Attribute;
 
-class FloatAttribute extends Attribute {
+class FloatAttribute extends Attribute
+{
     protected ?float $default;
     protected ?float $min;
     protected ?float $max;
@@ -17,7 +18,7 @@ class FloatAttribute extends Attribute {
      * @param ?float $min
      * @param ?float $max
      */
-    function __construct(string $key, bool $required = false, bool $array = false, ?float $default = null, float $min = null, float $max = null)
+    public function __construct(string $key, bool $required = false, bool $array = false, ?float $default = null, float $min = null, float $max = null)
     {
         parent::__construct($key, $required, $array);
         $this->default = $default;
@@ -25,45 +26,45 @@ class FloatAttribute extends Attribute {
         $this->max = $max;
     }
 
-    function getName(): string
+    public function getName(): string
     {
         return 'floatAttribute';
     }
 
-    function getMin(): float|null
+    public function getMin(): float|null
     {
         return $this->min;
     }
 
-    function getMax(): float|null
+    public function getMax(): float|null
     {
         return $this->max;
     }
 
-    function setMin(float $min): self
+    public function setMin(float $min): self
     {
         $this->min = $min;
         return $this;
     }
 
-    function setMax(float $max): self
+    public function setMax(float $max): self
     {
         $this->max = $max;
         return $this;
     }
 
-    function getDefault(): ?float
+    public function getDefault(): ?float
     {
         return $this->default;
     }
 
-    function setDefault(float $default): self
+    public function setDefault(float $default): self
     {
         $this->default = $default;
         return $this;
     }
 
-    function asArray(): array
+    public function asArray(): array
     {
         return array_merge(parent::asArray(), [
             'min' => $this->getMin(),

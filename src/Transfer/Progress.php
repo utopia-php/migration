@@ -11,7 +11,7 @@ class Progress
     private int $failed = 0;
     private int $skipped = 0;
 
-    function __construct(
+    public function __construct(
         string $resourceType = '',
         int $timestamp = 0,
         int $total = 0,
@@ -29,7 +29,7 @@ class Progress
 
     /**
      * Get Resource Type
-     * 
+     *
      * @return string
      */
     public function getResourceType(): string
@@ -39,7 +39,7 @@ class Progress
 
     /**
      * Set Resource Type
-     * 
+     *
      * @param string $resourceType
      * @return self
      */
@@ -52,7 +52,7 @@ class Progress
 
     /**
      * Get Timestamp
-     * 
+     *
      * @return int
      */
     public function getTimestamp(): int
@@ -62,7 +62,7 @@ class Progress
 
     /**
      * Set Timestamp
-     * 
+     *
      * @param int $timestamp
      * @return self
      */
@@ -74,7 +74,7 @@ class Progress
 
     /**
      * Get Total
-     * 
+     *
      * @return int
      */
     public function getTotal(): int
@@ -84,7 +84,7 @@ class Progress
 
     /**
      * Set Total
-     * 
+     *
      * @param int $total
      * @return self
      */
@@ -96,7 +96,7 @@ class Progress
 
     /**
      * Get Current
-     * 
+     *
      * @return int
      */
     public function getCurrent(): int
@@ -106,7 +106,7 @@ class Progress
 
     /**
      * Set Current
-     * 
+     *
      * @param int $current
      * @return self
      */
@@ -118,7 +118,7 @@ class Progress
 
     /**
      * Get Failed
-     * 
+     *
      * @return int
      */
     public function getFailed(): int
@@ -128,7 +128,7 @@ class Progress
 
     /**
      * Set Failed
-     * 
+     *
      * @param int $failed
      * @return self
      */
@@ -140,7 +140,7 @@ class Progress
 
     /**
      * Get Skipped
-     * 
+     *
      * @return int
      */
     public function getSkipped(): int
@@ -150,7 +150,7 @@ class Progress
 
     /**
      * Set Skipped
-     * 
+     *
      * @param int $skipped
      * @return self
      */
@@ -162,7 +162,7 @@ class Progress
 
     /**
      * Get Progress
-     * 
+     *
      * @return float
      */
     public function getProgress(): float
@@ -176,7 +176,7 @@ class Progress
 
     /**
      * Get Remaining
-     * 
+     *
      * @return int
      */
     public function getRemaining(): int
@@ -186,7 +186,7 @@ class Progress
 
     /**
      * Get ETA
-     * 
+     *
      * @return int
      */
     public function getETA(): int
@@ -196,7 +196,7 @@ class Progress
 
     /**
      * As Array
-     * 
+     *
      * @return array
      */
     public function asArray(): array

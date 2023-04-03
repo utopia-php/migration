@@ -4,7 +4,8 @@ namespace Utopia\Transfer\Resources\Attributes;
 
 use Utopia\Transfer\Resources\Attribute;
 
-class IntAttribute extends Attribute {
+class IntAttribute extends Attribute
+{
     protected ?int $default;
     protected ?int $min;
     protected ?int $max;
@@ -17,7 +18,7 @@ class IntAttribute extends Attribute {
      * @param ?int $min
      * @param ?int $max
      */
-    function __construct(string $key, bool $required = false, bool $array = false, ?int $default = null, int $min = null, int $max = null)
+    public function __construct(string $key, bool $required = false, bool $array = false, ?int $default = null, int $min = null, int $max = null)
     {
         parent::__construct($key, $required, $array);
         $this->default = $default;
@@ -25,45 +26,45 @@ class IntAttribute extends Attribute {
         $this->max = $max;
     }
 
-    function getName(): string
+    public function getName(): string
     {
         return 'intAttribute';
     }
 
-    function getMin(): int|null
+    public function getMin(): int|null
     {
         return $this->min;
     }
 
-    function getMax(): int|null
+    public function getMax(): int|null
     {
         return $this->max;
     }
 
-    function setMin(int|null $min): self
+    public function setMin(int|null $min): self
     {
         $this->min = $min;
         return $this;
     }
 
-    function setMax(int|null $max): self
+    public function setMax(int|null $max): self
     {
         $this->max = $max;
         return $this;
     }
 
-    function getDefault(): ?int
+    public function getDefault(): ?int
     {
         return $this->default;
     }
 
-    function setDefault(int $default): self
+    public function setDefault(int $default): self
     {
         $this->default = $default;
         return $this;
     }
 
-    function asArray(): array
+    public function asArray(): array
     {
         return array_merge(parent::asArray(), [
             'min' => $this->getMin(),

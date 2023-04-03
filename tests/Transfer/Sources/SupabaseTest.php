@@ -42,14 +42,15 @@ class SupabaseTest extends TestCase
         $result = [];
 
         $this->supabase->exportUsers(
-            500, function (array $users) use (&$result) {
+            500,
+            public function (array $users) use (&$result) {
                 $result = array_merge($result, $users);
             }
         );
 
         foreach ($result as $user) {
             /**
- * @var User $user 
+ * @var User $user
 */
             $this->assertIsObject($user);
             $this->assertNotEmpty($user->getPasswordHash());
@@ -71,7 +72,7 @@ class SupabaseTest extends TestCase
 
         foreach ($users as $user) {
             /**
- * @var User $user 
+ * @var User $user
 */
             if (in_array(User::TYPE_ANONYMOUS, $user->getTypes())) {
                 continue;
@@ -80,7 +81,7 @@ class SupabaseTest extends TestCase
             try {
                 $userFound = $this->supabase->pdo->query('SELECT * FROM auth.users WHERE id = \'' . $user->getId() . '\'')->fetch();
                 $assertedUsers++;
-    
+
                 $this->assertNotEmpty($userFound);
                 $this->assertEquals($user->getId(), $userFound['id']);
                 $this->assertEquals($user->getEmail(), $userFound['email']);

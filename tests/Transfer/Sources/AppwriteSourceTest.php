@@ -30,7 +30,7 @@ class AppwriteSourceTest extends TestCase
      * @var array
      */
     public $serviceAccount;
-    
+
     public function setUp(): void
     {
         $this->appwrite = new Appwrite(
@@ -46,14 +46,15 @@ class AppwriteSourceTest extends TestCase
         $result = [];
 
         $this->appwrite->exportUsers(
-            100, function (array $users) use (&$result) {
+            100,
+            public function (array $users) use (&$result) {
                 $result = array_merge($result, $users);
             }
         );
 
         foreach ($result as $user) {
             /**
- * @var User $user 
+ * @var User $user
 */
             $this->assertIsObject($user);
         }
@@ -67,14 +68,15 @@ class AppwriteSourceTest extends TestCase
         $result = [];
 
         $this->appwrite->exportDatabases(
-            100, function (array $databases) use (&$result) {
+            100,
+            public function (array $databases) use (&$result) {
                 $result = array_merge($result, $databases);
             }
         );
 
         foreach ($result as $database) {
             /**
- * @var Database $database 
+ * @var Database $database
 */
             $this->assertIsObject($database);
             $this->assertNotEmpty($database->getCollections());

@@ -8,7 +8,8 @@ use Utopia\Transfer\Resource;
  * Helper class for hashing.
  */
 
-class Hash extends Resource {
+class Hash extends Resource
+{
     public const SCRYPT_MODIFIED = 'ScryptModified';
     public const BCRYPT = 'Bcrypt';
     public const MD5 = 'MD5';
@@ -47,7 +48,7 @@ class Hash extends Resource {
 
     /**
      * Get Hash
-     * 
+     *
      * @return string
      */
     public function getHash(): string
@@ -57,7 +58,7 @@ class Hash extends Resource {
 
     /**
      * Set Hash
-     * 
+     *
      * @param string $hash
      * @return self
      */
@@ -69,7 +70,7 @@ class Hash extends Resource {
 
     /**
      * Get Salt
-     * 
+     *
      * @return string
      */
     public function getSalt(): string
@@ -79,7 +80,7 @@ class Hash extends Resource {
 
     /**
      * Set Salt
-     * 
+     *
      * @param string $salt
      * @return self
      */
@@ -91,7 +92,7 @@ class Hash extends Resource {
 
     /**
      * Get Algorithm
-     * 
+     *
      * @return string
      */
     public function getAlgorithm(): string
@@ -101,7 +102,7 @@ class Hash extends Resource {
 
     /**
      * Set Algorithm
-     * 
+     *
      * @param string $algorithm
      * @return self
      */
@@ -113,7 +114,7 @@ class Hash extends Resource {
 
     /**
      * Get Separator
-     * 
+     *
      * @return string
      */
     public function getSeparator(): string
@@ -123,7 +124,7 @@ class Hash extends Resource {
 
     /**
      * Set Separator
-     * 
+     *
      * @param string $separator
      * @return self
      */
@@ -135,7 +136,7 @@ class Hash extends Resource {
 
     /**
      * Get Signing Key
-     * 
+     *
      * @return string
      */
     public function getSigningKey(): string
@@ -145,7 +146,7 @@ class Hash extends Resource {
 
     /**
      * Set Signing Key
-     * 
+     *
      * @param string $signingKey
      * @return self
      */
@@ -157,7 +158,7 @@ class Hash extends Resource {
 
     /**
      * Get Password CPU
-     * 
+     *
      * @return int
      */
     public function getPasswordCpu(): int
@@ -167,7 +168,7 @@ class Hash extends Resource {
 
     /**
      * Set Password CPU
-     * 
+     *
      * @param int $passwordCpu
      * @return self
      */
@@ -179,7 +180,7 @@ class Hash extends Resource {
 
     /**
      * Get Password Memory
-     * 
+     *
      * @return int
      */
     public function getPasswordMemory(): int
@@ -189,7 +190,7 @@ class Hash extends Resource {
 
     /**
      * Set Password Memory
-     * 
+     *
      * @param int $passwordMemory
      * @return self
      */
@@ -201,7 +202,7 @@ class Hash extends Resource {
 
     /**
      * Get Password Parallel
-     * 
+     *
      * @return int
      */
     public function getPasswordParallel(): int
@@ -211,7 +212,7 @@ class Hash extends Resource {
 
     /**
      * Set Password Parallel
-     * 
+     *
      * @param int $passwordParallel
      * @return self
      */
@@ -223,7 +224,7 @@ class Hash extends Resource {
 
     /**
      * Get Password Length
-     * 
+     *
      * @return int
      */
     public function getPasswordLength(): int
@@ -233,7 +234,7 @@ class Hash extends Resource {
 
     /**
      * Set Password Length
-     * 
+     *
      * @param int $passwordLength
      * @return self
      */
@@ -245,7 +246,7 @@ class Hash extends Resource {
 
     /**
      * As Array
-     * 
+     *
      * @return array
      */
     public function asArray(): array

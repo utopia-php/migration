@@ -52,16 +52,16 @@ class NHost extends Source
 
     /**
      * Constructor
-     * 
+     *
      * @param string $host
      * @param string $databaseName
      * @param string $username
      * @param string $password
      * @param string $port
-     * 
+     *
      * @return self
      */
-    function __construct(string $host, string $databaseName, string $username, string $password, string $port = '5432')
+    public function __construct(string $host, string $databaseName, string $username, string $password, string $port = '5432')
     {
         $this->host = $host;
         $this->databaseName = $databaseName;
@@ -76,12 +76,12 @@ class NHost extends Source
         }
     }
 
-    function getName(): string
+    public function getName(): string
     {
         return 'NHost';
     }
 
-    function getSupportedResources(): array
+    public function getSupportedResources(): array
     {
         return [
             Transfer::RESOURCE_USERS,
@@ -92,11 +92,11 @@ class NHost extends Source
 
     /**
      * Export Users
-     * 
+     *
      * @param int $batchSize Max 500
      * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
-     * 
-     * @return User[] 
+     *
+     * @return User[]
      */
     public function exportUsers(int $batchSize, callable $callback): void
     {
@@ -138,7 +138,7 @@ class NHost extends Source
 
     /**
      * Convert Collection
-     * 
+     *
      * @param string $tableName
      * @return Collection
      */
@@ -178,7 +178,7 @@ class NHost extends Source
 
     /**
      * Convert Attribute
-     * 
+     *
      * @param array $column
      * @return Attribute
      */
@@ -237,23 +237,22 @@ class NHost extends Source
                     $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760
                 );
                 break;
-            default: {
-                    $this->logs[Log::WARNING][] = new Log('Unknown data type: ' . $column['data_type'] . ' for column: ' . $column['column_name'] . ' Falling back to string.', \time());
-                    return new StringAttribute(
-                        $column['column_name'],
-                        $column['is_nullable'] === 'NO',
-                        $isArray,
-                        $column['column_default'],
-                        $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760
-                    );
-                    break;
-                }
+            default:
+                $this->logs[Log::WARNING][] = new Log('Unknown data type: ' . $column['data_type'] . ' for column: ' . $column['column_name'] . ' Falling back to string.', \time());
+                return new StringAttribute(
+                    $column['column_name'],
+                    $column['is_nullable'] === 'NO',
+                    $isArray,
+                    $column['column_default'],
+                    $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760
+                );
+                break;
         }
     }
 
     /**
      * Convert Index
-     * 
+     *
      * @param string $table
      * @return Index|false
      */
@@ -273,7 +272,7 @@ class NHost extends Source
 
             if ($matches['type'] === 'UNIQUE') {
                 $type = Index::TYPE_UNIQUE;
-            } else if ($matches['type'] === 'FULLTEXT') {
+            } elseif ($matches['type'] === 'FULLTEXT') {
                 $type = Index::TYPE_FULLTEXT;
             } else {
                 $type = Index::TYPE_KEY;
@@ -305,10 +304,10 @@ class NHost extends Source
 
     /**
      * Export Databases
-     * 
+     *
      * @param int $batchSize Max 100
      * @param callable $callback Callback function to be called after each database, $callback(database[] $batch);
-     * 
+     *
      * @return void
      */
     public function exportDatabases(int $batchSize, callable $callback): void
@@ -346,10 +345,10 @@ class NHost extends Source
 
     /**
      * Export Documents
-     * 
+     *
      * @param int $batchSize Max 100
      * @param callable $callback Callback function to be called after each batch, $callback(document[] $batch);
-     * 
+     *
      * @return void
      */
     public function exportDocuments(int $batchSize, callable $callback): void

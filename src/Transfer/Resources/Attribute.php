@@ -4,16 +4,17 @@ namespace Utopia\Transfer\Resources;
 
 use Utopia\Transfer\Resource;
 
-class Attribute extends Resource {
-    const TYPE_STRING = 'stringAttribute';
-    const TYPE_INTEGER = 'intAttribute';
-    const TYPE_FLOAT = 'floatAttribute';
-    const TYPE_BOOLEAN = 'boolAttribute';
-    const TYPE_DATETIME = 'dateTimeAttribute';
-    const TYPE_EMAIL = 'emailAttribute';
-    const TYPE_ENUM = 'enumAttribute';
-    const TYPE_IP = 'IPAttribute';
-    const TYPE_URL = 'URLAttribute';
+class Attribute extends Resource
+{
+    public const TYPE_STRING = 'stringAttribute';
+    public const TYPE_INTEGER = 'intAttribute';
+    public const TYPE_FLOAT = 'floatAttribute';
+    public const TYPE_BOOLEAN = 'boolAttribute';
+    public const TYPE_DATETIME = 'dateTimeAttribute';
+    public const TYPE_EMAIL = 'emailAttribute';
+    public const TYPE_ENUM = 'enumAttribute';
+    public const TYPE_IP = 'IPAttribute';
+    public const TYPE_URL = 'URLAttribute';
 
     protected string $key;
     protected bool $required;
@@ -25,52 +26,52 @@ class Attribute extends Resource {
      * @param bool $array
      * @param int $size
      */
-    function __construct(string $key, bool $required = false, bool $array = false)
+    public function __construct(string $key, bool $required = false, bool $array = false)
     {
         $this->key = $key;
         $this->required = $required;
         $this->array = $array;
     }
-    
-    function getName(): string
+
+    public function getName(): string
     {
         return 'attribute';
     }
 
-    function getKey(): string
+    public function getKey(): string
     {
         return $this->key;
     }
-    
-    function setKey(string $key): self
+
+    public function setKey(string $key): self
     {
         $this->key = $key;
         return $this;
     }
 
-    function getRequired(): bool
+    public function getRequired(): bool
     {
         return $this->required;
     }
 
-    function setRequired(bool $required): self
+    public function setRequired(bool $required): self
     {
         $this->required = $required;
         return $this;
     }
 
-    function getArray(): bool
+    public function getArray(): bool
     {
         return $this->array;
     }
 
-    function setArray(bool $array): self
+    public function setArray(bool $array): self
     {
         $this->array = $array;
         return $this;
     }
 
-    function asArray(): array
+    public function asArray(): array
     {
         return [
             'key' => $this->key,

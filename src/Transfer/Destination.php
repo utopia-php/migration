@@ -17,14 +17,14 @@ abstract class Destination
 
     /**
      * Logs
-     * 
+     *
      * @var array $logs
      */
     protected $logs = [];
 
     /**
      * Resource Cache
-     * 
+     *
      * @var array $resourceCache
      */
     protected $resourceCache = [
@@ -42,35 +42,35 @@ abstract class Destination
 
     /**
      * Counters
-     * 
+     *
      * @var array $counter
      */
     protected $counters = [];
 
     /**
      * Source
-     * 
+     *
      * @var Source $source
      */
     protected Source $source;
 
     /**
      * Gets the name of the adapter.
-     * 
+     *
      * @return string
      */
     abstract public function getName(): string;
 
     /**
      * Get Supported Resources
-     * 
+     *
      * @return array
      */
     abstract public function getSupportedResources(): array;
 
     /**
      * Get Source
-     * 
+     *
      * @return Source
      */
     public function getSource(): Source
@@ -80,9 +80,9 @@ abstract class Destination
 
     /**
      * Set Soruce
-     * 
+     *
      * @param Source $source
-     * 
+     *
      * @return self
      */
     public function setSource(Source $source): self
@@ -93,7 +93,7 @@ abstract class Destination
 
     /**
      * Register Logs Array
-     * 
+     *
      * @param array &$logs
      */
     public function registerLogs(array &$logs): void
@@ -103,9 +103,9 @@ abstract class Destination
 
     /**
      * Get Resource Counters
-     * 
+     *
      * @param string $resource = null
-     * 
+     *
      * @return array
      */
     public function &getCounter(?string $resource = null): array
@@ -126,10 +126,10 @@ abstract class Destination
 
     /**
      * Register Transfer Hooks
-     * 
+     *
      * @param array &$cache
      * @param array &$counters
-     * 
+     *
      * @return void
      */
     public function registerTransferHooks(array &$cache, array &$counters): void
@@ -140,7 +140,7 @@ abstract class Destination
 
     /**
      * Transfer Resources to Destination from Source callback
-     * 
+     *
      * @param array $resources
      * @param callable $callback
      */
@@ -150,22 +150,18 @@ abstract class Destination
 
         $source->run($resources, function (string $resourceType, array $resource) use ($callback) {
             switch ($resourceType) {
-                case Transfer::RESOURCE_USERS: {
-                        $this->importUsers($resource, $callback);
-                        break;
-                    }
-                case Transfer::RESOURCE_DATABASES: {
-                        $this->importDatabases($resource, $callback);
-                        break;
-                    }
-                case Transfer::RESOURCE_DOCUMENTS: {
-                        $this->importDocuments($resource, $callback);
-                        break;
-                    }
-                case Transfer::RESOURCE_FILES: {
-                        $this->importFiles($resource, $callback);
-                        break;
-                    }
+                case Transfer::RESOURCE_USERS:
+                    $this->importUsers($resource, $callback);
+                    break;
+                case Transfer::RESOURCE_DATABASES:
+                    $this->importDatabases($resource, $callback);
+                    break;
+                case Transfer::RESOURCE_DOCUMENTS:
+                    $this->importDocuments($resource, $callback);
+                    break;
+                case Transfer::RESOURCE_FILES:
+                    $this->importFiles($resource, $callback);
+                    break;
             }
         });
     }
@@ -174,13 +170,13 @@ abstract class Destination
      * Check Requirements
      * Performs a suite of API Checks, Resource Checks, etc... to ensure the adapter is ready to be used.
      * This is highly recommended to be called before any other method after initialization.
-     * 
+     *
      * If no resources are provided, the method should check all resources.
      * Returns a object with all the keys of the resources provided and a true|string value if the resource is available or not.
      * If the resource is not available, the value should be a string with the error message.
-     * 
+     *
      * @string[] $resources
-     * 
+     *
      * @return string[]
      */
     abstract public function check(array $resources = []): array;
@@ -301,7 +297,7 @@ abstract class Destination
 
     /**
      * Import Users
-     * 
+     *
      * @param array $users
      * @param callable $callback (Progress $progress)
      */
@@ -312,7 +308,7 @@ abstract class Destination
 
     /**
      * Import Database
-     * 
+     *
      * @param array $databases
      * @param callable $callback (Progress $progress)
      */
@@ -323,7 +319,7 @@ abstract class Destination
 
     /**
      * Import Documents
-     * 
+     *
      * @param array $documents
      * @param callable $callback (Progress $progress)
      */
@@ -334,7 +330,7 @@ abstract class Destination
 
     /**
      * Import Files
-     * 
+     *
      * @param array $files
      * @param callable $callback (Progress $progress)
      */

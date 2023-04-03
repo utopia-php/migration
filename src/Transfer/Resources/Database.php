@@ -14,8 +14,8 @@ const TYPE_NULL = 'null';
 
 class Database extends Resource
 {
-    const DB_RELATIONAL = 'relational';
-    const DB_NON_RELATIONAL = 'non-relational';
+    public const DB_RELATIONAL = 'relational';
+    public const DB_NON_RELATIONAL = 'non-relational';
 
     /**
      * @var list<Collection> $collections

@@ -14,35 +14,38 @@ use Utopia\Transfer\Transfer;
 
 /**
  * Local
- * 
+ *
  * Used to export data to a local file system or for testing purposes.
  * Exports all data to a single JSON File.
  */
-class Local extends Destination {
+class Local extends Destination
+{
     private array $data = [];
 
     protected string $path;
 
-    public function __construct(string $path) 
+    public function __construct(string $path)
     {
         $this->path = $path;
     }
 
     /**
      * Get Name
-     * 
+     *
      * @return string
      */
-    public function getName(): string {
+    public function getName(): string
+    {
         return 'Local';
     }
 
     /**
      * Get Supported Resources
-     * 
+     *
      * @return array
      */
-    public function getSupportedResources(): array {
+    public function getSupportedResources(): array
+    {
         return [
             Transfer::RESOURCE_USERS,
             Transfer::RESOURCE_DATABASES,
@@ -54,7 +57,7 @@ class Local extends Destination {
 
     /**
      * Check if destination is valid
-     * 
+     *
      * @param array $resources
      * @return array
      */
@@ -88,10 +91,10 @@ class Local extends Destination {
 
     /**
      * Import Users
-     * 
+     *
      * @param array $users
      * @param callable $callback
-     * 
+     *
      * @return void
      */
     public function importUsers(array $users, callable $callback): void
@@ -121,10 +124,10 @@ class Local extends Destination {
 
     /**
      * Import Databases
-     * 
+     *
      * @param array $databases
      * @param callable $callback
-     * 
+     *
      * @return void
      */
     public function importDatabases(array $databases, callable $callback): void
@@ -154,10 +157,10 @@ class Local extends Destination {
 
     /**
      * Import Documents
-     * 
+     *
      * @param array $documents
      * @param callable $callback
-     * 
+     *
      * @return void
      */
     public function importDocuments(array $documents, callable $callback): void

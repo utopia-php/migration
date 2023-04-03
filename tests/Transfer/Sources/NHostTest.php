@@ -42,14 +42,15 @@ class NHostTest extends TestCase
         $result = [];
 
         $this->nhost->exportUsers(
-            500, function (array $users) use (&$result) {
+            500,
+            public function (array $users) use (&$result) {
                 $result = array_merge($result, $users);
             }
         );
 
         foreach ($result as $user) {
             /**
- * @var User $user 
+ * @var User $user
 */
             $this->assertIsObject($user);
             $this->assertNotEmpty($user->getPasswordHash());
@@ -71,7 +72,7 @@ class NHostTest extends TestCase
 
         foreach ($users as $user) {
             /**
- * @var User $user 
+ * @var User $user
 */
             if (in_array(User::TYPE_ANONYMOUS, $user->getTypes())) {
                 continue;
@@ -79,7 +80,7 @@ class NHostTest extends TestCase
 
             try {
                 $assertedUsers++;
-    
+
                 $this->assertNotEmpty($user);
             } catch (\Exception $e) {
                 throw $e;

@@ -7,19 +7,19 @@ use Utopia\Transfer\Source;
 
 class Transfer
 {
-    const RESOURCE_USERS = 'Users';
-    const RESOURCE_FILES = 'Files';
-    const RESOURCE_FUNCTIONS = 'Functions';
-    const RESOURCE_DATABASES = 'Databases';
-    const RESOURCE_DOCUMENTS = 'Documents';
+    public const RESOURCE_USERS = 'Users';
+    public const RESOURCE_FILES = 'Files';
+    public const RESOURCE_FUNCTIONS = 'Functions';
+    public const RESOURCE_DATABASES = 'Databases';
+    public const RESOURCE_DOCUMENTS = 'Documents';
 
     /**
      * @param Source $source
      * @param Destination $destination
-     * 
+     *
      * @return Transfer
      */
-    function __construct(Source $source, Destination $destination)
+    public function __construct(Source $source, Destination $destination)
     {
         $this->source = $source;
         $this->destination = $destination;
@@ -49,7 +49,7 @@ class Transfer
 
     /**
      * Counters
-     * 
+     *
      * @var array $counter
      */
     protected $counters = [
@@ -87,7 +87,7 @@ class Transfer
 
     /**
      * A local cache of resources that were transferred.
-     * 
+     *
      * @var array
      */
     protected array $resources = [
@@ -126,7 +126,7 @@ class Transfer
 
     /**
      * Transfer Resources between adapters
-     * 
+     *
      * @param array $resources
      * @param callable $callback (Progress $progress)
      */
@@ -141,11 +141,11 @@ class Transfer
 
     /**
      * Get Logs
-     * 
+     *
      * If no level is provided then the function returns all logs combined ordered by timestamp.
-     * 
+     *
      * @param string $level
-     * 
+     *
      * @return array
      */
     public function getLogs($level = ''): array
@@ -167,7 +167,7 @@ class Transfer
 
     /**
      * Get Resource Cache
-     * 
+     *
      * @return array
      */
     public function getResourceCache(): array
@@ -177,7 +177,7 @@ class Transfer
 
     /**
      *  Get Current Resource
-     * 
+     *
      * @return string
      **/
 

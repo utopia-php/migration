@@ -8,18 +8,18 @@ use Utopia\Transfer\Resources\Hash;
 
 class Supabase extends NHost
 {
-    function getName(): string
+    public function getName(): string
     {
         return 'Supabase';
     }
 
     /**
      * Export Users
-     * 
+     *
      * @param int $batchSize Max 500
      * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
-     * 
-     * @return User[] 
+     *
+     * @return User[]
      */
     public function exportUsers(int $batchSize, callable $callback): void
     {
@@ -61,20 +61,17 @@ class Supabase extends NHost
 
     private function calculateAuthTypes(array $user): array
     {
-        if (empty($user['encrypted_password']) && empty($user['phone']))
-        {
+        if (empty($user['encrypted_password']) && empty($user['phone'])) {
             return [User::TYPE_ANONYMOUS];
         }
 
         $types = [];
 
-        if (!empty($user['encrypted_password']))
-        {
+        if (!empty($user['encrypted_password'])) {
             $types[] = User::TYPE_EMAIL;
         }
 
-        if (!empty($user['phone']))
-        {
+        if (!empty($user['phone'])) {
             $types[] = User::TYPE_PHONE;
         }
 

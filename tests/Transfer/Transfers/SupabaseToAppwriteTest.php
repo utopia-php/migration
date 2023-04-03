@@ -45,7 +45,7 @@ class SupabaseToAppwriteTest extends TestCase
      */
     public $transfer;
 
-    function setUp(): void
+    public function setUp(): void
     {
         $this->supabase = new Supabase(
             getEnv("SUPABASE_TEST_HOST"),
@@ -72,7 +72,8 @@ class SupabaseToAppwriteTest extends TestCase
     public function testTransferUsers(): void
     {
         $this->transfer->run(
-            [Transfer::RESOURCE_USERS], function () {
+            [Transfer::RESOURCE_USERS],
+            public function () {
             }
         );
 
@@ -91,10 +92,11 @@ class SupabaseToAppwriteTest extends TestCase
         $assertedUsers = false;
 
         $this->supabase->exportUsers(
-            500, function (array $users) use ($userClient, &$assertedUsers) {
+            500,
+            public function (array $users) use ($userClient, &$assertedUsers) {
                 foreach ($users as $user) {
                     /**
-            * @var User $user 
+            * @var User $user
             */
                     if (in_array(User::TYPE_ANONYMOUS, $user->getTypes())) {
                         continue;

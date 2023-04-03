@@ -4,7 +4,8 @@ namespace Utopia\Transfer\Resources;
 
 use Utopia\Transfer\Resource;
 
-class Document extends Resource {
+class Document extends Resource
+{
     protected string $id;
     protected Database $database;
     protected Collection $collection;
@@ -65,9 +66,9 @@ class Document extends Resource {
 
     /**
      * Set Data
-     * 
+     *
      * @param array<string, mixed> $data
-     * 
+     *
      * @return self
      */
     public function setData(array $data): self
@@ -83,9 +84,9 @@ class Document extends Resource {
 
     /**
      * Set Permissions
-     * 
+     *
      * @param array<string> $permissions
-     * 
+     *
      * @return self
      */
     public function setPermissions(array $permissions): self

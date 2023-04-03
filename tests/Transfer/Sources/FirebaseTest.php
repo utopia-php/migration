@@ -30,7 +30,7 @@ class FirebaseTest extends TestCase
      * @var array
      */
     public $serviceAccount;
-    
+
     public function setUp(): void
     {
         $this->serviceAccount = json_decode(getEnv("FIREBASE_TEST_ACCOUNT"), true);
@@ -58,11 +58,11 @@ class FirebaseTest extends TestCase
          */
         $testProject = null;
 
-        foreach($projects as $project) {
+        foreach ($projects as $project) {
             /**
- * @var Project $project 
+ * @var Project $project
 */
-            if($project->getId() == $this->serviceAccount['project_id']) {
+            if ($project->getId() == $this->serviceAccount['project_id']) {
                 $testProject = $project;
                 break;
             }
@@ -85,14 +85,15 @@ class FirebaseTest extends TestCase
         $result = [];
 
         $this->firebase->exportUsers(
-            500, function (array $users) use (&$result) {
+            500,
+            public function (array $users) use (&$result) {
                 $result = array_merge($result, $users);
             }
         );
 
         foreach ($result as $user) {
             /**
- * @var User $user 
+ * @var User $user
 */
             $this->assertIsObject($user);
             $this->assertNotEmpty($user->getPasswordHash());

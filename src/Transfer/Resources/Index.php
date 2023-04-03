@@ -4,16 +4,16 @@ namespace Utopia\Transfer\Resources;
 
 use Utopia\Transfer\Resource;
 
-class Index extends Resource {
-
+class Index extends Resource
+{
     protected string $key;
     protected string $type;
     protected array $attributes;
     protected array $orders;
 
-    const TYPE_UNIQUE = 'unique';
-    const TYPE_FULLTEXT = 'fulltext';
-    const TYPE_KEY = 'key';
+    public const TYPE_UNIQUE = 'unique';
+    public const TYPE_FULLTEXT = 'fulltext';
+    public const TYPE_KEY = 'key';
 
     /**
      * @param string $key

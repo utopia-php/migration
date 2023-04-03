@@ -21,8 +21,8 @@ use Utopia\Transfer\Resources\Hash;
 
 class Firebase extends Source
 {
-    const TYPE_OAUTH = 'oauth';
-    const AUTH_SERVICEACCOUNT = 'serviceaccount';
+    public const TYPE_OAUTH = 'oauth';
+    public const AUTH_SERVICEACCOUNT = 'serviceaccount';
 
     /**
      * @var array{object: array, type: string}
@@ -44,11 +44,11 @@ class Firebase extends Source
 
     /**
      * Constructor
-     * 
-     * @param array $authObject Service Account Credentials for AUTH_SERVICEACCOUNT 
+     *
+     * @param array $authObject Service Account Credentials for AUTH_SERVICEACCOUNT
      * @param string $authType Can be either Firebase::TYPE_OAUTH or Firebase::AUTH_APIKEY
      */
-    function __construct(array $authObject = [], string $authType = self::AUTH_SERVICEACCOUNT)
+    public function __construct(array $authObject = [], string $authType = self::AUTH_SERVICEACCOUNT)
     {
         if (!in_array($authType, [self::TYPE_OAUTH, self::AUTH_SERVICEACCOUNT])) {
             throw new \Exception('Invalid authentication type');
@@ -58,7 +58,7 @@ class Firebase extends Source
 
         if ($authType === self::TYPE_OAUTH) {
             $this->googleClient->setAccessToken($authObject);
-        } else if ($authType === self::AUTH_SERVICEACCOUNT) {
+        } elseif ($authType === self::AUTH_SERVICEACCOUNT) {
             $this->googleClient->setAuthConfig($authObject);
         }
 
@@ -66,12 +66,12 @@ class Firebase extends Source
         $this->googleClient->addScope('https://www.googleapis.com/auth/cloud-platform');
     }
 
-    function getName(): string
+    public function getName(): string
     {
         return 'Firebase';
     }
 
-    function getSupportedResources(): array
+    public function getSupportedResources(): array
     {
         return [
             Transfer::RESOURCE_USERS,
@@ -79,7 +79,7 @@ class Firebase extends Source
         ];
     }
 
-    function getProjects(): array
+    public function getProjects(): array
     {
         $projects = [];
 
@@ -105,10 +105,10 @@ class Firebase extends Source
 
     /**
      * Set Project
-     * 
+     *
      * @param Project|string $project
      */
-    function setProject(Project|string $project): void
+    public function setProject(Project|string $project): void
     {
         if (is_string($project)) {
             $project = new Project($project, $project);
@@ -119,20 +119,20 @@ class Firebase extends Source
 
     /**
      * Get Project
-     * 
+     *
      * @return Project|null
      */
-    function getProject(): Project|null
+    public function getProject(): Project|null
     {
         return $this->project;
     }
 
     /**
      * Export Users
-     * 
+     *
      * @param int $batchSize Max 500
      * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
-     * 
+     *
      * @return void
      */
     public function exportUsers(int $batchSize, callable $callback): void
@@ -210,13 +210,13 @@ class Firebase extends Source
 
     /**
      * Calculate Array Type
-     * 
+     *
      * @param string $key
      * @param \Google\Service\Firestore\ArrayValue $data
-     * 
+     *
      * @return ResourcesAttribute
      */
-    function calculateArrayType(string $key, \Google\Service\Firestore\ArrayValue $data): ResourcesAttribute
+    public function calculateArrayType(string $key, \Google\Service\Firestore\ArrayValue $data): ResourcesAttribute
     {
         $isSameType = true;
         $previousType = null;
@@ -224,7 +224,7 @@ class Firebase extends Source
         foreach ($data["values"] as $field) {
             if (!$previousType) {
                 $previousType = $this->calculateType($key, $field);
-            } else if ($previousType->getName() != ($this->calculateType($key, $field))->getName()) {
+            } elseif ($previousType->getName() != ($this->calculateType($key, $field))->getName()) {
                 $isSameType = false;
                 break;
             }
@@ -240,35 +240,35 @@ class Firebase extends Source
 
     /**
      * Calculate Type
-     * 
+     *
      * @param string $key
      * @param \Google\Service\Firestore\Value $field
-     * 
+     *
      * @return ResourcesAttribute
      */
-    function calculateType(string $key, \Google\Service\Firestore\Value $field): ResourcesAttribute
+    public function calculateType(string $key, \Google\Service\Firestore\Value $field): ResourcesAttribute
     {
-        if (isset($field["booleanValue"]))
+        if (isset($field["booleanValue"])) {
             return new BoolAttribute($key, false, false, null);
-        else if (isset($field["bytesValue"]))   
+        } elseif (isset($field["bytesValue"])) {
             return new StringAttribute($key, false, false, null, 1000000);
-        else if (isset($field["doubleValue"]))
+        } elseif (isset($field["doubleValue"])) {
             return new FloatAttribute($key, false, false, null);
-        else if (isset($field["integerValue"]))
+        } elseif (isset($field["integerValue"])) {
             return new IntAttribute($key, false, false, null);
-        else if (isset($field["mapValue"]))
+        } elseif (isset($field["mapValue"])) {
             return new StringAttribute($key, false, false, null, 1000000);
-        else if (isset($field["nullValue"]))
+        } elseif (isset($field["nullValue"])) {
             return new StringAttribute($key, false, false, null, 1000000);
-        else if (isset($field["referenceValue"]))
+        } elseif (isset($field["referenceValue"])) {
             return new StringAttribute($key, false, false, null, 1000000);
-        else if (isset($field["stringValue"]))
+        } elseif (isset($field["stringValue"])) {
             return new StringAttribute($key, false, false, null, 1000000);
-        else if (isset($field["timestampValue"]))
+        } elseif (isset($field["timestampValue"])) {
             return new DateTimeAttribute($key, false, false, null);
-        else if (isset($field["geoPointValue"]))
-            return new StringAttribute($key, false, false, null,  1000000);
-        else if (isset($field["arrayValue"])) {
+        } elseif (isset($field["geoPointValue"])) {
+            return new StringAttribute($key, false, false, null, 1000000);
+        } elseif (isset($field["arrayValue"])) {
             return $this->calculateArrayType($key, $field["arrayValue"]);
         } else {
             $this->logs[Log::WARNING][] = new Log('Failed to determine data type for: ' . $key . ' Falling back to string.', \time());
@@ -276,16 +276,16 @@ class Firebase extends Source
         }
     }
 
-    /** 
+    /**
      * Predict Schema
-     * 
+     *
      * @param int $batchSize Max 500
      * @param $collection Collection
      * @param &Collection[] $newCollections
-     * 
+     *
      * @return list<ResourcesAttribute>
      **/
-    function predictSchema(int $batchSize, Collection $collection, array &$newCollections)
+    public function predictSchema(int $batchSize, Collection $collection, array &$newCollections)
     {
         $attributes = [];
 
@@ -304,14 +304,14 @@ class Firebase extends Source
             $requestOptions->setPageSize(500);
 
             // Handle subcollections
-            $subcollections = $firestore->projects_databases_documents->listCollectionIds($document["name"], $requestOptions,[])["collectionIds"];
+            $subcollections = $firestore->projects_databases_documents->listCollectionIds($document["name"], $requestOptions, [])["collectionIds"];
 
             if ($subcollections == null) {
                 continue;
             }
 
             $subcollections = array_map(function ($subcollection) use ($document, $collection) {
-                $name = str_replace("projects/".$this->getProject()->getId()."/databases/(default)/documents/", "", $document["name"]);
+                $name = str_replace("projects/" . $this->getProject()->getId() . "/databases/(default)/documents/", "", $document["name"]);
                 return $name . '/' . $subcollection;
             }, $subcollections);
 
@@ -323,12 +323,12 @@ class Firebase extends Source
 
     /**
      * Handle Collections
-     * 
+     *
      * @param string[] $collectionIDs
-     * 
+     *
      * @return Collection[]
      */
-    function handleCollections(array $collectionIDs): array
+    public function handleCollections(array $collectionIDs): array
     {
         $collections = [];
 
@@ -343,12 +343,12 @@ class Firebase extends Source
         return $collections;
     }
 
-    /** 
+    /**
      * Export Databases
-     * 
+     *
      * @param int $batchSize Max 500
      * @param callable $callback Callback function to be called after each batch, $callback(database[] $batch);
-     * 
+     *
      * @return void
      */
     public function exportDatabases(int $batchSize, callable $callback): void
@@ -375,7 +375,7 @@ class Firebase extends Source
         $callback([$database]);
     }
 
-    function calculateTypes(array $providerData): array
+    public function calculateTypes(array $providerData): array
     {
         if (count($providerData) === 0) {
             return [User::TYPE_ANONYMOUS];

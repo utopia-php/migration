@@ -2,13 +2,14 @@
 
 namespace Utopia\Transfer;
 
-class Log {
-    const INFO = 'info';
-    const WARNING = 'warning';
-    const ERROR = 'error';
-    const FATAL = 'fatal';
-    const SUCCESS = 'success';
-    const DEBUG = 'debug';
+class Log
+{
+    public const INFO = 'info';
+    public const WARNING = 'warning';
+    public const ERROR = 'error';
+    public const FATAL = 'fatal';
+    public const SUCCESS = 'success';
+    public const DEBUG = 'debug';
 
     private string $message = '';
     private int $timestamp = 0;
@@ -22,7 +23,7 @@ class Log {
     }
     /**
      * Get Message
-     * 
+     *
      * @return string
      */
     public function getMessage(): string
@@ -32,7 +33,7 @@ class Log {
 
     /**
      * Set Message
-     * 
+     *
      * @param string $message
      * @return self
      */
@@ -44,7 +45,7 @@ class Log {
 
     /**
      * Get Timestamp
-     * 
+     *
      * @return int
      */
     public function getTimestamp(): int
@@ -54,7 +55,7 @@ class Log {
 
     /**
      * Set Timestamp
-     * 
+     *
      * @param int $timestamp
      * @return self
      */
@@ -66,7 +67,7 @@ class Log {
 
     /**
      * Get Resource
-     * 
+     *
      * @return Resource|null
      */
     public function getResource(): ?Resource
@@ -76,7 +77,7 @@ class Log {
 
     /**
      * As Array
-     * 
+     *
      * @return array
     */
     public function asArray(): array

@@ -49,7 +49,7 @@ class Appwrite extends Destination
 
     /**
      * Get Name
-     * 
+     *
      * @return string
      */
     public function getName(): string
@@ -59,7 +59,7 @@ class Appwrite extends Destination
 
     /**
      * Get Supported Resources
-     * 
+     *
      * @return array
      */
     public function getSupportedResources(): array
@@ -381,11 +381,11 @@ class Appwrite extends Destination
 
     /**
      * Validate Attributes Creation
-     * 
+     *
      * @param Attribute[] $attributes
      * @param Collection $collection
      * @param Database $database
-     * 
+     *
      * @return bool
      */
     public function validateAttributesCreation(array $attributes, Collection $collection, Database $database): bool
@@ -420,10 +420,10 @@ class Appwrite extends Destination
 
     /**
      * Import Databases
-     * 
+     *
      * @param array $databases
      * @param callable $callback
-     * 
+     *
      * @return void
      */
     public function importDatabases(array $databases, callable $callback): void
@@ -505,9 +505,9 @@ class Appwrite extends Destination
                 if ($database->getType() == Database::DB_NON_RELATIONAL) {
                     $refCollectionID = $databaseService->createCollection($database->getId(), 'refs', 'References')['$id'];
                     $databaseService->createStringAttribute($database->getId(), $refCollectionID, 'original_name', 1000000, true);
-    
+
                     sleep(2);
-    
+
                     foreach ($createdCollections as $collection) {
                         /** @var Collection $collection */
                         $result = $databaseService->createDocument($database->getId(), $refCollectionID, $collection->getId(), [
@@ -539,11 +539,12 @@ class Appwrite extends Destination
 
     /**
      * Import Documents
-     * 
+     *
      * @param array $documents
      * @param callable $callback (Progress $progress)
      */
-    protected function importDocuments(array $documents, callable $callback): void {
+    protected function importDocuments(array $documents, callable $callback): void
+    {
         $documentCounters = &$this->getCounter(Transfer::RESOURCE_DOCUMENTS);
         $databaseService = new Databases($this->client);
 
