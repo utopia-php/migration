@@ -35,12 +35,12 @@ $sourceFirebase = new Firebase(
     Firebase::AUTH_SERVICEACCOUNT
 );
 
-// $sourceNHost = new NHost(
-//     $_ENV["NHOST_TEST_HOST"] ?? '',
-//     $_ENV["NHOST_TEST_DATABASE"] ?? '',
-//     $_ENV["NHOST_TEST_USERNAME"] ?? '',
-//     $_ENV["NHOST_TEST_PASSWORD"] ?? '',
-// );
+$sourceNHost = new NHost(
+    $_ENV["NHOST_TEST_HOST"] ?? '',
+    $_ENV["NHOST_TEST_DATABASE"] ?? '',
+    $_ENV["NHOST_TEST_USERNAME"] ?? '',
+    $_ENV["NHOST_TEST_PASSWORD"] ?? '',
+);
 
 $sourceSupabase = new Supabase(
     $_ENV["SUPABASE_TEST_HOST"] ?? '',
@@ -85,5 +85,7 @@ $transfer->run(
 if (!empty($transfer->getLogs(Log::ERROR))) {
     echo "\e[41m\e[97mFAILED\e[0m\n";
 
-    var_dump($transfer->getLogs(Log::ERROR));
+    foreach ($transfer->getLogs(Log::ERROR) as $log) {
+        echo "\e[31m{$log->getMessage()}\e[0m";
+    }
 }

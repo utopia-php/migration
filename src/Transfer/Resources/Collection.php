@@ -17,13 +17,32 @@ class Collection extends Resource
      */
     private array $indexes = [];
 
+    /**
+     * @var array $permissions
+     */
+    protected array $permissions = [];
+
+    /**
+     * @var bool $documentSecurity
+     */
+    protected bool $documentSecurity = false;
+
+    /**
+     * @var string $name
+     */
     protected string $name;
+
+    /**
+     * @var string $id
+     */
     protected string $id;
 
-    public function __construct(string $name = '', string $id = '')
+    public function __construct(string $name = '', string $id = '', bool $documentSecurity = false, array $permissions = [])
     {
         $this->name = $name;
         $this->id = $id;
+        $this->documentSecurity = $documentSecurity;
+        $this->permissions = $permissions;
     }
 
     public function getName(): string
@@ -50,6 +69,28 @@ class Collection extends Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+        return $this;
+    }
+
+    public function getDocumentSecurity(): bool
+    {
+        return $this->documentSecurity;
+    }
+
+    public function setDocumentSecurity(bool $documentSecurity): self
+    {
+        $this->documentSecurity = $documentSecurity;
+        return $this;
+    }
+
+    public function getPermissions(): array
+    {
+        return $this->permissions;
+    }
+
+    public function setPermissions(array $permissions): self
+    {
+        $this->permissions = $permissions;
         return $this;
     }
 
@@ -94,6 +135,8 @@ class Collection extends Resource
             'indexes' =>  array_map(function ($index) {
                 return $index->asArray();
             }, $this->indexes),
+            'permissions' => $this->permissions,
+            'documentSecurity' => $this->documentSecurity,
         ];
     }
 }

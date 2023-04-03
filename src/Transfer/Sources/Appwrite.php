@@ -24,6 +24,7 @@ use Utopia\Transfer\Resources\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Attributes\URLAttribute;
 use Utopia\Transfer\Resources\Collection;
 use Utopia\Transfer\Resources\Database;
+use Utopia\Transfer\Resources\Document;
 use Utopia\Transfer\Resources\Hash;
 use Utopia\Transfer\Resources\Index;
 
@@ -70,7 +71,8 @@ class Appwrite extends Source
     {
         return [
             Transfer::RESOURCE_USERS,
-            Transfer::RESOURCE_DATABASES
+            Transfer::RESOURCE_DATABASES,
+            Transfer::RESOURCE_DOCUMENTS,
         ];
     }
 
@@ -320,7 +322,7 @@ class Appwrite extends Source
 
                 $generalCollections = [];
                 foreach ($collections['collections'] as $collection) {
-                    $newCollection = new Collection($collection['name'], $collection['$id']);
+                    $newCollection = new Collection($collection['name'], $collection['$id'], $collection['documentSecurity'], $collection['$permissions']);
 
                     $attributes = [];
                     $indexes = [];
@@ -330,7 +332,7 @@ class Appwrite extends Source
                     }
 
                     foreach ($collection['indexes'] as $index) {
-                        $indexes[] = new Index($index['key'], $index['type'], $index['attributes'], $index['orders']);
+                        $indexes[] = new Index('unique()', $index['key'], $index['type'], $index['attributes'], $index['orders']);
                     }
 
                     $newCollection->setAttributes($attributes);
@@ -349,6 +351,65 @@ class Appwrite extends Source
 
             if (count($response["databases"]) < $batchSize) {
                 break;
+            }
+        }
+    }
+
+    /**
+     * Export Documents
+     * 
+     * @param int $batchSize Max 100
+     * @param callable $callback Callback function to be called after each batch, $callback(document[] $batch);
+     * 
+     * @return void
+     */
+    public function exportDocuments(int $batchSize, callable $callback): void
+    {
+        $databaseClient = new Databases($this->client);
+
+        $databases = $this->resourceCache[Transfer::RESOURCE_DATABASES];
+
+        foreach ($databases as $database) {
+            /** @var Database $database */
+            $collections = $database->getCollections();
+
+            foreach ($collections as $collection) {
+                /** @var Collection $collection */
+                $lastDocument = null;
+
+                while (true) {
+                    $queries = [
+                        Query::limit($batchSize)
+                    ];
+
+                    $documents = [];
+
+                    if ($lastDocument) {
+                        $queries[] = Query::cursorAfter($lastDocument);
+                    }
+
+                    $response = $databaseClient->listDocuments($database->getId(), $collection->getId(), $queries);
+
+                    foreach ($response["documents"] as $document) {
+                        $id = $document['$id'];
+                        $permissions = $document['$permissions'];
+                        unset($document['$id']);
+                        unset($document['$permissions']);
+                        unset($document['$collectionId']);
+                        unset($document['$updatedAt']);
+                        unset($document['$createdAt']);
+                        unset($document['$databaseId']);
+
+                        $documents[] = new Document($id, $database, $collection, $document, $permissions);
+                        $lastDocument = $id;
+                    }
+
+                    $callback($documents);
+
+                    if (count($response["documents"]) < $batchSize) {
+                        break;
+                    }
+                }
             }
         }
     }

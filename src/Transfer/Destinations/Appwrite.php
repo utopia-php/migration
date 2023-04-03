@@ -35,8 +35,6 @@ class Appwrite extends Destination
     protected string $endpoint;
     protected string $key;
 
-    private array $conversionTable = [];
-
     public function __construct(string $project, string $endpoint, string $key)
     {
         $this->project = $project;
@@ -444,27 +442,27 @@ class Appwrite extends Destination
                     /** @var Collection $collection */
                     $createdAttributes = [];
 
-                    if ($database->getType() == Database::DB_NON_RELATIONAL) {
-                        $path = \explode('/', $collection->getCollectionName());
+                    // if ($database->getType() == Database::DB_NON_RELATIONAL) {
+                    //     $path = \explode('/', $collection->getCollectionName());
 
-                        $collectionName = $path[count($path) - 1];
+                    //     $collectionName = $path[count($path) - 1];
 
-                        if (isset($path[count($path) - 2])) {
-                            $collectionName = $path[count($path) - 2] . "/" . $collectionName;
-                        }
-                    } else {
-                        $collectionName = $collection->getCollectionName();
-                    }
+                    //     if (isset($path[count($path) - 2])) {
+                    //         $collectionName = $path[count($path) - 2] . "/" . $collectionName;
+                    //     }
+                    // } else {
+                    //     $collectionName = $collection->getCollectionName();
+                    // }
 
-                    // Handle special chars
-                    $collectionName = \str_replace([' ', '(', ')', '[', ']', '{', '}', '<', '>', ':', ';', ',', '.', '?', '\\', '|', '=', '+', '*', '&', '^', '%', '$', '#', '@', '!', '~', '`', '"', "'"], '_', $collectionName);
+                    // // Handle special chars
+                    // $collectionName = \str_replace([' ', '(', ')', '[', ']', '{', '}', '<', '>', ':', ';', ',', '.', '?', '\\', '|', '=', '+', '*', '&', '^', '%', '$', '#', '@', '!', '~', '`', '"', "'"], '_', $collectionName);
 
-                    // Check name length
-                    if (\strlen($collectionName) > 120) {
-                        $collectionName = \substr($collectionName, 0, 120);
-                    }
+                    // // Check name length
+                    // if (\strlen($collectionName) > 120) {
+                    //     $collectionName = \substr($collectionName, 0, 120);
+                    // }
 
-                    $newCollection = $databaseService->createCollection($database->getId(), $collection->getId(), $collectionName);
+                    $newCollection = $databaseService->createCollection($database->getId(), $collection->getId(), $collection->getCollectionName(), $collection->getPermissions(), $collection->getDocumentSecurity());
                     $collection->setId($newCollection['$id']);
 
                     // Remove duplicate attributes, TODO: Merge them together.
@@ -477,8 +475,6 @@ class Appwrite extends Destination
 
                         return true;
                     });
-
-                    $filteredAttributes[] = new StringAttribute($collection->getId(), false, false, null, 1000000);
 
                     foreach ($filteredAttributes as $attribute) {
                         /** @var Attribute $attribute */
@@ -555,7 +551,7 @@ class Appwrite extends Destination
             /** @var Document $document */
 
             try {
-                $databaseService->createDocument($document->getDatabase(), $document->getCollection()->getId(), 'unique()', $document->getData());
+                $databaseService->createDocument($document->getDatabase()->getId(), $document->getCollection()->getId(), $document->getId() ?? 'unique()', $document->getData(), $document->getPermissions());
 
                 $this->logs[Log::SUCCESS][] = new Log('Document imported successfully', \time(), $document);
                 $documentCounters['current']++;

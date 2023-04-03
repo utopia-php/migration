@@ -6,16 +6,18 @@ use Utopia\Transfer\Resource;
 
 class Document extends Resource {
     protected string $id;
-    protected string $database;
+    protected Database $database;
     protected Collection $collection;
     protected array $data;
+    protected array $permissions;
 
-    public function __construct(string $id, string $database, Collection $collection, array $data = [])
+    public function __construct(string $id, Database $database, Collection $collection, array $data = [], array $permissions = [])
     {
         $this->id = $id;
         $this->database = $database;
         $this->collection = $collection;
         $this->data = $data;
+        $this->permissions = $permissions;
     }
 
     public function getName(): string
@@ -34,12 +36,12 @@ class Document extends Resource {
         return $this;
     }
 
-    public function getDatabase(): string
+    public function getDatabase(): Database
     {
         return $this->database;
     }
 
-    public function setDatabase(string $database): self
+    public function setDatabase(Database $database): self
     {
         $this->database = $database;
         return $this;
@@ -74,6 +76,24 @@ class Document extends Resource {
         return $this;
     }
 
+    public function getPermissions(): array
+    {
+        return $this->permissions;
+    }
+
+    /**
+     * Set Permissions
+     * 
+     * @param array<string> $permissions
+     * 
+     * @return self
+     */
+    public function setPermissions(array $permissions): self
+    {
+        $this->permissions = $permissions;
+        return $this;
+    }
+
     public function asArray(): array
     {
         return [
@@ -81,6 +101,7 @@ class Document extends Resource {
             'database' => $this->database,
             'collection' => $this->collection,
             'attributes' => $this->data,
+            'permissions' => $this->permissions,
         ];
     }
 }

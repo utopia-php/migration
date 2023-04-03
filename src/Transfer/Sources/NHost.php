@@ -68,7 +68,12 @@ class NHost extends Source
         $this->username = $username;
         $this->password = $password;
         $this->port = $port;
-        $this->pdo = new \PDO("pgsql:host=" . $this->host . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
+
+        try {
+            $this->pdo = new \PDO("pgsql:host=" . $this->host . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
+        } catch (\PDOException $e) {
+            $this->logs[Log::ERROR] = new Log('Failed to connect to database: ' . $e->getMessage(), \time());
+        }
     }
 
     function getName(): string
@@ -264,7 +269,7 @@ class NHost extends Source
                 return false;
             }
 
-            $type = "";
+            $type = '';
 
             if ($matches['type'] === 'UNIQUE') {
                 $type = Index::TYPE_UNIQUE;
@@ -385,7 +390,7 @@ class NHost extends Source
                             }
                         }
 
-                        $transferDocuments[] = new Document('unique()', 'public', $collection, $processedData);
+                        $transferDocuments[] = new Document('unique()', $database, $collection, $processedData);
                     }
 
                     $callback($transferDocuments);
@@ -425,6 +430,12 @@ class NHost extends Source
 
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
+        }
+
+        try {
+            $this->pdo = new \PDO("pgsql:host=" . $this->host . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
+        } catch (\PDOException $e) {
+            $report['Databases'][] = 'Failed to connect to database. PDO Code: ' . $e->getCode() . ' Error: ' . $e->getMessage();
         }
 
         if (!empty($this->pdo->errorCode())) {
