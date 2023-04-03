@@ -6,7 +6,7 @@
  * A place to test and debug the Transfer Library stuff
  */
 
-require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Sources\Appwrite;
