@@ -3,6 +3,7 @@
 namespace Utopia\Transfer;
 
 use Exception;
+use Utopia\Transfer\Resources\FileData;
 
 abstract class Source
 {
@@ -144,7 +145,9 @@ abstract class Source
                     break;
                 case Transfer::RESOURCE_FILES:
                     $this->exportFiles(5, function (array $files) use ($callback) {
-                        $this->resourceCache[Transfer::RESOURCE_FILES] = array_merge($this->resourceCache[Transfer::RESOURCE_FILES], $files);
+                        if (!$files[0] instanceof FileData) {
+                            $this->resourceCache[Transfer::RESOURCE_FILES] = array_merge($this->resourceCache[Transfer::RESOURCE_FILES], $files);
+                        }
                         $callback(Transfer::RESOURCE_FILES, $files);
                     });
                     break;
@@ -329,8 +332,8 @@ abstract class Source
     /**
      * Export Files
      *
-     * @param int $batchSize Max 100
-     * @param callable $callback Callback function to be called after each file, $callback(file[] $batch);
+     * @param int $batchSize Max 5
+     * @param callable $callback Callback function to be called after each batch, $callback(File[]|Bucket[] $batch);
      *
      * @return void
      */

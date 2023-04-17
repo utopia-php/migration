@@ -6,13 +6,12 @@ use Utopia\Transfer\Source;
 use Appwrite\Client;
 use Appwrite\Query;
 use Appwrite\Services\Databases;
+use Appwrite\Services\Storage;
 use Appwrite\Services\Users;
+use Utopia\Transfer\Log;
 use Utopia\Transfer\Resources\Attribute;
-use Utopia\Transfer\Resources\Project;
 use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
-use Utopia\Transfer\Log;
-use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Attributes\BoolAttribute;
 use Utopia\Transfer\Resources\Attributes\DateTimeAttribute;
 use Utopia\Transfer\Resources\Attributes\EmailAttribute;
@@ -28,6 +27,9 @@ use Utopia\Transfer\Resources\Database;
 use Utopia\Transfer\Resources\Document;
 use Utopia\Transfer\Resources\Hash;
 use Utopia\Transfer\Resources\Index;
+use Utopia\Transfer\Resources\Bucket;
+use Utopia\Transfer\Resources\File;
+use Utopia\Transfer\Resources\FileData;
 
 class Appwrite extends Source
 {
@@ -35,6 +37,16 @@ class Appwrite extends Source
      * @var Client|null
      */
     protected $client = null;
+
+    /**
+     * @var string
+     */
+    protected string $project = '';
+
+    /**
+     * @var string
+     */
+    protected string $key = '';
 
     /**
      * Constructor
@@ -51,6 +63,10 @@ class Appwrite extends Source
             ->setEndpoint($endpoint)
             ->setProject($project)
             ->setKey($key);
+
+        $this->endpoint = $endpoint;
+        $this->project = $project;
+        $this->key = $key;
     }
 
     /**
@@ -74,6 +90,7 @@ class Appwrite extends Source
             Transfer::RESOURCE_USERS,
             Transfer::RESOURCE_DATABASES,
             Transfer::RESOURCE_DOCUMENTS,
+            Transfer::RESOURCE_FILES,
         ];
     }
 
@@ -547,5 +564,148 @@ class Appwrite extends Source
         }
 
         return $types;
+    }
+
+    /**
+     * Export Files
+     *
+     * @param int $batchSize Max 5
+     * @param callable $callback Callback function to be called after each batch, $callback(File[]|Bucket[] $batch);
+     */
+    public function exportFiles(int $batchSize, callable $callback): void
+    {
+        $storageClient = new Storage($this->client);
+
+        $buckets = $storageClient->listBuckets();
+
+        $convertedBuckets = [];
+
+        foreach ($buckets['buckets'] as $bucket) {
+            $convertedBuckets[] = new Bucket(
+                $bucket['$id'],
+                $bucket['$permissions'],
+                $bucket['fileSecurity'],
+                $bucket['name'],
+                $bucket['enabled'],
+                $bucket['maximumFileSize'],
+                $bucket['allowedFileExtensions'],
+                $bucket['compression'],
+                $bucket['encryption'],
+                $bucket['antivirus'],
+            );
+        }
+
+        if (empty($convertedBuckets)) {
+            return;
+        }
+
+        $callback($convertedBuckets);
+
+        foreach ($convertedBuckets as $bucket) {
+            $lastDocument = null;
+
+            while (true) {
+                $queries = [Query::limit($batchSize)];
+
+                $files = [];
+
+                if ($lastDocument) {
+                    $queries[] = Query::cursorAfter($lastDocument);
+                }
+
+                $response = $storageClient->listFiles(
+                    $bucket->getId(),
+                    $queries
+                );
+
+                foreach ($response["files"] as $file) {
+                    $files[] = new File(
+                        $file['$id'],
+                        $bucket,
+                        $file['name'],
+                        $file['signature'],
+                        $file['mimeType'],
+                        $file['$permissions'],
+                        $file['sizeOriginal'],
+                    );
+                    $lastDocument = $file['$id'];
+                }
+
+                foreach ($files as $file) {
+                    $this->streamFile($file, $callback);
+                }
+
+                if (count($response["files"]) < $batchSize) {
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Stream File
+     * Streams a file to the destination
+     *
+     * @param File $file
+     * @param callable $callback (array $data)
+     *
+     * @return void
+     */
+    protected function streamFile(File $file, callable $callback): void
+    {
+        // Set the chunk size (5MB)
+        $chunkSize = 5 * 1024 * 1024;
+        $start = 0;
+        $end = $chunkSize - 1;
+
+        // Get the file size
+        $fileSize = $file->getSize();
+
+        // Initialize cURL
+        $ch = curl_init("{$this->endpoint}/storage/buckets/{$file->getBucket()->getId()}/files/{$file->getId()}/download");
+
+        // Loop until the entire file is downloaded
+        while ($start < $fileSize) {
+            // Set the Range header
+            $range = "Range: bytes=$start-$end";
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                $range,
+                'X-Appwrite-key: ' . $this->key,
+                'X-Appwrite-Project: ' . $this->project,
+            ]);
+
+            // Set cURL options
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+            // Download the chunk
+            $chunkData = curl_exec($ch);
+
+            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            if ($status !== 200 && $status !== 206) {
+                $this->logs[Log::FATAL][] = new Log('Failed to download file, Error: ' . $chunkData);
+                throw new \Exception('Failed to download file, Error: ' . $chunkData);
+            }
+
+            // Send the chunk to the callback function
+            $callback([new FileData(
+                $chunkData,
+                $start,
+                $end,
+                $file
+            )]);
+
+            // Update the range
+            $start += $chunkSize;
+            $end += $chunkSize;
+
+            if ($end > $fileSize) {
+                $end = $fileSize - 1;
+            }
+        }
+
+        // Close cURL
+        curl_close($ch);
     }
 }

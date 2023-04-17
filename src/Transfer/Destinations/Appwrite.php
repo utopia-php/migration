@@ -6,6 +6,7 @@ use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Services\Users;
 use Appwrite\Services\Databases;
+use Appwrite\Services\Storage;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resources\Hash;
 use Utopia\Transfer\Log;
@@ -16,6 +17,9 @@ use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Resources\Database;
 use Utopia\Transfer\Resources\Collection;
 use Utopia\Transfer\Resources\Document;
+use Utopia\Transfer\Resources\Bucket;
+use Utopia\Transfer\Resources\FileData;
+use Utopia\Transfer\Resources\Index;
 use Utopia\Transfer\Resources\Attributes\BoolAttribute;
 use Utopia\Transfer\Resources\Attributes\DateTimeAttribute;
 use Utopia\Transfer\Resources\Attributes\EmailAttribute;
@@ -26,7 +30,6 @@ use Utopia\Transfer\Resources\Attributes\IPAttribute;
 use Utopia\Transfer\Resources\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Attributes\URLAttribute;
 use Utopia\Transfer\Resources\Attributes\RelationshipAttribute;
-use Utopia\Transfer\Resources\Index;
 
 class Appwrite extends Destination
 {
@@ -579,5 +582,150 @@ class Appwrite extends Destination
                 $documentCounters['skipped']
             )
         );
+    }
+
+    /**
+     * Import Bucket
+     *
+     * @param Bucket $bucket
+     * @param callable $callback (Progress $progress)
+     */
+    protected function importBucket(Bucket $bucket, callable $callback): void
+    {
+        // $bucketCounters = &$this->getCounter(Transfer::RESOURCE_BUCKETS);
+        $storageService = new Storage($this->client);
+
+        /** @var Bucket $bucket */
+        try {
+            $newBucket = $storageService->createBucket(
+                $bucket->getId(),
+                $bucket->getBucketName(),
+                $bucket->getPermissions(),
+                $bucket->getFileSecurity(),
+                true, // Set to true for now, we'll come back later.
+                $bucket->getMaxFileSize(),
+                $bucket->getAllowedFileExtensions(),
+                $bucket->getCompression(),
+                $bucket->getEncryption(),
+                $bucket->getAntiVirus()
+            );
+            $bucket->setId($newBucket['$id']);
+
+            $this->logs[Log::SUCCESS][] = new Log('Bucket imported successfully', \time(), $bucket);
+            // $bucketCounters['current']++;
+        } catch (AppwriteException $e) {
+            $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $bucket);
+            // $bucketCounters['failed']++;
+        }
+
+        // $callback(
+        //     new Progress(
+        //         Transfer::RESOURCE_BUCKETS,
+        //         time(),
+        //         $bucketCounters['total'],
+        //         $bucketCounters['current'],
+        //         $bucketCounters['failed'],
+        //         $bucketCounters['skipped']
+        //     )
+        // );
+    }
+
+    /**
+     * Import Files
+     *
+     * @param array $resources File[]|Bucket[]|FileData[]
+     * @param callable $callback (Progress $progress)
+     */
+    protected function importFiles(array $resources, callable $callback): void
+    {
+        $fileCounters = &$this->getCounter(Transfer::RESOURCE_FILES);
+
+        foreach ($resources as $resource) {
+            if ($resource instanceof Bucket) {
+                $this->importBucket($resource, $callback);
+            } elseif ($resource instanceof FileData) {
+                $this->importFileData($resource, $callback);
+            }
+        }
+
+        $callback(
+            new Progress(
+                Transfer::RESOURCE_FILES,
+                time(),
+                $fileCounters['total'],
+                $fileCounters['current'],
+                $fileCounters['failed'],
+                $fileCounters['skipped']
+            )
+        );
+    }
+
+    /**
+     * Import File Data
+     *
+     * @param FileData $filePart
+     * @param callable $callback (Progress $progress)
+     */
+    protected function importFileData(FileData $filePart, callable $callback): void
+    {
+        $fileCounters = &$this->getCounter(Transfer::RESOURCE_FILES);
+
+        try {
+            $file = $filePart->getFile();
+            $bucketId = $file->getBucket()->getId();
+
+            $response = null;
+
+            if ($file->getSize() <= (5 * 1024 * 1024)) {
+                $response = $this->client->call(
+                    'POST',
+                    "/v1/storage/buckets/{$bucketId}/files",
+                    [
+                        'content-type' => 'multipart/form-data',
+                    ],
+                    [
+                        'bucketId' => $bucketId,
+                        'fileId' => $file->getId(),
+                        'file' => new \CurlFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($filePart->getData()), $file->getMimeType(), $file->getFileName()),
+                        'permissions' => $file->getPermissions(),
+                    ]
+                );
+
+                $this->logs[Log::SUCCESS][] = new Log('File imported successfully', \time(), $file);
+                $fileCounters['current']++;
+
+                return;
+            }
+
+            $response = $this->client->call(
+                'POST',
+                "/v1/storage/buckets/{$bucketId}/files",
+                [
+                    'content-type' => 'multipart/form-data',
+                    'content-range' => 'bytes ' . ($filePart->getStart()) . '-' . ($filePart->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $filePart->getEnd()) . '/' . $file->getSize(),
+                ],
+                [
+                    'bucketId' => $bucketId,
+                    'fileId' => $file->getId(),
+                    'file' => new \CurlFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($filePart->getData()), $file->getMimeType(), $file->getFileName()),
+                    'permissions' => $file->getPermissions(),
+                ]
+            );
+
+            if ($filePart->getEnd() == ($file->getSize() - 1)) {
+                // Signatures for Encrypted files are invalid, so we skip the check
+                if ($file->getBucket()->getEncryption() == false || $file->getSize() > (20 * 1024 * 1024)) {
+                    if ($response['signature'] !== $file->getSignature()) {
+                        $this->logs[Log::WARNING][] = new Log('File signature mismatch, Possibly corrupted.', \time(), $file);
+                    }
+                }
+
+                $this->logs[Log::SUCCESS][] = new Log('File imported successfully', \time(), $file);
+                $fileCounters['current']++;
+            }
+        } catch (AppwriteException $e) {
+            $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $file);
+            $fileCounters['failed']++;
+        }
     }
 }
