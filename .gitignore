@@ -5,3 +5,4 @@ composer.lock
 .env
 test-service-account.json
 .DS_Store
+localBackup/

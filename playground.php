@@ -58,7 +58,7 @@ $destinationAppwrite = new AppwriteDestination(
     $_ENV['DESTINATION_APPWRITE_TEST_KEY']
 );
 
-$destinationLocal = new Local(__DIR__ . '/databaseDMP.json');
+$destinationLocal = new Local(__DIR__ . '/localBackup/');
 
 /**
  * Initialise Transfer Class 
@@ -67,7 +67,7 @@ $destinationLocal = new Local(__DIR__ . '/databaseDMP.json');
 $sourceFirebase->setProject($sourceFirebase->getProjects()[0]);
 
 $transfer = new Transfer(
-    $sourceSupabase,
+    $sourceAppwrite,
     $destinationAppwrite
 );
 
@@ -76,8 +76,7 @@ $transfer = new Transfer(
 */
 $transfer->run(
     [
-    Transfer::RESOURCE_DATABASES,
-    Transfer::RESOURCE_DOCUMENTS,
+        Transfer::RESOURCE_DATABASES
     ], function () {
     }
 );

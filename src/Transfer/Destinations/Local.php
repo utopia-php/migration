@@ -9,7 +9,10 @@ use Utopia\Transfer\Resources\Hash;
 use Utopia\Transfer\Log;
 use Utopia\Transfer\Progress;
 use Utopia\Transfer\Resources\Database;
+use Utopia\Transfer\Resources\File;
 use Utopia\Transfer\Resources\User;
+use Utopia\Transfer\Resources\Bucket;
+use Utopia\Transfer\Resources\FileData;
 use Utopia\Transfer\Transfer;
 
 /**
@@ -27,6 +30,11 @@ class Local extends Destination
     public function __construct(string $path)
     {
         $this->path = $path;
+
+        if (!\file_exists($this->path)) {
+            mkdir($this->path, 0777, true);
+            mkdir($this->path . '/files', 0777, true);
+        }
     }
 
     /**
@@ -76,7 +84,7 @@ class Local extends Destination
         }
 
         // Check we can write to the file
-        if (!\is_writable($this->path)) {
+        if (!\is_writable($this->path . '/backup.json')) {
             $report['Databases'][] = 'Unable to write to file: ' . $this->path;
             throw new \Exception('Unable to write to file: ' . $this->path);
         }
@@ -86,7 +94,7 @@ class Local extends Destination
 
     public function syncFile(): void
     {
-        \file_put_contents($this->path, \json_encode($this->data, JSON_PRETTY_PRINT));
+        \file_put_contents($this->path . '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
     }
 
     /**
@@ -182,6 +190,50 @@ class Local extends Destination
                 $documentCounters['current'],
                 $documentCounters['failed'],
                 $documentCounters['skipped']
+            )
+        );
+
+        $this->syncFile();
+    }
+
+    /**
+     * Import Files
+     *
+     * @param array $resource file[]|bucket[]
+     * @param callable $callback (Progress $progress)
+     */
+    protected function importFiles(array $resources, callable $callback): void
+    {
+        $fileCounters = &$this->getCounter(Transfer::RESOURCE_FILES);
+        //TODO: Improve counters with a custom class, currently files and buckets share the same counter.
+
+        foreach ($resources as $resource) {
+            if ($resource instanceof File) {
+                $this->data[Transfer::RESOURCE_FILES][] = $resource->asArray();
+                $this->logs[Log::SUCCESS][] = new Log('File imported successfully', \time(), $resource);
+
+                if (\file_exists($this->path . '/files/' . $resource->getFileName())) {
+                    \unlink($this->path . '/files/' . $resource->getFileName());
+                }
+
+                $fileCounters['current']++;
+            } elseif ($resource instanceof Bucket) {
+                $this->data[Transfer::RESOURCE_FILES][] = $resource->asArray();
+                $this->logs[Log::SUCCESS][] = new Log('Bucket imported successfully', \time(), $resource);
+                $fileCounters['current']++;
+            } elseif ($resource instanceof FileData) {
+                file_put_contents($this->path . '/files/' . $resource->getFile()->getFileName(), $resource->getData(), FILE_APPEND);
+            }
+        }
+
+        $callback(
+            new Progress(
+                Transfer::RESOURCE_FILES,
+                time(),
+                $fileCounters['total'],
+                $fileCounters['current'],
+                $fileCounters['failed'],
+                $fileCounters['skipped']
             )
         );
 

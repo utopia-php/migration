@@ -3,6 +3,7 @@
 namespace Utopia\Transfer;
 
 use Exception;
+use Utopia\Transfer\Resources\File;
 
 abstract class Destination
 {
@@ -331,7 +332,7 @@ abstract class Destination
     /**
      * Import Files
      *
-     * @param array $files
+     * @param array $resource file[]|bucket[]|FileData[]
      * @param callable $callback (Progress $progress)
      */
     protected function importFiles(array $files, callable $callback): void
