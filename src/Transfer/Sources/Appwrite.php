@@ -22,6 +22,7 @@ use Utopia\Transfer\Resources\Attributes\IntAttribute;
 use Utopia\Transfer\Resources\Attributes\IPAttribute;
 use Utopia\Transfer\Resources\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Attributes\URLAttribute;
+use Utopia\Transfer\Resources\Attributes\RelationshipAttribute;
 use Utopia\Transfer\Resources\Collection;
 use Utopia\Transfer\Resources\Database;
 use Utopia\Transfer\Resources\Document;
@@ -356,6 +357,18 @@ class Appwrite extends Source
                     $value["default"],
                     $value["min"] ?? 0,
                     $value["max"] ?? 0
+                );
+            case "relationship":
+                return new RelationshipAttribute(
+                    $value["key"],
+                    $value["required"],
+                    $value["array"],
+                    $value["relatedCollection"],
+                    $value["relationType"],
+                    $value["twoWay"],
+                    $value["twoWayKey"],
+                    $value["onDelete"],
+                    $value["side"]
                 );
         }
 

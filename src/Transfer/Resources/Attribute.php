@@ -15,6 +15,7 @@ class Attribute extends Resource
     public const TYPE_ENUM = 'enumAttribute';
     public const TYPE_IP = 'IPAttribute';
     public const TYPE_URL = 'URLAttribute';
+    public const TYPE_RELATIONSHIP = 'relationshipAttribute';
 
     protected string $key;
     protected bool $required;

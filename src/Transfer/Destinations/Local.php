@@ -27,6 +27,11 @@ class Local extends Destination
     public function __construct(string $path)
     {
         $this->path = $path;
+
+        if (!\file_exists($this->path)) {
+            mkdir($this->path, 0777, true);
+            mkdir($this->path . '/files', 0777, true);
+        }
     }
 
     /**
@@ -76,7 +81,7 @@ class Local extends Destination
         }
 
         // Check we can write to the file
-        if (!\is_writable($this->path)) {
+        if (!\is_writable($this->path . '/backup.json')) {
             $report['Databases'][] = 'Unable to write to file: ' . $this->path;
             throw new \Exception('Unable to write to file: ' . $this->path);
         }
@@ -86,7 +91,7 @@ class Local extends Destination
 
     public function syncFile(): void
     {
-        \file_put_contents($this->path, \json_encode($this->data, JSON_PRETTY_PRINT));
+        \file_put_contents($this->path . '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
     }
 
     /**

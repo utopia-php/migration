@@ -25,6 +25,7 @@ use Utopia\Transfer\Resources\Attributes\IntAttribute;
 use Utopia\Transfer\Resources\Attributes\IPAttribute;
 use Utopia\Transfer\Resources\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Attributes\URLAttribute;
+use Utopia\Transfer\Resources\Attributes\RelationshipAttribute;
 use Utopia\Transfer\Resources\Index;
 
 class Appwrite extends Destination
@@ -373,6 +374,12 @@ class Appwrite extends Destination
                     /** @var EnumAttribute $attribute */
                     $databaseService->createEnumAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getElements(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                     break;
+                case Attribute::TYPE_RELATIONSHIP:
+                    /** @var RelationshipAttribute $attribute */
+                    $databaseService->createRelationshipAttribute($database->getId(), $collection->getId(), $attribute->getRelatedCollection(), $attribute->getRelationType(), $attribute->getTwoWay(), $attribute->getKey(), $attribute->getTwoWayKey(), $attribute->getOnDelete());
+                    break;
+                default:
+                    throw new \Exception('Invalid attribute type');
             }
         } catch (\Exception $e) {
             $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $attribute);
@@ -485,7 +492,7 @@ class Appwrite extends Destination
                     $timeout = 0;
 
                     while (!$this->validateAttributesCreation($collection->getAttributes(), $collection, $database)) {
-                        if ($timeout > 60) {
+                        if ($timeout > 5) {
                             throw new AppwriteException('Timeout while waiting for attributes to be created');
                         }
 
