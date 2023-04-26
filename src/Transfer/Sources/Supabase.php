@@ -164,7 +164,7 @@ class Supabase extends NHost
                 foreach ($files as $file) {
                     $metadata = json_decode($file['metadata'], true);
 
-                    $this->handleFileTransfer(new File(
+                    $this->handleFileDataTransfer(new File(
                         $file['id'],
                         $bucket,
                         $file['name'],
@@ -187,7 +187,7 @@ class Supabase extends NHost
      *
      * @return void
      */
-    protected function handleFileTransfer(File $file, callable $callback): void
+    protected function handleFileDataTransfer(File $file, callable $callback): void
     {
         // Set the chunk size (5MB)
         $start = 0;
@@ -195,6 +195,10 @@ class Supabase extends NHost
 
         // Get the file size
         $fileSize = $file->getSize();
+
+        if ($end > $fileSize) {
+            $end = $fileSize - 1;
+        }
 
         // Loop until the entire file is downloaded
         while ($start < $fileSize) {

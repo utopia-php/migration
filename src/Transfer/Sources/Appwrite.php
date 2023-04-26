@@ -72,6 +72,8 @@ class Appwrite extends Source
         $this->endpoint = $endpoint;
         $this->project = $project;
         $this->key = $key;
+        $this->headers['X-Appwrite-Project'] = $this->project;
+        $this->headers['X-Appwrite-Key'] = $this->key;
     }
 
     /**
@@ -766,8 +768,6 @@ class Appwrite extends Source
             while (true) {
                 $queries = [Query::limit($batchSize)];
 
-                $files = [];
-
                 if ($lastDocument) {
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
@@ -778,7 +778,7 @@ class Appwrite extends Source
                 );
 
                 foreach ($response["files"] as $file) {
-                    $files[] = new File(
+                    $this->handleFileDataTransfer(new File(
                         $file['$id'],
                         $bucket,
                         $file['name'],
@@ -786,13 +786,9 @@ class Appwrite extends Source
                         $file['mimeType'],
                         $file['$permissions'],
                         $file['sizeOriginal'],
-                    );
-                    
-                    $lastDocument = $file['$id'];
-                }
+                    ), $callback);
 
-                foreach ($files as $file) {
-                    $this->streamFile($file, $callback);
+                    $lastDocument = $file['$id'];
                 }
 
                 if (count($response["files"]) < $batchSize) {
@@ -803,48 +799,34 @@ class Appwrite extends Source
     }
 
     /**
-     * Stream File
+     * Handle File Data Transfer
      * Streams a file to the destination
      *
      * @param File $file
      * @param callable $callback (array $data)
-     *
+     * 
      * @return void
      */
-    protected function streamFile(File $file, callable $callback): void
+    protected function handleFileDataTransfer(File $file, callable $callback): void
     {
         // Set the chunk size (5MB)
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 
+        if ($end > $file->getSize()) {
+            $end = $file->getSize() - 1;
+        }
+
         // Get the file size
         $fileSize = $file->getSize();
 
-        // Initialize cURL
-        $ch = curl_init("{$this->endpoint}/storage/buckets/{$file->getBucket()->getId()}/files/{$file->getId()}/download");
-
         // Loop until the entire file is downloaded
         while ($start < $fileSize) {
-            // Set the Range header
-            $range = "Range: bytes=$start-$end";
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                $range,
-                'X-Appwrite-key: ' . $this->key,
-                'X-Appwrite-Project: ' . $this->project,
-            ]);
-
-            // Set cURL options
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-
-            // Download the chunk
-            $chunkData = curl_exec($ch);
-
-            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-            if ($status !== 200 && $status !== 206) {
-                throw new \Exception('Failed to download file, Error: ' . $chunkData);
-            }
+            $chunkData = $this->call(
+                'GET',
+                "/storage/buckets/{$file->getBucket()->getId()}/files/{$file->getId()}/download",
+                ['range' => "bytes=$start-$end"]
+            );
 
             // Send the chunk to the callback function
             $callback([new FileData(
@@ -862,9 +844,6 @@ class Appwrite extends Source
                 $end = $fileSize - 1;
             }
         }
-
-        // Close cURL
-        curl_close($ch);
     }
 
     /**
