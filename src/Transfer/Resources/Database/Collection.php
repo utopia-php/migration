@@ -1,8 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources;
+namespace Utopia\Transfer\Resources\Database;
 
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Transfer;
 
 class Collection extends Resource
 {
@@ -16,6 +17,8 @@ class Collection extends Resource
      * @var list<Index> $indexes
      */
     private array $indexes = [];
+
+    private Database $database;
 
     /**
      * @var array $permissions
@@ -37,8 +40,9 @@ class Collection extends Resource
      */
     protected string $id;
 
-    public function __construct(string $name = '', string $id = '', bool $documentSecurity = false, array $permissions = [])
+    public function __construct(Database $database, string $name, string $id, bool $documentSecurity = false, array $permissions = [])
     {
+        $this->database = $database;
         $this->name = $name;
         $this->id = $id;
         $this->documentSecurity = $documentSecurity;
@@ -47,7 +51,23 @@ class Collection extends Resource
 
     public function getName(): string
     {
-        return 'collection';
+        return Resource::TYPE_COLLECTION;
+    }
+
+    public function getGroup(): string
+    {
+        return Transfer::GROUP_DATABASES;
+    }
+
+    public function getDatabase(): Database
+    {
+        return $this->database;
+    }
+
+    public function setDatabase(Database $database): self
+    {
+        $this->database = $database;
+        return $this;
     }
 
     public function getCollectionName(): string
@@ -94,47 +114,11 @@ class Collection extends Resource
         return $this;
     }
 
-    public function getAttributes(): array
-    {
-        return $this->columns;
-    }
-
-    /**
-     * @param list<Attribute> $columns
-     * @return self
-     */
-    public function setAttributes(array $columns): self
-    {
-        $this->columns = $columns;
-        return $this;
-    }
-
-    public function getIndexes(): array
-    {
-        return $this->indexes;
-    }
-
-    /**
-     * @param list<Index> $indexes
-     * @return self
-     */
-    public function setIndexes(array $indexes): self
-    {
-        $this->indexes = $indexes;
-        return $this;
-    }
-
     public function asArray(): array
     {
         return [
             'name' => $this->name,
             'id' => $this->id,
-            'columns' =>  array_map(function ($column) {
-                return $column->asArray();
-            }, $this->columns),
-            'indexes' =>  array_map(function ($index) {
-                return $index->asArray();
-            }, $this->indexes),
             'permissions' => $this->permissions,
             'documentSecurity' => $this->documentSecurity,
         ];

@@ -41,7 +41,7 @@ class NHostTest extends TestCase
     {
         $result = [];
 
-        $this->nhost->exportUsers(
+        $this->nhost->exportAuth(
             500,
             public function (array $users) use (&$result) {
                 $result = array_merge($result, $users);

@@ -1,8 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources\Attributes;
+namespace Utopia\Transfer\Resources\Database\Attributes;
 
-use Utopia\Transfer\Resources\Attribute;
+use Utopia\Transfer\Resources\Database\Attribute;
+use Utopia\Transfer\Resources\Database\Collection;
 
 class BoolAttribute extends Attribute
 {
@@ -13,17 +14,18 @@ class BoolAttribute extends Attribute
 
     /**
      * @param string $key
+     * @param Collection $collection
      * @param bool $required
      * @param bool $array
      * @param ?bool $default
      */
-    public function __construct(string $key, bool $required = false, bool $array = false, ?bool $default = null)
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?bool $default = null)
     {
-        parent::__construct($key, $required, $array);
+        parent::__construct($key, $collection, $required, $array);
         $this->default = $default;
     }
 
-    public function getName(): string
+    public function getTypeName(): string
     {
         return 'boolAttribute';
     }

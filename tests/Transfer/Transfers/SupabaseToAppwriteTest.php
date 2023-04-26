@@ -72,7 +72,7 @@ class SupabaseToAppwriteTest extends TestCase
     public function testTransferUsers(): void
     {
         $this->transfer->run(
-            [Transfer::RESOURCE_USERS],
+            [Transfer::GROUP_AUTH],
             public function () {
             }
         );
@@ -91,7 +91,7 @@ class SupabaseToAppwriteTest extends TestCase
 
         $assertedUsers = false;
 
-        $this->supabase->exportUsers(
+        $this->supabase->exportAuth(
             500,
             public function (array $users) use ($userClient, &$assertedUsers) {
                 foreach ($users as $user) {

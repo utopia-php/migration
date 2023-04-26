@@ -2,41 +2,43 @@
 
 namespace Utopia\Transfer\Destinations;
 
-use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Services\Users;
 use Appwrite\Services\Databases;
+use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
+use Appwrite\Services\Teams;
 use Utopia\Transfer\Destination;
-use Utopia\Transfer\Resources\Hash;
-use Utopia\Transfer\Log;
-use Utopia\Transfer\Progress;
-use Utopia\Transfer\Resources\Attribute;
-use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
-use Utopia\Transfer\Resources\Database;
-use Utopia\Transfer\Resources\Collection;
-use Utopia\Transfer\Resources\Document;
-use Utopia\Transfer\Resources\Bucket;
-use Utopia\Transfer\Resources\FileData;
-use Utopia\Transfer\Resources\Index;
-use Utopia\Transfer\Resources\Attributes\BoolAttribute;
-use Utopia\Transfer\Resources\Attributes\DateTimeAttribute;
-use Utopia\Transfer\Resources\Attributes\EmailAttribute;
-use Utopia\Transfer\Resources\Attributes\EnumAttribute;
-use Utopia\Transfer\Resources\Attributes\FloatAttribute;
-use Utopia\Transfer\Resources\Attributes\IntAttribute;
-use Utopia\Transfer\Resources\Attributes\IPAttribute;
-use Utopia\Transfer\Resources\Attributes\StringAttribute;
-use Utopia\Transfer\Resources\Attributes\URLAttribute;
-use Utopia\Transfer\Resources\Attributes\RelationshipAttribute;
+use Utopia\Transfer\Resources\Auth\User;
+use Utopia\Transfer\Resources\Auth\Hash;
+use Utopia\Transfer\Resources\Auth\TeamMembership;
+use Utopia\Transfer\Resources\Storage\Bucket;
+use Utopia\Transfer\Resources\Storage\FileData;
+use Utopia\Transfer\Resources\Storage\Index;
+use Utopia\Transfer\Resources\Functions\Func;
+use Utopia\Transfer\Resources\Functions\EnvVar;
+use Utopia\Transfer\Resources\Database\Database;
+use Utopia\Transfer\Resources\Database\Collection;
+use Utopia\Transfer\Resources\Database\Attribute;
+use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\EmailAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\EnumAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\IPAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\URLAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\RelationshipAttribute;
+use Utopia\Transfer\Resources\Database\Document;
+use Utopia\Transfer\Resource;
 
 class Appwrite extends Destination
 {
     protected Client $client;
 
     protected string $project;
-    protected string $endpoint;
     protected string $key;
 
     public function __construct(string $project, string $endpoint, string $key)
@@ -69,11 +71,11 @@ class Appwrite extends Destination
     public function getSupportedResources(): array
     {
         return [
-            Transfer::RESOURCE_USERS,
-            Transfer::RESOURCE_DATABASES,
-            Transfer::RESOURCE_DOCUMENTS,
-            Transfer::RESOURCE_FILES,
-            Transfer::RESOURCE_FUNCTIONS
+            Transfer::GROUP_AUTH,
+            Transfer::GROUP_DATABASES,
+            Transfer::GROUP_DOCUMENTS,
+            Transfer::GROUP_STORAGE,
+            Transfer::GROUP_FUNCTIONS
         ];
     }
 
@@ -92,22 +94,20 @@ class Appwrite extends Destination
         }
 
         // Most of these API calls are purposely wrong. Appwrite will throw a 403 before a 400.
-        // We want to make sure the API key has the correct permissions.
-
+        // We want to make sure the API key has full read and write access to the project.
         foreach ($resources as $resource) {
             switch ($resource) {
-                case Transfer::RESOURCE_DATABASES:
+                case Transfer::GROUP_DATABASES:
                     $databases = new Databases($this->client);
                     try {
                         $databases->list();
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $this->logs[Log::ERROR][] = new Log('API Key is missing scope: databases.read');
                             $report['Databases'][] = 'API Key is missing scope: databases.read';
                         }
                     }
                     break;
-                case Transfer::RESOURCE_USERS:
+                case Transfer::GROUP_AUTH:
                     $auth = new Users($this->client);
                     try {
                         $auth->list();
@@ -117,7 +117,7 @@ class Appwrite extends Destination
                         }
                     }
                     break;
-                case Transfer::RESOURCE_DOCUMENTS:
+                case Transfer::GROUP_DOCUMENTS:
                     $databases = new Databases($this->client);
                     try {
                         $databases->list();
@@ -204,6 +204,355 @@ class Appwrite extends Destination
         return $report;
     }
 
+    function importResources(array $resources, callable $callback, string $group): void
+    {
+        foreach ($resources as $resource) {
+            /** @var Resource $resource */
+            switch ($resource->getGroup()) {
+                case Transfer::GROUP_DATABASES:
+                    $responseResource = $this->importDatabaseResource($resource);
+                    break;
+                case Transfer::GROUP_DOCUMENTS:
+                    $responseResource = $this->importDocumentResource($resource);
+                    break;
+                case Transfer::GROUP_STORAGE:
+                    $responseResource = $this->importFileResource($resource);
+                    break;
+                case Transfer::GROUP_AUTH:
+                    $responseResource = $this->importAuthResource($resource);
+                    break;
+                case Transfer::GROUP_FUNCTIONS:
+                    $responseResource = $this->importFunctionResource($resource);
+                    break;
+            }
+
+            $this->resourceCache->update($responseResource);
+        }
+    }
+
+    public function importDatabaseResource(Resource $resource): Resource
+    {
+        $databaseService = new Databases($this->client);
+
+        $response = null;
+        $resource->setStatus(Resource::STATUS_PROCESSING);
+
+        try {
+            switch ($resource->getName()) {
+                case Resource::TYPE_DATABASE:
+                    /** @var Database $resource */
+                    $response = $databaseService->create($resource->getId(), $resource->getDBName());
+                    break;
+                case Resource::TYPE_COLLECTION:
+                    /** @var Collection $resource */
+                    $response = $newCollection = $databaseService->createCollection(
+                        $resource->getDatabase()->getId(),
+                        $resource->getId(),
+                        $resource->getCollectionName(),
+                        $resource->getPermissions(),
+                        $resource->getDocumentSecurity()
+                    );
+                    $resource->setId($newCollection['$id']);
+                    break;
+                case Resource::TYPE_INDEX:
+                    /** @var Index $resource */
+                    $response = $databaseService->createIndex(
+                        $resource->getCollection()->getDatabase()->getId(),
+                        $resource->getCollection()->getId(),
+                        $resource->getKey(),
+                        $resource->getType(),
+                        $resource->getAttributes(),
+                        $resource->getOrders()
+                    );
+                    break;
+                case Resource::TYPE_ATTRIBUTE:
+                    /** @var Attribute $resource */
+                    $this->createAttribute($resource);
+                    break;
+                case Resource::TYPE_DOCUMENT:
+                    /** @var Document $resource */
+                    $response = $databaseService->createDocument(
+                        $resource->getDatabase()->getId(),
+                        $resource->getCollection()->getId(),
+                        $resource->getId(),
+                        $resource->getData(),
+                        $resource->getPermissions()
+                    );
+                    break;
+            }
+
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        } catch (\Exception $e) {
+            $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+        } finally {
+            return $resource;
+        }
+    }
+
+    public function createAttribute(Attribute $attribute): void
+    {
+        $databaseService = new Databases($this->client);
+
+        switch ($attribute->getTypeName()) {
+            case Attribute::TYPE_STRING:
+                /** @var StringAttribute $attribute */
+                $databaseService->createStringAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getSize(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                break;
+            case Attribute::TYPE_INTEGER:
+                /** @var IntAttribute $attribute */
+                $databaseService->createIntegerAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getMin(), $attribute->getMax() ?? null, $attribute->getDefault(), $attribute->getArray());
+                break;
+            case Attribute::TYPE_FLOAT:
+                /** @var FloatAttribute $attribute */
+                $databaseService->createFloatAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), null, null, $attribute->getDefault(), $attribute->getArray());
+                break;
+            case Attribute::TYPE_BOOLEAN:
+                /** @var BoolAttribute $attribute */
+                $databaseService->createBooleanAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                break;
+            case Attribute::TYPE_DATETIME:
+                /** @var DateTimeAttribute $attribute */
+                $databaseService->createDateTimeAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                break;
+            case Attribute::TYPE_EMAIL:
+                /** @var EmailAttribute $attribute */
+                $databaseService->createEmailAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                break;
+            case Attribute::TYPE_IP:
+                /** @var IPAttribute $attribute */
+                $databaseService->createIPAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                break;
+            case Attribute::TYPE_URL:
+                /** @var URLAttribute $attribute */
+                $databaseService->createUrlAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                break;
+            case Attribute::TYPE_ENUM:
+                /** @var EnumAttribute $attribute */
+                $databaseService->createEnumAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getElements(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                break;
+            case Attribute::TYPE_RELATIONSHIP:
+                /** @var RelationshipAttribute $attribute */
+                $databaseService->createRelationshipAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getRelatedCollection(), $attribute->getRelationType(), $attribute->getTwoWay(), $attribute->getKey(), $attribute->getTwoWayKey(), $attribute->getOnDelete());
+                break;
+            default:
+                throw new \Exception('Invalid attribute type');
+        }
+
+        // Wait for attribute to be created
+        $this->awaitAttributeCreation($attribute, 5);
+    }
+
+    /**
+     * Await Attribute Creation
+     *
+     * @param Attribute $attribute
+     * @param int $timeout
+     *
+     * @return bool
+     */
+    public function awaitAttributeCreation(Attribute $attribute, int $timeout): bool
+    {
+        $databaseService = new Databases($this->client);
+
+        $start = \time();
+
+        while (\time() - $start < $timeout) {
+            $response = $databaseService->getAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey());
+
+            if ($response['status'] === 'available') {
+                return true;
+            }
+
+            \usleep(500000);
+        }
+
+        throw new \Exception('Attribute creation timeout');
+    }
+
+    public function importDocumentResource(Resource $resource): Resource
+    {
+        $databaseService = new Databases($this->client);
+
+        try {
+            switch ($resource->getName()) {
+                case Resource::TYPE_DOCUMENT:
+                    /** @var Document $resource */
+                    $databaseService->createDocument(
+                        $resource->getDatabase()->getId(),
+                        $resource->getCollection()->getId(),
+                        $resource->getId(),
+                        $resource->getData(),
+                        $resource->getPermissions()
+                    );
+                    break;
+            }
+
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        } catch (\Exception $e) {
+            $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+        } finally {
+            return $resource;
+        }
+    }
+
+    public function importFileResource(Resource $resource): Resource
+    {
+        $storageService = new Storage($this->client);
+
+        $response = null;
+
+        try {
+            switch ($resource->getName()) {
+                case Resource::TYPE_FILE:
+                    /** @var File $resource */
+                    $response = $storageService->createFile(
+                        $resource->getBucket()->getId(),
+                        $resource->getId(),
+                        $resource->getFileName(),
+                        $resource->getPermissions()
+                    );
+                    break;
+                case Resource::TYPE_FILEDATA:
+                    return $this->importFileData($resource);
+                    break;
+                case Resource::TYPE_BUCKET:
+                    /** @var Bucket $resource */
+                    $response = $storageService->createBucket(
+                        $resource->getId(),
+                        $resource->getBucketName(),
+                        $resource->getPermissions(),
+                        $resource->getFileSecurity(),
+                        true, // Set to true for now, we'll come back later.
+                        $resource->getMaxFileSize(),
+                        $resource->getAllowedFileExtensions(),
+                        $resource->getCompression(),
+                        $resource->getEncryption(),
+                        $resource->getAntiVirus()
+                    );
+                    $resource->setId($response['$id']);
+            }
+
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        } catch (\Exception $e) {
+            $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+        } finally {
+            return $resource;
+        }
+    }
+
+    /**
+     * Import File Data
+     *
+     * @param FileData $filePart
+     * @returns FileData
+     */
+    public function importFileData(FileData $resource): FileData
+    {
+        $file = $resource->getFile();
+        $bucketId = $file->getBucket()->getId();
+
+        $response = null;
+
+        if ($file->getSize() <= Transfer::STORAGE_MAX_CHUNK_SIZE) {
+            $response = $this->client->call(
+                'POST',
+                "/v1/storage/buckets/{$bucketId}/files",
+                [
+                    'content-type' => 'multipart/form-data',
+                ],
+                [
+                    'bucketId' => $bucketId,
+                    'fileId' => $file->getId(),
+                    'file' => new \CurlFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($resource->getData()), $file->getMimeType(), $file->getFileName()),
+                    'permissions' => $file->getPermissions(),
+                ]
+            );
+
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+            return $resource;
+        }
+
+        $response = $this->client->call(
+            'POST',
+            "/v1/storage/buckets/{$bucketId}/files",
+            [
+                'content-type' => 'multipart/form-data',
+                'content-range' => 'bytes ' . ($resource->getStart()) . '-' . ($resource->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $resource->getEnd()) . '/' . $file->getSize(),
+            ],
+            [
+                'bucketId' => $bucketId,
+                'fileId' => $file->getId(),
+                'file' => new \CurlFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($resource->getData()), $file->getMimeType(), $file->getFileName()),
+                'permissions' => $file->getPermissions(),
+            ]
+        );
+
+        if ($resource->getEnd() == ($file->getSize() - 1)) {
+            // Signatures for Encrypted files are invalid, so we skip the check
+            if ($file->getBucket()->getEncryption() == false || $file->getSize() > (20 * 1024 * 1024)) {
+                if ($response['signature'] !== $file->getSignature()) {
+                    $resource->setStatus(Resource::STATUS_WARNING, 'File signature mismatch, Possibly corrupted.');
+                }
+            }
+        }
+
+        return $resource;
+    }
+
+    public function importAuthResource(Resource $resource): Resource
+    {
+        $userService = new Users($this->client);
+        $teamService = new Teams($this->client);
+
+        try {
+            switch ($resource->getName()) {
+                case Resource::TYPE_USER:
+                    /** @var User $resource */
+                    if (in_array(User::TYPE_EMAIL, $resource->getTypes())) {
+                        $this->importPasswordUser($resource);
+                    } else {
+                        $userService->create($resource->getId(), $resource->getEmail(), $resource->getPhone(), null, $resource->getName());
+                    }
+
+                    if ($resource->getUsername()) {
+                        $userService->updateName($resource->getId(), $resource->getUsername());
+                    }
+
+                    if ($resource->getPhone()) {
+                        $userService->updatePhone($resource->getId(), $resource->getPhone());
+                    }
+
+                    if ($resource->getEmailVerified()) {
+                        $userService->updateEmailVerification($resource->getId(), $resource->getEmailVerified());
+                    }
+
+                    if ($resource->getPhoneVerified()) {
+                        $userService->updatePhoneVerification($resource->getId(), $resource->getPhoneVerified());
+                    }
+
+                    if ($resource->getDisabled()) {
+                        $userService->updateStatus($resource->getId(), !$resource->getDisabled());
+                    }
+
+                    break;
+                case Resource::TYPE_TEAM:
+                    /** @var Team $resource */
+                    $teamService->create($resource->getId(), $resource->getName());
+                    $teamService->updatePrefs($resource->getId(), $resource->getPrefs());
+                    break;
+                case Resource::TYPE_TEAM_MEMBERSHIP:
+                    /** @var TeamMembership $resource */
+                    //TODO: Discuss in meeting.
+                    // $teamService->createMembership($resource->getTeam()->getId(), $resource->getRoles(), )
+                    // break;
+            }
+        } catch (\Exception $e) {
+            $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+        } finally {
+            return $resource;
+        }
+    }
+
     public function importPasswordUser(User $user): array|null
     {
         $auth = new Users($this->client);
@@ -277,455 +626,38 @@ class Appwrite extends Destination
         return $result;
     }
 
-    public function importUsers(array $users, callable $callback): void
+    public function importFunctionResource(Resource $resource): Resource
     {
-        $userCounters = &$this->getCounter(Transfer::RESOURCE_USERS);
-        $auth = new Users($this->client);
-
-        foreach ($users as $user) {
-            /** @var \Utopia\Transfer\Resources\User $user */
-            try {
-                $createdUser = in_array(User::TYPE_EMAIL, $user->getTypes()) ? $this->importPasswordUser($user) : $auth->create($user->getId(), $user->getEmail(), $user->getPhone(), null, $user->getName());
-
-                if (!$createdUser) {
-                    $this->logs[Log::ERROR][] = new Log('Failed to import user', \time(), $user);
-                    $userCounters = &$this->getCounter(Transfer::RESOURCE_USERS);
-                    $userCounters['failed']++;
-                } else {
-                    // Add more data to the user
-                    if ($user->getUsername()) {
-                        $auth->updateName($user->getId(), $user->getUsername());
-                    }
-
-                    if ($user->getPhone()) {
-                        $auth->updatePhone($user->getId(), $user->getPhone());
-                    }
-
-                    if ($user->getEmailVerified()) {
-                        $auth->updateEmailVerification($user->getId(), $user->getEmailVerified());
-                    }
-
-                    if ($user->getPhoneVerified()) {
-                        $auth->updatePhoneVerification($user->getId(), $user->getPhoneVerified());
-                    }
-
-                    if ($user->getDisabled()) {
-                        $auth->updateStatus($user->getId(), !$user->getDisabled());
-                    }
-
-                    $this->logs[Log::SUCCESS][] = new Log('User imported successfully', \time(), $user);
-                    $userCounters['current']++;
-                }
-            } catch (\Exception $e) {
-                $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $user);
-                $counter = &$this->getCounter(Transfer::RESOURCE_USERS);
-                $counter['failed']++;
-            }
-        }
-
-        $callback(
-            new Progress(
-                Transfer::RESOURCE_USERS,
-                time(),
-                $userCounters['total'],
-                $userCounters['current'],
-                $userCounters['failed'],
-                $userCounters['skipped']
-            )
-        );
-    }
-
-    public function createAttribute(Attribute $attribute, Collection $collection, Database $database): void
-    {
-        $databaseService = new Databases($this->client);
+        $functions = new Functions($this->client);
 
         try {
-            switch ($attribute->getName()) {
-                case Attribute::TYPE_STRING:
-                    /** @var StringAttribute $attribute */
-                    $databaseService->createStringAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getSize(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
-                    break;
-                case Attribute::TYPE_INTEGER:
-                    /** @var IntAttribute $attribute */
-                    $databaseService->createIntegerAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getMin(), $attribute->getMax() ?? null, $attribute->getDefault(), $attribute->getArray());
-                    break;
-                case Attribute::TYPE_FLOAT:
-                    /** @var FloatAttribute $attribute */
-                    $databaseService->createFloatAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), null, null, $attribute->getDefault(), $attribute->getArray());
-                    break;
-                case Attribute::TYPE_BOOLEAN:
-                    /** @var BoolAttribute $attribute */
-                    $databaseService->createBooleanAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
-                    break;
-                case Attribute::TYPE_DATETIME:
-                    /** @var DateTimeAttribute $attribute */
-                    $databaseService->createDateTimeAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
-                    break;
-                case Attribute::TYPE_EMAIL:
-                    /** @var EmailAttribute $attribute */
-                    $databaseService->createEmailAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
-                    break;
-                case Attribute::TYPE_IP:
-                    /** @var IPAttribute $attribute */
-                    $databaseService->createIPAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
-                    break;
-                case Attribute::TYPE_URL:
-                    /** @var URLAttribute $attribute */
-                    $databaseService->createUrlAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
-                    break;
-                case Attribute::TYPE_ENUM:
-                    /** @var EnumAttribute $attribute */
-                    $databaseService->createEnumAttribute($database->getId(), $collection->getId(), $attribute->getKey(), $attribute->getElements(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
-                    break;
-                case Attribute::TYPE_RELATIONSHIP:
-                    /** @var RelationshipAttribute $attribute */
-                    $databaseService->createRelationshipAttribute($database->getId(), $collection->getId(), $attribute->getRelatedCollection(), $attribute->getRelationType(), $attribute->getTwoWay(), $attribute->getKey(), $attribute->getTwoWayKey(), $attribute->getOnDelete());
-                    break;
-                default:
-                    throw new \Exception('Invalid attribute type');
+            switch ($resource->getName()) {
+                case Resource::TYPE_FUNCTION:
+                    /** @var Func $resource */
+                    $functions->create(
+                        $resource->getId(),
+                        $resource->getFunctionName(),
+                        $resource->getRuntime(),
+                        $resource->getExecute(),
+                        $resource->getEvents(),
+                        $resource->getSchedule(),
+                        $resource->getTimeout(),
+                        $resource->getEnabled()
+                    );
+                case Resource::TYPE_ENVVAR:
+                    /** @var EnvVar $resource */
+                    $functions->createVariable(
+                        $resource->getFunc()->getId(),
+                        $resource->getKey(),
+                        $resource->getValue()
+                    );
             }
+
+            $resource->setStatus(Resource::STATUS_SUCCESS);
         } catch (\Exception $e) {
-            $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $attribute);
-        }
-    }
-
-    /**
-     * Validate Attributes Creation
-     *
-     * @param Attribute[] $attributes
-     * @param Collection $collection
-     * @param Database $database
-     *
-     * @return bool
-     */
-    public function validateAttributesCreation(array $attributes, Collection $collection, Database $database): bool
-    {
-        $databaseService = new Databases($this->client);
-        $destinationAttributes = $databaseService->listAttributes($database->getId(), $collection->getId())['attributes'];
-
-        foreach ($attributes as $attribute) {
-            /** @var Attribute $attribute */
-            $foundAttribute = null;
-
-            foreach ($destinationAttributes as $destinationAttribute) {
-                if ($destinationAttribute['key'] === $attribute->getKey()) {
-                    $foundAttribute = $destinationAttribute;
-                    break;
-                }
-            }
-
-            if ($foundAttribute) {
-                if ($foundAttribute['status'] !== 'available') {
-                    return false;
-                } else {
-                    continue;
-                }
-            } else {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Import Databases
-     *
-     * @param array $databases
-     * @param callable $callback
-     *
-     * @return void
-     */
-    public function importDatabases(array $databases, callable $callback): void
-    {
-        $databaseCounters = &$this->getCounter(Transfer::RESOURCE_DATABASES);
-        $databaseService = new Databases($this->client);
-
-        foreach ($databases as $database) {
-            /** @var Database $database */
-            try {
-                $databaseService->create($database->getId(), $database->getDBName());
-
-                $createdCollections = [];
-
-                foreach ($database->getCollections() as $collection) {
-                    /** @var Collection $collection */
-                    $createdAttributes = [];
-
-                    // if ($database->getType() == Database::DB_NON_RELATIONAL) {
-                    //     $path = \explode('/', $collection->getCollectionName());
-
-                    //     $collectionName = $path[count($path) - 1];
-
-                    //     if (isset($path[count($path) - 2])) {
-                    //         $collectionName = $path[count($path) - 2] . "/" . $collectionName;
-                    //     }
-                    // } else {
-                    //     $collectionName = $collection->getCollectionName();
-                    // }
-
-                    // // Handle special chars
-                    // $collectionName = \str_replace([' ', '(', ')', '[', ']', '{', '}', '<', '>', ':', ';', ',', '.', '?', '\\', '|', '=', '+', '*', '&', '^', '%', '$', '#', '@', '!', '~', '`', '"', "'"], '_', $collectionName);
-
-                    // // Check name length
-                    // if (\strlen($collectionName) > 120) {
-                    //     $collectionName = \substr($collectionName, 0, 120);
-                    // }
-
-                    $newCollection = $databaseService->createCollection($database->getId(), $collection->getId(), $collection->getCollectionName(), $collection->getPermissions(), $collection->getDocumentSecurity());
-                    $collection->setId($newCollection['$id']);
-
-                    // Remove duplicate attributes, TODO: Merge them together.
-                    $filteredAttributes = \array_filter($collection->getAttributes(), function ($attribute) use (&$createdAttributes) {
-                        if (\in_array($attribute->getKey(), $createdAttributes)) {
-                            return false;
-                        }
-
-                        $createdAttributes[] = $attribute->getKey();
-
-                        return true;
-                    });
-
-                    foreach ($filteredAttributes as $attribute) {
-                        /** @var Attribute $attribute */
-                        $this->createAttribute($attribute, $collection, $database);
-                    }
-
-                    // We need to wait for all the attributes to be created before creating the indexes.
-                    $timeout = 0;
-
-                    while (!$this->validateAttributesCreation($collection->getAttributes(), $collection, $database)) {
-                        if ($timeout > 5) {
-                            throw new AppwriteException('Timeout while waiting for attributes to be created');
-                        }
-
-                        $timeout++;
-                        \sleep(1);
-                    }
-
-                    foreach ($collection->getIndexes() as $index) {
-                        /** @var Index $index */
-                        $databaseService->createIndex($database->getId(), $collection->getId(), $index->getKey(), $index->getType(), $index->getAttributes(), $index->getOrders());
-                    }
-
-                    $createdCollections[] = $collection;
-                }
-
-                // TODO: Rewrite to use new Appwrite relations
-                if ($database->getType() == Database::DB_NON_RELATIONAL) {
-                    $refCollectionID = $databaseService->createCollection($database->getId(), 'refs', 'References')['$id'];
-                    $databaseService->createStringAttribute($database->getId(), $refCollectionID, 'original_name', 1000000, true);
-
-                    sleep(2);
-
-                    foreach ($createdCollections as $collection) {
-                        /** @var Collection $collection */
-                        $result = $databaseService->createDocument($database->getId(), $refCollectionID, $collection->getId(), [
-                            'original_name' => $collection->getCollectionName()
-                        ]);
-                    }
-                }
-
-                $this->logs[Log::SUCCESS][] = new Log('Database imported successfully', \time(), $database);
-                $databaseCounters['current']++;
-            } catch (AppwriteException $e) {
-                $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $database);
-                $databaseCounters['failed']++;
-            }
-        }
-
-        $callback(
-            new Progress(
-                Transfer::RESOURCE_DATABASES,
-                time(),
-                $databaseCounters['total'],
-                $databaseCounters['current'],
-                $databaseCounters['failed'],
-                $databaseCounters['skipped']
-            )
-        );
-    }
-
-
-    /**
-     * Import Documents
-     *
-     * @param array $documents
-     * @param callable $callback (Progress $progress)
-     */
-    protected function importDocuments(array $documents, callable $callback): void
-    {
-        $documentCounters = &$this->getCounter(Transfer::RESOURCE_DOCUMENTS);
-        $databaseService = new Databases($this->client);
-
-        foreach ($documents as $document) {
-            /** @var Document $document */
-
-            try {
-                $databaseService->createDocument($document->getDatabase()->getId(), $document->getCollection()->getId(), $document->getId() ?? 'unique()', $document->getData(), $document->getPermissions());
-
-                $this->logs[Log::SUCCESS][] = new Log('Document imported successfully', \time(), $document);
-                $documentCounters['current']++;
-            } catch (AppwriteException $e) {
-                $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $document);
-                $documentCounters['failed']++;
-            }
-        }
-
-        $callback(
-            new Progress(
-                Transfer::RESOURCE_DOCUMENTS,
-                time(),
-                $documentCounters['total'],
-                $documentCounters['current'],
-                $documentCounters['failed'],
-                $documentCounters['skipped']
-            )
-        );
-    }
-
-    /**
-     * Import Bucket
-     *
-     * @param Bucket $bucket
-     * @param callable $callback (Progress $progress)
-     */
-    protected function importBucket(Bucket $bucket, callable $callback): void
-    {
-        // $bucketCounters = &$this->getCounter(Transfer::RESOURCE_BUCKETS);
-        $storageService = new Storage($this->client);
-
-        /** @var Bucket $bucket */
-        try {
-            $newBucket = $storageService->createBucket(
-                $bucket->getId(),
-                $bucket->getBucketName(),
-                $bucket->getPermissions(),
-                $bucket->getFileSecurity(),
-                true, // Set to true for now, we'll come back later.
-                $bucket->getMaxFileSize(),
-                $bucket->getAllowedFileExtensions(),
-                $bucket->getCompression(),
-                $bucket->getEncryption(),
-                $bucket->getAntiVirus()
-            );
-            $bucket->setId($newBucket['$id']);
-
-            $this->logs[Log::SUCCESS][] = new Log('Bucket imported successfully', \time(), $bucket);
-            // $bucketCounters['current']++;
-        } catch (AppwriteException $e) {
-            $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $bucket);
-            // $bucketCounters['failed']++;
-        }
-
-        // $callback(
-        //     new Progress(
-        //         Transfer::RESOURCE_BUCKETS,
-        //         time(),
-        //         $bucketCounters['total'],
-        //         $bucketCounters['current'],
-        //         $bucketCounters['failed'],
-        //         $bucketCounters['skipped']
-        //     )
-        // );
-    }
-
-    /**
-     * Import Files
-     *
-     * @param array $resources File[]|Bucket[]|FileData[]
-     * @param callable $callback (Progress $progress)
-     */
-    protected function importFiles(array $resources, callable $callback): void
-    {
-        $fileCounters = &$this->getCounter(Transfer::RESOURCE_FILES);
-
-        foreach ($resources as $resource) {
-            if ($resource instanceof Bucket) {
-                $this->importBucket($resource, $callback);
-            } elseif ($resource instanceof FileData) {
-                $this->importFileData($resource, $callback);
-            }
-        }
-
-        $callback(
-            new Progress(
-                Transfer::RESOURCE_FILES,
-                time(),
-                $fileCounters['total'],
-                $fileCounters['current'],
-                $fileCounters['failed'],
-                $fileCounters['skipped']
-            )
-        );
-    }
-
-    /**
-     * Import File Data
-     *
-     * @param FileData $filePart
-     * @param callable $callback (Progress $progress)
-     */
-    protected function importFileData(FileData $filePart, callable $callback): void
-    {
-        $fileCounters = &$this->getCounter(Transfer::RESOURCE_FILES);
-
-        try {
-            $file = $filePart->getFile();
-            $bucketId = $file->getBucket()->getId();
-
-            $response = null;
-
-            if ($file->getSize() <= (5 * 1024 * 1024)) {
-                $response = $this->client->call(
-                    'POST',
-                    "/v1/storage/buckets/{$bucketId}/files",
-                    [
-                        'content-type' => 'multipart/form-data',
-                    ],
-                    [
-                        'bucketId' => $bucketId,
-                        'fileId' => $file->getId(),
-                        'file' => new \CurlFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($filePart->getData()), $file->getMimeType(), $file->getFileName()),
-                        'permissions' => $file->getPermissions(),
-                    ]
-                );
-
-                $this->logs[Log::SUCCESS][] = new Log('File imported successfully', \time(), $file);
-                $fileCounters['current']++;
-
-                return;
-            }
-
-            $response = $this->client->call(
-                'POST',
-                "/v1/storage/buckets/{$bucketId}/files",
-                [
-                    'content-type' => 'multipart/form-data',
-                    'content-range' => 'bytes ' . ($filePart->getStart()) . '-' . ($filePart->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $filePart->getEnd()) . '/' . $file->getSize(),
-                ],
-                [
-                    'bucketId' => $bucketId,
-                    'fileId' => $file->getId(),
-                    'file' => new \CurlFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($filePart->getData()), $file->getMimeType(), $file->getFileName()),
-                    'permissions' => $file->getPermissions(),
-                ]
-            );
-
-            if ($filePart->getEnd() == ($file->getSize() - 1)) {
-                // Signatures for Encrypted files are invalid, so we skip the check
-                if ($file->getBucket()->getEncryption() == false || $file->getSize() > (20 * 1024 * 1024)) {
-                    if ($response['signature'] !== $file->getSignature()) {
-                        $this->logs[Log::WARNING][] = new Log('File signature mismatch, Possibly corrupted.', \time(), $file);
-                    }
-                }
-
-                $this->logs[Log::SUCCESS][] = new Log('File imported successfully', \time(), $file);
-                $fileCounters['current']++;
-            }
-        } catch (AppwriteException $e) {
-            $this->logs[Log::ERROR][] = new Log($e->getMessage(), \time(), $file);
-            $fileCounters['failed']++;
+            $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+        } finally {
+            return $resource;
         }
     }
 }

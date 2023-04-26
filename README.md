@@ -19,9 +19,29 @@ Init in your application:
 ```php
 <?php
 
+use Utopia\Transfer\Transfer;
+use Utopia\Transfer\Sources\NHost;
+use Utopia\Transfer\Destinations\Appwrite;
+
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-//TODO: Finish this
+// Initialize your Source
+$source = new NHost('db.xxxxxxxxx.nhost.run', 'database-name', 'username', 'password');
+
+// Initialize your Destination
+$destination = new Appwrite('project-id', 'https://cloud.appwrite.io/v1', 'api-key');
+
+// Initialize Transfer
+$transfer = new Transfer($source, $destination);
+
+// Transfer the resource groups you want
+$transfer->run(
+    [
+        Transfer::GROUP_AUTH
+    ], function ($status) {
+        echo $status['message'] . PHP_EOL;
+    }
+);
 ```
 
 ## Supported Resources Chart
@@ -29,7 +49,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 Sources:
 |          | Users | Databases | Documents | Files | Functions |
 |----------|-------|-----------|-----------|-------|-----------|
-| Appwrite |   ✅   |     ✅     |     ✅     |       |           |
+| Appwrite |   ✅   |     ✅     |     ✅     |   ✅   |     ✅     |
 | Supabase |   ✅   |     ✅     |     ✅     |       |           |
 | NHost    |   ✅   |     ✅     |     ✅     |       |           |
 | Firebase |   ✅   |     ✅     |           |       |           |
@@ -37,7 +57,7 @@ Sources:
 Destinations:
 |          | Users | Databases | Documents | Files | Functions |
 |----------|-------|-----------|-----------|-------|-----------|
-| Appwrite |   ✅   |     ✅     |     ✅     |       |           |
+| Appwrite |   ✅   |     ✅     |     ✅     |   ✅   |     ✅     |
 | Local    |   ✅   |     ✅     |     ✅     |   ✅   |     ✅     |
 
 > **Warning**

@@ -2,16 +2,20 @@
 
 namespace Utopia\Transfer;
 
+use Utopia\Transfer\ResourceCache;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Source;
 
 class Transfer
 {
-    public const RESOURCE_USERS = 'Users';
-    public const RESOURCE_FILES = 'Files';
-    public const RESOURCE_FUNCTIONS = 'Functions';
-    public const RESOURCE_DATABASES = 'Databases';
-    public const RESOURCE_DOCUMENTS = 'Documents';
+    public const GROUP_GENERAL = 'General'; // for things that don't belong to any group
+    public const GROUP_AUTH = 'Auth';
+    public const GROUP_STORAGE = 'Storage';
+    public const GROUP_FUNCTIONS = 'Functions';
+    public const GROUP_DATABASES = 'Databases';
+    public const GROUP_DOCUMENTS = 'Documents';
+    
+    public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 
     /**
      * @param Source $source
@@ -23,11 +27,11 @@ class Transfer
     {
         $this->source = $source;
         $this->destination = $destination;
+        $this->resourceCache = new ResourceCache();
 
-        $this->source->registerLogs($this->logs);
-        $this->source->registerTransferHooks($this->resources, $this->counters);
-        $this->destination->registerLogs($this->logs);
-        $this->destination->registerTransferHooks($this->resources, $this->counters);
+        $this->source->registerTransferCache($this->resourceCache);
+        $this->destination->registerTransferCache($this->resourceCache);
+        $this->destination->setSource($source);
 
         return $this;
     }
@@ -48,71 +52,16 @@ class Transfer
     protected string $currentResource;
 
     /**
-     * Counters
-     *
-     * @var array $counter
-     */
-    protected $counters = [
-        Transfer::RESOURCE_USERS => [
-            'total' => 0,
-            'current' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-        ],
-        Transfer::RESOURCE_FILES => [
-            'total' => 0,
-            'current' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-        ],
-        Transfer::RESOURCE_FUNCTIONS => [
-            'total' => 0,
-            'current' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-        ],
-        Transfer::RESOURCE_DATABASES => [
-            'total' => 0,
-            'current' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-        ],
-        Transfer::RESOURCE_DOCUMENTS => [
-            'total' => 0,
-            'current' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-        ]
-    ];
-
-    /**
      * A local cache of resources that were transferred.
      *
-     * @var array
+     * @var ResourceCache
      */
-    protected array $resources = [
-        self::RESOURCE_DOCUMENTS => [],
-        self::RESOURCE_DATABASES => [],
-        self::RESOURCE_FILES => [],
-        self::RESOURCE_FUNCTIONS => [],
-        self::RESOURCE_USERS => []
-    ];
+    protected ResourceCache $resourceCache;
 
     /**
      * @var array
      */
     protected array $options = [];
-
-    /**
-     * @var array
-     */
-    protected array $logs = [
-        Log::ERROR => [],
-        Log::WARNING => [],
-        Log::INFO => [],
-        Log::FATAL => [],
-        Log::SUCCESS => []
-    ];
 
     /**
      * @var array
@@ -133,6 +82,7 @@ class Transfer
     public function run(array $resources, callable $callback): void
     {
         $this->destination->run($resources, function (Progress $progress) use ($callback) {
+            //TODO: Rewrite to use ResourceCache to calculate this
             $this->currentResource = $progress->getResourceType();
 
             $callback($progress);
@@ -140,39 +90,13 @@ class Transfer
     }
 
     /**
-     * Get Logs
-     *
-     * If no level is provided then the function returns all logs combined ordered by timestamp.
-     *
-     * @param string $level
-     *
-     * @return array
-     */
-    public function getLogs($level = ''): array
-    {
-        if (!empty($level)) {
-            return $this->logs[$level];
-        }
-
-        $mergedLogs = array_merge($this->logs[Log::ERROR], $this->logs[Log::WARNING], $this->logs[Log::INFO], $this->logs[Log::FATAL]);
-
-        $timestamps = [];
-        foreach ($mergedLogs as $key => $log) {
-            $timestamps[$key] = $log->getTimestamp();
-        }
-        array_multisort($timestamps, SORT_ASC, $mergedLogs);
-
-        return $mergedLogs;
-    }
-
-    /**
      * Get Resource Cache
      *
-     * @return array
+     * @return ResourceCache
      */
-    public function getResourceCache(): array
+    public function getResourceCache(): ResourceCache
     {
-        return $this->resources;
+        return $this->resourceCache;
     }
 
     /**

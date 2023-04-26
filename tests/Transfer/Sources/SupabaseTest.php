@@ -41,7 +41,7 @@ class SupabaseTest extends TestCase
     {
         $result = [];
 
-        $this->supabase->exportUsers(
+        $this->supabase->exportAuth(
             500,
             public function (array $users) use (&$result) {
                 $result = array_merge($result, $users);

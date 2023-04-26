@@ -1,8 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources\Attributes;
+namespace Utopia\Transfer\Resources\Database\Attributes;
 
-use Utopia\Transfer\Resources\Attribute;
+use Utopia\Transfer\Resources\Database\Attribute;
+use Utopia\Transfer\Resources\Database\Collection;
 
 class IntAttribute extends Attribute
 {
@@ -12,21 +13,22 @@ class IntAttribute extends Attribute
 
     /**
      * @param string $key
+     * @param Collection $collection
      * @param bool $required
      * @param bool $array
      * @param ?int $default
      * @param ?int $min
      * @param ?int $max
      */
-    public function __construct(string $key, bool $required = false, bool $array = false, ?int $default = null, int $min = null, int $max = null)
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?int $default = null, int $min = null, int $max = null)
     {
-        parent::__construct($key, $required, $array);
+        parent::__construct($key, $collection, $required, $array);
         $this->default = $default;
         $this->min = $min;
         $this->max = $max;
     }
 
-    public function getName(): string
+    public function getTypeName(): string
     {
         return 'intAttribute';
     }

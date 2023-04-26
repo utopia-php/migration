@@ -1,8 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources;
+namespace Utopia\Transfer\Resources\Storage;
 
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Transfer;
 
 class Bucket extends Resource
 {
@@ -33,7 +34,12 @@ class Bucket extends Resource
 
     public function getName(): string
     {
-        return 'bucket';
+        return Resource::TYPE_BUCKET;
+    }
+
+    public function getGroup(): string
+    {
+        return Transfer::GROUP_STORAGE;
     }
 
     public function getId(): string

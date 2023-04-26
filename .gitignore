@@ -6,3 +6,4 @@ composer.lock
 test-service-account.json
 .DS_Store
 localBackup/
+.vscode/

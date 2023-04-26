@@ -3,20 +3,19 @@
 namespace Utopia\Transfer\Sources;
 
 use Utopia\Transfer\Source;
-use Utopia\Transfer\Resources\User;
+use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Transfer;
-use Utopia\Transfer\Log;
-use Utopia\Transfer\Resources\Attribute;
-use Utopia\Transfer\Resources\Database;
-use Utopia\Transfer\Resources\Hash;
-use Utopia\Transfer\Resources\Attributes\BoolAttribute;
-use Utopia\Transfer\Resources\Attributes\DateTimeAttribute;
-use Utopia\Transfer\Resources\Attributes\FloatAttribute;
-use Utopia\Transfer\Resources\Attributes\IntAttribute;
-use Utopia\Transfer\Resources\Attributes\StringAttribute;
-use Utopia\Transfer\Resources\Collection;
-use Utopia\Transfer\Resources\Document;
-use Utopia\Transfer\Resources\Index;
+use Utopia\Transfer\Resources\Database\Attribute;
+use Utopia\Transfer\Resources\Database\Database;
+use Utopia\Transfer\Resources\Auth\Hash;
+use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
+use Utopia\Transfer\Resources\Database\Collection;
+use Utopia\Transfer\Resources\Database\Document;
+use Utopia\Transfer\Resources\Database\Index;
 
 class NHost extends Source
 {
@@ -72,7 +71,7 @@ class NHost extends Source
         try {
             $this->pdo = new \PDO("pgsql:host=" . $this->host . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
         } catch (\PDOException $e) {
-            $this->logs[Log::ERROR] = new Log('Failed to connect to database: ' . $e->getMessage(), \time());
+            throw new \Exception('Failed to connect to database: ' . $e->getMessage());
         }
     }
 
@@ -84,9 +83,9 @@ class NHost extends Source
     public function getSupportedResources(): array
     {
         return [
-            Transfer::RESOURCE_USERS,
-            Transfer::RESOURCE_DATABASES,
-            Transfer::RESOURCE_DOCUMENTS,
+            Transfer::GROUP_AUTH,
+            Transfer::GROUP_DATABASES,
+            Transfer::GROUP_DOCUMENTS,
         ];
     }
 
@@ -98,7 +97,7 @@ class NHost extends Source
      *
      * @return User[]
      */
-    public function exportUsers(int $batchSize, callable $callback): void
+    public function exportAuth(int $batchSize, callable $callback): void
     {
         $total = $this->pdo->query('SELECT COUNT(*) FROM auth.users')->fetchColumn();
 
@@ -137,52 +136,13 @@ class NHost extends Source
     }
 
     /**
-     * Convert Collection
-     *
-     * @param string $tableName
-     * @return Collection
-     */
-    public function convertCollection(string $tableName): Collection
-    {
-        $statement = $this->pdo->prepare('SELECT * FROM information_schema."columns" where "table_name" = :tableName');
-        $statement->bindValue(':tableName', $tableName, \PDO::PARAM_STR);
-        $statement->execute();
-        $databaseCollection = $statement->fetchAll(\PDO::FETCH_ASSOC);
-
-        $convertedCollection = new Collection($tableName, $tableName);
-
-        $attributes = [];
-
-        foreach ($databaseCollection as $column) {
-            $attributes[] = $this->convertAttribute($column);
-        }
-        $convertedCollection->setAttributes($attributes);
-
-        // Handle Indexes
-
-        $indexStatement = $this->pdo->prepare('SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :tableName');
-        $indexStatement->bindValue(':tableName', $tableName, \PDO::PARAM_STR);
-        $indexStatement->execute();
-
-        $databaseIndexes = $indexStatement->fetchAll(\PDO::FETCH_ASSOC);
-        $indexes = [];
-        foreach ($databaseIndexes as $index) {
-            $result = $this->convertIndex($index);
-
-            $indexes[] = $result;
-        }
-        $convertedCollection->setIndexes($indexes);
-
-        return $convertedCollection;
-    }
-
-    /**
      * Convert Attribute
      *
      * @param array $column
+     * @param Collection $collection
      * @return Attribute
      */
-    public function convertAttribute(array $column): Attribute
+    public function convertAttribute(array $column, Collection $collection): Attribute
     {
         $isArray = $column['data_type'] === 'ARRAY';
 
@@ -190,24 +150,24 @@ class NHost extends Source
                 // Numbers
             case 'boolean':
             case 'bool':
-                return new BoolAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new BoolAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
             case 'smallint':
             case 'int2':
-                return new IntAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -32768, 32767);
+                return new IntAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -32768, 32767);
             case 'integer':
             case 'int4':
-                return new IntAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -2147483648, 2147483647);
+                return new IntAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -2147483648, 2147483647);
             case 'bigint':
             case 'int8':
             case 'numeric':
-                return new IntAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new IntAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
             case 'decimal':
             case 'real':
             case 'double precision':
             case 'float4':
             case 'float8':
             case 'money':
-                return new FloatAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new FloatAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
                 // Time (Conversion happens with documents)
             case 'timestamp with time zone':
             case 'date':
@@ -218,7 +178,7 @@ class NHost extends Source
             case 'time':
             case 'timetz':
             case 'interval':
-                return new DateTimeAttribute($column['column_name'], $column['is_nullable'] === 'NO', $isArray, null);
+                return new DateTimeAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, null);
                 break;
                 // Strings and Objects
             case 'uuid':
@@ -231,6 +191,7 @@ class NHost extends Source
             case 'bytea':
                 return new StringAttribute(
                     $column['column_name'],
+                    $collection,
                     $column['is_nullable'] === 'NO',
                     $isArray,
                     $column['column_default'],
@@ -238,9 +199,10 @@ class NHost extends Source
                 );
                 break;
             default:
-                $this->logs[Log::WARNING][] = new Log('Unknown data type: ' . $column['data_type'] . ' for column: ' . $column['column_name'] . ' Falling back to string.', \time());
+                // $this->logs[Log::WARNING][] = new Log('Unknown data type: ' . $column['data_type'] . ' for column: ' . $column['column_name'] . ' Falling back to string.', \time()); TODO: Figure out how to deal with warnings
                 return new StringAttribute(
                     $column['column_name'],
+                    $collection,
                     $column['is_nullable'] === 'NO',
                     $isArray,
                     $column['column_default'],
@@ -254,17 +216,18 @@ class NHost extends Source
      * Convert Index
      *
      * @param string $table
+     * @param Collection $collection
      * @return Index|false
      */
-    public function convertIndex(array $index): Index|false
+    public function convertIndex(array $index, Collection $collection): Index|false
     {
         $pattern = "/CREATE (?<type>\w+)? INDEX (?<name>\w+) ON (?<table>\w+\.\w+) USING (?<method>\w+) \((?<columns>\w+)\)/";
 
         if (\preg_match($pattern, $index['indexdef'], $matches)) {
             // We only support BTree indexes
             if ($matches['method'] !== 'btree') {
-                $this->logs[Log::ERROR][] = new Log('Skipping index due to unsupported type: ' . $matches['method'] . ' for index: ' . $matches['name'] . '. Transfers only support BTree.', \time());
-
+                //TODO: Figure out how to deal with warnings
+                // Add warning here for unsupported index type
                 return false;
             }
 
@@ -294,9 +257,10 @@ class NHost extends Source
                 }
             }
 
-            return new Index($matches['name'], $matches['name'], $type, $attributes, $order);
+            return new Index($matches['name'], $matches['name'], $collection, $type, $attributes, $order);
         } else {
-            $this->logs[Log::ERROR][] = new Log('Skipping index due to unsupported format: ' . $index['indexdef'] . ' for index: ' . $index['indexname'] . '. Transfers only support BTree.', \time());
+            // $this->logs[Log::ERROR][] = new Log('Skipping index due to unsupported format: ' . $index['indexdef'] . ' for index: ' . $index['indexname'] . '. Transfers only support BTree.', \time());
+            // Add error here for unsupported index format
 
             return false;
         }
@@ -320,7 +284,9 @@ class NHost extends Source
         //TODO: Handle edge cases where there are user created databases and data.
 
         $transferDatabase = new Database('public', 'public');
+        $callback([$transferDatabase]);
 
+        // Transfer Tables
         while ($offset < $total) {
             $statement = $this->pdo->prepare('SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\' order by table_name LIMIT :limit OFFSET :offset');
             $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
@@ -334,13 +300,45 @@ class NHost extends Source
             $transferCollections = [];
 
             foreach ($tables as $table) {
-                $transferCollections[] = $this->convertCollection($table['table_name']);
+                $transferCollections[] = new Collection($transferDatabase, $table['table_name'], $table['table_name']);
             }
 
-            $transferDatabase->setCollections($transferCollections);
+            $callback($transferCollections);
         }
 
-        $callback([$transferDatabase]);
+        // Transfer Attributes and Indexes
+        $collections = $this->resourceCache->get(Collection::class);
+
+        foreach ($collections as $collection) {
+            /** @var Collection $collection  */
+            $statement = $this->pdo->prepare('SELECT * FROM information_schema."columns" where "table_name" = :tableName');
+            $statement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
+            $statement->execute();
+            $databaseCollection = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+            $attributes = [];
+
+            foreach ($databaseCollection as $column) {
+                $attributes[] = $this->convertAttribute($column, $collection);
+            }
+
+            $callback($attributes);
+
+            // Transfer Indexes
+            $indexStatement = $this->pdo->prepare('SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :tableName');
+            $indexStatement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
+            $indexStatement->execute();
+
+            $databaseIndexes = $indexStatement->fetchAll(\PDO::FETCH_ASSOC);
+            $indexes = [];
+            foreach ($databaseIndexes as $index) {
+                $result = $this->convertIndex($index, $collection);
+
+                $indexes[] = $result;
+            }
+
+            $callback($indexes);
+        }
     }
 
     /**
@@ -353,7 +351,7 @@ class NHost extends Source
      */
     public function exportDocuments(int $batchSize, callable $callback): void
     {
-        $databases = $this->resourceCache[Transfer::RESOURCE_DATABASES];
+        $databases = $this->resourceCache->get(Database::class);
 
         foreach ($databases as $database) {
             /** @var Database $database */
@@ -376,12 +374,17 @@ class NHost extends Source
 
                     $transferDocuments = [];
 
+                    $attributes = $this->resourceCache->get(Attribute::class);
+                    $collectionAttributes = array_filter($attributes, function (Attribute $attribute) use ($collection) {
+                        return $attribute->getId() === $collection->getId();
+                    });
+
                     foreach ($documents as $document) {
                         $data = json_decode($document['row_to_json'], true);
 
                         $processedData = [];
-                        foreach ($collection->getAttributes() as $attribute) {
-                            /* @var Attribute $attribute */
+                        foreach ($collectionAttributes as $attribute) {
+                            /** @var Attribute $attribute */
                             if (!$attribute->getArray() && \is_array($data[$attribute->getKey()])) {
                                 $processedData[$attribute->getKey()] = json_encode($data[$attribute->getKey()]);
                             } else {
@@ -443,7 +446,7 @@ class NHost extends Source
 
         foreach ($resources as $resource) {
             switch ($resource) {
-                case Transfer::RESOURCE_USERS:
+                case Transfer::GROUP_AUTH:
                     $statement = $this->pdo->prepare('SELECT COUNT(*) FROM auth.users');
                     $statement->execute();
 
@@ -452,7 +455,7 @@ class NHost extends Source
                     }
 
                     break;
-                case Transfer::RESOURCE_DATABASES:
+                case Transfer::GROUP_DATABASES:
                     $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
                     $statement->execute();
 
@@ -461,13 +464,23 @@ class NHost extends Source
                     }
 
                     break;
-                case Transfer::RESOURCE_DOCUMENTS:
-                    if (!in_array(Transfer::RESOURCE_DATABASES, $resources)) {
+                case Transfer::GROUP_DOCUMENTS:
+                    if (!in_array(Transfer::GROUP_DATABASES, $resources)) {
                         $report['Documents'][] = 'Documents resource requires Databases resource to be enabled.';
                     }
             }
         }
 
         return $report;
+    }
+
+    public function exportFiles(int $batchSize, callable $callback): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    public function exportFunctions(int $batchSize, callable $callback): void
+    {
+        throw new \Exception('Not Implemented');
     }
 }

@@ -3,6 +3,7 @@
 namespace Utopia\Transfer\Resources;
 
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Transfer;
 
 class Project extends Resource
 {
@@ -17,7 +18,12 @@ class Project extends Resource
 
     public function getName(): string
     {
-        return 'project';
+        return Resource::TYPE_PROJECT;
+    }
+
+    public function getGroup(): string
+    {
+        return Transfer::GROUP_GENERAL;
     }
 
     public function getId(): string

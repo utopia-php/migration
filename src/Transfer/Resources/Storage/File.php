@@ -1,9 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources;
+namespace Utopia\Transfer\Resources\Storage;
 
 use Utopia\Transfer\Resource;
-use Utopia\Transfer\Resources\Bucket;
+use Utopia\Transfer\Transfer;
 
 class File extends Resource
 {
@@ -28,7 +28,12 @@ class File extends Resource
 
     public function getName(): string
     {
-        return 'file';
+        return Resource::TYPE_FILE;
+    }
+
+    public function getGroup(): string
+    {
+        return Transfer::GROUP_STORAGE;
     }
 
     public function getId(): string

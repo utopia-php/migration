@@ -84,7 +84,7 @@ class FirebaseTest extends TestCase
 
         $result = [];
 
-        $this->firebase->exportUsers(
+        $this->firebase->exportAuth(
             500,
             public function (array $users) use (&$result) {
                 $result = array_merge($result, $users);

@@ -12,11 +12,11 @@ use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Sources\Appwrite;
 use Utopia\Transfer\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Transfer\Destinations\Local;
-use Utopia\Transfer\Log;
 use Utopia\Transfer\Sources\Firebase;
 use Utopia\Transfer\Sources\NHost;
 use Utopia\Transfer\Sources\Supabase;
 use Dotenv\Dotenv;
+use Utopia\Transfer\Sources\FirebaseG2;
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
@@ -35,14 +35,21 @@ $sourceFirebase = new Firebase(
     Firebase::AUTH_SERVICEACCOUNT
 );
 
-$sourceNHost = new NHost(
-    $_ENV["NHOST_TEST_HOST"] ?? '',
-    $_ENV["NHOST_TEST_DATABASE"] ?? '',
-    $_ENV["NHOST_TEST_USERNAME"] ?? '',
-    $_ENV["NHOST_TEST_PASSWORD"] ?? '',
+$sourceFirebaseG2 = new FirebaseG2(
+    json_decode($_ENV["FIREBASE_TEST_ACCOUNT"], true),
+    "amadeus-a3730"
 );
 
+// $sourceNHost = new NHost(
+//     $_ENV["NHOST_TEST_HOST"] ?? '',
+//     $_ENV["NHOST_TEST_DATABASE"] ?? '',
+//     $_ENV["NHOST_TEST_USERNAME"] ?? '',
+//     $_ENV["NHOST_TEST_PASSWORD"] ?? '',
+// );
+
 $sourceSupabase = new Supabase(
+    $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
+    $_ENV['SUPABASE_TEST_KEY'] ?? '',
     $_ENV["SUPABASE_TEST_HOST"] ?? '',
     $_ENV["SUPABASE_TEST_DATABASE"] ?? '',
     $_ENV["SUPABASE_TEST_USERNAME"] ?? '',
@@ -67,8 +74,8 @@ $destinationLocal = new Local(__DIR__ . '/localBackup/');
 $sourceFirebase->setProject($sourceFirebase->getProjects()[0]);
 
 $transfer = new Transfer(
-    $sourceAppwrite,
-    $destinationAppwrite
+    $sourceSupabase,
+    $destinationLocal
 );
 
 /**
@@ -76,15 +83,7 @@ $transfer = new Transfer(
 */
 $transfer->run(
     [
-        Transfer::RESOURCE_DATABASES
+        Transfer::GROUP_STORAGE
     ], function () {
     }
 );
-
-if (!empty($transfer->getLogs(Log::ERROR))) {
-    echo "\e[41m\e[97mFAILED\e[0m\n";
-
-    foreach ($transfer->getLogs(Log::ERROR) as $log) {
-        echo "\e[31m{$log->getMessage()}\e[0m";
-    }
-}

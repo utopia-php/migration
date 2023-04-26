@@ -1,10 +1,11 @@
 <?php
 
-namespace Utopia\Transfer\Resources;
+namespace Utopia\Transfer\Resources\Database;
 
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Transfer;
 
-class Attribute extends Resource
+abstract class Attribute extends Resource
 {
     public const TYPE_STRING = 'stringAttribute';
     public const TYPE_INTEGER = 'intAttribute';
@@ -20,6 +21,7 @@ class Attribute extends Resource
     protected string $key;
     protected bool $required;
     protected bool $array;
+    protected Collection $collection;
 
     /**
      * @param string $key
@@ -27,16 +29,24 @@ class Attribute extends Resource
      * @param bool $array
      * @param int $size
      */
-    public function __construct(string $key, bool $required = false, bool $array = false)
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false)
     {
         $this->key = $key;
         $this->required = $required;
         $this->array = $array;
+        $this->collection = $collection;
     }
 
     public function getName(): string
     {
-        return 'attribute';
+        return Resource::TYPE_ATTRIBUTE;
+    }
+
+    abstract public function getTypeName(): string;
+
+    public function getGroup(): string
+    {
+        return Transfer::GROUP_DATABASES;
     }
 
     public function getKey(): string
@@ -47,6 +57,17 @@ class Attribute extends Resource
     public function setKey(string $key): self
     {
         $this->key = $key;
+        return $this;
+    }
+
+    public function getCollection(): Collection
+    {
+        return $this->collection;
+    }
+
+    public function setCollection(Collection $collection)
+    {
+        $this->collection = $collection;
         return $this;
     }
 

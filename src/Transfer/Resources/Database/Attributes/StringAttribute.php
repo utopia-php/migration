@@ -1,8 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources\Attributes;
+namespace Utopia\Transfer\Resources\Database\Attributes;
 
-use Utopia\Transfer\Resources\Attribute;
+use Utopia\Transfer\Resources\Database\Attribute;
+use Utopia\Transfer\Resources\Database\Collection;
 
 class StringAttribute extends Attribute
 {
@@ -11,19 +12,20 @@ class StringAttribute extends Attribute
 
     /**
      * @param string $key
+     * @param Collection $collection
      * @param bool $required
      * @param bool $array
      * @param ?string $default
      * @param int $size
      */
-    public function __construct(string $key, bool $required = false, bool $array = false, ?string $default = null, int $size = 256)
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?string $default = null, int $size = 256)
     {
-        parent::__construct($key, $required, $array);
+        parent::__construct($key, $collection, $required, $array);
         $this->default = $default;
         $this->size = $size;
     }
 
-    public function getName(): string
+    public function getTypeName(): string
     {
         return 'stringAttribute';
     }

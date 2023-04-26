@@ -2,17 +2,10 @@
 
 namespace Utopia\Transfer\Destinations;
 
-use Appwrite\Client;
-use Appwrite\Services\Users;
 use Utopia\Transfer\Destination;
-use Utopia\Transfer\Resources\Hash;
-use Utopia\Transfer\Log;
-use Utopia\Transfer\Progress;
-use Utopia\Transfer\Resources\Database;
-use Utopia\Transfer\Resources\File;
-use Utopia\Transfer\Resources\User;
-use Utopia\Transfer\Resources\Bucket;
-use Utopia\Transfer\Resources\FileData;
+use Utopia\Transfer\Resources\Storage\File;
+use Utopia\Transfer\Resources\Storage\FileData;
+use Utopia\Transfer\Resource;
 use Utopia\Transfer\Transfer;
 
 /**
@@ -55,11 +48,11 @@ class Local extends Destination
     public function getSupportedResources(): array
     {
         return [
-            Transfer::RESOURCE_USERS,
-            Transfer::RESOURCE_DATABASES,
-            Transfer::RESOURCE_DOCUMENTS,
-            Transfer::RESOURCE_FILES,
-            Transfer::RESOURCE_FUNCTIONS
+            Transfer::GROUP_AUTH,
+            Transfer::GROUP_DATABASES,
+            Transfer::GROUP_DOCUMENTS,
+            Transfer::GROUP_STORAGE,
+            Transfer::GROUP_FUNCTIONS
         ];
     }
 
@@ -97,146 +90,44 @@ class Local extends Destination
         \file_put_contents($this->path . '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
     }
 
-    /**
-     * Import Users
-     *
-     * @param array $users
-     * @param callable $callback
-     *
-     * @return void
-     */
-    public function importUsers(array $users, callable $callback): void
+    public function importResources(array $resources, callable $callback, string $group): void
     {
-        $userCounters = &$this->getCounter(Transfer::RESOURCE_USERS);
-
-        foreach ($users as $user) {
-            /** @var User $user */
-            $this->data[Transfer::RESOURCE_USERS][] = $user->asArray();
-            $this->logs[Log::SUCCESS][] = new Log('Users imported successfully', \time(), $user);
-            $userCounters['current']++;
-        }
-
-        $callback(
-            new Progress(
-                Transfer::RESOURCE_USERS,
-                time(),
-                $userCounters['total'],
-                $userCounters['current'],
-                $userCounters['failed'],
-                $userCounters['skipped']
-            )
-        );
-
-        $this->syncFile();
-    }
-
-    /**
-     * Import Databases
-     *
-     * @param array $databases
-     * @param callable $callback
-     *
-     * @return void
-     */
-    public function importDatabases(array $databases, callable $callback): void
-    {
-        $databaseCounters = &$this->getCounter(Transfer::RESOURCE_DATABASES);
-
-        foreach ($databases as $database) {
-            /** @var Database $database */
-            $this->data[Transfer::RESOURCE_DATABASES][] = $database->asArray();
-            $this->logs[Log::SUCCESS][] = new Log('Database imported successfully', \time(), $database);
-            $databaseCounters['current']++;
-        }
-
-        $callback(
-            new Progress(
-                Transfer::RESOURCE_DATABASES,
-                time(),
-                $databaseCounters['total'],
-                $databaseCounters['current'],
-                $databaseCounters['failed'],
-                $databaseCounters['skipped']
-            )
-        );
-
-        $this->syncFile();
-    }
-
-    /**
-     * Import Documents
-     *
-     * @param array $documents
-     * @param callable $callback
-     *
-     * @return void
-     */
-    public function importDocuments(array $documents, callable $callback): void
-    {
-        $documentCounters = &$this->getCounter(Transfer::RESOURCE_DOCUMENTS);
-
-        foreach ($documents as $document) {
-            /** @var Database $document */
-            $this->data[Transfer::RESOURCE_DOCUMENTS][] = $document->asArray();
-            $this->logs[Log::SUCCESS][] = new Log('Document imported successfully', \time(), $document);
-            $documentCounters['current']++;
-        }
-
-        $callback(
-            new Progress(
-                Transfer::RESOURCE_DOCUMENTS,
-                time(),
-                $documentCounters['total'],
-                $documentCounters['current'],
-                $documentCounters['failed'],
-                $documentCounters['skipped']
-            )
-        );
-
-        $this->syncFile();
-    }
-
-    /**
-     * Import Files
-     *
-     * @param array $resource file[]|bucket[]
-     * @param callable $callback (Progress $progress)
-     */
-    protected function importFiles(array $resources, callable $callback): void
-    {
-        $fileCounters = &$this->getCounter(Transfer::RESOURCE_FILES);
-        //TODO: Improve counters with a custom class, currently files and buckets share the same counter.
-
         foreach ($resources as $resource) {
-            if ($resource instanceof File) {
-                $this->data[Transfer::RESOURCE_FILES][] = $resource->asArray();
-                $this->logs[Log::SUCCESS][] = new Log('File imported successfully', \time(), $resource);
+            /** @var Resource $resource */
+            switch ($resource->getName()) {
+                case "FileData": {
+                        /** @var FileData $resource */
 
-                if (\file_exists($this->path . '/files/' . $resource->getFileName())) {
-                    \unlink($this->path . '/files/' . $resource->getFileName());
-                }
+                        // Handle folders
+                        if (str_contains($resource->getFile()->getFileName(), '/')) {
+                            $folders = explode('/', $resource->getFile()->getFileName());
+                            $folderPath = $this->path . '/files';
 
-                $fileCounters['current']++;
-            } elseif ($resource instanceof Bucket) {
-                $this->data[Transfer::RESOURCE_FILES][] = $resource->asArray();
-                $this->logs[Log::SUCCESS][] = new Log('Bucket imported successfully', \time(), $resource);
-                $fileCounters['current']++;
-            } elseif ($resource instanceof FileData) {
-                file_put_contents($this->path . '/files/' . $resource->getFile()->getFileName(), $resource->getData(), FILE_APPEND);
+                            foreach ($folders as $folder) {
+                                $folderPath .= '/' . $folder;
+
+                                if (!\file_exists($folderPath) && str_contains($folder, '.') === false) {
+                                    mkdir($folderPath, 0777, true);
+                                }
+                            }
+                        }
+
+                        file_put_contents($this->path . '/files/' . $resource->getFile()->getFileName(), $resource->getData(), FILE_APPEND);
+                        break;
+                    }
+                case "File": {
+                        /** @var File $resource */
+                        if (\file_exists($this->path . '/files/' . $resource->getFileName())) {
+                            \unlink($this->path . '/files/' . $resource->getFileName());
+                        }
+                        break;
+                    }
             }
+
+            $this->data[$group][$resource->getName()][] = $resource->asArray();
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+            $this->resourceCache->update($resource);
+            $this->syncFile();
         }
-
-        $callback(
-            new Progress(
-                Transfer::RESOURCE_FILES,
-                time(),
-                $fileCounters['total'],
-                $fileCounters['current'],
-                $fileCounters['failed'],
-                $fileCounters['skipped']
-            )
-        );
-
-        $this->syncFile();
     }
 }

@@ -1,8 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources\Attributes;
+namespace Utopia\Transfer\Resources\Database\Attributes;
 
-use Utopia\Transfer\Resources\Attribute;
+use Utopia\Transfer\Resources\Database\Attribute;
+use Utopia\Transfer\Resources\Database\Collection;
 
 class EnumAttribute extends Attribute
 {
@@ -11,19 +12,20 @@ class EnumAttribute extends Attribute
 
     /**
      * @param string $key
+     * @param Collection $collection
      * @param string[] $elements
      * @param bool $required
      * @param bool $array
      * @param ?string $default
      */
-    public function __construct(string $key, array $elements, bool $required, bool $array, ?string $default)
+    public function __construct(string $key, Collection $collection, array $elements, bool $required, bool $array, ?string $default)
     {
-        parent::__construct($key, $required, $array);
+        parent::__construct($key, $collection, $required, $array);
         $this->default = $default;
         $this->elements = $elements;
     }
 
-    public function getName(): string
+    public function getTypeName(): string
     {
         return 'enumAttribute';
     }

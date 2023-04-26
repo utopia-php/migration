@@ -9,15 +9,15 @@ use Utopia\Transfer\Resources\Project;
 use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Log;
-use Utopia\Transfer\Resources\Attribute as ResourcesAttribute;
-use Utopia\Transfer\Resources\Attributes\BoolAttribute;
-use Utopia\Transfer\Resources\Attributes\DateTimeAttribute;
-use Utopia\Transfer\Resources\Attributes\FloatAttribute;
-use Utopia\Transfer\Resources\Attributes\IntAttribute;
-use Utopia\Transfer\Resources\Attributes\StringAttribute;
-use Utopia\Transfer\Resources\Collection;
+use Utopia\Transfer\Resources\Database\Attribute as ResourcesAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
+use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database;
-use Utopia\Transfer\Resources\Hash;
+use Utopia\Transfer\Resources\Auth\Hash;
 
 class Firebase extends Source
 {
@@ -74,8 +74,8 @@ class Firebase extends Source
     public function getSupportedResources(): array
     {
         return [
-            Transfer::RESOURCE_USERS,
-            Transfer::RESOURCE_DATABASES
+            Transfer::GROUP_AUTH,
+            Transfer::GROUP_DATABASES
         ];
     }
 
@@ -135,7 +135,7 @@ class Firebase extends Source
      *
      * @return void
      */
-    public function exportUsers(int $batchSize, callable $callback): void
+    public function exportAuth(int $batchSize, callable $callback): void
     {
         if (!$this->project || !$this->project->getId()) {
             $this->logs[Log::FATAL][] = new Log('Project not set');
@@ -277,7 +277,7 @@ class Firebase extends Source
     }
 
     /**
-     * Predict Schema
+     * Calculate Schema
      *
      * @param int $batchSize Max 500
      * @param $collection Collection
@@ -285,7 +285,7 @@ class Firebase extends Source
      *
      * @return list<ResourcesAttribute>
      **/
-    public function predictSchema(int $batchSize, Collection $collection, array &$newCollections)
+    public function calculateSchema(int $batchSize, Collection $collection, array &$newCollections)
     {
         $attributes = [];
 
@@ -315,7 +315,7 @@ class Firebase extends Source
                 return $name . '/' . $subcollection;
             }, $subcollections);
 
-            $newCollections = array_merge($newCollections, $this->handleCollections($subcollections));
+            $newCollections = array_merge($newCollections, $this->handleCollections($subcollections, $collection->getDatabase()));
         }
 
         return $attributes;
@@ -325,17 +325,18 @@ class Firebase extends Source
      * Handle Collections
      *
      * @param string[] $collectionIDs
+     * @param Database $database
      *
      * @return Collection[]
      */
-    public function handleCollections(array $collectionIDs): array
+    public function handleCollections(array $collectionIDs, Database $database): array
     {
         $collections = [];
 
         foreach ($collectionIDs as $collectionID) {
-            $collection = new Collection($collectionID, $collectionID);
+            $collection = new Collection($database, $collectionID, $collectionID);
 
-            $collection->setAttributes($this->predictSchema(500, $collection, $collections));
+            $collection->setAttributes($this->calculateSchema(500, $collection, $collections));
 
             $collections[] = $collection;
         }
@@ -370,7 +371,7 @@ class Firebase extends Source
 
         $database = new Database('Default', 'Default', Database::DB_NON_RELATIONAL);
 
-        $database->setCollections($this->handleCollections($request['collectionIds']));
+        $database->setCollections($this->handleCollections($request['collectionIds'], $database));
 
         $callback([$database]);
     }
@@ -428,7 +429,7 @@ class Firebase extends Source
 
         foreach ($resources as $resource) {
             switch ($resource) {
-                case Transfer::RESOURCE_USERS:
+                case Transfer::GROUP_AUTH:
                     $firebase = new \Google\Service\FirebaseManagement($this->googleClient);
 
                     $request = $firebase->projects->listProjects();
@@ -452,9 +453,9 @@ class Firebase extends Source
                         return $report;
                     }
 
-                    $completedResources[] = Transfer::RESOURCE_USERS;
+                    $completedResources[] = Transfer::GROUP_AUTH;
                     break;
-                case Transfer::RESOURCE_DATABASES:
+                case Transfer::GROUP_DATABASES:
                     $firestore = new \Google\Service\Firestore($this->googleClient);
 
                     $request = $firestore->projects_databases_documents->listDocuments('projects/' . $this->project->getId() . '/databases/(default)/documents', '', [
@@ -470,5 +471,20 @@ class Firebase extends Source
         }
 
         return $report;
+    }
+
+    public function exportDocuments(int $batchSize, callable $callback): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    public function exportFiles(int $batchSize, callable $callback): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    public function exportFunctions(int $batchSize, callable $callback): void
+    {
+        throw new \Exception('Not Implemented');
     }
 }

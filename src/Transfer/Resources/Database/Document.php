@@ -1,8 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources;
+namespace Utopia\Transfer\Resources\Database;
 
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Transfer;
 
 class Document extends Resource
 {
@@ -23,7 +24,12 @@ class Document extends Resource
 
     public function getName(): string
     {
-        return 'document';
+        return Resource::TYPE_DOCUMENT;
+    }
+
+    public function getGroup(): string
+    {
+        return Transfer::GROUP_DOCUMENTS;
     }
 
     public function getId(): string

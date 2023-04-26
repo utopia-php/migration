@@ -45,7 +45,7 @@ class AppwriteSourceTest extends TestCase
     {
         $result = [];
 
-        $this->appwrite->exportUsers(
+        $this->appwrite->exportAuth(
             100,
             public function (array $users) use (&$result) {
                 $result = array_merge($result, $users);

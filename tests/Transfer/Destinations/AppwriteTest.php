@@ -16,8 +16,8 @@ namespace Utopia\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Utopia\Transfer\Destinations\Appwrite;
-use Utopia\Transfer\Resources\Hash;
-use Utopia\Transfer\Resources\User;
+use Utopia\Transfer\Resources\Auth\Hash;
+use Utopia\Transfer\Resources\Auth\User;
 use Appwrite\Client;
 use Appwrite\Services\Users;
 

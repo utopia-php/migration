@@ -1,8 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources\Attributes;
+namespace Utopia\Transfer\Resources\Database\Attributes;
 
-use Utopia\Transfer\Resources\Attribute;
+use Utopia\Transfer\Resources\Database\Attribute;
+use Utopia\Transfer\Resources\Database\Collection;
 
 class RelationshipAttribute extends Attribute
 {
@@ -15,6 +16,7 @@ class RelationshipAttribute extends Attribute
 
     /**
      * @param string $key
+     * @param Collection $collection
      * @param bool $required
      * @param bool $array
      * @param string $relatedCollection
@@ -24,9 +26,9 @@ class RelationshipAttribute extends Attribute
      * @param string $onDelete
      * @param string $side
      */
-    public function __construct(string $key, bool $required = false, bool $array = false, string $relatedCollection = '', string $relationType = '', bool $twoWay = false, string $twoWayKey = '', string $onDelete = '', string $side = '')
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, string $relatedCollection = '', string $relationType = '', bool $twoWay = false, string $twoWayKey = '', string $onDelete = '', string $side = '')
     {
-        parent::__construct($key, $required, $array);
+        parent::__construct($key, $collection, $required, $array);
         $this->relatedCollection = $relatedCollection;
         $this->relationType = $relationType;
         $this->twoWay = $twoWay;
@@ -35,7 +37,7 @@ class RelationshipAttribute extends Attribute
         $this->side = $side;
     }
 
-    public function getName(): string
+    public function getTypeName(): string
     {
         return 'relationshipAttribute';
     }

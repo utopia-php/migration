@@ -74,7 +74,7 @@ class FirebaseToAppwriteTest extends TestCase
     public function testTransferUsers(): void
     {
         $this->transfer->run(
-            [Transfer::RESOURCE_USERS],
+            [Transfer::GROUP_AUTH],
             public function () {
             }
         );
@@ -92,7 +92,7 @@ class FirebaseToAppwriteTest extends TestCase
 
         $assertedUsers = false;
 
-        $this->firebase->exportUsers(
+        $this->firebase->exportAuth(
             500,
             public function (array $users) use ($userClient, &$assertedUsers) {
                 foreach ($users as $user) {

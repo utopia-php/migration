@@ -1,9 +1,10 @@
 <?php
 
-namespace Utopia\Transfer\Resources;
+namespace Utopia\Transfer\Resources\Auth;
 
 use Utopia\Transfer\Resource;
-use Utopia\Transfer\Resources\Hash;
+use Utopia\Transfer\Resources\Auth\Hash;
+use Utopia\Transfer\Transfer;
 
 class User extends Resource
 {
@@ -58,7 +59,7 @@ class User extends Resource
      */
     public function getName(): string
     {
-        return 'user';
+        return Resource::TYPE_USER;
     }
 
     /**
@@ -259,6 +260,11 @@ class User extends Resource
         return $this;
     }
 
+    public function getGroup(): string
+    {
+        return Transfer::GROUP_AUTH;
+    }
+
     /**
      * Get Disabled
      *
@@ -314,7 +320,7 @@ class User extends Resource
             'id' => $this->id,
             'email' => $this->email,
             'username' => $this->username,
-            'passwordHash' => $this->passwordHash->asArray(),
+            'passwordHash' => $this->passwordHash ? $this->passwordHash->asArray() : null,
             'phone' => $this->phone,
             'types' => $this->types,
             'oauthProvider' => $this->oauthProvider,

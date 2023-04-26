@@ -1,8 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources;
+namespace Utopia\Transfer\Resources\Database;
 
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Transfer;
 
 const TYPE_STRING = 'string';
 const TYPE_INTEGER = 'integer';
@@ -35,7 +36,12 @@ class Database extends Resource
 
     public function getName(): string
     {
-        return 'Database';
+        return Resource::TYPE_DATABASE;
+    }
+
+    public function getGroup(): string
+    {
+        return Transfer::GROUP_DATABASES;
     }
 
     public function getDBName(): string

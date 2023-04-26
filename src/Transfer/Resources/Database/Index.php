@@ -1,8 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources;
+namespace Utopia\Transfer\Resources\Database;
 
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Transfer;
 
 class Index extends Resource
 {
@@ -10,6 +11,7 @@ class Index extends Resource
     protected string $type;
     protected array $attributes;
     protected array $orders;
+    protected Collection $collection;
 
     public const TYPE_UNIQUE = 'unique';
     public const TYPE_FULLTEXT = 'fulltext';
@@ -18,22 +20,29 @@ class Index extends Resource
     /**
      * @param string $key
      * @param string $type
+     * @param Collection $collection
      * @param list<Attribute> $attributes
      * @param array $orders
      */
 
-    public function __construct(string $id, string $key, string $type = '', array $attributes = [], array $orders = [])
+    public function __construct(string $id, string $key, Collection $collection, string $type = '', array $attributes = [], array $orders = [])
     {
         $this->id = $id;
         $this->key = $key;
         $this->type = $type;
         $this->attributes = $attributes;
         $this->orders = $orders;
+        $this->collection = $collection;
     }
 
     public function getName(): string
     {
-        return 'index';
+        return Resource::TYPE_INDEX;
+    }
+
+    public function getGroup(): string
+    {
+        return Transfer::GROUP_DATABASES;
     }
 
     public function getKey(): string
@@ -44,6 +53,17 @@ class Index extends Resource
     public function setKey(string $key): self
     {
         $this->key = $key;
+        return $this;
+    }
+
+    public function getCollection(): Collection
+    {
+        return $this->collection;
+    }
+
+    public function setCollection(Collection $collection): self
+    {
+        $this->collection = $collection;
         return $this;
     }
 

@@ -1,8 +1,9 @@
 <?php
 
-namespace Utopia\Transfer\Resources;
+namespace Utopia\Transfer\Resources\Auth;
 
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Transfer;
 
 /**
  * Helper class for hashing.
@@ -43,7 +44,12 @@ class Hash extends Resource
 
     public function getName(): string
     {
-        return 'hash';
+        return Resource::TYPE_HASH;
+    }
+
+    public function getGroup(): string
+    {
+        return Transfer::GROUP_AUTH;
     }
 
     /**

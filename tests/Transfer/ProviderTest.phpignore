@@ -18,11 +18,11 @@ class ProviderTest extends TestCase
         $this->assertNotEmpty($this->provider->getSupportedResources());
     }
     
-    public function testExportUsers()
+    public function testexportAuth()
     {
         $result = [];
 
-        $this->provider->exportUsers(100, function (array $users) use (&$result) {
+        $this->provider->exportAuth(100, function (array $users) use (&$result) {
             $result = array_merge($result, $users);
         });
 
@@ -55,15 +55,15 @@ class ProviderTest extends TestCase
 
     public function testCheckUsers()
     {
-        $result = $this->provider->check([Transfer::RESOURCE_USERS]);
+        $result = $this->provider->check([Transfer::GROUP_AUTH]);
 
-        $this->assertEquals($result, [Transfer::RESOURCE_USERS]);
+        $this->assertEquals($result, [Transfer::GROUP_AUTH]);
     }
 
     public function testCheckDatabases()
     {
-        $result = $this->provider->check([Transfer::RESOURCE_DATABASES]);
+        $result = $this->provider->check([Transfer::GROUP_DATABASES]);
 
-        $this->assertEquals($result, [Transfer::RESOURCE_DATABASES]);
+        $this->assertEquals($result, [Transfer::GROUP_DATABASES]);
     }
 }
