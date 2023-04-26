@@ -153,7 +153,6 @@ abstract class Target
         }
 
         if (curl_errno($ch)) {
-            var_dump(curl_errno($ch));
             throw new \Exception(curl_error($ch));
         }
 
