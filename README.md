@@ -47,18 +47,18 @@ $transfer->run(
 ## Supported Resources Chart
 
 Sources:
-|          | Users | Databases | Documents | Files | Functions |
-|----------|-------|-----------|-----------|-------|-----------|
-| Appwrite |   ✅   |     ✅     |     ✅     |   ✅   |     ✅     |
-| Supabase |   ✅   |     ✅     |     ✅     |       |           |
+|          | Auth | Databases | Storage | Functions | Settings |
+|----------|-------|-----------|-------|-----------|-----------|
+| Appwrite |   ✅   |     ✅     |     ✅     |   ✅   |          |
+| Supabase |   ✅   |     ✅     |     ✅     |   ✅    |           |
 | NHost    |   ✅   |     ✅     |     ✅     |       |           |
 | Firebase |   ✅   |     ✅     |           |       |           |
 
 Destinations:
-|          | Users | Databases | Documents | Files | Functions |
-|----------|-------|-----------|-----------|-------|-----------|
-| Appwrite |   ✅   |     ✅     |     ✅     |   ✅   |     ✅     |
-| Local    |   ✅   |     ✅     |     ✅     |   ✅   |     ✅     |
+|          | Auth | Databases | Storage | Functions | Settings |
+|----------|-------|-----------|-------|-----------|-----------|
+| Appwrite |   ✅   |     ✅     |   ✅   |     ✅     |          |
+| Local    |   ✅   |     ✅     |   ✅   |     ✅     |     ✅     |
 
 > **Warning**
 > The Local destination should be used for testing purposes only. It is not recommended to use this destination in production or as a backup. The local destination is there to confirm that a source is working correctly and to test the transfer process with needing a target destination instance.

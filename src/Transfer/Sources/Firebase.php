@@ -2,73 +2,97 @@
 
 namespace Utopia\Transfer\Sources;
 
+use Utopia\Transfer\Resource;
 use Utopia\Transfer\Source;
-use Google\Client;
-use Google\Service\Firestore\ListCollectionIdsRequest;
-use Utopia\Transfer\Resources\Project;
-use Utopia\Transfer\Resources\User;
 use Utopia\Transfer\Transfer;
-use Utopia\Transfer\Log;
-use Utopia\Transfer\Resources\Database\Attribute as ResourcesAttribute;
+use Utopia\Transfer\Resources\Auth\Hash;
+use Utopia\Transfer\Resources\Auth\User;
+use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Database\Collection;
-use Utopia\Transfer\Resources\Database;
-use Utopia\Transfer\Resources\Auth\Hash;
+use Utopia\Transfer\Resources\Database\Database;
 
 class Firebase extends Source
 {
-    public const TYPE_OAUTH = 'oauth';
-    public const AUTH_SERVICEACCOUNT = 'serviceaccount';
+    private array $serviceAccount;
+    private string $projectID;
+    private string $currentToken = '';
+    private int $tokenExpires = 0;
 
-    /**
-     * @var array{object: array, type: string}
-     */
-    protected $authentication = [
-        'type' => self::AUTH_SERVICEACCOUNT,
-        'object' => []
-    ];
-
-    /**
-     * @var Client|null
-     */
-    protected $googleClient = null;
-
-    /**
-     * @var Project|null
-     */
-    protected $project;
-
-    /**
-     * Constructor
-     *
-     * @param array $authObject Service Account Credentials for AUTH_SERVICEACCOUNT
-     * @param string $authType Can be either Firebase::TYPE_OAUTH or Firebase::AUTH_APIKEY
-     */
-    public function __construct(array $authObject = [], string $authType = self::AUTH_SERVICEACCOUNT)
+    public function __construct(array $serviceAccount, string $projectID)
     {
-        if (!in_array($authType, [self::TYPE_OAUTH, self::AUTH_SERVICEACCOUNT])) {
-            throw new \Exception('Invalid authentication type');
-        }
-
-        $this->googleClient = new Client();
-
-        if ($authType === self::TYPE_OAUTH) {
-            $this->googleClient->setAccessToken($authObject);
-        } elseif ($authType === self::AUTH_SERVICEACCOUNT) {
-            $this->googleClient->setAuthConfig($authObject);
-        }
-
-        $this->googleClient->addScope('https://www.googleapis.com/auth/firebase');
-        $this->googleClient->addScope('https://www.googleapis.com/auth/cloud-platform');
+        $this->serviceAccount = $serviceAccount;
+        $this->projectID = $projectID;
     }
 
-    public function getName(): string
+    static function getName(): string
     {
         return 'Firebase';
+    }
+
+    function base64url_encode($data)
+    {
+        return str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($data));
+    }
+
+    function calculateJWT(): string
+    {
+        $jwtClaim = [
+            'iss' => $this->serviceAccount['client_email'],
+            'scope' => 'https://www.googleapis.com/auth/firebase https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/datastore',
+            'exp' => time() + 3600,
+            'iat' => time(),
+            'aud' => 'https://oauth2.googleapis.com/token'
+        ];
+
+        $jwtHeader = [
+            'alg' => 'RS256',
+            'typ' => 'JWT'
+        ];
+
+        $jwtPayload = $this->base64url_encode(json_encode($jwtHeader)) . '.' . $this->base64url_encode(json_encode($jwtClaim));
+
+        $jwtSignature = '';
+        openssl_sign($jwtPayload, $jwtSignature, $this->serviceAccount['private_key'], 'sha256');
+        $jwtSignature = $this->base64url_encode($jwtSignature);
+
+        return $jwtPayload . '.' . $jwtSignature;
+    }
+
+    /**
+     * Computes the JWT then fetches an auth token from the Google OAuth2 API which is valid for an hour
+     */
+    function authenticate()
+    {
+        if (time() < $this->tokenExpires) {
+            return;
+        }
+
+        try {
+            $response = parent::call('POST', 'https://oauth2.googleapis.com/token', [
+                'Content-Type' => 'application/x-www-form-urlencoded',
+            ], [
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion' => $this->calculateJWT()
+            ]);
+
+            $this->currentToken = $response['access_token'];
+            $this->tokenExpires = time() + $response['expires_in'];
+            $this->headers['Authorization'] = 'Bearer ' . $this->currentToken;
+        } catch (\Exception $e) {
+            throw new \Exception('Failed to authenticate with Firebase: ' . $e->getMessage());
+        }
+    }
+
+    public function call(string $method, string $path = '', array $headers = array(), array $params = array()): array|string
+    {
+        $this->authenticate();
+
+        return parent::call($method, $path, $headers, $params);
     }
 
     public function getSupportedResources(): array
@@ -79,91 +103,31 @@ class Firebase extends Source
         ];
     }
 
-    public function getProjects(): array
+    public function check(array $resources = []): array
     {
-        $projects = [];
-
-        if (!$this->googleClient) {
-            throw new \Exception('Google Client not initialized');
-        }
-
-        $firebase = new \Google\Service\FirebaseManagement($this->googleClient);
-
-        $request = $firebase->projects->listProjects();
-
-        if ($request['results']) {
-            foreach ($request['results'] as $project) {
-                $projects[] = new Project(
-                    $project['displayName'],
-                    $project['projectId']
-                );
-            }
-        }
-
-        return $projects;
+        throw new \Exception('Not implemented');
     }
 
-    /**
-     * Set Project
-     *
-     * @param Project|string $project
-     */
-    public function setProject(Project|string $project): void
+    public function exportAuthGroup(int $batchSize, array $resources)
     {
-        if (is_string($project)) {
-            $project = new Project($project, $project);
+        if (in_array(Resource::TYPE_USER, $resources)) {
+            $this->exportUsers($batchSize);
         }
-
-        $this->project = $project;
     }
 
-    /**
-     * Get Project
-     *
-     * @return Project|null
-     */
-    public function getProject(): Project|null
+    function exportUsers(int $batchSize)
     {
-        return $this->project;
-    }
-
-    /**
-     * Export Users
-     *
-     * @param int $batchSize Max 500
-     * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
-     *
-     * @return void
-     */
-    public function exportAuth(int $batchSize, callable $callback): void
-    {
-        if (!$this->project || !$this->project->getId()) {
-            $this->logs[Log::FATAL][] = new Log('Project not set');
-            throw new \Exception('Project not set');
-        }
-
-        if ($batchSize > 500) {
-            $this->logs[Log::FATAL][] = new Log('Batch size cannot be greater than 500');
-            throw new \Exception('Batch size cannot be greater than 500');
-        }
-
-        // Fetch our hash config
-        $httpClient = $this->googleClient->authorize();
-
-        $hashConfig = json_decode($httpClient->request('GET', 'https://identitytoolkit.googleapis.com/admin/v2/projects/' . $this->project->getId() . '/config')->getBody()->getContents(), true)["signIn"]["hashConfig"];
-
-        if (!$hashConfig) {
-            $this->logs[Log::FATAL][] = new Log('Unable to fetch hash config');
-            throw new \Exception('Unable to fetch hash config');
-        }
+        // Fetch our Hash Config
+        $hashConfig = ($this->call('GET', 'https://identitytoolkit.googleapis.com/admin/v2/projects/' . $this->projectID . '/config'))["signIn"]["hashConfig"];
 
         $nextPageToken = null;
 
+        // Transfer Users
         while (true) {
             $users = [];
 
             $request = [
-                "targetProjectId" => $this->project->getId(),
+                "targetProjectId" => $this->projectID,
                 "maxResults" => $batchSize,
             ];
 
@@ -171,28 +135,21 @@ class Firebase extends Source
                 $request["nextPageToken"] = $nextPageToken;
             }
 
-            $response = json_decode($httpClient->request('POST', 'https://identitytoolkit.googleapis.com/identitytoolkit/v3/relyingparty/downloadAccount', [
-                'json' => $request
-            ])->getBody()->getContents(), true);
-
-            if (!$response) {
-                $this->logs[Log::FATAL][] = new Log('Unable to fetch users');
-                throw new \Exception('Unable to fetch users');
-            }
+            $response = $this->call('POST', 'https://identitytoolkit.googleapis.com/identitytoolkit/v3/relyingparty/downloadAccount', [
+                'Content-Type' => 'application/json',
+            ], $request);
 
             $result = $response["users"];
             $nextPageToken = $response["nextPageToken"] ?? null;
 
             foreach ($result as $user) {
-                /** @var array $user */
-
                 $users[] = new User(
                     $user["localId"] ?? '',
                     $user["email"] ?? '',
                     $user["displayName"] ?? $user["email"] ?? '',
                     new Hash($user["passwordHash"] ?? '', $user["salt"] ?? '', Hash::SCRYPT_MODIFIED, $hashConfig["saltSeparator"], $hashConfig["signerKey"]),
                     $user["phoneNumber"] ?? '',
-                    $this->calculateTypes($user['providerUserInfo'] ?? []),
+                    $this->calculateUserType($user['providerUserInfo'] ?? []),
                     '',
                     $user["emailVerified"],
                     false, // Can't get phone number status on firebase :/
@@ -200,7 +157,7 @@ class Firebase extends Source
                 );
             }
 
-            $callback($users);
+            $this->callback($users);
 
             if (count($result) < $batchSize) {
                 break;
@@ -208,175 +165,7 @@ class Firebase extends Source
         }
     }
 
-    /**
-     * Calculate Array Type
-     *
-     * @param string $key
-     * @param \Google\Service\Firestore\ArrayValue $data
-     *
-     * @return ResourcesAttribute
-     */
-    public function calculateArrayType(string $key, \Google\Service\Firestore\ArrayValue $data): ResourcesAttribute
-    {
-        $isSameType = true;
-        $previousType = null;
-
-        foreach ($data["values"] as $field) {
-            if (!$previousType) {
-                $previousType = $this->calculateType($key, $field);
-            } elseif ($previousType->getName() != ($this->calculateType($key, $field))->getName()) {
-                $isSameType = false;
-                break;
-            }
-        }
-
-        if ($isSameType) {
-            $previousType->setArray(true);
-            return $previousType;
-        } else {
-            return new StringAttribute($key, false, true, null, 1000000);
-        }
-    }
-
-    /**
-     * Calculate Type
-     *
-     * @param string $key
-     * @param \Google\Service\Firestore\Value $field
-     *
-     * @return ResourcesAttribute
-     */
-    public function calculateType(string $key, \Google\Service\Firestore\Value $field): ResourcesAttribute
-    {
-        if (isset($field["booleanValue"])) {
-            return new BoolAttribute($key, false, false, null);
-        } elseif (isset($field["bytesValue"])) {
-            return new StringAttribute($key, false, false, null, 1000000);
-        } elseif (isset($field["doubleValue"])) {
-            return new FloatAttribute($key, false, false, null);
-        } elseif (isset($field["integerValue"])) {
-            return new IntAttribute($key, false, false, null);
-        } elseif (isset($field["mapValue"])) {
-            return new StringAttribute($key, false, false, null, 1000000);
-        } elseif (isset($field["nullValue"])) {
-            return new StringAttribute($key, false, false, null, 1000000);
-        } elseif (isset($field["referenceValue"])) {
-            return new StringAttribute($key, false, false, null, 1000000);
-        } elseif (isset($field["stringValue"])) {
-            return new StringAttribute($key, false, false, null, 1000000);
-        } elseif (isset($field["timestampValue"])) {
-            return new DateTimeAttribute($key, false, false, null);
-        } elseif (isset($field["geoPointValue"])) {
-            return new StringAttribute($key, false, false, null, 1000000);
-        } elseif (isset($field["arrayValue"])) {
-            return $this->calculateArrayType($key, $field["arrayValue"]);
-        } else {
-            $this->logs[Log::WARNING][] = new Log('Failed to determine data type for: ' . $key . ' Falling back to string.', \time());
-            return new StringAttribute($key, false, false, null, 1000000);
-        }
-    }
-
-    /**
-     * Calculate Schema
-     *
-     * @param int $batchSize Max 500
-     * @param $collection Collection
-     * @param &Collection[] $newCollections
-     *
-     * @return list<ResourcesAttribute>
-     **/
-    public function calculateSchema(int $batchSize, Collection $collection, array &$newCollections)
-    {
-        $attributes = [];
-
-        $firestore = new \Google\Service\Firestore($this->googleClient);
-
-        $documents = $firestore->projects_databases_documents->listDocuments('projects/' . $this->project->getId() . '/databases/(default)/documents/' . $collection->getId(), '', [
-            'pageSize' => $batchSize
-        ]);
-
-        foreach ($documents as $document) {
-            foreach ($document["fields"] as $key => $value) {
-                $attributes[] = $this->calculateType($key, $value);
-            }
-
-            $requestOptions = new ListCollectionIdsRequest();
-            $requestOptions->setPageSize(500);
-
-            // Handle subcollections
-            $subcollections = $firestore->projects_databases_documents->listCollectionIds($document["name"], $requestOptions, [])["collectionIds"];
-
-            if ($subcollections == null) {
-                continue;
-            }
-
-            $subcollections = array_map(function ($subcollection) use ($document, $collection) {
-                $name = str_replace("projects/" . $this->getProject()->getId() . "/databases/(default)/documents/", "", $document["name"]);
-                return $name . '/' . $subcollection;
-            }, $subcollections);
-
-            $newCollections = array_merge($newCollections, $this->handleCollections($subcollections, $collection->getDatabase()));
-        }
-
-        return $attributes;
-    }
-
-    /**
-     * Handle Collections
-     *
-     * @param string[] $collectionIDs
-     * @param Database $database
-     *
-     * @return Collection[]
-     */
-    public function handleCollections(array $collectionIDs, Database $database): array
-    {
-        $collections = [];
-
-        foreach ($collectionIDs as $collectionID) {
-            $collection = new Collection($database, $collectionID, $collectionID);
-
-            $collection->setAttributes($this->calculateSchema(500, $collection, $collections));
-
-            $collections[] = $collection;
-        }
-
-        return $collections;
-    }
-
-    /**
-     * Export Databases
-     *
-     * @param int $batchSize Max 500
-     * @param callable $callback Callback function to be called after each batch, $callback(database[] $batch);
-     *
-     * @return void
-     */
-    public function exportDatabases(int $batchSize, callable $callback): void
-    {
-        if (!$this->project || !$this->project->getId()) {
-            $this->logs[Log::FATAL][] = new Log('Project not set');
-            throw new \Exception('Project not set');
-        }
-
-        if ($batchSize > 500) {
-            $this->logs[Log::FATAL][] = new Log('Batch size cannot be greater than 500');
-            throw new \Exception('Batch size cannot be greater than 500');
-        }
-
-        $firestore = new \Google\Service\Firestore($this->googleClient);
-
-        // Let's grab the root collections. (google's params technically doesn't allow this, however they do it in their own console)
-        $request = $firestore->projects_databases_documents->listCollectionIds('projects/' . $this->project->getId() . '/databases/(default)/documents', new ListCollectionIdsRequest());
-
-        $database = new Database('Default', 'Default', Database::DB_NON_RELATIONAL);
-
-        $database->setCollections($this->handleCollections($request['collectionIds'], $database));
-
-        $callback([$database]);
-    }
-
-    public function calculateTypes(array $providerData): array
+    function calculateUserType(array $providerData): array
     {
         if (count($providerData) === 0) {
             return [User::TYPE_ANONYMOUS];
@@ -401,90 +190,178 @@ class Firebase extends Source
         return $types;
     }
 
-    public function check(array $resources = []): array
+    public function exportDatabasesGroup(int $batchSize, array $resources)
     {
-        $report = [
-            'Users' => [],
-            'Databases' => [],
-            'Documents' => [],
-            'Files' => [],
-            'Functions' => []
-        ];
-
-        if (empty($resources)) {
-            $resources = $this->getSupportedResources();
+        if (in_array(Resource::TYPE_DATABASE, $resources)) {
+            $database = new Database('default', '(default)');
+            $this->callback([$database]);
         }
 
-        if (!$this->googleClient) {
-            $this->logs[Log::FATAL][] = new Log('Google Client not initialized');
-            $report['Users'][] = 'Google Client not initialized';
-            return $report;
+        if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+            $this->traceDBResource($database, 'projects/' . $this->projectID . '/databases/' . $database->getId() . '/documents/', $batchSize);
         }
 
-        if (!$this->project || !$this->project->getId()) {
-            $this->logs[Log::FATAL][] = new Log('Project not set');
-            $report['Users'][] = 'Project not set';
-            return $report;
+        if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+            $this->exportDocuments($batchSize);
         }
+    }
 
-        foreach ($resources as $resource) {
-            switch ($resource) {
-                case Transfer::GROUP_AUTH:
-                    $firebase = new \Google\Service\FirebaseManagement($this->googleClient);
+    function exportDocuments(int $batchSize)
+    {
+        // Not Implemented
+        return;
+    }
 
-                    $request = $firebase->projects->listProjects();
+    function convertAttribute(Collection $collection, string $key, array $field): Attribute
+    {
+        if (array_key_exists("booleanValue", $field)) {
+            return new BoolAttribute($key, $collection, false, false, null);
+        } elseif (array_key_exists("bytesValue", $field)) {
+            return new StringAttribute($key, $collection, false, false, null, 1000000);
+        } elseif (array_key_exists("doubleValue", $field)) {
+            return new FloatAttribute($key, $collection, false, false, null);
+        } elseif (array_key_exists("integerValue", $field)) {
+            return new IntAttribute($key, $collection, false, false, null);
+        } elseif (array_key_exists("mapValue", $field)) {
+            return new StringAttribute($key, $collection, false, false, null, 1000000);
+        } elseif (array_key_exists("nullValue", $field)) {
+            return new StringAttribute($key, $collection, false, false, null, 1000000);
+        } elseif (array_key_exists("referenceValue", $field)) {
+            return new StringAttribute($key, $collection, false, false, null, 1000000); //TODO: This should be a reference attribute
+        } elseif (array_key_exists("stringValue", $field)) {
+            return new StringAttribute($key, $collection, false, false, null, 1000000);
+        } elseif (array_key_exists("timestampValue", $field)) {
+            return new DateTimeAttribute($key, $collection, false, false, null);
+        } elseif (array_key_exists("geoPointValue", $field)) {
+            return new StringAttribute($key, $collection, false, false, null, 1000000);
+        } elseif (array_key_exists("arrayValue", $field)) {
+            return $this->calculateArrayType($collection, $key, $field["arrayValue"]);
+        } else {
+            var_dump($field);
+            throw new \Exception('Unknown field type');
+        }
+    }
 
-                    if (!$request['results']) {
-                        $report['Users'][] = 'Unable to fetch projects';
-                        return $report;
-                    }
+    function calculateArrayType(Collection $collection, string $key, array $data): Attribute
+    {
+        $isSameType = true;
+        $previousType = null;
 
-                    $found = false;
-
-                    foreach ($request['results'] as $project) {
-                        if ($project['projectId'] === $this->project->getId()) {
-                            $found = true;
-                            break;
-                        }
-                    }
-
-                    if (!$found) {
-                        $report['Users'][] = 'Project not found';
-                        return $report;
-                    }
-
-                    $completedResources[] = Transfer::GROUP_AUTH;
-                    break;
-                case Transfer::GROUP_DATABASES:
-                    $firestore = new \Google\Service\Firestore($this->googleClient);
-
-                    $request = $firestore->projects_databases_documents->listDocuments('projects/' . $this->project->getId() . '/databases/(default)/documents', '', [
-                        'pageSize' => 1
-                    ]);
-
-                    if (!$request['documents']) {
-                        $report['Databases'][] = 'Unable to fetch documents';
-                        return $report;
-                    }
-                    break;
+        foreach ($data["values"] as $field) {
+            if (!$previousType) {
+                $previousType = $this->convertAttribute($collection, $key, $field);
+            } elseif ($previousType->getName() != ($this->convertAttribute($collection, $key, $field))->getName()) {
+                $isSameType = false;
+                break;
             }
         }
 
-        return $report;
+        if ($isSameType) {
+            $previousType->setArray(true);
+            return $previousType;
+        } else {
+            return new StringAttribute($key, $collection, false, true, null, 1000000);
+        }
     }
 
-    public function exportDocuments(int $batchSize, callable $callback): void
+    function handleCollection(Collection $collection, int $batchSize)
     {
-        throw new \Exception('Not Implemented');
+        $resourceURL = 'https://firestore.googleapis.com/v1/projects/' . $this->projectID . '/databases/' . $collection->getDatabase()->getId() . '/documents/' . $collection->getId();
+
+        $nextPageToken = null;
+
+        $knownSchema = [];
+
+        // Transfer Documents and Calculate Schemas
+        while (true) {
+            $documents = [];
+
+            $result = $this->call('GET', $resourceURL, [
+                'Content-Type' => 'application/json',
+            ], [
+                'pageSize' => $batchSize,
+                'pageToken' => $nextPageToken
+            ]);
+
+            if (!empty($result)) {
+                break;
+            }
+
+            // Calculate Schema and handle subcollections
+            $documentSchema = [];
+            foreach ($result['documents'] as $document) {
+                if (!isset($document['fields'])) {
+                    continue; //TODO: Transfer Empty Documents
+                }
+
+                foreach ($document['fields'] as $key => $field) {
+                    if (!isset($documentSchema[$key])) {
+                        $documentSchema[$key] = $this->convertAttribute($collection, $key, $field);
+                    }
+                }
+
+                $this->traceDBResource($collection->getDatabase(), $document['name'], $batchSize);
+            }
+
+            // Transfer Documents
+            // $callback($documents);
+
+            if (count($result['documents']) < $batchSize) {
+                break;
+            }
+
+            $nextPageToken = $result['nextPageToken'] ?? null;
+        }
     }
 
-    public function exportFiles(int $batchSize, callable $callback): void
+    function traceDBResource(Database $database, string $resource, int $batchSize)
     {
-        throw new \Exception('Not Implemented');
+        $baseURL = 'https://firestore.googleapis.com/v1/' . $resource;
+
+        $nextPageToken = null;
+        $allCollections = [];
+        while (true) {
+            $collections = [];
+
+            $result = $this->call('POST', $baseURL . ':listCollectionIds', [
+                'Content-Type' => 'application/json',
+            ], [
+                'pageSize' => $batchSize,
+                'pageToken' => $nextPageToken
+            ]);
+
+            // Transfer Collections
+            foreach ($result['collectionIds'] as $collection) {
+                $collections[] = new Collection($database, $collection, $collection);
+            }
+
+            if (count($collections) !== 0) {
+                $allCollections = array_merge($allCollections, $collections);
+                $this->callback($collections);
+            } else {
+                return;
+            }
+
+            // Transfer Documents and Calculate Schema
+            foreach ($collections as $collection) {
+                $this->handleCollection($collection, $batchSize);
+            }
+
+            if (count($result['collectionIds']) < $batchSize) {
+                break;
+            }
+
+            $nextPageToken = $result['nextPageToken'] ?? null;
+        }
     }
 
-    public function exportFunctions(int $batchSize, callable $callback): void
+    public function exportFunctionsGroup(int $batchSize, array $resources)
     {
-        throw new \Exception('Not Implemented');
+        throw new \Exception('Not implemented');
+    }
+
+    public function exportStorageGroup(int $batchSize, array $resources)
+    {
+        throw new \Exception('Not implemented');
     }
 }

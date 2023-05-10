@@ -16,7 +16,7 @@ use Utopia\Transfer\Sources\Firebase;
 use Utopia\Transfer\Sources\NHost;
 use Utopia\Transfer\Sources\Supabase;
 use Dotenv\Dotenv;
-use Utopia\Transfer\Sources\FirebaseG2;
+use Utopia\Transfer\Resource;
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
@@ -32,11 +32,6 @@ $sourceAppwrite = new Appwrite(
 
 $sourceFirebase = new Firebase(
     json_decode($_ENV["FIREBASE_TEST_ACCOUNT"], true),
-    Firebase::AUTH_SERVICEACCOUNT
-);
-
-$sourceFirebaseG2 = new FirebaseG2(
-    json_decode($_ENV["FIREBASE_TEST_ACCOUNT"], true),
     "amadeus-a3730"
 );
 
@@ -47,14 +42,14 @@ $sourceFirebaseG2 = new FirebaseG2(
 //     $_ENV["NHOST_TEST_PASSWORD"] ?? '',
 // );
 
-$sourceSupabase = new Supabase(
-    $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
-    $_ENV['SUPABASE_TEST_KEY'] ?? '',
-    $_ENV["SUPABASE_TEST_HOST"] ?? '',
-    $_ENV["SUPABASE_TEST_DATABASE"] ?? '',
-    $_ENV["SUPABASE_TEST_USERNAME"] ?? '',
-    $_ENV["SUPABASE_TEST_PASSWORD"] ?? '',
-);
+// $sourceSupabase = new Supabase(
+//     $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
+//     $_ENV['SUPABASE_TEST_KEY'] ?? '',
+//     $_ENV["SUPABASE_TEST_HOST"] ?? '',
+//     $_ENV["SUPABASE_TEST_DATABASE"] ?? '',
+//     $_ENV["SUPABASE_TEST_USERNAME"] ?? '',
+//     $_ENV["SUPABASE_TEST_PASSWORD"] ?? '',
+// );
 
 /**
  * Initialise All Destination Adapters 
@@ -71,10 +66,8 @@ $destinationLocal = new Local(__DIR__ . '/localBackup/');
  * Initialise Transfer Class 
 */
 
-$sourceFirebase->setProject($sourceFirebase->getProjects()[0]);
-
 $transfer = new Transfer(
-    $sourceSupabase,
+    $sourceFirebase,
     $destinationLocal
 );
 
@@ -83,7 +76,7 @@ $transfer = new Transfer(
 */
 $transfer->run(
     [
-        Transfer::GROUP_STORAGE
+        Resource::TYPE_USER,
     ], function () {
     }
 );

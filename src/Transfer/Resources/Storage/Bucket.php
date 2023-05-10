@@ -32,7 +32,7 @@ class Bucket extends Resource
         $this->antiVirus = $antiVirus;
     }
 
-    public function getName(): string
+    static function getName(): string
     {
         return Resource::TYPE_BUCKET;
     }

@@ -20,7 +20,7 @@ class TeamMembership extends Resource
         $this->active = $active;
     }
 
-    function getName(): string
+    static function getName(): string
     {
         return Resource::TYPE_TEAM_MEMBERSHIP;
     }

@@ -42,8 +42,8 @@ abstract class Destination extends Target
      */
     public function run(array $resources, callable $callback): void
     {
-        $this->source->run($resources, function (string $group, array $resources) use ($callback) {
-            $this->importResources($resources, $callback, $group);
+        $this->source->run($resources, function (array $resources) use ($callback) {
+            $this->importResources($resources, $callback);
         });
     }
 
@@ -52,8 +52,7 @@ abstract class Destination extends Target
      *
      * @param array $resources
      * @param callable $callback (Progress $progress)
-     * @param string $group
      *
      */
-    abstract public function importResources(array $resources, callable $callback, string $group): void;
+    abstract public function importResources(array $resources, callable $callback): void;
 }

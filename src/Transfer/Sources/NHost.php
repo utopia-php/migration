@@ -2,6 +2,7 @@
 
 namespace Utopia\Transfer\Sources;
 
+use Utopia\Transfer\Resource;
 use Utopia\Transfer\Source;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Transfer;
@@ -75,7 +76,7 @@ class NHost extends Source
         }
     }
 
-    public function getName(): string
+    static function getName(): string
     {
         return 'NHost';
     }
@@ -84,20 +85,70 @@ class NHost extends Source
     {
         return [
             Transfer::GROUP_AUTH,
-            Transfer::GROUP_DATABASES,
-            Transfer::GROUP_DOCUMENTS,
+            Transfer::GROUP_DATABASES
         ];
     }
 
-    /**
-     * Export Users
-     *
-     * @param int $batchSize Max 500
-     * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
-     *
-     * @return User[]
-     */
-    public function exportAuth(int $batchSize, callable $callback): void
+    public function check(array $resources = []): array
+    {
+        $report = [
+            Transfer::GROUP_AUTH => [],
+            Transfer::GROUP_DATABASES => [],
+            Transfer::GROUP_STORAGE => [],
+            Transfer::GROUP_FUNCTIONS => []
+        ];
+
+        if (empty($resources)) {
+            $resources = $this->getSupportedResources();
+        }
+
+        try {
+            $this->pdo = new \PDO("pgsql:host=" . $this->host . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
+        } catch (\PDOException $e) {
+            $report[Transfer::GROUP_DATABASES][] = 'Failed to connect to database. PDO Code: ' . $e->getCode() . ' Error: ' . $e->getMessage();
+        }
+
+        if (!empty($this->pdo->errorCode())) {
+            $report[Transfer::GROUP_DATABASES][] = 'Failed to connect to database. PDO Code: ' . $this->pdo->errorCode() . (empty($this->pdo->errorInfo()[2]) ? '' : ' Error: ' . $this->pdo->errorInfo()[2]);
+        }
+
+        foreach ($resources as $resource) {
+            switch ($resource) {
+                case Transfer::GROUP_AUTH:
+                    $statement = $this->pdo->prepare('SELECT COUNT(*) FROM auth.users');
+                    $statement->execute();
+
+                    if ($statement->errorCode() !== '00000') {
+                        $report['Users'][] = 'Failed to access users table. Error: ' . $statement->errorInfo()[2];
+                    }
+
+                    break;
+                case Transfer::GROUP_DATABASES:
+                    $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
+                    $statement->execute();
+
+                    if ($statement->errorCode() !== '00000') {
+                        $report[Transfer::GROUP_DATABASES][] = 'Failed to access tables table. Error: ' . $statement->errorInfo()[2];
+                    }
+
+                    break;
+                case Transfer::GROUP_STORAGE:
+                    //TODO: Attempt to access API
+                    break;
+            }
+        }
+
+        return $report;
+    }
+
+    public function exportAuthGroup(int $batchSize, array $resources)
+    {
+        if (in_array(Resource::TYPE_USER, $resources)) {
+            $this->exportUsers($batchSize);
+        }
+    }
+
+    function exportUsers(int $batchSize)
     {
         $total = $this->pdo->query('SELECT COUNT(*) FROM auth.users')->fetchColumn();
 
@@ -131,18 +182,168 @@ class NHost extends Source
                 );
             }
 
-            $callback($transferUsers);
+            $this->callback($transferUsers);
         }
     }
 
-    /**
-     * Convert Attribute
-     *
-     * @param array $column
-     * @param Collection $collection
-     * @return Attribute
-     */
-    public function convertAttribute(array $column, Collection $collection): Attribute
+    public function exportDatabasesGroup(int $batchSize, array $resources)
+    {
+        if (in_array(Resource::TYPE_DATABASE, $resources)) {
+            $this->exportDatabases($batchSize);
+        }
+
+        if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+            $this->exportCollections($batchSize);
+        }
+
+        if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+            $this->exportAttributes($batchSize);
+        }
+
+        if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+            $this->exportDocuments($batchSize);
+        }
+
+        if (in_array(Resource::TYPE_INDEX, $resources)) {
+            $this->exportIndexes($batchSize);
+        }
+    }
+
+    function exportDatabases(int $batchSize): void
+    {
+        // We'll only transfer the public database for now, since it's the only one that exists by default.
+        //TODO: Handle edge cases where there are user created databases and data.
+        $transferDatabase = new Database('public', 'public');
+        $this->callback([$transferDatabase]);
+    }
+
+    function exportCollections(int $batchSize)
+    {
+        $databases = $this->resourceCache->get(Database::getName());
+
+        foreach ($databases as $database) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = :database');
+            $statement->execute([':database' => $database->getName()]); //TODO: Maybe add "getOriginalName"?
+            $total = $statement->fetchColumn();
+
+            $offset = 0;
+
+            while ($offset < $total) {
+                $statement = $this->pdo->prepare('SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\' order by table_name LIMIT :limit OFFSET :offset');
+                $statement->execute([':limit' => $batchSize, ':offset' => $offset]);
+
+                $tables = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+                $offset += $batchSize;
+
+                $transferCollections = [];
+
+                foreach ($tables as $table) {
+                    $transferCollections[] = new Collection($database, $table['table_name'], $table['table_name']);
+                }
+
+                $this->callback($transferCollections);
+            }
+        }
+    }
+
+    function exportAttributes(int $batchSize)
+    {
+        $collections = $this->resourceCache->get(Collection::getName());
+
+        foreach ($collections as $collection) {
+            /** @var Collection $collection  */
+            $statement = $this->pdo->prepare('SELECT * FROM information_schema."columns" where "table_name" = :tableName');
+            $statement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
+            $statement->execute();
+            $databaseCollection = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+            $attributes = [];
+
+            foreach ($databaseCollection as $column) {
+                $attributes[] = $this->convertAttribute($column, $collection);
+            }
+
+            $this->callback($attributes);
+        }
+    }
+
+    function exportIndexes(int $batchSize)
+    {
+        $collections = $this->resourceCache->get(Collection::getName());
+
+        foreach ($collections as $collection) {
+            /** @var Collection $collection */
+
+            $indexStatement = $this->pdo->prepare('SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :tableName');
+            $indexStatement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
+            $indexStatement->execute();
+
+            $databaseIndexes = $indexStatement->fetchAll(\PDO::FETCH_ASSOC);
+            $indexes = [];
+            foreach ($databaseIndexes as $index) {
+                $result = $this->convertIndex($index, $collection);
+
+                $indexes[] = $result;
+            }
+
+            $this->callback($indexes);
+        }
+    }
+
+    function exportDocuments(int $batchSize)
+    {
+        $databases = $this->resourceCache->get(Database::getName());
+
+        foreach ($databases as $database) {
+            /** @var Database $database */
+            $collections = $database->getCollections();
+
+            foreach ($collections as $collection) {
+                $total = $this->pdo->query('SELECT COUNT(*) FROM ' . $collection->getCollectionName())->fetchColumn();
+
+                $offset = 0;
+
+                while ($offset < $total) {
+                    $statement = $this->pdo->prepare('SELECT row_to_json(t) FROM (SELECT * FROM ' . $collection->getCollectionName() . ' LIMIT :limit OFFSET :offset) t;');
+                    $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
+                    $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
+                    $statement->execute();
+
+                    $documents = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+                    $offset += $batchSize;
+
+                    $transferDocuments = [];
+
+                    $attributes = $this->resourceCache->get(Attribute::getName());
+                    $collectionAttributes = array_filter($attributes, function (Attribute $attribute) use ($collection) {
+                        return $attribute->getId() === $collection->getId();
+                    });
+
+                    foreach ($documents as $document) {
+                        $data = json_decode($document['row_to_json'], true);
+
+                        $processedData = [];
+                        foreach ($collectionAttributes as $attribute) {
+                            /** @var Attribute $attribute */
+                            if (!$attribute->getArray() && \is_array($data[$attribute->getKey()])) {
+                                $processedData[$attribute->getKey()] = json_encode($data[$attribute->getKey()]);
+                            } else {
+                                $processedData[$attribute->getKey()] = $data[$attribute->getKey()];
+                            }
+                        }
+
+                        $transferDocuments[] = new Document('unique()', $database, $collection, $processedData);
+                    }
+
+                    $this->callback($transferDocuments);
+                }
+            }
+        }
+    }
+
+    function convertAttribute(array $column, Collection $collection): Attribute
     {
         $isArray = $column['data_type'] === 'ARRAY';
 
@@ -212,14 +413,7 @@ class NHost extends Source
         }
     }
 
-    /**
-     * Convert Index
-     *
-     * @param string $table
-     * @param Collection $collection
-     * @return Index|false
-     */
-    public function convertIndex(array $index, Collection $collection): Index|false
+    function convertIndex(array $index, Collection $collection): Index|false
     {
         $pattern = "/CREATE (?<type>\w+)? INDEX (?<name>\w+) ON (?<table>\w+\.\w+) USING (?<method>\w+) \((?<columns>\w+)\)/";
 
@@ -266,142 +460,7 @@ class NHost extends Source
         }
     }
 
-    /**
-     * Export Databases
-     *
-     * @param int $batchSize Max 100
-     * @param callable $callback Callback function to be called after each database, $callback(database[] $batch);
-     *
-     * @return void
-     */
-    public function exportDatabases(int $batchSize, callable $callback): void
-    {
-        $total = $this->pdo->query('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'')->fetchColumn();
-
-        $offset = 0;
-
-        // We'll only transfer the public database for now, since it's the only one that exists by default.
-        //TODO: Handle edge cases where there are user created databases and data.
-
-        $transferDatabase = new Database('public', 'public');
-        $callback([$transferDatabase]);
-
-        // Transfer Tables
-        while ($offset < $total) {
-            $statement = $this->pdo->prepare('SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\' order by table_name LIMIT :limit OFFSET :offset');
-            $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
-            $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
-            $statement->execute();
-
-            $tables = $statement->fetchAll(\PDO::FETCH_ASSOC);
-
-            $offset += $batchSize;
-
-            $transferCollections = [];
-
-            foreach ($tables as $table) {
-                $transferCollections[] = new Collection($transferDatabase, $table['table_name'], $table['table_name']);
-            }
-
-            $callback($transferCollections);
-        }
-
-        // Transfer Attributes and Indexes
-        $collections = $this->resourceCache->get(Collection::class);
-
-        foreach ($collections as $collection) {
-            /** @var Collection $collection  */
-            $statement = $this->pdo->prepare('SELECT * FROM information_schema."columns" where "table_name" = :tableName');
-            $statement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
-            $statement->execute();
-            $databaseCollection = $statement->fetchAll(\PDO::FETCH_ASSOC);
-
-            $attributes = [];
-
-            foreach ($databaseCollection as $column) {
-                $attributes[] = $this->convertAttribute($column, $collection);
-            }
-
-            $callback($attributes);
-
-            // Transfer Indexes
-            $indexStatement = $this->pdo->prepare('SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :tableName');
-            $indexStatement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
-            $indexStatement->execute();
-
-            $databaseIndexes = $indexStatement->fetchAll(\PDO::FETCH_ASSOC);
-            $indexes = [];
-            foreach ($databaseIndexes as $index) {
-                $result = $this->convertIndex($index, $collection);
-
-                $indexes[] = $result;
-            }
-
-            $callback($indexes);
-        }
-    }
-
-    /**
-     * Export Documents
-     *
-     * @param int $batchSize Max 100
-     * @param callable $callback Callback function to be called after each batch, $callback(document[] $batch);
-     *
-     * @return void
-     */
-    public function exportDocuments(int $batchSize, callable $callback): void
-    {
-        $databases = $this->resourceCache->get(Database::class);
-
-        foreach ($databases as $database) {
-            /** @var Database $database */
-            $collections = $database->getCollections();
-
-            foreach ($collections as $collection) {
-                $total = $this->pdo->query('SELECT COUNT(*) FROM ' . $collection->getCollectionName())->fetchColumn();
-
-                $offset = 0;
-
-                while ($offset < $total) {
-                    $statement = $this->pdo->prepare('SELECT row_to_json(t) FROM (SELECT * FROM ' . $collection->getCollectionName() . ' LIMIT :limit OFFSET :offset) t;');
-                    $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
-                    $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
-                    $statement->execute();
-
-                    $documents = $statement->fetchAll(\PDO::FETCH_ASSOC);
-
-                    $offset += $batchSize;
-
-                    $transferDocuments = [];
-
-                    $attributes = $this->resourceCache->get(Attribute::class);
-                    $collectionAttributes = array_filter($attributes, function (Attribute $attribute) use ($collection) {
-                        return $attribute->getId() === $collection->getId();
-                    });
-
-                    foreach ($documents as $document) {
-                        $data = json_decode($document['row_to_json'], true);
-
-                        $processedData = [];
-                        foreach ($collectionAttributes as $attribute) {
-                            /** @var Attribute $attribute */
-                            if (!$attribute->getArray() && \is_array($data[$attribute->getKey()])) {
-                                $processedData[$attribute->getKey()] = json_encode($data[$attribute->getKey()]);
-                            } else {
-                                $processedData[$attribute->getKey()] = $data[$attribute->getKey()];
-                            }
-                        }
-
-                        $transferDocuments[] = new Document('unique()', $database, $collection, $processedData);
-                    }
-
-                    $callback($transferDocuments);
-                }
-            }
-        }
-    }
-
-    private function calculateUserTypes(array $user): array
+    function calculateUserTypes(array $user): array
     {
         if (empty($user['password_hash']) && empty($user['phone_number'])) {
             return [User::TYPE_ANONYMOUS];
@@ -420,66 +479,12 @@ class NHost extends Source
         return $types;
     }
 
-    public function check(array $resources = []): array
-    {
-        $report = [
-            'Users' => [],
-            'Databases' => [],
-            'Documents' => [],
-            'Files' => [],
-            'Functions' => []
-        ];
-
-        if (empty($resources)) {
-            $resources = $this->getSupportedResources();
-        }
-
-        try {
-            $this->pdo = new \PDO("pgsql:host=" . $this->host . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
-        } catch (\PDOException $e) {
-            $report['Databases'][] = 'Failed to connect to database. PDO Code: ' . $e->getCode() . ' Error: ' . $e->getMessage();
-        }
-
-        if (!empty($this->pdo->errorCode())) {
-            $report['Databases'][] = 'Failed to connect to database. PDO Code: ' . $this->pdo->errorCode() . (empty($this->pdo->errorInfo()[2]) ? '' : ' Error: ' . $this->pdo->errorInfo()[2]);
-        }
-
-        foreach ($resources as $resource) {
-            switch ($resource) {
-                case Transfer::GROUP_AUTH:
-                    $statement = $this->pdo->prepare('SELECT COUNT(*) FROM auth.users');
-                    $statement->execute();
-
-                    if ($statement->errorCode() !== '00000') {
-                        $report['Users'][] = 'Failed to access users table. Error: ' . $statement->errorInfo()[2];
-                    }
-
-                    break;
-                case Transfer::GROUP_DATABASES:
-                    $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
-                    $statement->execute();
-
-                    if ($statement->errorCode() !== '00000') {
-                        $report['Databases'][] = 'Failed to access tables table. Error: ' . $statement->errorInfo()[2];
-                    }
-
-                    break;
-                case Transfer::GROUP_DOCUMENTS:
-                    if (!in_array(Transfer::GROUP_DATABASES, $resources)) {
-                        $report['Documents'][] = 'Documents resource requires Databases resource to be enabled.';
-                    }
-            }
-        }
-
-        return $report;
-    }
-
-    public function exportFiles(int $batchSize, callable $callback): void
+    public function exportStorageGroup(int $batchSize, array $resources)
     {
         throw new \Exception('Not Implemented');
     }
 
-    public function exportFunctions(int $batchSize, callable $callback): void
+    public function exportFunctionsGroup(int $batchSize, array $resources)
     {
         throw new \Exception('Not Implemented');
     }

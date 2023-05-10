@@ -18,7 +18,7 @@ class EnvVar extends Resource
         $this->value = $value;
     }
 
-    public function getName(): string
+    static function getName(): string
     {
         return Resource::TYPE_ENVVAR;
     }

@@ -16,14 +16,14 @@ class Project extends Resource
         $this->id = $id;
     }
 
-    public function getName(): string
+    static function getName(): string
     {
         return Resource::TYPE_PROJECT;
     }
 
     public function getGroup(): string
     {
-        return Transfer::GROUP_GENERAL;
+        return Transfer::GROUP_SETTINGS;
     }
 
     public function getId(): string

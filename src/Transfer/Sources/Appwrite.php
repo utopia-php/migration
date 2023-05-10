@@ -10,6 +10,7 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
+use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
@@ -81,7 +82,7 @@ class Appwrite extends Source
      *
      * @return string
      */
-    public function getName(): string
+    static function getName(): string
     {
         return "Appwrite";
     }
@@ -96,7 +97,6 @@ class Appwrite extends Source
         return [
             Transfer::GROUP_AUTH,
             Transfer::GROUP_DATABASES,
-            Transfer::GROUP_DOCUMENTS,
             Transfer::GROUP_STORAGE,
             Transfer::GROUP_FUNCTIONS
         ];
@@ -105,11 +105,10 @@ class Appwrite extends Source
     public function check(array $resources = []): array
     {
         $report = [
-            "Users" => [],
-            "Databases" => [],
-            "Documents" => [],
-            "Files" => [],
-            "Functions" => [],
+            Transfer::GROUP_AUTH => [],
+            Transfer::GROUP_DATABASES => [],
+            Transfer::GROUP_STORAGE => [],
+            Transfer::GROUP_FUNCTIONS => []
         ];
 
         if (empty($resources)) {
@@ -127,29 +126,7 @@ class Appwrite extends Source
                         $databases->list();
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report["Databases"][] =
-                                "API Key is missing scope: databases.read";
-                        }
-                    }
-                    break;
-                case Transfer::GROUP_AUTH:
-                    $auth = new Users($this->client);
-                    try {
-                        $auth->list();
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report["Users"][] =
-                                "API Key is missing scope: users.read";
-                        }
-                    }
-                    break;
-                case Transfer::GROUP_DOCUMENTS:
-                    $databases = new Databases($this->client);
-                    try {
-                        $databases->list();
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report["Databases"][] =
+                            $report[Transfer::GROUP_DATABASES][] =
                                 "API Key is missing scope: databases.read";
                         }
                     }
@@ -158,7 +135,7 @@ class Appwrite extends Source
                         $databases->create("", "");
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report["Databases"][] =
+                            $report[Transfer::GROUP_DATABASES][] =
                                 "API Key is missing scope: databases.write";
                         }
                     }
@@ -167,7 +144,7 @@ class Appwrite extends Source
                         $databases->listCollections("", [], "");
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report["Databases"][] =
+                            $report[Transfer::GROUP_DATABASES][] =
                                 "API Key is missing scope: collections.write";
                         }
                     }
@@ -176,7 +153,7 @@ class Appwrite extends Source
                         $databases->createCollection("", "", "", []);
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report["Databases"][] =
+                            $report[Transfer::GROUP_DATABASES][] =
                                 "API Key is missing scope: collections.write";
                         }
                     }
@@ -185,7 +162,7 @@ class Appwrite extends Source
                         $databases->listDocuments("", "", []);
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report["Databases"][] =
+                            $report[Transfer::GROUP_DATABASES][] =
                                 "API Key is missing scope: documents.write";
                         }
                     }
@@ -203,7 +180,7 @@ class Appwrite extends Source
                         $databases->listIndexes("", "");
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report["Databases"][] =
+                            $report[Transfer::GROUP_DATABASES][] =
                                 "API Key is missing scope: indexes.read";
                         }
                     }
@@ -212,7 +189,7 @@ class Appwrite extends Source
                         $databases->createIndex("", "", "", "", [], []);
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report["Databases"][] =
+                            $report[Transfer::GROUP_DATABASES][] =
                                 "API Key is missing scope: indexes.write";
                         }
                     }
@@ -221,7 +198,7 @@ class Appwrite extends Source
                         $databases->listAttributes("", "");
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report["Databases"][] =
+                            $report[Transfer::GROUP_DATABASES][] =
                                 "API Key is missing scope: attributes.read";
                         }
                     }
@@ -237,10 +214,52 @@ class Appwrite extends Source
                         );
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report["Databases"][] =
+                            $report[Transfer::GROUP_DATABASES][] =
                                 "API Key is missing scope: attributes.write";
                         }
                     }
+                    break;
+                case Transfer::GROUP_AUTH:
+                    $auth = new Users($this->client);
+                    try {
+                        $auth->list();
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_AUTH][] =
+                                "API Key is missing scope: users.read";
+                        }
+                    }
+                    break;
+                case Transfer::GROUP_STORAGE:
+                    $storage = new Storage($this->client);
+                    try {
+                        $storage->listFiles('');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_STORAGE][] =
+                                "API Key is missing scope: files.read";
+                        }
+                    }
+                case Transfer::GROUP_FUNCTIONS:
+                    $functions = new Functions($this->client);
+                    try {
+                        $functions->list();
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_FUNCTIONS][] =
+                                "API Key is missing scope: functions.read";
+                        }
+                    }
+
+                    try {
+                        $functions->listExecutions('');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_FUNCTIONS][] =
+                                "API Key is missing scope: executions.read";
+                        }
+                    }
+                    break;
             }
         }
 
@@ -251,15 +270,27 @@ class Appwrite extends Source
      * Export Auth Resources
      *
      * @param int $batchSize Max 100
-     * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
      *
      * @return void
      */
-    public function exportAuth(int $batchSize, callable $callback): void
+    public function exportAuthGroup(int $batchSize, array $resources)
+    {
+        if (in_array(Resource::TYPE_USER, $resources)) {
+            $this->exportUsers($batchSize);
+        }
+
+        if (in_array(Resource::TYPE_TEAM, $resources)) {
+            $this->exportTeams($batchSize);
+        }
+
+        if (in_array(Resource::TYPE_TEAM_MEMBERSHIP, $resources)) {
+            $this->exportTeamMemberships($batchSize);
+        }
+    }
+
+    function exportUsers(int $batchSize)
     {
         $usersClient = new Users($this->client);
-        $teamsClient = new Teams($this->client);
-
         $lastDocument = null;
 
         // Export Users
@@ -296,13 +327,17 @@ class Appwrite extends Source
                 $lastDocument = $user['$id'];
             }
 
-            $callback($users);
+            $this->callback($users);
 
             if (count($users) < $batchSize) {
                 break;
             }
         }
+    }
 
+    function exportTeams(int $batchSize)
+    {
+        $teamsClient = new Teams($this->client);
         $lastDocument = null;
 
         // Export Teams
@@ -331,17 +366,22 @@ class Appwrite extends Source
                 $lastDocument = $team['$id'];
             }
 
-            $callback($teams);
+            $this->callback($teams);
 
             if (count($teams) < $batchSize) {
                 break;
             }
         }
+    }
+
+    function exportTeamMemberships(int $batchSize)
+    {
+        $teamsClient = new Teams($this->client);
 
         $lastDocument = null;
 
         // Export Memberships
-        $cacheTeams = $this->resourceCache->get(Team::class);
+        $cacheTeams = $this->resourceCache->get(Team::getName());
 
         foreach ($cacheTeams as $team) {
             while (true) {
@@ -370,7 +410,7 @@ class Appwrite extends Source
                     $lastDocument = $membership['$id'];
                 }
 
-                $callback($memberships);
+                $this->callback($memberships);
 
                 if (count($memberships) < $batchSize) {
                     break;
@@ -379,7 +419,84 @@ class Appwrite extends Source
         }
     }
 
-    public function convertAttribute(array $value, Collection $collection): Attribute
+    public function exportDatabasesGroup(int $batchSize, array $resources)
+    {
+        if (in_array(Resource::TYPE_DATABASE, $resources)) {
+            $this->exportDatabases($batchSize);
+        }
+
+        if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+            $this->exportCollections($batchSize);
+        }
+
+        if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+            $this->exportAttributes($batchSize);
+        }
+
+        if (in_array(Resource::TYPE_INDEX, $resources)) {
+            $this->exportIndexes($batchSize);
+        }
+
+        if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+            $this->exportDocuments($batchSize);
+        }
+    }
+
+
+    function exportDocuments(int $batchSize)
+    {
+        $databaseClient = new Databases($this->client);
+        $collections = $this->resourceCache->get(Collection::getName());
+
+        foreach ($collections as $collection) {
+            /** @var Collection $collection */
+            $lastDocument = null;
+
+            while (true) {
+                $queries = [Query::limit($batchSize)];
+
+                $documents = [];
+
+                if ($lastDocument) {
+                    $queries[] = Query::cursorAfter($lastDocument);
+                }
+
+                $response = $databaseClient->listDocuments(
+                    $collection->getDatabase()->getId(),
+                    $collection->getId(),
+                    $queries
+                );
+
+                foreach ($response["documents"] as $document) {
+                    $id = $document['$id'];
+                    $permissions = $document['$permissions'];
+                    unset($document['$id']);
+                    unset($document['$permissions']);
+                    unset($document['$collectionId']);
+                    unset($document['$updatedAt']);
+                    unset($document['$createdAt']);
+                    unset($document['$databaseId']);
+
+                    $documents[] = new Document(
+                        $id,
+                        $collection->getDatabase(),
+                        $collection,
+                        $document,
+                        $permissions
+                    );
+                    $lastDocument = $id;
+                }
+
+                $this->callback($documents);
+
+                if (count($response["documents"]) < $batchSize) {
+                    break;
+                }
+            }
+        }
+    }
+
+    function convertAttribute(array $value, Collection $collection): Attribute
     {
         switch ($value["type"]) {
             case "string":
@@ -492,15 +609,7 @@ class Appwrite extends Source
         throw new \Exception("Unknown attribute type: " . $value["type"]);
     }
 
-    /**
-     * Export Databases
-     *
-     * @param int $batchSize Max 100
-     * @param callable $callback Callback function to be called after each database, $callback(Resource $batch);
-     *
-     * @return void
-     */
-    public function exportDatabases(int $batchSize, callable $callback): void
+    function exportDatabases(int $batchSize)
     {
         $databaseClient = new Databases($this->client);
 
@@ -526,17 +635,22 @@ class Appwrite extends Source
                 $databases[] = $newDatabase;
             }
 
-            $callback($databases);
+            $this->callback($databases);
 
             if (count($databases) < $batchSize) {
                 break;
             }
         }
+    }
+
+    function exportCollections(int $batchSize)
+    {
+        $databaseClient = new Databases($this->client);
 
         // Transfer Collections
         $lastDocument = null;
 
-        $databases = $this->resourceCache->get(Database::class);
+        $databases = $this->resourceCache->get(Database::getName());
         foreach ($databases as $database) {
             while (true) {
                 $queries = [Query::limit($batchSize)];
@@ -563,17 +677,22 @@ class Appwrite extends Source
                     $collections[] = $newCollection;
                 }
 
-                $callback($collections);
+                $this->callback($collections);
 
                 if (count($collections) < $batchSize) {
                     break;
                 }
             }
         }
+    }
+
+    function exportAttributes(int $batchSize)
+    {
+        $databaseClient = new Databases($this->client);
 
         // Transfer Attributes
         $lastDocument = null;
-        $collections = $this->resourceCache->get(Collection::class);
+        $collections = $this->resourceCache->get(Collection::getName());
         /** @var Collection[] $collections */
 
         foreach ($collections as $collection) {
@@ -595,17 +714,25 @@ class Appwrite extends Source
                     $attributes[] = $this->convertAttribute($attribute, $collection);
                 }
 
-                $callback($attributes);
+                $this->callback($attributes);
 
                 if (count($attributes) < $batchSize) {
                     break;
                 }
             }
         }
+    }
+
+    function exportIndexes(int $batchSize)
+    {
+        $databaseClient = new Databases($this->client);
+
+        $collections = $this->resourceCache->get(Resource::TYPE_COLLECTION);
 
         // Transfer Indexes
         $lastDocument = null;
         foreach ($collections as $collection) {
+            /** @var Collection $collection */
             while (true) {
                 $queries = [Query::limit($batchSize)];
                 $indexes = [];
@@ -631,7 +758,7 @@ class Appwrite extends Source
                     );
                 }
 
-                $callback($indexes);
+                $this->callback($indexes);
 
                 if (count($indexes) < $batchSize) {
                     break;
@@ -640,75 +767,7 @@ class Appwrite extends Source
         }
     }
 
-    /**
-     * Export Documents
-     *
-     * @param int $batchSize Max 100
-     * @param callable $callback Callback function to be called after each batch, $callback(Document[] $batch);
-     *
-     * @return void
-     */
-    public function exportDocuments(int $batchSize, callable $callback): void
-    {
-        $databaseClient = new Databases($this->client);
-        $collections = $this->resourceCache->get(Collection::class);
-
-        foreach ($collections as $collection) {
-            /** @var Collection $collection */
-            $lastDocument = null;
-
-            while (true) {
-                $queries = [Query::limit($batchSize)];
-
-                $documents = [];
-
-                if ($lastDocument) {
-                    $queries[] = Query::cursorAfter($lastDocument);
-                }
-
-                $response = $databaseClient->listDocuments(
-                    $collection->getDatabase()->getId(),
-                    $collection->getId(),
-                    $queries
-                );
-
-                foreach ($response["documents"] as $document) {
-                    $id = $document['$id'];
-                    $permissions = $document['$permissions'];
-                    unset($document['$id']);
-                    unset($document['$permissions']);
-                    unset($document['$collectionId']);
-                    unset($document['$updatedAt']);
-                    unset($document['$createdAt']);
-                    unset($document['$databaseId']);
-
-                    $documents[] = new Document(
-                        $id,
-                        $collection->getDatabase(),
-                        $collection,
-                        $document,
-                        $permissions
-                    );
-                    $lastDocument = $id;
-                }
-
-                $callback($documents);
-
-                if (count($response["documents"]) < $batchSize) {
-                    break;
-                }
-            }
-        }
-    }
-
-    /**
-     * Calculate Types
-     *
-     * @param array $user
-     *
-     * @return array
-     */
-    protected function calculateTypes(array $user): array
+    function calculateTypes(array $user): array
     {
         if (empty($user["email"]) && empty($user["phone"])) {
             return [User::TYPE_ANONYMOUS];
@@ -727,14 +786,20 @@ class Appwrite extends Source
         return $types;
     }
 
-    /**
-     * Export Files
-     *
-     * @param int $batchSize Max 5
-     * @param callable $callback Callback function to be called after each batch, $callback(File[]|Bucket[] $batch);
-     */
-    public function exportFiles(int $batchSize, callable $callback): void
+    public function exportStorageGroup(int $batchSize, array $resources)
     {
+        if (in_array(Resource::TYPE_BUCKET, $resources)) {
+            $this->exportBuckets($batchSize);
+        }
+
+        if (in_array(Resource::TYPE_FILE, $resources)) {
+            $this->exportFiles($batchSize);
+        }
+    }
+
+    function exportBuckets(int $batchSize)
+    {
+        //TODO: Impl batching
         $storageClient = new Storage($this->client);
 
         $buckets = $storageClient->listBuckets();
@@ -760,9 +825,15 @@ class Appwrite extends Source
             return;
         }
 
-        $callback($convertedBuckets);
+        $this->callback($convertedBuckets);
+    }
 
-        foreach ($convertedBuckets as $bucket) {
+    function exportFiles(int $batchSize)
+    {
+        $storageClient = new Storage($this->client);
+
+        $buckets = $this->resourceCache->get(Bucket::getName());
+        foreach ($buckets as $bucket) {
             $lastDocument = null;
 
             while (true) {
@@ -778,7 +849,7 @@ class Appwrite extends Source
                 );
 
                 foreach ($response["files"] as $file) {
-                    $this->handleFileDataTransfer(new File(
+                    $this->handleDataTransfer(new File(
                         $file['$id'],
                         $bucket,
                         $file['name'],
@@ -786,7 +857,7 @@ class Appwrite extends Source
                         $file['mimeType'],
                         $file['$permissions'],
                         $file['sizeOriginal'],
-                    ), $callback);
+                    ));
 
                     $lastDocument = $file['$id'];
                 }
@@ -798,16 +869,7 @@ class Appwrite extends Source
         }
     }
 
-    /**
-     * Handle File Data Transfer
-     * Streams a file to the destination
-     *
-     * @param File $file
-     * @param callable $callback (array $data)
-     * 
-     * @return void
-     */
-    protected function handleFileDataTransfer(File $file, callable $callback): void
+    function handleDataTransfer(File $file)
     {
         // Set the chunk size (5MB)
         $start = 0;
@@ -829,7 +891,7 @@ class Appwrite extends Source
             );
 
             // Send the chunk to the callback function
-            $callback([new FileData(
+            $this->callback([new FileData(
                 $chunkData,
                 $start,
                 $end,
@@ -846,14 +908,16 @@ class Appwrite extends Source
         }
     }
 
-    /**
-     * Export Functions
-     *
-     * @param int $batchSize Max 5
-     * @param callable $callback Callback function to be called after each batch, $callback(Function[] $batch);
-     */
-    public function exportFunctions(int $batchSize, callable $callback): void
+    public function exportFunctionsGroup(int $batchSize, array $resources)
     {
+        if (in_array(Resource::TYPE_FUNCTION, $resources)) {
+            $this->exportFunctions($batchSize);
+        }
+    }
+
+    public function exportFunctions(int $batchSize)
+    {
+        //TODO: Implement batching
         $functionsClient = new Functions($this->client);
 
         $functions = $functionsClient->list();
@@ -887,6 +951,6 @@ class Appwrite extends Source
             }
         }
 
-        $callback($convertedResources);
+        $this->callback($convertedResources);
     }
 }

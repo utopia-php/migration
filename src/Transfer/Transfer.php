@@ -8,13 +8,19 @@ use Utopia\Transfer\Source;
 
 class Transfer
 {
-    public const GROUP_GENERAL = 'General'; // for things that don't belong to any group
+    public const GROUP_GENERAL = 'General';
     public const GROUP_AUTH = 'Auth';
     public const GROUP_STORAGE = 'Storage';
     public const GROUP_FUNCTIONS = 'Functions';
     public const GROUP_DATABASES = 'Databases';
-    public const GROUP_DOCUMENTS = 'Documents';
-    
+    public const GROUP_SETTINGS = 'Settings';
+
+    public const GROUP_AUTH_RESOURCES = [Resource::TYPE_USER, Resource::TYPE_TEAM, Resource::TYPE_TEAM_MEMBERSHIP, Resource::TYPE_HASH];
+    public const GROUP_STORAGE_RESOURCES = [Resource::TYPE_FILE, Resource::TYPE_BUCKET, Resource::TYPE_FILEDATA];
+    public const GROUP_FUNCTIONS_RESOURCES = [Resource::TYPE_FUNCTION, Resource::TYPE_ENVVAR];
+    public const GROUP_DATABASES_RESOURCES = [Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE, Resource::TYPE_DOCUMENT];
+    public const GROUP_SETTINGS_RESOURCES = [Resource::TYPE_PROJECT];
+
     public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 
     /**
@@ -81,7 +87,17 @@ class Transfer
      */
     public function run(array $resources, callable $callback): void
     {
-        $this->destination->run($resources, function (Progress $progress) use ($callback) {
+        // Allows you to push entire groups if you want.
+        $computedResources = [];
+        foreach ($resources as $resource) {
+            if (is_array($resource)) {
+                $computedResources = array_merge($computedResources, $resource);
+            } else {
+                $computedResources[] = $resource;
+            }
+        }
+
+        $this->destination->run($computedResources, function (Progress $progress) use ($callback) {
             //TODO: Rewrite to use ResourceCache to calculate this
             $this->currentResource = $progress->getResourceType();
 

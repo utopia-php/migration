@@ -4,99 +4,113 @@ namespace Utopia\Transfer;
 
 abstract class Source extends Target
 {
+    protected $transferCallback;
+
+    public function callback(array $resources): void
+    {
+        ($this->transferCallback)($resources);
+    }
+
     /**
-     * Transfer Groups into destination
+     * Transfer Resources into destination
      *
-     * @param array $groups
+     * @param array $resources
      * @param callable $callback
      */
-    public function run(array $groups, callable $callback): void
+    public function run(array $resources, callable $callback): void
     {
-        //TODO: Check we have no unsupported groups.
+        $this->transferCallback = function (array $resources) use ($callback) {
+            $this->resourceCache->addAll($resources);
+            $callback($resources);
+        };
 
-        if (in_array(Transfer::GROUP_AUTH, $groups)) {
-            $this->exportAuth(100, function (array $users) use ($callback) {
-                $this->resourceCache->addAll($users);
-                $callback(Transfer::GROUP_AUTH, $users);
-            });
+        $this->exportResources($resources, 100);
+    }
+
+    /**
+     * Export Resources
+     *
+     * @param string[] $resources
+     * @param int $batchSize
+     *
+     * @return void
+     */
+    public function exportResources(array $resources, int $batchSize)
+    {
+        // Convert Resources back into their relevant groups
+        $groups = [];
+        foreach ($resources as $resource) {
+            if (in_array($resource, Transfer::GROUP_AUTH_RESOURCES)) {
+                $groups[Transfer::GROUP_AUTH][] = $resource;
+            } elseif (in_array($resource, Transfer::GROUP_DATABASES_RESOURCES)) {
+                $groups[Transfer::GROUP_DATABASES][] = $resource;
+            } elseif (in_array($resource, Transfer::GROUP_STORAGE_RESOURCES)) {
+                $groups[Transfer::GROUP_STORAGE][] = $resource;
+            } elseif (in_array($resource, Transfer::GROUP_FUNCTIONS_RESOURCES)) {
+                $groups[Transfer::GROUP_FUNCTIONS][] = $resource;
+            }
         }
 
-        if (in_array(Transfer::GROUP_DATABASES, $groups)) {
-            $this->exportDatabases(100, function (array $databases) use ($callback) {
-                $this->resourceCache->addAll($databases);
-                $callback(Transfer::GROUP_DATABASES, $databases);
-            });
+        if (empty($groups)) {
+            return;
         }
 
-        if (in_array(Transfer::GROUP_DOCUMENTS, $groups)) {
-            $this->exportDocuments(100, function (array $documents) use ($callback) {
-                $this->resourceCache->addAll($documents);
-                $callback(Transfer::GROUP_DOCUMENTS, $documents);
-            });
-        }
-
-        if (in_array(Transfer::GROUP_STORAGE, $groups)) {
-            $this->exportFiles(100, function (array $files) use ($callback) {
-                $this->resourceCache->addAll($files);
-                $callback(Transfer::GROUP_STORAGE, $files);
-            });
-        }
-
-        if (in_array(Transfer::GROUP_FUNCTIONS, $groups)) {
-            $this->exportFunctions(100, function (array $functions) use ($callback) {
-                $this->resourceCache->addAll($functions);
-                $callback(Transfer::GROUP_FUNCTIONS, $functions);
-            });
+        // Send each group to the relevant export function
+        foreach ($groups as $group => $resources) {
+            switch ($group) {
+                case Transfer::GROUP_AUTH:
+                    $this->exportAuthGroup($batchSize, $resources);
+                    break;
+                case Transfer::GROUP_DATABASES:
+                    $this->exportDatabasesGroup($batchSize, $resources);
+                    break;
+                case Transfer::GROUP_STORAGE:
+                    $this->exportStorageGroup($batchSize, $resources);
+                    break;
+                case Transfer::GROUP_FUNCTIONS:
+                    $this->exportFunctionsGroup($batchSize, $resources);
+                    break;
+            }
         }
     }
 
     /**
-     * Export Users
+     * Export Auth Group
      *
      * @param int $batchSize
-     * @param callable $callback Callback function to be called after each batch, $callback(user[] $batch);
+     * @param array $resources Resources to export
      *
      * @return void
      */
-    abstract public function exportAuth(int $batchSize, callable $callback): void;
+    abstract public function exportAuthGroup(int $batchSize, array $resources);
 
     /**
-     * Export Databases
+     * Export Databases Group
      *
      * @param int $batchSize Max 100
-     * @param callable $callback Callback function to be called after each database, $callback(database[] $batch);
+     * @param array $resources Resources to export
      *
      * @return void
      */
-    abstract public function exportDatabases(int $batchSize, callable $callback): void;
+    abstract public function exportDatabasesGroup(int $batchSize, array $resources);
 
     /**
-     * Export Documents
-     *
-     * @param int $batchSize Max 100
-     * @param callable $callback Callback function to be called after each document, $callback(document[] $batch);
-     *
-     * @return void
-     */
-    abstract public function exportDocuments(int $batchSize, callable $callback): void;
-
-    /**
-     * Export Files
+     * Export Storage Group
      *
      * @param int $batchSize Max 5
-     * @param callable $callback Callback function to be called after each batch, $callback(File[]|Bucket[] $batch);
+     * @param array $resources Resources to export
      *
      * @return void
      */
-    abstract public function exportFiles(int $batchSize, callable $callback): void;
+    abstract public function exportStorageGroup(int $batchSize, array $resources);
 
     /**
-     * Export Functions
+     * Export Functions Group
      *
      * @param int $batchSize Max 100
-     * @param callable $callback Callback function to be called after each function, $callback(function[] $batch);
+     * @param array $resources Resources to export
      *
      * @return void
      */
-    abstract public function exportFunctions(int $batchSize, callable $callback): void;
+    abstract public function exportFunctionsGroup(int $batchSize, array $resources);
 }

@@ -9,10 +9,8 @@
          stopOnFailure="false"
         >
     <testsuites>
-        <testsuite name="Application Test Suite">
-            <directory>./tests/Transfer/Sources</directory>
-            <directory>./tests/Transfer/Destinations</directory>
-            <directory>./tests/Transfer/Transfers</directory>
+        <testsuite name="Unit Tests">
+            <directory>./tests/Unit</directory>
         </testsuite>
     </testsuites>
 </phpunit>

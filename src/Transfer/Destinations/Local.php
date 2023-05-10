@@ -35,7 +35,7 @@ class Local extends Destination
      *
      * @return string
      */
-    public function getName(): string
+    static function getName(): string
     {
         return 'Local';
     }
@@ -50,7 +50,6 @@ class Local extends Destination
         return [
             Transfer::GROUP_AUTH,
             Transfer::GROUP_DATABASES,
-            Transfer::GROUP_DOCUMENTS,
             Transfer::GROUP_STORAGE,
             Transfer::GROUP_FUNCTIONS
         ];
@@ -65,11 +64,10 @@ class Local extends Destination
     public function check(array $resources = []): array
     {
         $report = [
-            'Users' => [],
-            'Databases' => [],
-            'Documents' => [],
-            'Files' => [],
-            'Functions' => []
+            Transfer::GROUP_AUTH => [],
+            Transfer::GROUP_DATABASES => [],
+            Transfer::GROUP_STORAGE => [],
+            Transfer::GROUP_FUNCTIONS => []
         ];
 
         if (empty($resources)) {
@@ -78,7 +76,7 @@ class Local extends Destination
 
         // Check we can write to the file
         if (!\is_writable($this->path . '/backup.json')) {
-            $report['Databases'][] = 'Unable to write to file: ' . $this->path;
+            $report[Transfer::GROUP_DATABASES][] = 'Unable to write to file: ' . $this->path;
             throw new \Exception('Unable to write to file: ' . $this->path);
         }
 
@@ -87,10 +85,16 @@ class Local extends Destination
 
     public function syncFile(): void
     {
+        $jsonEncodedData = \json_encode($this->data, JSON_PRETTY_PRINT);
+
+        if ($jsonEncodedData === false) {
+            throw new \Exception('Unable to encode data to JSON');
+        }
+
         \file_put_contents($this->path . '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
     }
 
-    public function importResources(array $resources, callable $callback, string $group): void
+    public function importResources(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
             /** @var Resource $resource */
@@ -99,32 +103,35 @@ class Local extends Destination
                         /** @var FileData $resource */
 
                         // Handle folders
-                        if (str_contains($resource->getFile()->getFileName(), '/')) {
-                            $folders = explode('/', $resource->getFile()->getFileName());
-                            $folderPath = $this->path . '/files';
+                    if (str_contains($resource->getFile()->getFileName(), '/')) {
+                        $folders = explode('/', $resource->getFile()->getFileName());
+                        $folderPath = $this->path . '/files';
 
-                            foreach ($folders as $folder) {
-                                $folderPath .= '/' . $folder;
+                        foreach ($folders as $folder) {
+                            $folderPath .= '/' . $folder;
 
-                                if (!\file_exists($folderPath) && str_contains($folder, '.') === false) {
-                                    mkdir($folderPath, 0777, true);
-                                }
+                            if (!\file_exists($folderPath) && str_contains($folder, '.') === false) {
+                                mkdir($folderPath, 0777, true);
                             }
                         }
+                    }
 
                         file_put_contents($this->path . '/files/' . $resource->getFile()->getFileName(), $resource->getData(), FILE_APPEND);
-                        break;
-                    }
+                    break;
+                }
                 case "File": {
                         /** @var File $resource */
-                        if (\file_exists($this->path . '/files/' . $resource->getFileName())) {
-                            \unlink($this->path . '/files/' . $resource->getFileName());
-                        }
-                        break;
+                    if (\file_exists($this->path . '/files/' . $resource->getFileName())) {
+                        \unlink($this->path . '/files/' . $resource->getFileName());
                     }
+                    break;
+                }
             }
 
-            $this->data[$group][$resource->getName()][] = $resource->asArray();
+            if ($resource->getName() !== Resource::TYPE_FILEDATA) {
+                $this->data[$resource->getGroup()][$resource->getName()][] = $resource->asArray();
+            }
+
             $resource->setStatus(Resource::STATUS_SUCCESS);
             $this->resourceCache->update($resource);
             $this->syncFile();

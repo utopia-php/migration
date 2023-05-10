@@ -37,7 +37,7 @@ abstract class Attribute extends Resource
         $this->collection = $collection;
     }
 
-    public function getName(): string
+    static function getName(): string
     {
         return Resource::TYPE_ATTRIBUTE;
     }

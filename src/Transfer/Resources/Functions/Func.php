@@ -28,7 +28,7 @@ class Func extends Resource
         $this->timeout = $timeout;
     }
 
-    public function getName(): string
+    static function getName(): string
     {
         return Resource::TYPE_FUNCTION;
     }

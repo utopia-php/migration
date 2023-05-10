@@ -10,6 +10,13 @@ abstract class Resource
     const STATUS_SKIPPED = 'SKIP';
     const STATUS_PROCESSING = 'PROCESSING';
     const STATUS_WARNING = 'WARNING';
+    /**
+     * For some transfers (namely Firebase) we have to keep resources in cache that do not necessarily need to be Transferred
+     * This status is used to mark resources that are not going to be transferred but are still needed for the transfer to work
+     * e.g Documents are required for Database transfers because of schema tracing in firebase
+     */
+    const STATUS_DISREGARDED = 'DISREGARDED';
+
 
     const TYPE_ATTRIBUTE = 'Attribute';
     const TYPE_BUCKET = 'Bucket';
@@ -52,7 +59,7 @@ abstract class Resource
      *
      * @return string
      */
-    abstract public function getName(): string;
+    abstract static function getName(): string;
 
     /**
      * Get Parent Group

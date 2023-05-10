@@ -3,6 +3,7 @@
 namespace Utopia\Transfer\Destinations;
 
 use Appwrite\Client;
+use Appwrite\InputFile;
 use Appwrite\Services\Users;
 use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
@@ -58,7 +59,7 @@ class Appwrite extends Destination
      *
      * @return string
      */
-    public function getName(): string
+    static function getName(): string
     {
         return 'Appwrite';
     }
@@ -73,20 +74,20 @@ class Appwrite extends Destination
         return [
             Transfer::GROUP_AUTH,
             Transfer::GROUP_DATABASES,
-            Transfer::GROUP_DOCUMENTS,
             Transfer::GROUP_STORAGE,
-            Transfer::GROUP_FUNCTIONS
+            Transfer::GROUP_FUNCTIONS,
+            Transfer::GROUP_SETTINGS
         ];
     }
 
     public function check(array $resources = []): array
     {
         $report = [
-            'Users' => [],
-            'Databases' => [],
-            'Documents' => [],
-            'Files' => [],
-            'Functions' => []
+            Transfer::GROUP_AUTH => [],
+            Transfer::GROUP_DATABASES => [],
+            Transfer::GROUP_STORAGE => [],
+            Transfer::GROUP_FUNCTIONS => [],
+            Transfer::GROUP_SETTINGS => [],
         ];
 
         if (empty($resources)) {
@@ -103,7 +104,79 @@ class Appwrite extends Destination
                         $databases->list();
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: databases.read';
+                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: databases.read';
+                        }
+                    }
+
+                    try {
+                        $databases->create('', '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: databases.write';
+                        }
+                    }
+
+                    try {
+                        $databases->listCollections('', [], '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: collections.write';
+                        }
+                    }
+
+                    try {
+                        $databases->createCollection('', '', '', []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: collections.write';
+                        }
+                    }
+
+                    try {
+                        $databases->listDocuments('', '', []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: documents.write';
+                        }
+                    }
+
+                    try {
+                        $databases->createDocument('', '', '', [], []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: documents.write';
+                        }
+                    }
+
+                    try {
+                        $databases->listIndexes('', '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: indexes.read';
+                        }
+                    }
+
+                    try {
+                        $databases->createIndex('', '', '', '', [], []);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: indexes.write';
+                        }
+                    }
+
+                    try {
+                        $databases->listAttributes('', '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: attributes.read';
+                        }
+                    }
+
+                    try {
+                        $databases->createStringAttribute('', '', '', 0, false, false);
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: attributes.write';
                         }
                     }
                     break;
@@ -113,107 +186,49 @@ class Appwrite extends Destination
                         $auth->list();
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Users'][] = 'API Key is missing scope: users.read';
+                            $report[Transfer::GROUP_AUTH][] = 'API Key is missing scope: users.read';
+                        }
+                    }
+
+                    try {
+                        $auth->create('', '', '', '');
+                    } catch (\Throwable $e) {
+                        if ($e->getCode() == 401) {
+                            $report[Transfer::GROUP_AUTH][] = 'API Key is missing scope: users.write';
                         }
                     }
                     break;
-                case Transfer::GROUP_DOCUMENTS:
-                    $databases = new Databases($this->client);
+                case Transfer::GROUP_STORAGE:
+                    $storage = new Storage($this->client);
                     try {
-                        $databases->list();
+                        $storage->listFiles('');
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: databases.read';
+                            $report[Transfer::GROUP_STORAGE][] = 'API Key is missing scope: files.read';
                         }
                     }
 
                     try {
-                        $databases->create('', '');
+                        $storage->createFile('', '', new InputFile());
                     } catch (\Throwable $e) {
                         if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: databases.write';
+                            $report[Transfer::GROUP_STORAGE][] = 'API Key is missing scope: files.write';
                         }
                     }
-
-                    try {
-                        $databases->listCollections('', [], '');
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: collections.write';
-                        }
-                    }
-
-                    try {
-                        $databases->createCollection('', '', '', []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: collections.write';
-                        }
-                    }
-
-                    try {
-                        $databases->listDocuments('', '', []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: documents.write';
-                        }
-                    }
-
-                    try {
-                        $databases->createDocument('', '', '', [], []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report['Documents'][] = 'API Key is missing scope: documents.write';
-                        }
-                    }
-
-                    try {
-                        $databases->listIndexes('', '');
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: indexes.read';
-                        }
-                    }
-
-                    try {
-                        $databases->createIndex('', '', '', '', [], []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: indexes.write';
-                        }
-                    }
-
-                    try {
-                        $databases->listAttributes('', '');
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: attributes.read';
-                        }
-                    }
-
-                    try {
-                        $databases->createStringAttribute('', '', '', 0, false, false);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report['Databases'][] = 'API Key is missing scope: attributes.write';
-                        }
-                    }
+                    break;
             }
         }
 
         return $report;
     }
 
-    function importResources(array $resources, callable $callback, string $group): void
+    function importResources(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
             /** @var Resource $resource */
             switch ($resource->getGroup()) {
                 case Transfer::GROUP_DATABASES:
                     $responseResource = $this->importDatabaseResource($resource);
-                    break;
-                case Transfer::GROUP_DOCUMENTS:
-                    $responseResource = $this->importDocumentResource($resource);
                     break;
                 case Transfer::GROUP_STORAGE:
                     $responseResource = $this->importFileResource($resource);
@@ -271,7 +286,7 @@ class Appwrite extends Destination
                     break;
                 case Resource::TYPE_DOCUMENT:
                     /** @var Document $resource */
-                    $response = $databaseService->createDocument(
+                    $databaseService->createDocument(
                         $resource->getDatabase()->getId(),
                         $resource->getCollection()->getId(),
                         $resource->getId(),
@@ -367,32 +382,6 @@ class Appwrite extends Destination
         }
 
         throw new \Exception('Attribute creation timeout');
-    }
-
-    public function importDocumentResource(Resource $resource): Resource
-    {
-        $databaseService = new Databases($this->client);
-
-        try {
-            switch ($resource->getName()) {
-                case Resource::TYPE_DOCUMENT:
-                    /** @var Document $resource */
-                    $databaseService->createDocument(
-                        $resource->getDatabase()->getId(),
-                        $resource->getCollection()->getId(),
-                        $resource->getId(),
-                        $resource->getData(),
-                        $resource->getPermissions()
-                    );
-                    break;
-            }
-
-            $resource->setStatus(Resource::STATUS_SUCCESS);
-        } catch (\Exception $e) {
-            $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
-        } finally {
-            return $resource;
-        }
     }
 
     public function importFileResource(Resource $resource): Resource

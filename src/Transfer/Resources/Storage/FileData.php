@@ -20,7 +20,7 @@ class FileData extends Resource
         $this->file = $file;
     }
 
-    public function getName(): string
+    static function getName(): string
     {
         return Resource::TYPE_FILEDATA;
     }

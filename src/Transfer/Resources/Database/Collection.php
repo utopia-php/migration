@@ -49,7 +49,7 @@ class Collection extends Resource
         $this->permissions = $permissions;
     }
 
-    public function getName(): string
+    static function getName(): string
     {
         return Resource::TYPE_COLLECTION;
     }

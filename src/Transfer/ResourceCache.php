@@ -20,10 +20,10 @@ class ResourceCache
     {
         $resourceUUID = uniqid();
         $resource->setInternalId($resourceUUID); // Assign each resource a unique ID
-        $this->resourceCache[get_class($resource)][$resourceUUID] = $resource;
+        $this->resourceCache[$resource->getName()][$resourceUUID] = $resource;
     }
 
-    public function addAll($resources)
+    public function addAll(array $resources)
     {
         foreach ($resources as $resource) {
             $this->add($resource);
@@ -32,11 +32,11 @@ class ResourceCache
 
     public function update($resource)
     {
-        if (!in_array($resource, $this->resourceCache[get_class($resource)])) {
+        if (!in_array($resource, $this->resourceCache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
         }
 
-        $this->resourceCache[get_class($resource)][$resource->getInternalId()] = $resource;
+        $this->resourceCache[$resource->getName()][$resource->getInternalId()] = $resource;
     }
 
     public function updateAll($resources)
@@ -48,18 +48,18 @@ class ResourceCache
 
     public function remove($resource)
     {
-        if (!in_array($resource, $this->resourceCache[get_class($resource)])) {
+        if (!in_array($resource, $this->resourceCache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
         }
 
-        unset($this->resourceCache[get_class($resource)][$resource->getInternalId()]);
+        unset($this->resourceCache[$resource->getName()][$resource->getInternalId()]);
     }
 
     /**
      * Get Resources
      *
      * @param string|Resource $resourceType
-     * 
+     *
      * @return Resource[]
      */
     public function get($resource)
@@ -67,7 +67,7 @@ class ResourceCache
         if (is_string($resource)) {
             return $this->resourceCache[$resource] ?? [];
         } else {
-            return $this->resourceCache[get_class($resource)] ?? [];
+            return $this->resourceCache[$resource->getName()] ?? [];
         }
     }
 
@@ -76,7 +76,25 @@ class ResourceCache
         return $this->resourceCache;
     }
 
-    public function clear()
+    public function getStatusCounters()
+    {
+        $status = [
+            Resource::STATUS_DISREGARDED => 0,
+            Resource::STATUS_SUCCESS => 0,
+            Resource::STATUS_ERROR => 0,
+            Resource::STATUS_SKIPPED => 0,
+        ];
+
+        foreach ($this->resourceCache as $resources) {
+            foreach ($resources as $resource) {
+                $status[$resource->getStatus()]++;
+            }
+        }
+
+        return $status;
+    }
+
+    public function wipe()
     {
         $this->resourceCache = [];
     }

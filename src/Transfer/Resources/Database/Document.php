@@ -22,14 +22,14 @@ class Document extends Resource
         $this->permissions = $permissions;
     }
 
-    public function getName(): string
+    static function getName(): string
     {
         return Resource::TYPE_DOCUMENT;
     }
 
     public function getGroup(): string
     {
-        return Transfer::GROUP_DOCUMENTS;
+        return Transfer::GROUP_DATABASES;
     }
 
     public function getId(): string

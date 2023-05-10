@@ -34,7 +34,7 @@ abstract class Target
      *
      * @return string
      */
-    abstract public function getName(): string;
+    abstract static function getName(): string;
 
     /**
      * Get Supported Resources
@@ -50,7 +50,6 @@ abstract class Target
      *
      * @return void
      */
-    //TODO: Pretty sure there is a better way to do this instead of passing by reference
     public function registerTransferCache(ResourceCache &$cache): void
     {
         $this->resourceCache = &$cache;

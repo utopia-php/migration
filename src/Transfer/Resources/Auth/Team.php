@@ -21,7 +21,7 @@ class Team extends Resource
         $this->members = $members;
     }
 
-    function getName(): string
+    static function getName(): string
     {
         return Resource::TYPE_TEAM;
     }
