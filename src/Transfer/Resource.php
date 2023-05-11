@@ -26,13 +26,31 @@ abstract class Resource
     const TYPE_FILE = 'File';
     const TYPE_FILEDATA = 'FileData';
     const TYPE_FUNCTION = 'Function';
+    const TYPE_DEPLOYMENT = 'Deployment';
     const TYPE_HASH = 'Hash';
     const TYPE_INDEX = 'Index';
-    const TYPE_PROJECT = 'Project';
     const TYPE_USER = 'User';
     const TYPE_ENVVAR = 'EnvVar';
     const TYPE_TEAM = 'Team';
     const TYPE_TEAM_MEMBERSHIP = 'TeamMembership';
+
+    const ALL_RESOURCES = [
+        self::TYPE_ATTRIBUTE,
+        self::TYPE_BUCKET,
+        self::TYPE_COLLECTION,
+        self::TYPE_DATABASE,
+        self::TYPE_DOCUMENT,
+        self::TYPE_FILE,
+        self::TYPE_FILEDATA,
+        self::TYPE_FUNCTION,
+        self::TYPE_DEPLOYMENT,
+        self::TYPE_HASH,
+        self::TYPE_INDEX,
+        self::TYPE_USER,
+        self::TYPE_ENVVAR,
+        self::TYPE_TEAM,
+        self::TYPE_TEAM_MEMBERSHIP
+    ];
 
     /**
      * ID of the resource

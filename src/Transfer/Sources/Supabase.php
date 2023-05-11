@@ -20,6 +20,7 @@ class Supabase extends NHost
     }
 
     protected string $key;
+    protected string $host;
 
     /**
      * Constructor
@@ -51,6 +52,110 @@ class Supabase extends NHost
         } catch (\PDOException $e) {
             throw new \Exception('Failed to connect to database: ' . $e->getMessage());
         }
+    }
+
+    public function report(array $resources = []): array
+    {
+        $report = [];
+
+        if (empty($resources)) {
+            $resources = $this->getSupportedResources();
+        }
+
+        try {
+            $this->pdo = new \PDO("pgsql:host=" . $this->host . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
+        } catch (\PDOException $e) {
+            throw new \Exception('Failed to connect to database. PDO Code: ' . $e->getCode() . ' Error: ' . $e->getMessage());
+        }
+
+        if (!empty($this->pdo->errorCode())) {
+            throw new \Exception('Failed to connect to database. PDO Code: ' . $this->pdo->errorCode() . (empty($this->pdo->errorInfo()[2]) ? '' : ' Error: ' . $this->pdo->errorInfo()[2]));
+        }
+
+        // Auth
+        if (in_array(Resource::TYPE_USER, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM auth.users');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access users table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_USER] = $statement->fetchColumn();
+        }
+
+        // Databases
+        if (in_array(Resource::TYPE_DATABASE, $resources))
+            $report[Resource::TYPE_DATABASE] = 1;
+
+        if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_COLLECTION] = $statement->fetchColumn();
+        }
+
+        if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = \'public\'');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access columns table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_ATTRIBUTE] = $statement->fetchColumn();
+        }
+
+        if (in_array(Resource::TYPE_INDEX, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM pg_indexes WHERE schemaname = \'public\'');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access indexes table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
+        }
+
+        if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_DOCUMENT] = $statement->fetchColumn();
+        }
+
+        // Storage
+        if (in_array(Resource::TYPE_BUCKET, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.buckets');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access buckets table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_BUCKET] = $statement->fetchColumn();
+        }
+
+        if (in_array(Resource::TYPE_FILE, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.objects');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access files table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_FILE] = $statement->fetchColumn();
+        }
+
+        return $report;
     }
 
     public function exportAuthGroup(int $batchSize, array $resources)
@@ -170,7 +275,6 @@ class Supabase extends NHost
          * Need to figure out a solution to this.
         */
 
-        // Transfer Files
         $buckets = $this->resourceCache->get(Bucket::getName());
 
         foreach ($buckets as $bucket) {
@@ -211,11 +315,9 @@ class Supabase extends NHost
 
     function handleDataTransfer(File $file)
     {
-        // Set the chunk size (5MB)
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 
-        // Get the file size
         $fileSize = $file->getSize();
 
         if ($end > $fileSize) {

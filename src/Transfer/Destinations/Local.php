@@ -5,6 +5,7 @@ namespace Utopia\Transfer\Destinations;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resources\Storage\File;
 use Utopia\Transfer\Resources\Storage\FileData;
+use Utopia\Transfer\Resources\Functions\Deployment;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Transfer;
 
@@ -27,6 +28,7 @@ class Local extends Destination
         if (!\file_exists($this->path)) {
             mkdir($this->path, 0777, true);
             mkdir($this->path . '/files', 0777, true);
+            mkdir($this->path . '/deployments', 0777, true);
         }
     }
 
@@ -48,27 +50,27 @@ class Local extends Destination
     public function getSupportedResources(): array
     {
         return [
-            Transfer::GROUP_AUTH,
-            Transfer::GROUP_DATABASES,
-            Transfer::GROUP_STORAGE,
-            Transfer::GROUP_FUNCTIONS
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_BUCKET,
+            Resource::TYPE_COLLECTION,
+            Resource::TYPE_DATABASE,
+            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_FILE,
+            Resource::TYPE_FILEDATA,
+            Resource::TYPE_FUNCTION,
+            Resource::TYPE_DEPLOYMENT,
+            Resource::TYPE_HASH,
+            Resource::TYPE_INDEX,
+            Resource::TYPE_USER,
+            Resource::TYPE_ENVVAR,
+            Resource::TYPE_TEAM,
+            Resource::TYPE_TEAM_MEMBERSHIP,
         ];
     }
 
-    /**
-     * Check if destination is valid
-     *
-     * @param array $resources
-     * @return array
-     */
-    public function check(array $resources = []): array
+    public function report(array $resources = []): array
     {
-        $report = [
-            Transfer::GROUP_AUTH => [],
-            Transfer::GROUP_DATABASES => [],
-            Transfer::GROUP_STORAGE => [],
-            Transfer::GROUP_FUNCTIONS => []
-        ];
+        $report = [];
 
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
@@ -88,7 +90,7 @@ class Local extends Destination
         $jsonEncodedData = \json_encode($this->data, JSON_PRETTY_PRINT);
 
         if ($jsonEncodedData === false) {
-            throw new \Exception('Unable to encode data to JSON');
+            throw new \Exception('Unable to encode data to JSON, Are you accidentally encoding binary data?');
         }
 
         \file_put_contents($this->path . '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
@@ -99,37 +101,46 @@ class Local extends Destination
         foreach ($resources as $resource) {
             /** @var Resource $resource */
             switch ($resource->getName()) {
+                case "Deployment": {
+                        /** @var Deployment $resource */
+                        if ($resource->getStart() === 0) {
+                            $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
+                        }
+
+                        file_put_contents($this->path . 'deployments/'.$resource->getId().'.tar.gz', $resource->getData(), FILE_APPEND);
+                    }
+                    break;
                 case "FileData": {
                         /** @var FileData $resource */
 
                         // Handle folders
-                    if (str_contains($resource->getFile()->getFileName(), '/')) {
-                        $folders = explode('/', $resource->getFile()->getFileName());
-                        $folderPath = $this->path . '/files';
+                        if (str_contains($resource->getFile()->getFileName(), '/')) {
+                            $folders = explode('/', $resource->getFile()->getFileName());
+                            $folderPath = $this->path . '/files';
 
-                        foreach ($folders as $folder) {
-                            $folderPath .= '/' . $folder;
+                            foreach ($folders as $folder) {
+                                $folderPath .= '/' . $folder;
 
-                            if (!\file_exists($folderPath) && str_contains($folder, '.') === false) {
-                                mkdir($folderPath, 0777, true);
+                                if (!\file_exists($folderPath) && str_contains($folder, '.') === false) {
+                                    mkdir($folderPath, 0777, true);
+                                }
                             }
                         }
-                    }
 
                         file_put_contents($this->path . '/files/' . $resource->getFile()->getFileName(), $resource->getData(), FILE_APPEND);
-                    break;
-                }
+                        break;
+                    }
                 case "File": {
                         /** @var File $resource */
-                    if (\file_exists($this->path . '/files/' . $resource->getFileName())) {
-                        \unlink($this->path . '/files/' . $resource->getFileName());
+                        if (\file_exists($this->path . '/files/' . $resource->getFileName())) {
+                            \unlink($this->path . '/files/' . $resource->getFileName());
+                        }
+                        break;
                     }
-                    break;
-                }
             }
 
-            if ($resource->getName() !== Resource::TYPE_FILEDATA) {
-                $this->data[$resource->getGroup()][$resource->getName()][] = $resource->asArray();
+            if ($resource->getName() !== Resource::TYPE_FILEDATA && $resource->getName() !== Resource::TYPE_DEPLOYMENT) {
+                $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
             }
 
             $resource->setStatus(Resource::STATUS_SUCCESS);

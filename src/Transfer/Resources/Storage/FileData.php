@@ -53,7 +53,6 @@ class FileData extends Resource
     public function asArray(): array
     {
         return [
-            'data' => $this->data,
             'start' => $this->start,
             'end' => $this->end,
             'file' => $this->file->asArray(),

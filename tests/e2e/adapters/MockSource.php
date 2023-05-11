@@ -25,7 +25,7 @@ class MockSource extends Destination {
         
     }
 
-    function check(array $resources = []): array
+    function report(array $groups = []): array
     {
         return [];
     }

@@ -50,7 +50,7 @@ Sources:
 |          | Auth | Databases | Storage | Functions | Settings |
 |----------|-------|-----------|-------|-----------|-----------|
 | Appwrite |   ✅   |     ✅     |     ✅     |   ✅   |          |
-| Supabase |   ✅   |     ✅     |     ✅     |   ✅    |           |
+| Supabase |   ✅   |     ✅     |     ✅     |       |           |
 | NHost    |   ✅   |     ✅     |     ✅     |       |           |
 | Firebase |   ✅   |     ✅     |           |       |           |
 
@@ -61,7 +61,7 @@ Destinations:
 | Local    |   ✅   |     ✅     |   ✅   |     ✅     |     ✅     |
 
 > **Warning**
-> The Local destination should be used for testing purposes only. It is not recommended to use this destination in production or as a backup. The local destination is there to confirm that a source is working correctly and to test the transfer process with needing a target destination instance.
+> The Local destination should be used for testing purposes only. It is not recommended to use this destination in production or as a backup. The local destination is there to confirm that a source is working correctly and to test the transfer process with needing a target destination instance. This may change in the future however as the library matures.
 
 
 

@@ -19,9 +19,19 @@ abstract class Source extends Target
      */
     public function run(array $resources, callable $callback): void
     {
-        $this->transferCallback = function (array $resources) use ($callback) {
-            $this->resourceCache->addAll($resources);
-            $callback($resources);
+        $this->transferCallback = function (array $returnedResources) use ($callback, $resources) {
+            $prunedResurces = [];
+            foreach ($returnedResources as $resource) {
+                /** @var Resource $resource */
+                if (!in_array($resource->getName(), $resources)) {
+                    $resource->setStatus(Resource::STATUS_SKIPPED);
+                } else {
+                    $prunedResurces[] = $resource;
+                }
+            }
+
+            $this->resourceCache->addAll($returnedResources);
+            $callback($prunedResurces);
         };
 
         $this->exportResources($resources, 100);

@@ -20,7 +20,7 @@ abstract class Target
      *
      * @var ResourceCache $resourceCache
      */
-    protected $resourceCache;
+    public $resourceCache;
 
     /**
      * Endpoint
@@ -64,19 +64,17 @@ abstract class Target
     abstract public function run(array $resources, callable $callback): void;
 
     /**
-     * Check Requirements
-     * Performs a suite of API Checks, Resource Checks, etc... to ensure the adapter is ready to be used.
-     * This is highly recommended to be called before any other method after initialization.
-     *
-     * If no resources are provided, the method should check all resources.
-     * Returns a object with all the keys of the resources provided and a true|string value if the resource is available or not.
-     * If the resource is not available, the value should be a string with the error message.
-     *
-     * @string[] $resources
-     *
-     * @return string[]
+     * Report Resources
+     * 
+     * This function performs a count of all resources that are available for transfer.
+     * It also serves a secondary purpose of checking if the API is available for the given adapter.
+     * 
+     * On Destinations, this function should just return nothing but still check if the API is available.
+     * If any issues are found then an exception should be thrown with an error message.
+     * 
+     * @param array $resources
      */
-    abstract public function check(array $resources = []): array;
+    abstract public function report(array $resources = []): array;
 
     /**
      * Call

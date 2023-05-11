@@ -17,6 +17,9 @@ use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Document;
 use Utopia\Transfer\Resources\Database\Index;
+use Utopia\Transfer\Resources\Storage\Bucket;
+use Utopia\Transfer\Resources\Storage\File;
+use Utopia\Transfer\Resources\Storage\FileData;
 
 class NHost extends Source
 {
@@ -25,52 +28,26 @@ class NHost extends Source
      */
     public $pdo;
 
-    /**
-     * @var string
-     */
-    public string $host;
-
-    /**
-     * @var string
-     */
+    public string $subdomain;
+    public string $region;
     public string $databaseName;
-
-    /**
-     * @var string
-     */
     public string $username;
-
-    /**
-     * @var string
-     */
     public string $password;
-
-    /**
-     * @var string
-     */
     public string $port;
+    public string $adminSecret;
 
-    /**
-     * Constructor
-     *
-     * @param string $host
-     * @param string $databaseName
-     * @param string $username
-     * @param string $password
-     * @param string $port
-     *
-     * @return self
-     */
-    public function __construct(string $host, string $databaseName, string $username, string $password, string $port = '5432')
+    public function __construct(string $subdomain, string $region, string $adminSecret, string $databaseName, string $username, string $password, string $port = '5432')
     {
-        $this->host = $host;
+        $this->subdomain = $subdomain;
+        $this->region = $region;
+        $this->adminSecret = $adminSecret;
         $this->databaseName = $databaseName;
         $this->username = $username;
         $this->password = $password;
         $this->port = $port;
 
         try {
-            $this->pdo = new \PDO("pgsql:host=" . $this->host . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
+            $this->pdo = new \PDO("pgsql:host=" . $this->subdomain . '.db.' . $this->region . '.nhost.run' . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
         } catch (\PDOException $e) {
             throw new \Exception('Failed to connect to database: ' . $e->getMessage());
         }
@@ -81,61 +58,130 @@ class NHost extends Source
         return 'NHost';
     }
 
+    /**
+     * Get Supported Resources
+     *
+     * @return array
+     */
     public function getSupportedResources(): array
     {
         return [
-            Transfer::GROUP_AUTH,
-            Transfer::GROUP_DATABASES
+            // Auth
+            Resource::TYPE_USER,
+
+            // Database
+            Resource::TYPE_DATABASE,
+            Resource::TYPE_COLLECTION,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_INDEX,
+            Resource::TYPE_DOCUMENT,
+
+            // Storage
+            Resource::TYPE_BUCKET,
+            Resource::TYPE_FILE,
+            Resource::TYPE_FILEDATA,
         ];
     }
 
-    public function check(array $resources = []): array
+    public function report(array $resources = []): array
     {
-        $report = [
-            Transfer::GROUP_AUTH => [],
-            Transfer::GROUP_DATABASES => [],
-            Transfer::GROUP_STORAGE => [],
-            Transfer::GROUP_FUNCTIONS => []
-        ];
+        $report = [];
 
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
         }
 
         try {
-            $this->pdo = new \PDO("pgsql:host=" . $this->host . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
+            $this->pdo = new \PDO("pgsql:host=" . $this->subdomain . '.db.' . $this->region . '.nhost.run' . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
         } catch (\PDOException $e) {
-            $report[Transfer::GROUP_DATABASES][] = 'Failed to connect to database. PDO Code: ' . $e->getCode() . ' Error: ' . $e->getMessage();
+            throw new \Exception('Failed to connect to database. PDO Code: ' . $e->getCode() . ' Error: ' . $e->getMessage());
         }
 
         if (!empty($this->pdo->errorCode())) {
-            $report[Transfer::GROUP_DATABASES][] = 'Failed to connect to database. PDO Code: ' . $this->pdo->errorCode() . (empty($this->pdo->errorInfo()[2]) ? '' : ' Error: ' . $this->pdo->errorInfo()[2]);
+            throw new \Exception('Failed to connect to database. PDO Code: ' . $this->pdo->errorCode() . (empty($this->pdo->errorInfo()[2]) ? '' : ' Error: ' . $this->pdo->errorInfo()[2]));
         }
 
-        foreach ($resources as $resource) {
-            switch ($resource) {
-                case Transfer::GROUP_AUTH:
-                    $statement = $this->pdo->prepare('SELECT COUNT(*) FROM auth.users');
-                    $statement->execute();
+        // Auth
+        if (in_array(Resource::TYPE_USER, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM auth.users');
+            $statement->execute();
 
-                    if ($statement->errorCode() !== '00000') {
-                        $report['Users'][] = 'Failed to access users table. Error: ' . $statement->errorInfo()[2];
-                    }
-
-                    break;
-                case Transfer::GROUP_DATABASES:
-                    $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
-                    $statement->execute();
-
-                    if ($statement->errorCode() !== '00000') {
-                        $report[Transfer::GROUP_DATABASES][] = 'Failed to access tables table. Error: ' . $statement->errorInfo()[2];
-                    }
-
-                    break;
-                case Transfer::GROUP_STORAGE:
-                    //TODO: Attempt to access API
-                    break;
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access users table. Error: ' . $statement->errorInfo()[2]);
             }
+
+            $report[Resource::TYPE_USER] = $statement->fetchColumn();
+        }
+
+        // Databases
+        if (in_array(Resource::TYPE_DATABASE, $resources))
+            $report[Resource::TYPE_DATABASE] = 1;
+
+        if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_COLLECTION] = $statement->fetchColumn();
+        }
+
+        if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = \'public\'');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access columns table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_ATTRIBUTE] = $statement->fetchColumn();
+        }
+
+        if (in_array(Resource::TYPE_INDEX, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM pg_indexes WHERE schemaname = \'public\'');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access indexes table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
+        }
+
+        if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_DOCUMENT] = $statement->fetchColumn();
+        }
+
+        // Storage
+        if (in_array(Resource::TYPE_BUCKET, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.buckets');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access buckets table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_BUCKET] = $statement->fetchColumn();
+        }
+
+        if (in_array(Resource::TYPE_FILE, $resources)) {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.files');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access files table. Error: ' . $statement->errorInfo()[2]);
+            }
+
+            $report[Resource::TYPE_FILE] = $statement->fetchColumn();
         }
 
         return $report;
@@ -223,7 +269,7 @@ class NHost extends Source
 
         foreach ($databases as $database) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = :database');
-            $statement->execute([':database' => $database->getName()]); //TODO: Maybe add "getOriginalName"?
+            $statement->execute([':database' => $database->getName()]);
             $total = $statement->fetchColumn();
 
             $offset = 0;
@@ -481,7 +527,134 @@ class NHost extends Source
 
     public function exportStorageGroup(int $batchSize, array $resources)
     {
-        throw new \Exception('Not Implemented');
+        if (in_array(Resource::TYPE_BUCKET, $resources))
+            $this->exportBuckets($batchSize);
+
+        if (in_array(Resource::TYPE_FILE, $resources))
+            $this->exportFiles($batchSize);
+    }
+
+    public function exportBuckets(int $batchSize)
+    {
+        $total = $this->pdo->query('SELECT COUNT(*) FROM storage.buckets')->fetchColumn();
+
+        $offset = 0;
+
+        while ($offset < $total) {
+            $statement = $this->pdo->prepare('SELECT * FROM storage.buckets order by created_at LIMIT :limit OFFSET :offset');
+            $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
+            $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
+            $statement->execute();
+
+            $buckets = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+            $offset += $batchSize;
+
+            $transferBuckets = [];
+
+            foreach ($buckets as $bucket) {
+                $transferBuckets[] = new Bucket(
+                    $bucket['id'],
+                    [],
+                    false,
+                    $bucket['id'],
+                    true,
+                    $bucket['max_upload_file_size'],
+                    [],
+                    '',
+                    false,
+                    false
+                );
+            }
+
+            $this->callback($transferBuckets);
+        }
+    }
+
+    public function exportFiles(int $batchSize)
+    {
+        $buckets = $this->resourceCache->get(Bucket::getName());
+
+        foreach ($buckets as $bucket) {
+            $totalStatement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.files WHERE bucket_id=:bucketId');
+            $totalStatement->execute([':bucketId' => $bucket->getId()]);
+            $total = $totalStatement->fetchColumn();
+
+            $offset = 0;
+            while ($offset < $total) {
+                $statement = $this->pdo->prepare('SELECT * FROM storage.files WHERE bucket_id=:bucketId order by created_at LIMIT :limit OFFSET :offset');
+                $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
+                $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
+                $statement->bindValue(':bucketId', $bucket->getId(), \PDO::PARAM_STR);
+                $statement->execute();
+
+                $files = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+                $offset += $batchSize;
+
+                foreach ($files as $file) {
+                    $this->handleDataTransfer(new File(
+                        $file['id'],
+                        $bucket,
+                        $file['name'],
+                        '',
+                        $file['mime_type'],
+                        [],
+                        $file['size'],
+                    ));
+                }
+            }
+        }
+    }
+
+    public function handleDataTransfer(File $file)
+    {
+        $url = "https://{$this->subdomain}.storage.{$this->region}.nhost.run";
+        $start = 0;
+        $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
+
+        $fileSize = $file->getSize();
+        $response = $this->call("GET", $url."/v1/files/{$file->getId()}/presignedurl", [
+            'X-Hasura-Admin-Secret' => $this->adminSecret,
+        ]);
+
+        $fileUrl = $response['url'];
+        $refreshTime = \time() + $response['expiration'];
+
+        if ($end > $fileSize) {
+            $end = $fileSize - 1;
+        }
+
+        while ($start < $fileSize) {
+            if (\time() > $refreshTime) {
+                $response = $this->call("GET", "/v1/files/{$file->getId()}/presignedurl", [
+                    'X-Hasura-Admin-Secret' => $this->adminSecret,
+                ]);
+
+                $fileUrl = $response['url'];
+                $refreshTime = \time() + $response['expiration'];
+            }
+
+            $chunkData = $this->call(
+                'GET',
+                $fileUrl,
+                ['range' => "bytes=$start-$end"]
+            );
+
+            $this->callback([new FileData(
+                $chunkData,
+                $start,
+                $end,
+                $file
+            )]);
+
+            $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
+            $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
+
+            if ($end > $fileSize) {
+                $end = $fileSize - 1;
+            }
+        };
     }
 
     public function exportFunctionsGroup(int $batchSize, array $resources)

@@ -15,6 +15,7 @@ use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Database;
+use Utopia\Transfer\Resources\Database\Document;
 
 class Firebase extends Source
 {
@@ -95,15 +96,26 @@ class Firebase extends Source
         return parent::call($method, $path, $headers, $params);
     }
 
+    /**
+     * Get Supported Resources
+     *
+     * @return array
+     */
     public function getSupportedResources(): array
     {
         return [
-            Transfer::GROUP_AUTH,
-            Transfer::GROUP_DATABASES
+            // Auth
+            Resource::TYPE_USER,
+
+            // Database
+            Resource::TYPE_DATABASE,
+            Resource::TYPE_COLLECTION,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_DOCUMENT,
         ];
     }
 
-    public function check(array $resources = []): array
+    public function report(array $resources = []): array
     {
         throw new \Exception('Not implemented');
     }
@@ -208,8 +220,11 @@ class Firebase extends Source
 
     function exportDocuments(int $batchSize)
     {
-        // Not Implemented
-        return;
+        $collections = $this->resourceCache->get(Collection::getName());
+
+        foreach ($collections as $collection) {
+           
+        }
     }
 
     function convertAttribute(Collection $collection, string $key, array $field): Attribute
@@ -237,7 +252,6 @@ class Firebase extends Source
         } elseif (array_key_exists("arrayValue", $field)) {
             return $this->calculateArrayType($collection, $key, $field["arrayValue"]);
         } else {
-            var_dump($field);
             throw new \Exception('Unknown field type');
         }
     }
@@ -283,7 +297,7 @@ class Firebase extends Source
                 'pageToken' => $nextPageToken
             ]);
 
-            if (!empty($result)) {
+            if (empty($result)) {
                 break;
             }
 
@@ -301,10 +315,11 @@ class Firebase extends Source
                 }
 
                 $this->traceDBResource($collection->getDatabase(), $document['name'], $batchSize);
+                $documents[] = $this->convertDocument($collection, $document);
             }
 
-            // Transfer Documents
-            // $callback($documents);
+            // Transfer Documents        
+            $this->callback($documents);
 
             if (count($result['documents']) < $batchSize) {
                 break;
@@ -312,6 +327,44 @@ class Firebase extends Source
 
             $nextPageToken = $result['nextPageToken'] ?? null;
         }
+    }
+
+    function calculateValue(array $field) {
+        if (array_key_exists("booleanValue", $field)) {
+            return $field['booleanValue'];
+        } elseif (array_key_exists("bytesValue", $field)) {
+            return $field['bytesValue'];
+        } elseif (array_key_exists("doubleValue", $field)) {
+            return $field['doubleValue'];
+        } elseif (array_key_exists("integerValue", $field)) {
+            return $field['integerValue'];
+        } elseif (array_key_exists("mapValue", $field)) {
+            return $field['mapValue'];
+        } elseif (array_key_exists("nullValue", $field)) {
+            return $field['nullValue'];
+        } elseif (array_key_exists("referenceValue", $field)) {
+            return $field['referenceValue']; //TODO: This should be a reference attribute
+        } elseif (array_key_exists("stringValue", $field)) {
+            return $field['stringValue'];
+        } elseif (array_key_exists("timestampValue", $field)) {
+            return $field['timestampValue'];
+        } elseif (array_key_exists("geoPointValue", $field)) {
+            return $field['geoPointValue'];
+        } elseif (array_key_exists("arrayValue", $field)) {
+           //TODO: 
+        } else {
+            throw new \Exception('Unknown field type');
+        }
+    }
+
+    function convertDocument(Collection $collection, array $document): Document
+    {
+        $data = [];
+        foreach ($document['fields'] as $key => $field) {
+            $data[$key] = $this->calculateValue($field);
+        }
+
+        return new Document($document['name'], $collection->getDatabase(), $collection, $data, []);
     }
 
     function traceDBResource(Database $database, string $resource, int $batchSize)

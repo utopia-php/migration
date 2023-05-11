@@ -30,26 +30,30 @@ $sourceAppwrite = new Appwrite(
     $_ENV['SOURCE_APPWRITE_TEST_KEY']
 );
 
+$firebase = json_decode($_ENV["FIREBASE_TEST_ACCOUNT"], true);
+
 $sourceFirebase = new Firebase(
-    json_decode($_ENV["FIREBASE_TEST_ACCOUNT"], true),
-    "amadeus-a3730"
+    $firebase,
+    $firebase['project_id'] ?? '',
 );
 
-// $sourceNHost = new NHost(
-//     $_ENV["NHOST_TEST_HOST"] ?? '',
-//     $_ENV["NHOST_TEST_DATABASE"] ?? '',
-//     $_ENV["NHOST_TEST_USERNAME"] ?? '',
-//     $_ENV["NHOST_TEST_PASSWORD"] ?? '',
-// );
+$sourceNHost = new NHost(
+    $_ENV['NHOST_TEST_SUBDOMAIN'] ?? '',
+    $_ENV["NHOST_TEST_REGION"] ?? '',
+    $_ENV['NHOST_TEST_SECRET'] ?? '',
+    $_ENV["NHOST_TEST_DATABASE"] ?? '',
+    $_ENV["NHOST_TEST_USERNAME"] ?? '',
+    $_ENV["NHOST_TEST_PASSWORD"] ?? '',
+);
 
-// $sourceSupabase = new Supabase(
-//     $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
-//     $_ENV['SUPABASE_TEST_KEY'] ?? '',
-//     $_ENV["SUPABASE_TEST_HOST"] ?? '',
-//     $_ENV["SUPABASE_TEST_DATABASE"] ?? '',
-//     $_ENV["SUPABASE_TEST_USERNAME"] ?? '',
-//     $_ENV["SUPABASE_TEST_PASSWORD"] ?? '',
-// );
+$sourceSupabase = new Supabase(
+    $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
+    $_ENV['SUPABASE_TEST_KEY'] ?? '',
+    $_ENV["SUPABASE_TEST_HOST"] ?? '',
+    $_ENV["SUPABASE_TEST_DATABASE"] ?? '',
+    $_ENV["SUPABASE_TEST_USERNAME"] ?? '',
+    $_ENV["SUPABASE_TEST_PASSWORD"] ?? '',
+);
 
 /**
  * Initialise All Destination Adapters 
@@ -76,7 +80,7 @@ $transfer = new Transfer(
 */
 $transfer->run(
     [
-        Resource::TYPE_USER,
+        Transfer::GROUP_DATABASES_RESOURCES,
     ], function () {
     }
 );

@@ -34,6 +34,7 @@ use Utopia\Transfer\Resources\Database\Attributes\URLAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\RelationshipAttribute;
 use Utopia\Transfer\Resources\Database\Document;
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Resources\Functions\Deployment;
 
 class Appwrite extends Destination
 {
@@ -72,154 +73,149 @@ class Appwrite extends Destination
     public function getSupportedResources(): array
     {
         return [
-            Transfer::GROUP_AUTH,
-            Transfer::GROUP_DATABASES,
-            Transfer::GROUP_STORAGE,
-            Transfer::GROUP_FUNCTIONS,
-            Transfer::GROUP_SETTINGS
+            // Auth
+            Resource::TYPE_USER,
+            Resource::TYPE_TEAM,
+            Resource::TYPE_TEAM_MEMBERSHIP,
+
+            // Database
+            Resource::TYPE_DATABASE,
+            Resource::TYPE_COLLECTION,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_INDEX,
+            Resource::TYPE_DOCUMENT,
+
+            // Storage
+            Resource::TYPE_BUCKET,
+            Resource::TYPE_FILE,
+            Resource::TYPE_FILEDATA,
+
+            // Functions
+            Resource::TYPE_FUNCTION,
+            Resource::TYPE_DEPLOYMENT,
+            Resource::TYPE_ENVVAR,
+
+            // Settings
         ];
     }
 
-    public function check(array $resources = []): array
+    public function report(array $resources = []): array
     {
-        $report = [
-            Transfer::GROUP_AUTH => [],
-            Transfer::GROUP_DATABASES => [],
-            Transfer::GROUP_STORAGE => [],
-            Transfer::GROUP_FUNCTIONS => [],
-            Transfer::GROUP_SETTINGS => [],
-        ];
-
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
         }
 
+        $databases = new Databases($this->client);
+        $functions = new Functions($this->client);
+        $storage = new Storage($this->client);
+        $teams = new Teams($this->client);
+        $users = new Users($this->client);
+
+        $currentPermission = '';
         // Most of these API calls are purposely wrong. Appwrite will throw a 403 before a 400.
         // We want to make sure the API key has full read and write access to the project.
-        foreach ($resources as $resource) {
-            switch ($resource) {
-                case Transfer::GROUP_DATABASES:
-                    $databases = new Databases($this->client);
-                    try {
-                        $databases->list();
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: databases.read';
-                        }
-                    }
 
-                    try {
-                        $databases->create('', '');
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: databases.write';
-                        }
-                    }
+        try {
+            // Auth
+            if (in_array(Resource::TYPE_USER, $resources)) {
+                $currentPermission = 'users.read';
+                $users->list();
 
-                    try {
-                        $databases->listCollections('', [], '');
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: collections.write';
-                        }
-                    }
+                $currentPermission = 'users.write';
+                $users->create('', '', '');
+            }
 
-                    try {
-                        $databases->createCollection('', '', '', []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: collections.write';
-                        }
-                    }
+            if (in_array(Resource::TYPE_TEAM, $resources)) {
+                $currentPermission = 'teams.read';
+                $teams->list();
 
-                    try {
-                        $databases->listDocuments('', '', []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: documents.write';
-                        }
-                    }
+                $currentPermission = 'teams.write';
+                $teams->create('', '');
+            }
 
-                    try {
-                        $databases->createDocument('', '', '', [], []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: documents.write';
-                        }
-                    }
+            if (in_array(Resource::TYPE_TEAM_MEMBERSHIP, $resources)) {
+                $currentPermission = 'memberships.read';
+                $teams->listMemberships('');
 
-                    try {
-                        $databases->listIndexes('', '');
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: indexes.read';
-                        }
-                    }
+                $currentPermission = 'memberships.write';
+                $teams->createMembership('', [], '');
+            }
 
-                    try {
-                        $databases->createIndex('', '', '', '', [], []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: indexes.write';
-                        }
-                    }
+            // Database
+            if (in_array(Resource::TYPE_DATABASE, $resources)) {
+                $currentPermission = 'database.read';
+                $databases->list();
 
-                    try {
-                        $databases->listAttributes('', '');
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: attributes.read';
-                        }
-                    }
+                $currentPermission = 'database.write';
+                $databases->create('', '');
+            }
 
-                    try {
-                        $databases->createStringAttribute('', '', '', 0, false, false);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] = 'API Key is missing scope: attributes.write';
-                        }
-                    }
-                    break;
-                case Transfer::GROUP_AUTH:
-                    $auth = new Users($this->client);
-                    try {
-                        $auth->list();
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_AUTH][] = 'API Key is missing scope: users.read';
-                        }
-                    }
+            if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+                $currentPermission = 'collections.read';
+                $databases->listCollections('');
 
-                    try {
-                        $auth->create('', '', '', '');
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_AUTH][] = 'API Key is missing scope: users.write';
-                        }
-                    }
-                    break;
-                case Transfer::GROUP_STORAGE:
-                    $storage = new Storage($this->client);
-                    try {
-                        $storage->listFiles('');
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_STORAGE][] = 'API Key is missing scope: files.read';
-                        }
-                    }
+                $currentPermission = 'collections.write';
+                $databases->createCollection('', '', '');
+            }
 
-                    try {
-                        $storage->createFile('', '', new InputFile());
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_STORAGE][] = 'API Key is missing scope: files.write';
-                        }
-                    }
-                    break;
+            if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+                $currentPermission = 'attributes.read';
+                $databases->listAttributes('', '');
+
+                $currentPermission = 'attributes.write';
+                $databases->createStringAttribute('', '', '', 0, false);
+            }
+
+            if (in_array(Resource::TYPE_INDEX, $resources)) {
+                $currentPermission = 'indexes.read';
+                $databases->listIndexes('', '');
+
+                $currentPermission = 'indexes.write';
+                $databases->createIndex('', '', '', '', []);
+            }
+
+            if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+                $currentPermission = 'documents.read';
+                $databases->listDocuments('', '');
+
+                $currentPermission = 'documents.write';
+                $databases->createDocument('', '', '', []);
+            }
+
+            // Storage
+            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+                $currentPermission = 'storage.read';
+                $storage->listBuckets();
+
+                $currentPermission = 'storage.write';
+                $storage->createBucket('', '');
+            }
+
+            if (in_array(Resource::TYPE_FILE, $resources)) {
+                $currentPermission = 'files.read';
+                $storage->listFiles('');
+
+                $currentPermission = 'files.write';
+                $storage->createFile('', '', new InputFile());
+            }
+
+            // Functions
+            if (in_array(Resource::TYPE_FUNCTION, $resources)) {
+                $currentPermission = 'functions.read';
+                $functions->list();
+
+                $currentPermission = 'functions.write';
+                $functions->create('', '', '');
+            }
+
+            return [];
+        } catch (\Exception $exception) {
+            if ($exception->getCode() === 403) {
+                throw new \Exception('Missing permission: ' . $currentPermission);
+            } else {
+                throw $exception;
             }
         }
-
-        return $report;
     }
 
     function importResources(array $resources, callable $callback): void
@@ -610,6 +606,15 @@ class Appwrite extends Destination
                     $user->getUsername()
                 );
                 break;
+            case Hash::PLAINTEXT:
+                $result = $auth->create(
+                    $user->getId(),
+                    $user->getEmail(),
+                    $user->getPhone(),
+                    $hash->getHash(),
+                    $user->getUsername()
+                );
+                break;
         }
 
         return $result;
@@ -633,6 +638,7 @@ class Appwrite extends Destination
                         $resource->getTimeout(),
                         $resource->getEnabled()
                     );
+                    break;
                 case Resource::TYPE_ENVVAR:
                     /** @var EnvVar $resource */
                     $functions->createVariable(
@@ -640,13 +646,72 @@ class Appwrite extends Destination
                         $resource->getKey(),
                         $resource->getValue()
                     );
+                    break;
+                case Resource::TYPE_DEPLOYMENT:
+                    return $this->importDeployment($resource);
+                    break;
             }
 
             $resource->setStatus(Resource::STATUS_SUCCESS);
+            return $resource;
         } catch (\Exception $e) {
             $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
         } finally {
             return $resource;
         }
+    }
+
+    function importDeployment(Deployment $deployment): Resource
+    {
+        $functionId = $deployment->getFunction()->getId();
+
+        $response = null;
+
+        if ($deployment->getSize() <= Transfer::STORAGE_MAX_CHUNK_SIZE) {
+            $response = $this->client->call(
+                'POST',
+                "/v1/functions/{$functionId}/deployments",
+                [
+                    'content-type' => 'multipart/form-data',
+                ],
+                [
+                    'functionId' => $functionId,
+                    'code' => new \CurlFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
+                    'activate' => $deployment->getActivated() ? 'true' : 'false',
+                    'entrypoint' => $deployment->getEntrypoint()
+                ]
+            );
+
+            $deployment->setStatus(Resource::STATUS_SUCCESS);
+            return $deployment;
+        }
+
+        $response = $this->client->call(
+            'POST',
+            "/v1/functions/{$functionId}/deployments",
+            [
+                'content-type' => 'multipart/form-data',
+                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . ($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()) . '/' . $deployment->getSize(),
+                'x-appwrite-id' => $deployment->getId(),
+            ],
+            [
+                'functionId' => $functionId,
+                'code' => new \CurlFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
+                'activate' => $deployment->getActivated(),
+                'entrypoint' => $deployment->getEntrypoint()
+            ]
+        );
+
+        if ($deployment->getStart() === 0) {
+            $deployment->setId($response['$id']);
+        }
+
+        if ($deployment->getEnd() == ($deployment->getSize() - 1)) {
+            $deployment->setStatus(Resource::STATUS_SUCCESS);
+        } else {
+            $deployment->setStatus(Resource::STATUS_PENDING);
+        }
+
+        return $deployment;
     }
 }

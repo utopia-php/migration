@@ -18,6 +18,7 @@ class Hash extends Resource
     public const SHA256 = 'SHA256';
     public const PHPASS = 'PHPass';
     public const SCRYPT = 'Scrypt';
+    public const PLAINTEXT = 'PlainText';
 
     private string $hash;
     private string $salt = '';

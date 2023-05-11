@@ -18,9 +18,14 @@ class ResourceCache
 
     public function add($resource)
     {
-        $resourceUUID = uniqid();
-        $resource->setInternalId($resourceUUID); // Assign each resource a unique ID
-        $this->resourceCache[$resource->getName()][$resourceUUID] = $resource;
+        if (!$resource->getInternalId()) {
+            $resourceId = uniqid();
+            if (isset($this->resourceCache[$resource->getName()][$resourceId])) {
+                $resourceId = uniqid();
+            }
+            $resource->setInternalId(uniqid());
+        }
+        $this->resourceCache[$resource->getName()][$resource->getInternalId()] = $resource;
     }
 
     public function addAll(array $resources)

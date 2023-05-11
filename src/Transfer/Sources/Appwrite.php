@@ -36,6 +36,7 @@ use Utopia\Transfer\Resources\Storage\FileData;
 use Utopia\Transfer\Resources\Functions\Func;
 use Utopia\Transfer\Resources\Auth\Team;
 use Utopia\Transfer\Resources\Auth\TeamMembership;
+use Utopia\Transfer\Resources\Functions\Deployment;
 
 class Appwrite extends Source
 {
@@ -95,175 +96,158 @@ class Appwrite extends Source
     public function getSupportedResources(): array
     {
         return [
-            Transfer::GROUP_AUTH,
-            Transfer::GROUP_DATABASES,
-            Transfer::GROUP_STORAGE,
-            Transfer::GROUP_FUNCTIONS
+            // Auth
+            Resource::TYPE_USER,
+            Resource::TYPE_TEAM,
+            Resource::TYPE_TEAM_MEMBERSHIP,
+
+            // Database
+            Resource::TYPE_DATABASE,
+            Resource::TYPE_COLLECTION,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_INDEX,
+            Resource::TYPE_DOCUMENT,
+
+            // Storage
+            Resource::TYPE_BUCKET,
+            Resource::TYPE_FILE,
+            Resource::TYPE_FILEDATA,
+
+            // Functions
+            Resource::TYPE_FUNCTION,
+            Resource::TYPE_DEPLOYMENT,
+            Resource::TYPE_ENVVAR,
+
+            // Settings
         ];
     }
 
-    public function check(array $resources = []): array
+    public function report(array $resources = []): array
     {
-        $report = [
-            Transfer::GROUP_AUTH => [],
-            Transfer::GROUP_DATABASES => [],
-            Transfer::GROUP_STORAGE => [],
-            Transfer::GROUP_FUNCTIONS => []
-        ];
+        $report = [];
+        $currentPermission = '';
 
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
         }
 
-        // Most of these API calls are purposely wrong. Appwrite will throw a 403 before a 400.
-        // We want to make sure the API key has the correct permissions.
+        $usersClient = new Users($this->client);
+        $teamsClient = new Teams($this->client);
+        $databaseClient = new Databases($this->client);
+        $storageClient = new Storage($this->client);
+        $functionsClient = new Functions($this->client);
 
-        foreach ($resources as $resource) {
-            switch ($resource) {
-                case Transfer::GROUP_DATABASES:
-                    $databases = new Databases($this->client);
-                    try {
-                        $databases->list();
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] =
-                                "API Key is missing scope: databases.read";
-                        }
-                    }
+        // Auth
+        try {
+            $currentPermission = 'users.read';
+            if (in_array(Resource::TYPE_USER, $resources))
+                $report[Resource::TYPE_USER] = $usersClient->list()['total'];
 
-                    try {
-                        $databases->create("", "");
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] =
-                                "API Key is missing scope: databases.write";
-                        }
-                    }
+            $currentPermission = 'teams.read';
+            if (in_array(Resource::TYPE_TEAM, $resources))
+                $report[Resource::TYPE_TEAM] = $teamsClient->list()['total'];
 
-                    try {
-                        $databases->listCollections("", [], "");
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] =
-                                "API Key is missing scope: collections.write";
-                        }
-                    }
+            if (in_array(Resource::TYPE_TEAM_MEMBERSHIP, $resources)) {
+                $report[Resource::TYPE_TEAM_MEMBERSHIP] = 0;
+                $teams = $teamsClient->list()['teams'];
+                foreach ($teams as $team) {
+                    $report[Resource::TYPE_TEAM_MEMBERSHIP] += $teamsClient->listMemberships($team['$id'])['total'];
+                }
+            }
 
-                    try {
-                        $databases->createCollection("", "", "", []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] =
-                                "API Key is missing scope: collections.write";
-                        }
-                    }
+            // Databases
+            $currentPermission = 'databases.read';
+            if (in_array(Resource::TYPE_DATABASE, $resources))
+                $report[Resource::TYPE_DATABASE] = $databaseClient->list()['total'];
 
-                    try {
-                        $databases->listDocuments("", "", []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] =
-                                "API Key is missing scope: documents.write";
-                        }
-                    }
+            $currentPermission = 'collections.read';
+            if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+                $report[Resource::TYPE_COLLECTION] = 0;
+                $databases = $databaseClient->list()['databases'];
+                foreach ($databases as $database) {
+                    $report[Resource::TYPE_COLLECTION] += $databaseClient->listCollections($database['$id'])['total'];
+                }
+            }
 
-                    try {
-                        $databases->createDocument("", "", "", [], []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report["Documents"][] =
-                                "API Key is missing scope: documents.write";
-                        }
+            $currentPermission = 'documents.read';
+            if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+                $report[Resource::TYPE_DOCUMENT] = 0;
+                $databases = $databaseClient->list()['databases'];
+                foreach ($databases as $database) {
+                    $collections = $databaseClient->listCollections($database['$id'])['collections'];
+                    foreach ($collections as $collection) {
+                        $report[Resource::TYPE_DOCUMENT] += $databaseClient->listDocuments($database['$id'], $collection['$id'])['total'];
                     }
+                }
+            }
 
-                    try {
-                        $databases->listIndexes("", "");
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] =
-                                "API Key is missing scope: indexes.read";
-                        }
+            $currentPermission = 'attributes.read';
+            if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+                $report[Resource::TYPE_ATTRIBUTE] = 0;
+                $databases = $databaseClient->list()['databases'];
+                foreach ($databases as $database) {
+                    $collections = $databaseClient->listCollections($database['$id'])['collections'];
+                    foreach ($collections as $collection) {
+                        $report[Resource::TYPE_ATTRIBUTE] += $databaseClient->listAttributes($database['$id'], $collection['$id'])['total'];
                     }
+                }
+            }
 
-                    try {
-                        $databases->createIndex("", "", "", "", [], []);
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] =
-                                "API Key is missing scope: indexes.write";
-                        }
+            $currentPermission = 'indexes.read';
+            if (in_array(Resource::TYPE_INDEX, $resources)) {
+                $report[Resource::TYPE_INDEX] = 0;
+                $databases = $databaseClient->list()['databases'];
+                foreach ($databases as $database) {
+                    $collections = $databaseClient->listCollections($database['$id'])['collections'];
+                    foreach ($collections as $collection) {
+                        $report[Resource::TYPE_INDEX] += $databaseClient->listIndexes($database['$id'], $collection['$id'])['total'];
                     }
+                }
+            }
 
-                    try {
-                        $databases->listAttributes("", "");
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] =
-                                "API Key is missing scope: attributes.read";
-                        }
-                    }
+            // Storage
+            $currentPermission = 'buckets.read';
+            if (in_array(Resource::TYPE_BUCKET, $resources))
+                $report[Resource::TYPE_BUCKET] = $storageClient->listBuckets()['total'];
 
-                    try {
-                        $databases->createStringAttribute(
-                            "",
-                            "",
-                            "",
-                            0,
-                            false,
-                            false
-                        );
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_DATABASES][] =
-                                "API Key is missing scope: attributes.write";
-                        }
-                    }
-                    break;
-                case Transfer::GROUP_AUTH:
-                    $auth = new Users($this->client);
-                    try {
-                        $auth->list();
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_AUTH][] =
-                                "API Key is missing scope: users.read";
-                        }
-                    }
-                    break;
-                case Transfer::GROUP_STORAGE:
-                    $storage = new Storage($this->client);
-                    try {
-                        $storage->listFiles('');
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_STORAGE][] =
-                                "API Key is missing scope: files.read";
-                        }
-                    }
-                case Transfer::GROUP_FUNCTIONS:
-                    $functions = new Functions($this->client);
-                    try {
-                        $functions->list();
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_FUNCTIONS][] =
-                                "API Key is missing scope: functions.read";
-                        }
-                    }
+            $currentPermission = 'files.read';
+            if (in_array(Resource::TYPE_FILE, $resources)) {
+                $report[Resource::TYPE_FILE] = 0;
+                $buckets = $storageClient->listBuckets()['buckets'];
+                foreach ($buckets as $bucket) {
+                    $report[Resource::TYPE_FILE] += $storageClient->listFiles($bucket['$id'])['total'];
+                }
+            }
 
-                    try {
-                        $functions->listExecutions('');
-                    } catch (\Throwable $e) {
-                        if ($e->getCode() == 401) {
-                            $report[Transfer::GROUP_FUNCTIONS][] =
-                                "API Key is missing scope: executions.read";
-                        }
-                    }
-                    break;
+            // Functions
+            $currentPermission = 'functions.read';
+            if (in_array(Resource::TYPE_FUNCTION, $resources))
+                $report[Resource::TYPE_FUNCTION] = $functionsClient->list()['total'];
+
+            if (in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
+                $report[Resource::TYPE_DEPLOYMENT] = 0;
+                $functions = $functionsClient->list()['functions'];
+                foreach ($functions as $function) {
+                    $report[Resource::TYPE_DEPLOYMENT] += $functionsClient->listDeployments($function['$id'])['total'];
+                }
+            }
+
+            if (in_array(Resource::TYPE_ENVVAR, $resources)) {
+                $report[Resource::TYPE_ENVVAR] = 0;
+                $functions = $functionsClient->list()['functions'];
+                foreach ($functions as $function) {
+                    $report[Resource::TYPE_ENVVAR] += $functionsClient->listVariables($function['$id'])['total'];
+                }
+            }
+
+            return $report;
+        } catch (\Exception $e) {
+            if ($e->getCode() === 403) {
+                throw new \Exception("Missing Permission: {$currentPermission}.");
+            } else {
+                throw new \Exception($e->getMessage());
             }
         }
-
-        return $report;
     }
 
     /**
@@ -875,12 +859,12 @@ class Appwrite extends Source
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 
-        if ($end > $file->getSize()) {
-            $end = $file->getSize() - 1;
-        }
-
         // Get the file size
         $fileSize = $file->getSize();
+
+        if ($end > $fileSize) {
+            $end = $fileSize - 1;
+        }
 
         // Loop until the entire file is downloaded
         while ($start < $fileSize) {
@@ -910,9 +894,11 @@ class Appwrite extends Source
 
     public function exportFunctionsGroup(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_FUNCTION, $resources)) {
+        if (in_array(Resource::TYPE_FUNCTION, $resources))
             $this->exportFunctions($batchSize);
-        }
+
+        if (in_array(Resource::TYPE_DEPLOYMENT, $resources))
+            $this->exportDeployments($batchSize);
     }
 
     public function exportFunctions(int $batchSize)
@@ -952,5 +938,90 @@ class Appwrite extends Source
         }
 
         $this->callback($convertedResources);
+    }
+
+    public function exportDeployments(int $batchSize)
+    {
+        $functionsClient = new Functions($this->client);
+
+        $functions = $this->resourceCache->get(Func::getName());
+
+        foreach ($functions as $func) {
+            /** @var Func $func */
+
+            $lastDocument = null;
+            while (true) {
+                $queries = [Query::limit($batchSize)];
+
+                if ($lastDocument) {
+                    $queries[] = Query::cursorAfter($lastDocument);
+                }
+
+                $response = $functionsClient->listDeployments(
+                    $func->getId(),
+                    $queries
+                );
+
+                foreach ($response["deployments"] as $deployment) {
+                    $this->handleDeploymentData($func, $deployment);
+
+                    $lastDocument = $deployment['$id'];
+                }
+
+                if (count($response["deployments"]) < $batchSize) {
+                    break;
+                }
+            }
+        }
+    }
+
+    public function handleDeploymentData(Func $func, array $deployment)
+    {
+        // Set the chunk size (5MB)
+        $start = 0;
+        $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
+
+        // Get the file size
+        $fileSize = $deployment['size'];
+
+        if ($end > $fileSize) {
+            $end = $fileSize - 1;
+        }
+
+        $deployment = new Deployment(
+            $deployment['$id'],
+            $func,
+            $fileSize,
+            $deployment['entrypoint'],
+            $start,
+            $end,
+            '',
+            $deployment['activate']
+        );
+
+        $deployment->setInternalId($deployment->getId());
+
+        // Loop until the entire file is downloaded
+        while ($start < $fileSize) {
+            $chunkData = $this->call(
+                'GET',
+                "/functions/{$func->getId()}/deployments/{$deployment->getInternalId()}/download",
+                ['range' => "bytes=$start-$end"]
+            );
+
+            // Send the chunk to the callback function
+            $deployment->setData($chunkData);
+            $deployment->setStart($start);
+            $deployment->setEnd($end);
+            $this->callback([$deployment]);
+
+            // Update the range
+            $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
+            $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
+
+            if ($end > $fileSize) {
+                $end = $fileSize - 1;
+            }
+        }
     }
 }
