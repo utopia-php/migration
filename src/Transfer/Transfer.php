@@ -148,14 +148,23 @@ class Transfer
 
     /**
      * Get Transfer Report
+     * 
+     * @param string $statusLevel
+     * If no status level is provided, all status types will be returned.
+     * 
+     * @return array
      */
-    public function getReport(): array
+    public function getReport(string $statusLevel = ''): array
     {
         $report = [];
 
         $resourceCache = $this->resourceCache->getAll();
 
         foreach ($resourceCache as $resource) {
+            if ($statusLevel && $resource->getStatus() !== $statusLevel) {
+                continue;
+            }
+
             $report[] = [
                 'resource' => $resource->getType(),
                 'id' => $resource->getId(),
