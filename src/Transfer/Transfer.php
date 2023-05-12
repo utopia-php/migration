@@ -79,11 +79,36 @@ class Transfer
      */
     protected array $events = [];
 
+    public function getStatusCounters()
+    {
+        $status = [];
+
+        foreach ($this->resourceCache as $resources) {
+            foreach ($resources as $resource) {
+                /** @var Resource $resource */
+                if (!array_key_exists($resource->getGroup(), $status)) {
+                    $status[$resource->getGroup()] = [
+                        Resource::STATUS_PENDING => 0,
+                        Resource::STATUS_SUCCESS => 0,
+                        Resource::STATUS_ERROR => 0,
+                        Resource::STATUS_SKIPPED => 0,
+                        Resource::STATUS_PROCESSING => 0,
+                        Resource::STATUS_WARNING => 0,
+                    ];
+                }
+
+                $status[$resource->getGroup()][$resource->getStatus()]++;
+            }
+        }
+
+        return $status;
+    }
+
     /**
      * Transfer Resources between adapters
      *
      * @param array $resources
-     * @param callable $callback (Progress $progress)
+     * @param callable $callback (array $resources)
      */
     public function run(array $resources, callable $callback): void
     {
@@ -97,12 +122,7 @@ class Transfer
             }
         }
 
-        $this->destination->run($computedResources, function (Progress $progress) use ($callback) {
-            //TODO: Rewrite to use ResourceCache to calculate this
-            $this->currentResource = $progress->getResourceType();
-
-            $callback($progress);
-        }, $this->source);
+        $this->destination->run($computedResources, $callback, $this->source);
     }
 
     /**
@@ -124,5 +144,26 @@ class Transfer
     public function getCurrentResource(): string
     {
         return $this->currentResource;
+    }
+
+    /**
+     * Get Transfer Report
+     */
+    public function getReport(): array
+    {
+        $report = [];
+
+        $resourceCache = $this->resourceCache->getAll();
+
+        foreach ($resourceCache as $resource) {
+            $report[] = [
+                'resource' => $resource->getType(),
+                'id' => $resource->getId(),
+                'status' => $resource->getStatus(),
+                'message' => $resource->getMessage(),
+            ];
+        }
+
+        return $report;
     }
 }

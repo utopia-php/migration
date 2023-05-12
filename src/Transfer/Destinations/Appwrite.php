@@ -239,6 +239,8 @@ class Appwrite extends Destination
 
             $this->resourceCache->update($responseResource);
         }
+
+        $callback($resources);
     }
 
     public function importDatabaseResource(Resource $resource): Resource

@@ -23,7 +23,7 @@ $dotenv->load();
 
 /**
  * Initialise All Source Adapters 
-*/
+ */
 $sourceAppwrite = new Appwrite(
     $_ENV['SOURCE_APPWRITE_TEST_PROJECT'],
     $_ENV['SOURCE_APPWRITE_TEST_ENDPOINT'],
@@ -57,7 +57,7 @@ $sourceSupabase = new Supabase(
 
 /**
  * Initialise All Destination Adapters 
-*/
+ */
 $destinationAppwrite = new AppwriteDestination(
     $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
     $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
@@ -68,19 +68,18 @@ $destinationLocal = new Local(__DIR__ . '/localBackup/');
 
 /**
  * Initialise Transfer Class 
-*/
+ */
 
 $transfer = new Transfer(
-    $sourceFirebase,
+    $sourceSupabase,
     $destinationLocal
 );
 
 /**
  * Run Transfer 
-*/
+ */
 $transfer->run(
-    [
-        Transfer::GROUP_DATABASES_RESOURCES,
-    ], function () {
+    [Transfer::GROUP_DATABASES_RESOURCES],
+    function (array $resources) use ($transfer) {
     }
 );

@@ -81,24 +81,6 @@ class ResourceCache
         return $this->resourceCache;
     }
 
-    public function getStatusCounters()
-    {
-        $status = [
-            Resource::STATUS_DISREGARDED => 0,
-            Resource::STATUS_SUCCESS => 0,
-            Resource::STATUS_ERROR => 0,
-            Resource::STATUS_SKIPPED => 0,
-        ];
-
-        foreach ($this->resourceCache as $resources) {
-            foreach ($resources as $resource) {
-                $status[$resource->getStatus()]++;
-            }
-        }
-
-        return $status;
-    }
-
     public function wipe()
     {
         $this->resourceCache = [];

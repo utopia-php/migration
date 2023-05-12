@@ -147,5 +147,7 @@ class Local extends Destination
             $this->resourceCache->update($resource);
             $this->syncFile();
         }
+
+        $callback($resources);
     }
 }
