@@ -24,10 +24,10 @@ class Firebase extends Source
     private string $currentToken = '';
     private int $tokenExpires = 0;
 
-    public function __construct(array $serviceAccount, string $projectID)
+    public function __construct(array $serviceAccount)
     {
         $this->serviceAccount = $serviceAccount;
-        $this->projectID = $projectID;
+        $this->projectID = $serviceAccount['project_id'];
     }
 
     static function getName(): string
