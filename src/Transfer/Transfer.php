@@ -20,13 +20,15 @@ class Transfer
     public const GROUP_FUNCTIONS_RESOURCES = [Resource::TYPE_FUNCTION, Resource::TYPE_ENVVAR, Resource::TYPE_DEPLOYMENT];
     public const GROUP_DATABASES_RESOURCES = [Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE, Resource::TYPE_DOCUMENT];
     public const GROUP_SETTINGS_RESOURCES = [];
-    public const ALL_RESOURCES = array_merge(
-        self::GROUP_AUTH_RESOURCES,
-        self::GROUP_STORAGE_RESOURCES,
-        self::GROUP_FUNCTIONS_RESOURCES,
-        self::GROUP_DATABASES_RESOURCES,
-        self::GROUP_SETTINGS_RESOURCES
-    );
+    public const ALL_PUBLIC_RESOURCES = [
+        Resource::TYPE_USER, Resource::TYPE_TEAM, 
+        Resource::TYPE_TEAM_MEMBERSHIP,Resource::TYPE_FILE, 
+        Resource::TYPE_BUCKET, Resource::TYPE_FUNCTION, 
+        Resource::TYPE_ENVVAR, Resource::TYPE_DEPLOYMENT,
+        Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, 
+        Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE, 
+        Resource::TYPE_DOCUMENT
+    ];
 
     public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 
