@@ -26,7 +26,7 @@ class File extends Resource
         $this->size = $size;
     }
 
-    static function getName(): string
+    public static function getName(): string
     {
         return Resource::TYPE_FILE;
     }

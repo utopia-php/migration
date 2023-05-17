@@ -14,7 +14,7 @@ const MIME_MAP = ['video/3gpp2' => '3g2', 'video/3gp' => '3gp', 'video/3gpp' => 
 
 class Supabase extends NHost
 {
-    static function getName(): string
+    public static function getName(): string
     {
         return 'Supabase';
     }
@@ -85,8 +85,9 @@ class Supabase extends NHost
         }
 
         // Databases
-        if (in_array(Resource::TYPE_DATABASE, $resources))
+        if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $report[Resource::TYPE_DATABASE] = 1;
+        }
 
         if (in_array(Resource::TYPE_COLLECTION, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
@@ -165,7 +166,7 @@ class Supabase extends NHost
         }
     }
 
-    function exportUsers(int $batchSize)
+    private function exportUsers(int $batchSize)
     {
         $total = $this->pdo->query('SELECT COUNT(*) FROM auth.users')->fetchColumn();
 
@@ -203,7 +204,7 @@ class Supabase extends NHost
         }
     }
 
-    function convertMimes(array $mimes): array
+    private function convertMimes(array $mimes): array
     {
         $extensions = [];
 
@@ -214,7 +215,7 @@ class Supabase extends NHost
         return $extensions;
     }
 
-    function calculateAuthTypes(array $user): array
+    private function calculateAuthTypes(array $user): array
     {
         if (empty($user['encrypted_password']) && empty($user['phone'])) {
             return [User::TYPE_ANONYMOUS];
@@ -244,7 +245,7 @@ class Supabase extends NHost
         }
     }
 
-    function exportBuckets(int $batchSize)
+    private function exportBuckets(int $batchSize)
     {
         $statement = $this->pdo->prepare('SELECT * FROM storage.buckets order by created_at');
         $statement->execute();
@@ -268,7 +269,7 @@ class Supabase extends NHost
         $this->callback($transferBuckets);
     }
 
-    function exportFiles(int $batchSize)
+    private function exportFiles(int $batchSize)
     {
         /**
          * TODO: Supabase has folders, with enough folders within folders this could cause us to hit the max name length
@@ -313,7 +314,7 @@ class Supabase extends NHost
         }
     }
 
-    function handleDataTransfer(File $file)
+    private function handleDataTransfer(File $file)
     {
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;

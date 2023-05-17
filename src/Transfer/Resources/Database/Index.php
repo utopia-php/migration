@@ -35,7 +35,7 @@ class Index extends Resource
         $this->collection = $collection;
     }
 
-    static function getName(): string
+    public static function getName(): string
     {
         return Resource::TYPE_INDEX;
     }

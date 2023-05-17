@@ -157,10 +157,10 @@ class Transfer
 
     /**
      * Get Transfer Report
-     * 
+     *
      * @param string $statusLevel
      * If no status level is provided, all status types will be returned.
-     * 
+     *
      * @return array
      */
     public function getReport(string $statusLevel = ''): array

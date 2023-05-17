@@ -13,7 +13,7 @@ class Team extends Resource
     protected array $preferences = [];
     protected array $members = [];
 
-    function __construct(string $id, string $name, array $preferences = [], array $members = [])
+    public function __construct(string $id, string $name, array $preferences = [], array $members = [])
     {
         $this->id = $id;
         $this->name = $name;
@@ -21,50 +21,50 @@ class Team extends Resource
         $this->members = $members;
     }
 
-    static function getName(): string
+    public static function getName(): string
     {
         return Resource::TYPE_TEAM;
     }
 
-    function getGroup(): string
+    public function getGroup(): string
     {
         return Transfer::GROUP_AUTH;
     }
 
-    function getTeamName(): string
+    public function getTeamName(): string
     {
         return $this->name;
     }
 
-    function setTeamName(string $name): self
+    public function setTeamName(string $name): self
     {
         $this->name = $name;
         return $this;
     }
 
-    function getId(): string
+    public function getId(): string
     {
         return $this->id;
     }
 
-    function setId(string $id): self
+    public function setId(string $id): self
     {
         $this->id = $id;
         return $this;
     }
 
-    function getPreferences(): array
+    public function getPreferences(): array
     {
         return $this->preferences;
     }
 
-    function setPreferences(array $preferences): self
+    public function setPreferences(array $preferences): self
     {
         $this->preferences = $preferences;
         return $this;
     }
 
-    function getMembers(): array
+    public function getMembers(): array
     {
         return $this->members;
     }
@@ -72,13 +72,13 @@ class Team extends Resource
     /**
      * @param User[] $members
      */
-    function setMembers(array $members): self
+    public function setMembers(array $members): self
     {
         $this->members = $members;
         return $this;
     }
 
-    function asArray(): array
+    public function asArray(): array
     {
         return [
             'id' => $this->id,

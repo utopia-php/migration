@@ -29,7 +29,7 @@ class Deployment extends Resource
         $this->activated = $activated;
     }
 
-    static function getName(): string
+    public static function getName(): string
     {
         return Resource::TYPE_DEPLOYMENT;
     }
@@ -93,7 +93,7 @@ class Deployment extends Resource
     {
         return $this->start;
     }
-    
+
     public function setEnd(int $end): self
     {
         $this->end = $end;

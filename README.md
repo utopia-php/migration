@@ -52,7 +52,7 @@ Sources:
 | Appwrite |   ✅   |     ✅     |     ✅     |   ✅   |          |
 | Supabase |   ✅   |     ✅     |     ✅     |       |           |
 | NHost    |   ✅   |     ✅     |     ✅     |       |           |
-| Firebase |   ✅   |     ✅     |           |       |           |
+| Firebase |   ✅   |     ✅     |     ✅     |       |           |
 
 Destinations:
 |          | Auth | Databases | Storage | Functions | Settings |

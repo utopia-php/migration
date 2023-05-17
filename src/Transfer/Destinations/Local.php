@@ -37,7 +37,7 @@ class Local extends Destination
      *
      * @return string
      */
-    static function getName(): string
+    public static function getName(): string
     {
         return 'Local';
     }
@@ -101,42 +101,39 @@ class Local extends Destination
         foreach ($resources as $resource) {
             /** @var Resource $resource */
             switch ($resource->getName()) {
-                case "Deployment": {
-                        /** @var Deployment $resource */
-                        if ($resource->getStart() === 0) {
-                            $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
-                        }
-
-                        file_put_contents($this->path . 'deployments/'.$resource->getId().'.tar.gz', $resource->getData(), FILE_APPEND);
+                case "Deployment":
+                    /** @var Deployment $resource */
+                    if ($resource->getStart() === 0) {
+                        $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
                     }
+
+                    file_put_contents($this->path . 'deployments/' . $resource->getId() . '.tar.gz', $resource->getData(), FILE_APPEND);
                     break;
-                case "FileData": {
-                        /** @var FileData $resource */
+                case "FileData":
+                    /** @var FileData $resource */
 
-                        // Handle folders
-                        if (str_contains($resource->getFile()->getFileName(), '/')) {
-                            $folders = explode('/', $resource->getFile()->getFileName());
-                            $folderPath = $this->path . '/files';
+                    // Handle folders
+                    if (str_contains($resource->getFile()->getFileName(), '/')) {
+                        $folders = explode('/', $resource->getFile()->getFileName());
+                        $folderPath = $this->path . '/files';
 
-                            foreach ($folders as $folder) {
-                                $folderPath .= '/' . $folder;
+                        foreach ($folders as $folder) {
+                            $folderPath .= '/' . $folder;
 
-                                if (!\file_exists($folderPath) && str_contains($folder, '.') === false) {
-                                    mkdir($folderPath, 0777, true);
-                                }
+                            if (!\file_exists($folderPath) && str_contains($folder, '.') === false) {
+                                mkdir($folderPath, 0777, true);
                             }
                         }
+                    }
 
-                        file_put_contents($this->path . '/files/' . $resource->getFile()->getFileName(), $resource->getData(), FILE_APPEND);
-                        break;
-                    }
-                case "File": {
-                        /** @var File $resource */
-                        if (\file_exists($this->path . '/files/' . $resource->getFileName())) {
-                            \unlink($this->path . '/files/' . $resource->getFileName());
-                        }
-                        break;
-                    }
+                    file_put_contents($this->path . '/files/' . $resource->getFile()->getFileName(), $resource->getData(), FILE_APPEND);
+                    break;
+                case "File":
+                    /** @var File $resource */
+                    if (\file_exists($this->path . '/files/' . $resource->getFileName())) {
+                        \unlink($this->path . '/files/' . $resource->getFileName());
+                    };
+                    break;
             }
 
             if ($resource->getName() !== Resource::TYPE_FILEDATA && $resource->getName() !== Resource::TYPE_DEPLOYMENT) {

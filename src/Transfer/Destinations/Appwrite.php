@@ -60,7 +60,7 @@ class Appwrite extends Destination
      *
      * @return string
      */
-    static function getName(): string
+    public static function getName(): string
     {
         return 'Appwrite';
     }
@@ -218,7 +218,7 @@ class Appwrite extends Destination
         }
     }
 
-    function importResources(array $resources, callable $callback): void
+    public function importResources(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
             /** @var Resource $resource */
@@ -663,7 +663,7 @@ class Appwrite extends Destination
         }
     }
 
-    function importDeployment(Deployment $deployment): Resource
+    private function importDeployment(Deployment $deployment): Resource
     {
         $functionId = $deployment->getFunction()->getId();
 

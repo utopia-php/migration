@@ -29,7 +29,7 @@ class Database extends Resource
         $this->id = $id;
     }
 
-    static function getName(): string
+    public static function getName(): string
     {
         return Resource::TYPE_DATABASE;
     }

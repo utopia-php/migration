@@ -57,7 +57,7 @@ class User extends Resource
      *
      * @return string
      */
-    static function getName(): string
+    public static function getName(): string
     {
         return Resource::TYPE_USER;
     }

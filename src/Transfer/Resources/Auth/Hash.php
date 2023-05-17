@@ -43,7 +43,7 @@ class Hash extends Resource
         $this->passwordLength = $passwordLength;
     }
 
-    static function getName(): string
+    public static function getName(): string
     {
         return Resource::TYPE_HASH;
     }

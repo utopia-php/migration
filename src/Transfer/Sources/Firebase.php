@@ -33,17 +33,17 @@ class Firebase extends Source
         $this->projectID = $serviceAccount['project_id'];
     }
 
-    static function getName(): string
+    public static function getName(): string
     {
         return 'Firebase';
     }
 
-    function base64url_encode($data)
+    private function base64UrlEncode($data)
     {
         return str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($data));
     }
 
-    function calculateJWT(): string
+    private function calculateJWT(): string
     {
         $jwtClaim = [
             'iss' => $this->serviceAccount['client_email'],
@@ -58,11 +58,11 @@ class Firebase extends Source
             'typ' => 'JWT'
         ];
 
-        $jwtPayload = $this->base64url_encode(json_encode($jwtHeader)) . '.' . $this->base64url_encode(json_encode($jwtClaim));
+        $jwtPayload = $this->base64UrlEncode(json_encode($jwtHeader)) . '.' . $this->base64UrlEncode(json_encode($jwtClaim));
 
         $jwtSignature = '';
         openssl_sign($jwtPayload, $jwtSignature, $this->serviceAccount['private_key'], 'sha256');
-        $jwtSignature = $this->base64url_encode($jwtSignature);
+        $jwtSignature = $this->base64UrlEncode($jwtSignature);
 
         return $jwtPayload . '.' . $jwtSignature;
     }
@@ -70,7 +70,7 @@ class Firebase extends Source
     /**
      * Computes the JWT then fetches an auth token from the Google OAuth2 API which is valid for an hour
      */
-    function authenticate()
+    private function authenticate()
     {
         if (time() < $this->tokenExpires) {
             return;
@@ -135,7 +135,7 @@ class Firebase extends Source
         }
     }
 
-    function exportUsers(int $batchSize)
+    private function exportUsers(int $batchSize)
     {
         // Fetch our Hash Config
         $hashConfig = ($this->call('GET', 'https://identitytoolkit.googleapis.com/admin/v2/projects/' . $this->projectID . '/config'))["signIn"]["hashConfig"];
@@ -185,7 +185,7 @@ class Firebase extends Source
         }
     }
 
-    function calculateUserType(array $providerData): array
+    private function calculateUserType(array $providerData): array
     {
         if (count($providerData) === 0) {
             return [User::TYPE_ANONYMOUS];
@@ -222,7 +222,7 @@ class Firebase extends Source
         }
     }
 
-    function handleDBData(int $batchSize, bool $pushDocuments, Database $database)
+    private function handleDBData(int $batchSize, bool $pushDocuments, Database $database)
     {
         $baseURL = "https://firestore.googleapis.com/v1/{$this->projectID}/databases/(default)";
 
@@ -263,7 +263,7 @@ class Firebase extends Source
         }
     }
 
-    function convertAttribute(Collection $collection, string $key, array $field): Attribute
+    private function convertAttribute(Collection $collection, string $key, array $field): Attribute
     {
         if (array_key_exists("booleanValue", $field)) {
             return new BoolAttribute($key, $collection, false, false, null);
@@ -292,7 +292,7 @@ class Firebase extends Source
         }
     }
 
-    function calculateArrayType(Collection $collection, string $key, array $data): Attribute
+    private function calculateArrayType(Collection $collection, string $key, array $data): Attribute
     {
         $isSameType = true;
         $previousType = null;
@@ -314,7 +314,7 @@ class Firebase extends Source
         }
     }
 
-    function handleCollection(Collection $collection, int $batchSize, bool $transferDocuments)
+    private function handleCollection(Collection $collection, int $batchSize, bool $transferDocuments)
     {
         $resourceURL = 'https://firestore.googleapis.com/v1/projects/' . $this->projectID . '/databases/' . $collection->getDatabase()->getId() . '/documents/' . $collection->getId();
 
@@ -353,7 +353,7 @@ class Firebase extends Source
                 $documents[] = $this->convertDocument($collection, $document);
             }
 
-            // Transfer Documents   
+            // Transfer Documents
             if ($transferDocuments) {
                 $this->callback($documents);
             }
@@ -366,7 +366,7 @@ class Firebase extends Source
         }
     }
 
-    function calculateValue(array $field)
+    private function calculateValue(array $field)
     {
         if (array_key_exists("booleanValue", $field)) {
             return $field['booleanValue'];
@@ -389,13 +389,13 @@ class Firebase extends Source
         } elseif (array_key_exists("geoPointValue", $field)) {
             return $field['geoPointValue'];
         } elseif (array_key_exists("arrayValue", $field)) {
-            //TODO: 
+            //TODO:
         } else {
             throw new \Exception('Unknown field type');
         }
     }
 
-    function convertDocument(Collection $collection, array $document): Document
+    private function convertDocument(Collection $collection, array $document): Document
     {
         $data = [];
         foreach ($document['fields'] as $key => $field) {
@@ -407,11 +407,13 @@ class Firebase extends Source
 
     public function exportStorageGroup(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_BUCKET, $resources))
+        if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
+        }
 
-        if (in_array(Resource::TYPE_FILE, $resources))
+        if (in_array(Resource::TYPE_FILE, $resources)) {
             $this->exportFiles($batchSize);
+        }
     }
 
     public function exportBuckets(int $batchsize)

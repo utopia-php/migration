@@ -1,16 +1,19 @@
 <?php
 
+namespace Utopia\Tests;
+
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Transfer;
 
-class MockDestination extends Destination {
-    static function getName(): string
+class MockDestination extends Destination
+{
+    public static function getName(): string
     {
         return 'MockDestination';
-    } 
+    }
 
-    function getSupportedResources(): array
+    public function getSupportedResources(): array
     {
         return [
             Resource::TYPE_ATTRIBUTE,
@@ -31,11 +34,11 @@ class MockDestination extends Destination {
         ];
     }
 
-    function importResources(array $resources, callable $callback): void
+    public function importResources(array $resources, callable $callback): void
     {
     }
 
-    function report(array $groups = []): array
+    public function report(array $groups = []): array
     {
         return [];
     }

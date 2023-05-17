@@ -4,37 +4,37 @@ namespace Utopia\Transfer;
 
 abstract class Resource
 {
-    const STATUS_PENDING = 'PENDING';
-    const STATUS_SUCCESS = 'SUCCESS';
-    const STATUS_ERROR = 'ERROR';
-    const STATUS_SKIPPED = 'SKIP';
-    const STATUS_PROCESSING = 'PROCESSING';
-    const STATUS_WARNING = 'WARNING';
+    public const STATUS_PENDING = 'PENDING';
+    public const STATUS_SUCCESS = 'SUCCESS';
+    public const STATUS_ERROR = 'ERROR';
+    public const STATUS_SKIPPED = 'SKIP';
+    public const STATUS_PROCESSING = 'PROCESSING';
+    public const STATUS_WARNING = 'WARNING';
     /**
      * For some transfers (namely Firebase) we have to keep resources in cache that do not necessarily need to be Transferred
      * This status is used to mark resources that are not going to be transferred but are still needed for the transfer to work
      * e.g Documents are required for Database transfers because of schema tracing in firebase
      */
-    const STATUS_DISREGARDED = 'DISREGARDED';
+    public const STATUS_DISREGARDED = 'DISREGARDED';
 
 
-    const TYPE_ATTRIBUTE = 'Attribute';
-    const TYPE_BUCKET = 'Bucket';
-    const TYPE_COLLECTION = 'Collection';
-    const TYPE_DATABASE = 'Database';
-    const TYPE_DOCUMENT = 'Document';
-    const TYPE_FILE = 'File';
-    const TYPE_FILEDATA = 'FileData';
-    const TYPE_FUNCTION = 'Function';
-    const TYPE_DEPLOYMENT = 'Deployment';
-    const TYPE_HASH = 'Hash';
-    const TYPE_INDEX = 'Index';
-    const TYPE_USER = 'User';
-    const TYPE_ENVVAR = 'EnvVar';
-    const TYPE_TEAM = 'Team';
-    const TYPE_TEAM_MEMBERSHIP = 'TeamMembership';
+    public const TYPE_ATTRIBUTE = 'Attribute';
+    public const TYPE_BUCKET = 'Bucket';
+    public const TYPE_COLLECTION = 'Collection';
+    public const TYPE_DATABASE = 'Database';
+    public const TYPE_DOCUMENT = 'Document';
+    public const TYPE_FILE = 'File';
+    public const TYPE_FILEDATA = 'FileData';
+    public const TYPE_FUNCTION = 'Function';
+    public const TYPE_DEPLOYMENT = 'Deployment';
+    public const TYPE_HASH = 'Hash';
+    public const TYPE_INDEX = 'Index';
+    public const TYPE_USER = 'User';
+    public const TYPE_ENVVAR = 'EnvVar';
+    public const TYPE_TEAM = 'Team';
+    public const TYPE_TEAM_MEMBERSHIP = 'TeamMembership';
 
-    const ALL_RESOURCES = [
+    public const ALL_RESOURCES = [
         self::TYPE_ATTRIBUTE,
         self::TYPE_BUCKET,
         self::TYPE_COLLECTION,
@@ -77,7 +77,7 @@ abstract class Resource
      *
      * @return string
      */
-    abstract static function getName(): string;
+    abstract public static function getName(): string;
 
     /**
      * Get Parent Group

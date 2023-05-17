@@ -22,7 +22,7 @@ class Document extends Resource
         $this->permissions = $permissions;
     }
 
-    static function getName(): string
+    public static function getName(): string
     {
         return Resource::TYPE_DOCUMENT;
     }

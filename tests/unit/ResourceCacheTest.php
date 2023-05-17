@@ -1,27 +1,11 @@
 <?php
 
+namespace Utopia\Tests;
+
 use PHPUnit\Framework\TestCase;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\ResourceCache;
 use Utopia\Transfer\Transfer;
-
-class ConcreteResource extends Resource
-{
-    static function getName(): string
-    {
-        return 'TestResource';
-    }
-
-    public function getGroup(): string
-    {
-        return Transfer::GROUP_GENERAL;
-    }
-
-    public function asArray(): array
-    {
-        return [];
-    }
-}
 
 class ResourceCacheTest extends TestCase
 {

@@ -7,11 +7,10 @@ use Utopia\Transfer\Resources\Auth\Hash;
 use Utopia\Transfer\Resources\Auth\Team;
 use Utopia\Transfer\Resources\Auth\User;
 
-class Appwrite extends SourceTest 
+class Appwrite extends SourceTest
 {
     public function testExportResources(): void
     {
-        
     }
 
     public function testReport(): void

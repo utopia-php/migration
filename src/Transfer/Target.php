@@ -34,7 +34,7 @@ abstract class Target
      *
      * @return string
      */
-    abstract static function getName(): string;
+    abstract public static function getName(): string;
 
     /**
      * Get Supported Resources
@@ -65,13 +65,13 @@ abstract class Target
 
     /**
      * Report Resources
-     * 
+     *
      * This function performs a count of all resources that are available for transfer.
      * It also serves a secondary purpose of checking if the API is available for the given adapter.
-     * 
+     *
      * On Destinations, this function should just return nothing but still check if the API is available.
      * If any issues are found then an exception should be thrown with an error message.
-     * 
+     *
      * @param array $resources
      */
     abstract public function report(array $resources = []): array;

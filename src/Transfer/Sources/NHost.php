@@ -53,7 +53,7 @@ class NHost extends Source
         }
     }
 
-    static function getName(): string
+    public static function getName(): string
     {
         return 'NHost';
     }
@@ -114,8 +114,9 @@ class NHost extends Source
         }
 
         // Databases
-        if (in_array(Resource::TYPE_DATABASE, $resources))
+        if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $report[Resource::TYPE_DATABASE] = 1;
+        }
 
         if (in_array(Resource::TYPE_COLLECTION, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
@@ -194,7 +195,7 @@ class NHost extends Source
         }
     }
 
-    function exportUsers(int $batchSize)
+    private function exportUsers(int $batchSize)
     {
         $total = $this->pdo->query('SELECT COUNT(*) FROM auth.users')->fetchColumn();
 
@@ -255,7 +256,7 @@ class NHost extends Source
         }
     }
 
-    function exportDatabases(int $batchSize): void
+    private function exportDatabases(int $batchSize): void
     {
         // We'll only transfer the public database for now, since it's the only one that exists by default.
         //TODO: Handle edge cases where there are user created databases and data.
@@ -263,7 +264,7 @@ class NHost extends Source
         $this->callback([$transferDatabase]);
     }
 
-    function exportCollections(int $batchSize)
+    private function exportCollections(int $batchSize)
     {
         $databases = $this->resourceCache->get(Database::getName());
 
@@ -293,7 +294,7 @@ class NHost extends Source
         }
     }
 
-    function exportAttributes(int $batchSize)
+    private function exportAttributes(int $batchSize)
     {
         $collections = $this->resourceCache->get(Collection::getName());
 
@@ -314,7 +315,7 @@ class NHost extends Source
         }
     }
 
-    function exportIndexes(int $batchSize)
+    private function exportIndexes(int $batchSize)
     {
         $collections = $this->resourceCache->get(Collection::getName());
 
@@ -337,7 +338,7 @@ class NHost extends Source
         }
     }
 
-    function exportDocuments(int $batchSize)
+    private function exportDocuments(int $batchSize)
     {
         $databases = $this->resourceCache->get(Database::getName());
 
@@ -389,7 +390,7 @@ class NHost extends Source
         }
     }
 
-    function convertAttribute(array $column, Collection $collection): Attribute
+    private function convertAttribute(array $column, Collection $collection): Attribute
     {
         $isArray = $column['data_type'] === 'ARRAY';
 
@@ -459,7 +460,7 @@ class NHost extends Source
         }
     }
 
-    function convertIndex(array $index, Collection $collection): Index|false
+    private function convertIndex(array $index, Collection $collection): Index|false
     {
         $pattern = "/CREATE (?<type>\w+)? INDEX (?<name>\w+) ON (?<table>\w+\.\w+) USING (?<method>\w+) \((?<columns>\w+)\)/";
 
@@ -506,7 +507,7 @@ class NHost extends Source
         }
     }
 
-    function calculateUserTypes(array $user): array
+    private function calculateUserTypes(array $user): array
     {
         if (empty($user['password_hash']) && empty($user['phone_number'])) {
             return [User::TYPE_ANONYMOUS];
@@ -527,11 +528,13 @@ class NHost extends Source
 
     public function exportStorageGroup(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_BUCKET, $resources))
+        if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
+        }
 
-        if (in_array(Resource::TYPE_FILE, $resources))
+        if (in_array(Resource::TYPE_FILE, $resources)) {
             $this->exportFiles($batchSize);
+        }
     }
 
     public function exportBuckets(int $batchSize)
@@ -614,7 +617,7 @@ class NHost extends Source
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 
         $fileSize = $file->getSize();
-        $response = $this->call("GET", $url."/v1/files/{$file->getId()}/presignedurl", [
+        $response = $this->call("GET", $url . "/v1/files/{$file->getId()}/presignedurl", [
             'X-Hasura-Admin-Secret' => $this->adminSecret,
         ]);
 

@@ -83,7 +83,7 @@ class Appwrite extends Source
      *
      * @return string
      */
-    static function getName(): string
+    public static function getName(): string
     {
         return "Appwrite";
     }
@@ -140,12 +140,14 @@ class Appwrite extends Source
         // Auth
         try {
             $currentPermission = 'users.read';
-            if (in_array(Resource::TYPE_USER, $resources))
+            if (in_array(Resource::TYPE_USER, $resources)) {
                 $report[Resource::TYPE_USER] = $usersClient->list()['total'];
+            }
 
             $currentPermission = 'teams.read';
-            if (in_array(Resource::TYPE_TEAM, $resources))
+            if (in_array(Resource::TYPE_TEAM, $resources)) {
                 $report[Resource::TYPE_TEAM] = $teamsClient->list()['total'];
+            }
 
             if (in_array(Resource::TYPE_TEAM_MEMBERSHIP, $resources)) {
                 $report[Resource::TYPE_TEAM_MEMBERSHIP] = 0;
@@ -157,8 +159,9 @@ class Appwrite extends Source
 
             // Databases
             $currentPermission = 'databases.read';
-            if (in_array(Resource::TYPE_DATABASE, $resources))
+            if (in_array(Resource::TYPE_DATABASE, $resources)) {
                 $report[Resource::TYPE_DATABASE] = $databaseClient->list()['total'];
+            }
 
             $currentPermission = 'collections.read';
             if (in_array(Resource::TYPE_COLLECTION, $resources)) {
@@ -207,8 +210,9 @@ class Appwrite extends Source
 
             // Storage
             $currentPermission = 'buckets.read';
-            if (in_array(Resource::TYPE_BUCKET, $resources))
+            if (in_array(Resource::TYPE_BUCKET, $resources)) {
                 $report[Resource::TYPE_BUCKET] = $storageClient->listBuckets()['total'];
+            }
 
             $currentPermission = 'files.read';
             if (in_array(Resource::TYPE_FILE, $resources)) {
@@ -221,8 +225,9 @@ class Appwrite extends Source
 
             // Functions
             $currentPermission = 'functions.read';
-            if (in_array(Resource::TYPE_FUNCTION, $resources))
+            if (in_array(Resource::TYPE_FUNCTION, $resources)) {
                 $report[Resource::TYPE_FUNCTION] = $functionsClient->list()['total'];
+            }
 
             if (in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
                 $report[Resource::TYPE_DEPLOYMENT] = 0;
@@ -272,7 +277,7 @@ class Appwrite extends Source
         }
     }
 
-    function exportUsers(int $batchSize)
+    private function exportUsers(int $batchSize)
     {
         $usersClient = new Users($this->client);
         $lastDocument = null;
@@ -319,7 +324,7 @@ class Appwrite extends Source
         }
     }
 
-    function exportTeams(int $batchSize)
+    private function exportTeams(int $batchSize)
     {
         $teamsClient = new Teams($this->client);
         $lastDocument = null;
@@ -358,7 +363,7 @@ class Appwrite extends Source
         }
     }
 
-    function exportTeamMemberships(int $batchSize)
+    private function exportTeamMemberships(int $batchSize)
     {
         $teamsClient = new Teams($this->client);
 
@@ -427,7 +432,7 @@ class Appwrite extends Source
     }
 
 
-    function exportDocuments(int $batchSize)
+    private function exportDocuments(int $batchSize)
     {
         $databaseClient = new Databases($this->client);
         $collections = $this->resourceCache->get(Collection::getName());
@@ -480,7 +485,7 @@ class Appwrite extends Source
         }
     }
 
-    function convertAttribute(array $value, Collection $collection): Attribute
+    private function convertAttribute(array $value, Collection $collection): Attribute
     {
         switch ($value["type"]) {
             case "string":
@@ -593,7 +598,7 @@ class Appwrite extends Source
         throw new \Exception("Unknown attribute type: " . $value["type"]);
     }
 
-    function exportDatabases(int $batchSize)
+    private function exportDatabases(int $batchSize)
     {
         $databaseClient = new Databases($this->client);
 
@@ -627,7 +632,7 @@ class Appwrite extends Source
         }
     }
 
-    function exportCollections(int $batchSize)
+    private function exportCollections(int $batchSize)
     {
         $databaseClient = new Databases($this->client);
 
@@ -670,7 +675,7 @@ class Appwrite extends Source
         }
     }
 
-    function exportAttributes(int $batchSize)
+    private function exportAttributes(int $batchSize)
     {
         $databaseClient = new Databases($this->client);
 
@@ -707,7 +712,7 @@ class Appwrite extends Source
         }
     }
 
-    function exportIndexes(int $batchSize)
+    private function exportIndexes(int $batchSize)
     {
         $databaseClient = new Databases($this->client);
 
@@ -751,7 +756,7 @@ class Appwrite extends Source
         }
     }
 
-    function calculateTypes(array $user): array
+    private function calculateTypes(array $user): array
     {
         if (empty($user["email"]) && empty($user["phone"])) {
             return [User::TYPE_ANONYMOUS];
@@ -781,7 +786,7 @@ class Appwrite extends Source
         }
     }
 
-    function exportBuckets(int $batchSize)
+    private function exportBuckets(int $batchSize)
     {
         //TODO: Impl batching
         $storageClient = new Storage($this->client);
@@ -812,7 +817,7 @@ class Appwrite extends Source
         $this->callback($convertedBuckets);
     }
 
-    function exportFiles(int $batchSize)
+    private function exportFiles(int $batchSize)
     {
         $storageClient = new Storage($this->client);
 
@@ -853,7 +858,7 @@ class Appwrite extends Source
         }
     }
 
-    function handleDataTransfer(File $file)
+    private function handleDataTransfer(File $file)
     {
         // Set the chunk size (5MB)
         $start = 0;
@@ -894,11 +899,13 @@ class Appwrite extends Source
 
     public function exportFunctionsGroup(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_FUNCTION, $resources))
+        if (in_array(Resource::TYPE_FUNCTION, $resources)) {
             $this->exportFunctions($batchSize);
+        }
 
-        if (in_array(Resource::TYPE_DEPLOYMENT, $resources))
+        if (in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
             $this->exportDeployments($batchSize);
+        }
     }
 
     public function exportFunctions(int $batchSize)

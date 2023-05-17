@@ -12,7 +12,7 @@ class TeamMembership extends Resource
     protected array $roles;
     protected bool $active = true;
 
-    function __construct(Team $team, string $userId, array $roles = [], bool $active = true)
+    public function __construct(Team $team, string $userId, array $roles = [], bool $active = true)
     {
         $this->team = $team;
         $this->userId = $userId;
@@ -20,61 +20,61 @@ class TeamMembership extends Resource
         $this->active = $active;
     }
 
-    static function getName(): string
+    public static function getName(): string
     {
         return Resource::TYPE_TEAM_MEMBERSHIP;
     }
 
-    function getGroup(): string
+    public function getGroup(): string
     {
         return Transfer::GROUP_AUTH;
     }
 
-    function getTeam(): Team
+    public function getTeam(): Team
     {
         return $this->team;
     }
 
-    function setTeam(Team $team): self
+    public function setTeam(Team $team): self
     {
         $this->team = $team;
         return $this;
     }
 
-    function getUserId(): string
+    public function getUserId(): string
     {
         return $this->userId;
     }
 
-    function setUserId(string $userId): self
+    public function setUserId(string $userId): self
     {
         $this->userId = $userId;
         return $this;
     }
 
-    function getRoles(): array
+    public function getRoles(): array
     {
         return $this->roles;
     }
 
-    function setRoles(array $roles): self
+    public function setRoles(array $roles): self
     {
         $this->roles = $roles;
         return $this;
     }
 
-    function getActive(): bool
+    public function getActive(): bool
     {
         return $this->active;
     }
 
-    function setActive(bool $active): self
+    public function setActive(bool $active): self
     {
         $this->active = $active;
         return $this;
     }
 
-    function asArray(): array
+    public function asArray(): array
     {
         return [
             'userId' => $this->userId,

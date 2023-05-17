@@ -6,7 +6,7 @@ use PHPUnit\Framework\TestCase;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Source;
 
-abstract class SourceTest extends TestCase 
+abstract class SourceTest extends TestCase
 {
     protected ?Source $source = null;
 
@@ -20,7 +20,7 @@ abstract class SourceTest extends TestCase
         $this->assertNotEmpty($this->source->getSupportedResources());
 
         foreach ($this->source->getSupportedResources() as $resource) {
-            $this->assertContains($resource,  Resource::ALL_RESOURCES);
+            $this->assertContains($resource, Resource::ALL_RESOURCES);
         }
     }
 
@@ -31,14 +31,15 @@ abstract class SourceTest extends TestCase
         $this->assertNotNull($this->source->resourceCache);
     }
 
-    public abstract function testReport(): void;
+    abstract public function testReport(): void;
 
-    public function validateReport(array $report) {
+    public function validateReport(array $report)
+    {
         foreach ($report as $resource => $amount) {
             $this->assertContains($resource, Resource::ALL_RESOURCES);
             $this->assertIsInt($amount);
         }
     }
 
-    public abstract function testExportResources(): void;
+    abstract public function testExportResources(): void;
 }
