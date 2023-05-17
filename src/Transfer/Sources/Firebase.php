@@ -16,6 +16,9 @@ use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Database\Document;
+use Utopia\Transfer\Resources\Storage\Bucket;
+use Utopia\Transfer\Resources\Storage\File;
+use Utopia\Transfer\Resources\Storage\FileData;
 
 class Firebase extends Source
 {
@@ -112,6 +115,11 @@ class Firebase extends Source
             Resource::TYPE_COLLECTION,
             Resource::TYPE_ATTRIBUTE,
             Resource::TYPE_DOCUMENT,
+
+            // Storage
+            Resource::TYPE_BUCKET,
+            Resource::TYPE_FILE,
+            Resource::TYPE_FILEDATA
         ];
     }
 
@@ -210,20 +218,48 @@ class Firebase extends Source
         }
 
         if (in_array(Resource::TYPE_COLLECTION, $resources)) {
-            $this->traceDBResource($database, 'projects/' . $this->projectID . '/databases/' . $database->getId() . '/documents/', $batchSize);
-        }
-
-        if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
-            $this->exportDocuments($batchSize);
+            $this->handleDBData($batchSize, in_array(Resource::TYPE_DOCUMENT, $resources), $database);
         }
     }
 
-    function exportDocuments(int $batchSize)
+    function handleDBData(int $batchSize, bool $pushDocuments, Database $database)
     {
-        $collections = $this->resourceCache->get(Collection::getName());
+        $baseURL = "https://firestore.googleapis.com/v1/{$this->projectID}/databases/(default)";
 
-        foreach ($collections as $collection) {
-           
+        $nextPageToken = null;
+        $allCollections = [];
+        while (true) {
+            $collections = [];
+
+            $result = $this->call('POST', $baseURL . ':listCollectionIds', [
+                'Content-Type' => 'application/json',
+            ], [
+                'pageSize' => $batchSize,
+                'pageToken' => $nextPageToken
+            ]);
+
+            // Transfer Collections
+            foreach ($result['collectionIds'] as $collection) {
+                $collections[] = new Collection($database, $collection, $collection);
+            }
+
+            if (count($collections) !== 0) {
+                $allCollections = array_merge($allCollections, $collections);
+                $this->callback($collections);
+            } else {
+                return;
+            }
+
+            // Transfer Documents and Calculate Schema
+            foreach ($collections as $collection) {
+                $this->handleCollection($collection, $batchSize, $pushDocuments);
+            }
+
+            if (count($result['collectionIds']) < $batchSize) {
+                break;
+            }
+
+            $nextPageToken = $result['nextPageToken'] ?? null;
         }
     }
 
@@ -278,7 +314,7 @@ class Firebase extends Source
         }
     }
 
-    function handleCollection(Collection $collection, int $batchSize)
+    function handleCollection(Collection $collection, int $batchSize, bool $transferDocuments)
     {
         $resourceURL = 'https://firestore.googleapis.com/v1/projects/' . $this->projectID . '/databases/' . $collection->getDatabase()->getId() . '/documents/' . $collection->getId();
 
@@ -314,12 +350,13 @@ class Firebase extends Source
                     }
                 }
 
-                $this->traceDBResource($collection->getDatabase(), $document['name'], $batchSize);
                 $documents[] = $this->convertDocument($collection, $document);
             }
 
-            // Transfer Documents        
-            $this->callback($documents);
+            // Transfer Documents   
+            if ($transferDocuments) {
+                $this->callback($documents);
+            }
 
             if (count($result['documents']) < $batchSize) {
                 break;
@@ -329,7 +366,8 @@ class Firebase extends Source
         }
     }
 
-    function calculateValue(array $field) {
+    function calculateValue(array $field)
+    {
         if (array_key_exists("booleanValue", $field)) {
             return $field['booleanValue'];
         } elseif (array_key_exists("bytesValue", $field)) {
@@ -351,7 +389,7 @@ class Firebase extends Source
         } elseif (array_key_exists("geoPointValue", $field)) {
             return $field['geoPointValue'];
         } elseif (array_key_exists("arrayValue", $field)) {
-           //TODO: 
+            //TODO: 
         } else {
             throw new \Exception('Unknown field type');
         }
@@ -367,40 +405,38 @@ class Firebase extends Source
         return new Document($document['name'], $collection->getDatabase(), $collection, $data, []);
     }
 
-    function traceDBResource(Database $database, string $resource, int $batchSize)
+    public function exportStorageGroup(int $batchSize, array $resources)
     {
-        $baseURL = 'https://firestore.googleapis.com/v1/' . $resource;
+        if (in_array(Resource::TYPE_BUCKET, $resources))
+            $this->exportBuckets($batchSize);
+
+        if (in_array(Resource::TYPE_FILE, $resources))
+            $this->exportFiles($batchSize);
+    }
+
+    public function exportBuckets(int $batchsize)
+    {
+        $endpoint = 'https://storage.googleapis.com/storage/v1/b';
 
         $nextPageToken = null;
-        $allCollections = [];
-        while (true) {
-            $collections = [];
 
-            $result = $this->call('POST', $baseURL . ':listCollectionIds', [
-                'Content-Type' => 'application/json',
-            ], [
-                'pageSize' => $batchSize,
-                'pageToken' => $nextPageToken
+        while (true) {
+            $result = $this->call('GET', $endpoint, [], [
+                'project' => $this->projectID,
+                'maxResults' => $batchsize,
+                'pageToken' => $nextPageToken,
+                'alt' => 'json'
             ]);
 
-            // Transfer Collections
-            foreach ($result['collectionIds'] as $collection) {
-                $collections[] = new Collection($database, $collection, $collection);
+            if (empty($result)) {
+                break;
             }
 
-            if (count($collections) !== 0) {
-                $allCollections = array_merge($allCollections, $collections);
-                $this->callback($collections);
-            } else {
-                return;
+            foreach ($result['items'] as $bucket) {
+                $this->callback([new Bucket($bucket['id'], [], false, $bucket['name'])]);
             }
 
-            // Transfer Documents and Calculate Schema
-            foreach ($collections as $collection) {
-                $this->handleCollection($collection, $batchSize);
-            }
-
-            if (count($result['collectionIds']) < $batchSize) {
+            if (!isset($result['nextPageToken'])) {
                 break;
             }
 
@@ -408,12 +444,76 @@ class Firebase extends Source
         }
     }
 
-    public function exportFunctionsGroup(int $batchSize, array $resources)
+    public function exportFiles(int $batchsize)
     {
-        throw new \Exception('Not implemented');
+        $buckets = $this->resourceCache->get(Bucket::getName());
+
+        foreach ($buckets as $bucket) {
+            $endpoint = 'https://storage.googleapis.com/storage/v1/b/' . $bucket->getId() . '/o';
+
+            $nextPageToken = null;
+
+            while (true) {
+                $result = $this->call('GET', $endpoint, [
+                    'Content-Type' => 'application/json',
+                ], [
+                    'pageSize' => $batchsize,
+                    'pageToken' => $nextPageToken
+                ]);
+
+                if (empty($result)) {
+                    break;
+                }
+
+                if (!isset($result['items'])) {
+                    break;
+                }
+
+                foreach ($result['items'] as $item) {
+                    $this->handleDataTransfer(new File($item['name'], $bucket, $item['name']));
+                }
+
+                if (count($result['items']) < $batchsize) {
+                    break;
+                }
+
+                $nextPageToken = $result['nextPageToken'] ?? null;
+            }
+        }
     }
 
-    public function exportStorageGroup(int $batchSize, array $resources)
+    public function handleDataTransfer(File $file)
+    {
+        $endpoint = 'https://storage.googleapis.com/storage/v1/b/' . $file->getBucket()->getId() . '/o/' . $file->getId() . '?alt=media';
+        $start = 0;
+        $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
+
+        while (true) {
+            $result = $this->call('GET', $endpoint, [
+                'Range' => 'bytes=' . $start . '-' . $end
+            ]);
+
+            if (empty($result)) {
+                break;
+            }
+
+            $this->callback([new FileData(
+                $result,
+                $start,
+                $end,
+                $file
+            )]);
+
+            if (strlen($result) < Transfer::STORAGE_MAX_CHUNK_SIZE) {
+                break;
+            }
+
+            $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
+            $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
+        }
+    }
+
+    public function exportFunctionsGroup(int $batchSize, array $resources)
     {
         throw new \Exception('Not implemented');
     }

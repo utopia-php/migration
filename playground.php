@@ -71,7 +71,7 @@ $destinationLocal = new Local(__DIR__ . '/localBackup/');
  */
 
 $transfer = new Transfer(
-    $sourceSupabase,
+    $sourceFirebase,
     $destinationLocal
 );
 
@@ -79,7 +79,7 @@ $transfer = new Transfer(
  * Run Transfer 
  */
 $transfer->run(
-    [Transfer::GROUP_DATABASES_RESOURCES],
+    [Transfer::GROUP_STORAGE_RESOURCES],
     function (array $resources) use ($transfer) {
     }
 );

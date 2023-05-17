@@ -21,12 +21,12 @@ class Transfer
     public const GROUP_DATABASES_RESOURCES = [Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE, Resource::TYPE_DOCUMENT];
     public const GROUP_SETTINGS_RESOURCES = [];
     public const ALL_PUBLIC_RESOURCES = [
-        Resource::TYPE_USER, Resource::TYPE_TEAM, 
-        Resource::TYPE_TEAM_MEMBERSHIP,Resource::TYPE_FILE, 
-        Resource::TYPE_BUCKET, Resource::TYPE_FUNCTION, 
+        Resource::TYPE_USER, Resource::TYPE_TEAM,
+        Resource::TYPE_TEAM_MEMBERSHIP, Resource::TYPE_FILE,
+        Resource::TYPE_BUCKET, Resource::TYPE_FUNCTION,
         Resource::TYPE_ENVVAR, Resource::TYPE_DEPLOYMENT,
-        Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, 
-        Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE, 
+        Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION,
+        Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE,
         Resource::TYPE_DOCUMENT
     ];
 
@@ -92,11 +92,11 @@ class Transfer
     {
         $status = [];
 
-        foreach ($this->resourceCache as $resources) {
+        foreach ($this->resourceCache->getAll() as $resources) {
             foreach ($resources as $resource) {
                 /** @var Resource $resource */
-                if (!array_key_exists($resource->getGroup(), $status)) {
-                    $status[$resource->getGroup()] = [
+                if (!array_key_exists($resource->getName(), $status)) {
+                    $status[$resource->getName()] = [
                         Resource::STATUS_PENDING => 0,
                         Resource::STATUS_SUCCESS => 0,
                         Resource::STATUS_ERROR => 0,
@@ -106,7 +106,7 @@ class Transfer
                     ];
                 }
 
-                $status[$resource->getGroup()][$resource->getStatus()]++;
+                $status[$resource->getName()][$resource->getStatus()]++;
             }
         }
 
@@ -169,17 +169,19 @@ class Transfer
 
         $resourceCache = $this->resourceCache->getAll();
 
-        foreach ($resourceCache as $resource) {
-            if ($statusLevel && $resource->getStatus() !== $statusLevel) {
-                continue;
-            }
+        foreach ($resourceCache as $type => $resources) {
+            foreach ($resources as $resource) {
+                if ($statusLevel && $resource->getStatus() !== $statusLevel) {
+                    continue;
+                }
 
-            $report[] = [
-                'resource' => $resource->getType(),
-                'id' => $resource->getId(),
-                'status' => $resource->getStatus(),
-                'message' => $resource->getMessage(),
-            ];
+                $report[] = [
+                    'resource' => $type,
+                    'id' => $resource->getId(),
+                    'status' => $resource->getStatus(),
+                    'message' => $resource->getReason(),
+                ];
+            }
         }
 
         return $report;

@@ -155,6 +155,16 @@ abstract class Resource
     }
 
     /**
+     * Get Reason
+     *
+     * @return string
+     */
+    public function getReason(): string
+    {
+        return $this->reason;
+    }
+
+    /**
      * As Array
      *
      * @return array
