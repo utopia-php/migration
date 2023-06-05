@@ -129,7 +129,7 @@ class Local extends Destination
             }
 
             $resource->setStatus(Resource::STATUS_SUCCESS);
-            $this->resourceCache->update($resource);
+            $this->cache->update($resource);
             $this->syncFile();
         }
 

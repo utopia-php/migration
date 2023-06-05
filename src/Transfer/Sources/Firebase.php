@@ -448,7 +448,7 @@ class Firebase extends Source
 
     public function exportFiles(int $batchsize)
     {
-        $buckets = $this->resourceCache->get(Bucket::getName());
+        $buckets = $this->cache->get(Bucket::getName());
 
         foreach ($buckets as $bucket) {
             $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$bucket->getId().'/o';

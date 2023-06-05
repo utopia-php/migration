@@ -45,10 +45,10 @@ class Transfer
     {
         $this->source = $source;
         $this->destination = $destination;
-        $this->resourceCache = new ResourceCache();
+        $this->cache = new Cache();
 
-        $this->source->registerTransferCache($this->resourceCache);
-        $this->destination->registerTransferCache($this->resourceCache);
+        $this->source->registerTransferCache($this->cache);
+        $this->destination->registerTransferCache($this->cache);
         $this->destination->setSource($source);
 
         return $this;
@@ -63,7 +63,7 @@ class Transfer
     /**
      * A local cache of resources that were transferred.
      */
-    protected ResourceCache $resourceCache;
+    protected Cache $cache;
 
     protected array $options = [];
 
@@ -75,7 +75,7 @@ class Transfer
     {
         $status = [];
 
-        foreach ($this->resourceCache->getAll() as $resources) {
+        foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
                 /** @var resource $resource */
                 if (! array_key_exists($resource->getName(), $status)) {
@@ -117,11 +117,11 @@ class Transfer
     }
 
     /**
-     * Get Resource Cache
+     * Get Cache
      */
-    public function getResourceCache(): ResourceCache
+    public function getCache(): Cache
     {
-        return $this->resourceCache;
+        return $this->cache;
     }
 
     /**
@@ -143,9 +143,9 @@ class Transfer
     {
         $report = [];
 
-        $resourceCache = $this->resourceCache->getAll();
+        $cache = $this->cache->getAll();
 
-        foreach ($resourceCache as $type => $resources) {
+        foreach ($cache as $type => $resources) {
             foreach ($resources as $resource) {
                 if ($statusLevel && $resource->getStatus() !== $statusLevel) {
                     continue;

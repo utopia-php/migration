@@ -2,30 +2,25 @@
 
 namespace Utopia\Transfer;
 
-class ResourceCache
+class Cache
 {
-    /**
-     * Resource Cache
-     *
-     * @var array
-     */
-    protected $resourceCache = [];
+    protected $cache = [];
 
     public function __construct()
     {
-        $this->resourceCache = [];
+        $this->cache = [];
     }
 
     public function add($resource)
     {
         if (! $resource->getInternalId()) {
             $resourceId = uniqid();
-            if (isset($this->resourceCache[$resource->getName()][$resourceId])) {
+            if (isset($this->cache[$resource->getName()][$resourceId])) {
                 $resourceId = uniqid();
             }
             $resource->setInternalId(uniqid());
         }
-        $this->resourceCache[$resource->getName()][$resource->getInternalId()] = $resource;
+        $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
     }
 
     public function addAll(array $resources)
@@ -37,11 +32,11 @@ class ResourceCache
 
     public function update($resource)
     {
-        if (! in_array($resource, $this->resourceCache[$resource->getName()])) {
+        if (! in_array($resource, $this->cache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
         }
 
-        $this->resourceCache[$resource->getName()][$resource->getInternalId()] = $resource;
+        $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
     }
 
     public function updateAll($resources)
@@ -53,11 +48,11 @@ class ResourceCache
 
     public function remove($resource)
     {
-        if (! in_array($resource, $this->resourceCache[$resource->getName()])) {
+        if (! in_array($resource, $this->cache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
         }
 
-        unset($this->resourceCache[$resource->getName()][$resource->getInternalId()]);
+        unset($this->cache[$resource->getName()][$resource->getInternalId()]);
     }
 
     /**
@@ -69,19 +64,19 @@ class ResourceCache
     public function get($resource)
     {
         if (is_string($resource)) {
-            return $this->resourceCache[$resource] ?? [];
+            return $this->cache[$resource] ?? [];
         } else {
-            return $this->resourceCache[$resource->getName()] ?? [];
+            return $this->cache[$resource->getName()] ?? [];
         }
     }
 
     public function getAll()
     {
-        return $this->resourceCache;
+        return $this->cache;
     }
 
     public function wipe()
     {
-        $this->resourceCache = [];
+        $this->cache = [];
     }
 }

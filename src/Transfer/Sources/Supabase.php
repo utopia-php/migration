@@ -268,7 +268,7 @@ class Supabase extends NHost
          * TODO: Supabase has folders, with enough folders within folders this could cause us to hit the max name length
          * Need to figure out a solution to this.
          */
-        $buckets = $this->resourceCache->get(Bucket::getName());
+        $buckets = $this->cache->get(Bucket::getName());
 
         foreach ($buckets as $bucket) {
             /** @var Bucket $bucket */

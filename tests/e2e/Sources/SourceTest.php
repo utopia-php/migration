@@ -26,9 +26,9 @@ abstract class SourceTest extends TestCase
 
     public function testTransferCache(): void
     {
-        $this->source->registerTransferCache($this->createMock(\Utopia\Transfer\ResourceCache::class));
+        $this->source->registerTransferCache($this->createMock(\Utopia\Transfer\Cache::class));
 
-        $this->assertNotNull($this->source->resourceCache);
+        $this->assertNotNull($this->source->cache);
     }
 
     abstract public function testReport(): void;

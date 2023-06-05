@@ -14,11 +14,11 @@ abstract class Target
     ];
 
     /**
-     * Resource Cache
+     * Cache
      *
-     * @var ResourceCache
+     * @var Cache
      */
-    public $resourceCache;
+    public $cache;
 
     /**
      * Endpoint
@@ -40,9 +40,9 @@ abstract class Target
     /**
      * Register Transfer Cache
      */
-    public function registerTransferCache(ResourceCache &$cache): void
+    public function registerTransferCache(Cache &$cache): void
     {
-        $this->resourceCache = &$cache;
+        $this->cache = &$cache;
     }
 
     /**

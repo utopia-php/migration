@@ -354,7 +354,7 @@ class Appwrite extends Source
         $lastDocument = null;
 
         // Export Memberships
-        $cacheTeams = $this->resourceCache->get(Team::getName());
+        $cacheTeams = $this->cache->get(Team::getName());
 
         foreach ($cacheTeams as $team) {
             /** @param Team $team */
@@ -419,7 +419,7 @@ class Appwrite extends Source
     private function exportDocuments(int $batchSize)
     {
         $databaseClient = new Databases($this->client);
-        $collections = $this->resourceCache->get(Collection::getName());
+        $collections = $this->cache->get(Collection::getName());
 
         foreach ($collections as $collection) {
             /** @var Collection $collection */
@@ -623,7 +623,7 @@ class Appwrite extends Source
         // Transfer Collections
         $lastDocument = null;
 
-        $databases = $this->resourceCache->get(Database::getName());
+        $databases = $this->cache->get(Database::getName());
         foreach ($databases as $database) {
             while (true) {
                 $queries = [Query::limit($batchSize)];
@@ -665,7 +665,7 @@ class Appwrite extends Source
 
         // Transfer Attributes
         $lastDocument = null;
-        $collections = $this->resourceCache->get(Collection::getName());
+        $collections = $this->cache->get(Collection::getName());
         /** @var Collection[] $collections */
         foreach ($collections as $collection) {
             while (true) {
@@ -699,7 +699,7 @@ class Appwrite extends Source
     {
         $databaseClient = new Databases($this->client);
 
-        $collections = $this->resourceCache->get(Resource::TYPE_COLLECTION);
+        $collections = $this->cache->get(Resource::TYPE_COLLECTION);
 
         // Transfer Indexes
         $lastDocument = null;
@@ -804,7 +804,7 @@ class Appwrite extends Source
     {
         $storageClient = new Storage($this->client);
 
-        $buckets = $this->resourceCache->get(Bucket::getName());
+        $buckets = $this->cache->get(Bucket::getName());
         foreach ($buckets as $bucket) {
             $lastDocument = null;
 
@@ -933,7 +933,7 @@ class Appwrite extends Source
     {
         $functionsClient = new Functions($this->client);
 
-        $functions = $this->resourceCache->get(Func::getName());
+        $functions = $this->cache->get(Func::getName());
 
         foreach ($functions as $func) {
             /** @var Func $func */

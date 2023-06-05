@@ -27,7 +27,7 @@ abstract class Source extends Target
                 }
             }
 
-            $this->resourceCache->addAll($returnedResources);
+            $this->cache->addAll($returnedResources);
             $callback($prunedResurces);
         };
 

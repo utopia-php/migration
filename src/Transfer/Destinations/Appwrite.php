@@ -233,7 +233,7 @@ class Appwrite extends Destination
                     break;
             }
 
-            $this->resourceCache->update($responseResource);
+            $this->cache->update($responseResource);
         }
 
         $callback($resources);

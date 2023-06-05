@@ -3,13 +3,13 @@
 namespace Utopia\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Utopia\Transfer\ResourceCache;
+use Utopia\Transfer\Cache;
 
-class ResourceCacheTest extends TestCase
+class CacheTest extends TestCase
 {
     public function testAdd()
     {
-        $cache = new ResourceCache();
+        $cache = new Cache();
 
         $resource = new ConcreteResource();
         $cache->add($resource);
@@ -24,7 +24,7 @@ class ResourceCacheTest extends TestCase
     /**
      * @depends testAdd
      */
-    public function testRemove(ResourceCache $cache)
+    public function testRemove(Cache $cache)
     {
         $resources = $cache->get(ConcreteResource::getName());
         $resource = $resources[array_keys($resources)[0]];
@@ -39,7 +39,7 @@ class ResourceCacheTest extends TestCase
     /**
      * @depends testRemove
      */
-    public function testWipe(ResourceCache $cache)
+    public function testWipe(Cache $cache)
     {
         $resource = new ConcreteResource();
         $cache->add($resource);

@@ -268,7 +268,7 @@ class NHost extends Source
 
     private function exportCollections(int $batchSize)
     {
-        $databases = $this->resourceCache->get(Database::getName());
+        $databases = $this->cache->get(Database::getName());
 
         foreach ($databases as $database) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = :database');
@@ -298,7 +298,7 @@ class NHost extends Source
 
     private function exportAttributes(int $batchSize)
     {
-        $collections = $this->resourceCache->get(Collection::getName());
+        $collections = $this->cache->get(Collection::getName());
 
         foreach ($collections as $collection) {
             /** @var Collection $collection */
@@ -319,7 +319,7 @@ class NHost extends Source
 
     private function exportIndexes(int $batchSize)
     {
-        $collections = $this->resourceCache->get(Collection::getName());
+        $collections = $this->cache->get(Collection::getName());
 
         foreach ($collections as $collection) {
             /** @var Collection $collection */
@@ -341,7 +341,7 @@ class NHost extends Source
 
     private function exportDocuments(int $batchSize)
     {
-        $databases = $this->resourceCache->get(Database::getName());
+        $databases = $this->cache->get(Database::getName());
 
         foreach ($databases as $database) {
             /** @var Database $database */
@@ -364,7 +364,7 @@ class NHost extends Source
 
                     $transferDocuments = [];
 
-                    $attributes = $this->resourceCache->get(Attribute::getName());
+                    $attributes = $this->cache->get(Attribute::getName());
                     $collectionAttributes = array_filter($attributes, function (Attribute $attribute) use ($collection) {
                         return $attribute->getId() === $collection->getId();
                     });
@@ -577,7 +577,7 @@ class NHost extends Source
 
     public function exportFiles(int $batchSize)
     {
-        $buckets = $this->resourceCache->get(Bucket::getName());
+        $buckets = $this->cache->get(Bucket::getName());
 
         foreach ($buckets as $bucket) {
             $totalStatement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.files WHERE bucket_id=:bucketId');
