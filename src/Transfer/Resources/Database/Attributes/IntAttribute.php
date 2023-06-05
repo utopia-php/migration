@@ -8,17 +8,15 @@ use Utopia\Transfer\Resources\Database\Collection;
 class IntAttribute extends Attribute
 {
     protected ?int $default;
+
     protected ?int $min;
+
     protected ?int $max;
 
     /**
-     * @param string $key
-     * @param Collection $collection
-     * @param bool $required
-     * @param bool $array
-     * @param ?int $default
-     * @param ?int $min
-     * @param ?int $max
+     * @param  ?int  $default
+     * @param  ?int  $min
+     * @param  ?int  $max
      */
     public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?int $default = null, int $min = null, int $max = null)
     {
@@ -46,12 +44,14 @@ class IntAttribute extends Attribute
     public function setMin(int|null $min): self
     {
         $this->min = $min;
+
         return $this;
     }
 
     public function setMax(int|null $max): self
     {
         $this->max = $max;
+
         return $this;
     }
 
@@ -63,6 +63,7 @@ class IntAttribute extends Attribute
     public function setDefault(int $default): self
     {
         $this->default = $default;
+
         return $this;
     }
 

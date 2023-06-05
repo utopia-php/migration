@@ -4,7 +4,6 @@ namespace Utopia\Tests;
 
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resource;
-use Utopia\Transfer\Transfer;
 
 class MockDestination extends Destination
 {
@@ -22,7 +21,6 @@ class MockDestination extends Destination
             Resource::TYPE_DATABASE,
             Resource::TYPE_DOCUMENT,
             Resource::TYPE_FILE,
-            Resource::TYPE_FILEDATA,
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_HASH,
@@ -30,7 +28,7 @@ class MockDestination extends Destination
             Resource::TYPE_USER,
             Resource::TYPE_ENVVAR,
             Resource::TYPE_TEAM,
-            Resource::TYPE_TEAM_MEMBERSHIP,
+            Resource::TYPE_MEMBERSHIP,
         ];
     }
 

@@ -3,10 +3,9 @@
 namespace Utopia\Transfer\Destinations;
 
 use Utopia\Transfer\Destination;
-use Utopia\Transfer\Resources\Storage\File;
-use Utopia\Transfer\Resources\Storage\FileData;
-use Utopia\Transfer\Resources\Functions\Deployment;
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Resources\Functions\Deployment;
+use Utopia\Transfer\Resources\Storage\File;
 use Utopia\Transfer\Transfer;
 
 /**
@@ -34,8 +33,6 @@ class Local extends Destination
 
     /**
      * Get Name
-     *
-     * @return string
      */
     public static function getName(): string
     {
@@ -44,8 +41,6 @@ class Local extends Destination
 
     /**
      * Get Supported Resources
-     *
-     * @return array
      */
     public function getSupportedResources(): array
     {
@@ -54,17 +49,16 @@ class Local extends Destination
             Resource::TYPE_BUCKET,
             Resource::TYPE_COLLECTION,
             Resource::TYPE_DATABASE,
-            Resource::TYPE_DOCUMENT,
-            Resource::TYPE_FILE,
-            Resource::TYPE_FILEDATA,
-            Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
+            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ENVVAR,
+            Resource::TYPE_FILE,
+            Resource::TYPE_FUNCTION,
             Resource::TYPE_HASH,
             Resource::TYPE_INDEX,
-            Resource::TYPE_USER,
-            Resource::TYPE_ENVVAR,
             Resource::TYPE_TEAM,
-            Resource::TYPE_TEAM_MEMBERSHIP,
+            Resource::TYPE_MEMBERSHIP,
+            Resource::TYPE_USER
         ];
     }
 
@@ -99,9 +93,9 @@ class Local extends Destination
     public function importResources(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var Resource $resource */
+            /** @var resource $resource */
             switch ($resource->getName()) {
-                case "Deployment":
+                case 'Deployment':
                     /** @var Deployment $resource */
                     if ($resource->getStart() === 0) {
                         $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
@@ -109,12 +103,12 @@ class Local extends Destination
 
                     file_put_contents($this->path . 'deployments/' . $resource->getId() . '.tar.gz', $resource->getData(), FILE_APPEND);
                     break;
-                case "FileData":
-                    /** @var FileData $resource */
+                case 'File':
+                    /** @var File $resource */
 
                     // Handle folders
-                    if (str_contains($resource->getFile()->getFileName(), '/')) {
-                        $folders = explode('/', $resource->getFile()->getFileName());
+                    if (str_contains($resource->getFileName(), '/')) {
+                        $folders = explode('/', $resource->getFileName());
                         $folderPath = $this->path . '/files';
 
                         foreach ($folders as $folder) {
@@ -126,18 +120,12 @@ class Local extends Destination
                         }
                     }
 
-                    file_put_contents($this->path . '/files/' . $resource->getFile()->getFileName(), $resource->getData(), FILE_APPEND);
-                    break;
-                case "File":
-                    /** @var File $resource */
-                    if (\file_exists($this->path . '/files/' . $resource->getFileName())) {
-                        \unlink($this->path . '/files/' . $resource->getFileName());
-                    };
-                    break;
-            }
+                    if ($resource->getStart() === 0 && \file_exists($this->path . '/files/' . $resource->getFileName())) {
+                        unlink($this->path . '/files/' . $resource->getFileName());
+                    }
 
-            if ($resource->getName() !== Resource::TYPE_FILEDATA && $resource->getName() !== Resource::TYPE_DEPLOYMENT) {
-                $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
+                    file_put_contents($this->path . '/files/' . $resource->getFileName(), $resource->getData(), FILE_APPEND);
+                    break;
             }
 
             $resource->setStatus(Resource::STATUS_SUCCESS);

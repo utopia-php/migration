@@ -10,11 +10,7 @@ class URLAttribute extends Attribute
     protected ?string $default;
 
     /**
-     * @param string $key
-     * @param Collection $collection
-     * @param bool $required
-     * @param bool $array
-     * @param ?string $default
+     * @param  ?string  $default
      */
     public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?string $default = null)
     {

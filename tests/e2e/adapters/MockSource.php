@@ -19,7 +19,7 @@ class MockSource extends Destination
             Transfer::GROUP_DATABASES,
             Transfer::GROUP_FUNCTIONS,
             Transfer::GROUP_SETTINGS,
-            Transfer::GROUP_STORAGE
+            Transfer::GROUP_STORAGE,
         ];
     }
 

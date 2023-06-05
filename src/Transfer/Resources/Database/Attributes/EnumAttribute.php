@@ -8,15 +8,12 @@ use Utopia\Transfer\Resources\Database\Collection;
 class EnumAttribute extends Attribute
 {
     protected ?string $default;
+
     protected array $elements;
 
     /**
-     * @param string $key
-     * @param Collection $collection
-     * @param string[] $elements
-     * @param bool $required
-     * @param bool $array
-     * @param ?string $default
+     * @param  string[]  $elements
+     * @param  ?string  $default
      */
     public function __construct(string $key, Collection $collection, array $elements, bool $required, bool $array, ?string $default)
     {
@@ -38,6 +35,7 @@ class EnumAttribute extends Attribute
     public function setElements(array $elements): self
     {
         $this->elements = $elements;
+
         return $this;
     }
 

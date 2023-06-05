@@ -5,11 +5,17 @@ namespace Utopia\Transfer;
 abstract class Resource
 {
     public const STATUS_PENDING = 'PENDING';
+
     public const STATUS_SUCCESS = 'SUCCESS';
+
     public const STATUS_ERROR = 'ERROR';
+
     public const STATUS_SKIPPED = 'SKIP';
+
     public const STATUS_PROCESSING = 'PROCESSING';
+
     public const STATUS_WARNING = 'WARNING';
+
     /**
      * For some transfers (namely Firebase) we have to keep resources in cache that do not necessarily need to be Transferred
      * This status is used to mark resources that are not going to be transferred but are still needed for the transfer to work
@@ -17,22 +23,33 @@ abstract class Resource
      */
     public const STATUS_DISREGARDED = 'DISREGARDED';
 
-
     public const TYPE_ATTRIBUTE = 'Attribute';
+
     public const TYPE_BUCKET = 'Bucket';
+
     public const TYPE_COLLECTION = 'Collection';
+
     public const TYPE_DATABASE = 'Database';
+
     public const TYPE_DOCUMENT = 'Document';
+
     public const TYPE_FILE = 'File';
-    public const TYPE_FILEDATA = 'FileData';
+
     public const TYPE_FUNCTION = 'Function';
+
     public const TYPE_DEPLOYMENT = 'Deployment';
+
     public const TYPE_HASH = 'Hash';
+
     public const TYPE_INDEX = 'Index';
+
     public const TYPE_USER = 'User';
+
     public const TYPE_ENVVAR = 'EnvVar';
+
     public const TYPE_TEAM = 'Team';
-    public const TYPE_TEAM_MEMBERSHIP = 'TeamMembership';
+
+    public const TYPE_MEMBERSHIP = 'Membership';
 
     public const ALL_RESOURCES = [
         self::TYPE_ATTRIBUTE,
@@ -41,7 +58,6 @@ abstract class Resource
         self::TYPE_DATABASE,
         self::TYPE_DOCUMENT,
         self::TYPE_FILE,
-        self::TYPE_FILEDATA,
         self::TYPE_FUNCTION,
         self::TYPE_DEPLOYMENT,
         self::TYPE_HASH,
@@ -49,7 +65,7 @@ abstract class Resource
         self::TYPE_USER,
         self::TYPE_ENVVAR,
         self::TYPE_TEAM,
-        self::TYPE_TEAM_MEMBERSHIP
+        self::TYPE_MEMBERSHIP,
     ];
 
     /**
@@ -74,22 +90,16 @@ abstract class Resource
 
     /**
      * Gets the name of the adapter.
-     *
-     * @return string
      */
     abstract public static function getName(): string;
 
     /**
      * Get Parent Group
-     *
-     * @return
      */
     abstract public function getGroup(): string;
 
     /**
      * Get ID
-     *
-     * @return string
      */
     public function getId(): string
     {
@@ -98,20 +108,16 @@ abstract class Resource
 
     /**
      * Set ID
-     *
-     * @param string $id
-     * @return self
      */
     public function setId(string $id): self
     {
         $this->id = $id;
+
         return $this;
     }
 
     /**
      * Get Internal ID
-     *
-     * @return string
      */
     public function getInternalId(): string
     {
@@ -120,20 +126,16 @@ abstract class Resource
 
     /**
      * Set Internal ID
-     *
-     * @param string $internalId
-     * @return self
      */
     public function setInternalId(string $internalId): self
     {
         $this->internalId = $internalId;
+
         return $this;
     }
 
     /**
      * Get Status
-     *
-     * @return string
      */
     public function getStatus(): string
     {
@@ -142,22 +144,17 @@ abstract class Resource
 
     /**
      * Set Status
-     *
-     * @param string $status
-     * @param string $reason
-     * @return self
      */
     public function setStatus(string $status, string $reason = ''): self
     {
         $this->status = $status;
         $this->reason = $reason;
+
         return $this;
     }
 
     /**
      * Get Reason
-     *
-     * @return string
      */
     public function getReason(): string
     {
@@ -166,8 +163,6 @@ abstract class Resource
 
     /**
      * As Array
-     *
-     * @return array
      */
     abstract public function asArray(): array;
 }

@@ -3,9 +3,7 @@
 namespace Utopia\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Utopia\Transfer\Resource;
 use Utopia\Transfer\ResourceCache;
-use Utopia\Transfer\Transfer;
 
 class ResourceCacheTest extends TestCase
 {

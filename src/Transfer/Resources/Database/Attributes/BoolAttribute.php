@@ -8,16 +8,15 @@ use Utopia\Transfer\Resources\Database\Collection;
 class BoolAttribute extends Attribute
 {
     protected string $key;
+
     protected bool $required;
+
     protected bool $array;
+
     protected ?bool $default;
 
     /**
-     * @param string $key
-     * @param Collection $collection
-     * @param bool $required
-     * @param bool $array
-     * @param ?bool $default
+     * @param  ?bool  $default
      */
     public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?bool $default = null)
     {

@@ -8,17 +8,15 @@ use Utopia\Transfer\Resources\Database\Collection;
 class FloatAttribute extends Attribute
 {
     protected ?float $default;
+
     protected ?float $min;
+
     protected ?float $max;
 
     /**
-     * @param string $key
-     * @param Collection $collection
-     * @param bool $required
-     * @param bool $array
-     * @param ?float $default
-     * @param ?float $min
-     * @param ?float $max
+     * @param  ?float  $default
+     * @param  ?float  $min
+     * @param  ?float  $max
      */
     public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?float $default = null, float $min = null, float $max = null)
     {
@@ -46,12 +44,14 @@ class FloatAttribute extends Attribute
     public function setMin(float $min): self
     {
         $this->min = $min;
+
         return $this;
     }
 
     public function setMax(float $max): self
     {
         $this->max = $max;
+
         return $this;
     }
 
@@ -63,6 +63,7 @@ class FloatAttribute extends Attribute
     public function setDefault(float $default): self
     {
         $this->default = $default;
+
         return $this;
     }
 

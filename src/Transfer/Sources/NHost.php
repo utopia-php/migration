@@ -3,23 +3,22 @@
 namespace Utopia\Transfer\Sources;
 
 use Utopia\Transfer\Resource;
-use Utopia\Transfer\Source;
-use Utopia\Transfer\Resources\Auth\User;
-use Utopia\Transfer\Transfer;
-use Utopia\Transfer\Resources\Database\Attribute;
-use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Auth\Hash;
+use Utopia\Transfer\Resources\Auth\User;
+use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Database\Collection;
+use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Database\Document;
 use Utopia\Transfer\Resources\Database\Index;
 use Utopia\Transfer\Resources\Storage\Bucket;
 use Utopia\Transfer\Resources\Storage\File;
-use Utopia\Transfer\Resources\Storage\FileData;
+use Utopia\Transfer\Source;
+use Utopia\Transfer\Transfer;
 
 class NHost extends Source
 {
@@ -29,11 +28,17 @@ class NHost extends Source
     public $pdo;
 
     public string $subdomain;
+
     public string $region;
+
     public string $databaseName;
+
     public string $username;
+
     public string $password;
+
     public string $port;
+
     public string $adminSecret;
 
     public function __construct(string $subdomain, string $region, string $adminSecret, string $databaseName, string $username, string $password, string $port = '5432')
@@ -47,9 +52,9 @@ class NHost extends Source
         $this->port = $port;
 
         try {
-            $this->pdo = new \PDO("pgsql:host=" . $this->subdomain . '.db.' . $this->region . '.nhost.run' . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
+            $this->pdo = new \PDO('pgsql:host='.$this->subdomain.'.db.'.$this->region.'.nhost.run'.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
         } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database: ' . $e->getMessage());
+            throw new \Exception('Failed to connect to database: '.$e->getMessage());
         }
     }
 
@@ -60,8 +65,6 @@ class NHost extends Source
 
     /**
      * Get Supported Resources
-     *
-     * @return array
      */
     public function getSupportedResources(): array
     {
@@ -79,7 +82,6 @@ class NHost extends Source
             // Storage
             Resource::TYPE_BUCKET,
             Resource::TYPE_FILE,
-            Resource::TYPE_FILEDATA,
         ];
     }
 
@@ -92,13 +94,13 @@ class NHost extends Source
         }
 
         try {
-            $this->pdo = new \PDO("pgsql:host=" . $this->subdomain . '.db.' . $this->region . '.nhost.run' . ";port=" . $this->port . ";dbname=" . $this->databaseName, $this->username, $this->password);
+            $this->pdo = new \PDO('pgsql:host='.$this->subdomain.'.db.'.$this->region.'.nhost.run'.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
         } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database. PDO Code: ' . $e->getCode() . ' Error: ' . $e->getMessage());
+            throw new \Exception('Failed to connect to database. PDO Code: '.$e->getCode().' Error: '.$e->getMessage());
         }
 
-        if (!empty($this->pdo->errorCode())) {
-            throw new \Exception('Failed to connect to database. PDO Code: ' . $this->pdo->errorCode() . (empty($this->pdo->errorInfo()[2]) ? '' : ' Error: ' . $this->pdo->errorInfo()[2]));
+        if (! empty($this->pdo->errorCode())) {
+            throw new \Exception('Failed to connect to database. PDO Code: '.$this->pdo->errorCode().(empty($this->pdo->errorInfo()[2]) ? '' : ' Error: '.$this->pdo->errorInfo()[2]));
         }
 
         // Auth
@@ -107,7 +109,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access users table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access users table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_USER] = $statement->fetchColumn();
@@ -123,7 +125,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_COLLECTION] = $statement->fetchColumn();
@@ -134,7 +136,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access columns table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access columns table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_ATTRIBUTE] = $statement->fetchColumn();
@@ -145,7 +147,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access indexes table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access indexes table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
@@ -156,7 +158,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_DOCUMENT] = $statement->fetchColumn();
@@ -168,7 +170,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access buckets table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access buckets table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_BUCKET] = $statement->fetchColumn();
@@ -179,7 +181,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access files table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access files table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_FILE] = $statement->fetchColumn();
@@ -299,7 +301,7 @@ class NHost extends Source
         $collections = $this->resourceCache->get(Collection::getName());
 
         foreach ($collections as $collection) {
-            /** @var Collection $collection  */
+            /** @var Collection $collection */
             $statement = $this->pdo->prepare('SELECT * FROM information_schema."columns" where "table_name" = :tableName');
             $statement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
             $statement->execute();
@@ -321,7 +323,6 @@ class NHost extends Source
 
         foreach ($collections as $collection) {
             /** @var Collection $collection */
-
             $indexStatement = $this->pdo->prepare('SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :tableName');
             $indexStatement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
             $indexStatement->execute();
@@ -347,12 +348,12 @@ class NHost extends Source
             $collections = $database->getCollections();
 
             foreach ($collections as $collection) {
-                $total = $this->pdo->query('SELECT COUNT(*) FROM ' . $collection->getCollectionName())->fetchColumn();
+                $total = $this->pdo->query('SELECT COUNT(*) FROM '.$collection->getCollectionName())->fetchColumn();
 
                 $offset = 0;
 
                 while ($offset < $total) {
-                    $statement = $this->pdo->prepare('SELECT row_to_json(t) FROM (SELECT * FROM ' . $collection->getCollectionName() . ' LIMIT :limit OFFSET :offset) t;');
+                    $statement = $this->pdo->prepare('SELECT row_to_json(t) FROM (SELECT * FROM '.$collection->getCollectionName().' LIMIT :limit OFFSET :offset) t;');
                     $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
                     $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
                     $statement->execute();
@@ -374,7 +375,7 @@ class NHost extends Source
                         $processedData = [];
                         foreach ($collectionAttributes as $attribute) {
                             /** @var Attribute $attribute */
-                            if (!$attribute->getArray() && \is_array($data[$attribute->getKey()])) {
+                            if (! $attribute->getArray() && \is_array($data[$attribute->getKey()])) {
                                 $processedData[$attribute->getKey()] = json_encode($data[$attribute->getKey()]);
                             } else {
                                 $processedData[$attribute->getKey()] = $data[$attribute->getKey()];
@@ -395,7 +396,7 @@ class NHost extends Source
         $isArray = $column['data_type'] === 'ARRAY';
 
         switch ($isArray ? str_replace('_', '', $column['udt_name']) : $column['data_type']) {
-                // Numbers
+            // Numbers
             case 'boolean':
             case 'bool':
                 return new BoolAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
@@ -485,7 +486,7 @@ class NHost extends Source
             $attributes = [];
             $order = [];
 
-            $targets = explode(",", $matches['columns']);
+            $targets = explode(',', $matches['columns']);
 
             foreach ($targets as $target) {
                 if (\strpos($target, ' ') !== false) {
@@ -494,7 +495,7 @@ class NHost extends Source
                     $order[] = $target[1];
                 } else {
                     $attributes[] = $target;
-                    $order[] = "ASC";
+                    $order[] = 'ASC';
                 }
             }
 
@@ -515,11 +516,11 @@ class NHost extends Source
 
         $types = [];
 
-        if (!empty($user['password_hash'])) {
+        if (! empty($user['password_hash'])) {
             $types[] = User::TYPE_EMAIL;
         }
 
-        if (!empty($user['phone_number'])) {
+        if (! empty($user['phone_number'])) {
             $types[] = User::TYPE_PHONE;
         }
 
@@ -617,7 +618,7 @@ class NHost extends Source
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 
         $fileSize = $file->getSize();
-        $response = $this->call("GET", $url . "/v1/files/{$file->getId()}/presignedurl", [
+        $response = $this->call('GET', $url."/v1/files/{$file->getId()}/presignedurl", [
             'X-Hasura-Admin-Secret' => $this->adminSecret,
         ]);
 
@@ -630,7 +631,7 @@ class NHost extends Source
 
         while ($start < $fileSize) {
             if (\time() > $refreshTime) {
-                $response = $this->call("GET", "/v1/files/{$file->getId()}/presignedurl", [
+                $response = $this->call('GET', "/v1/files/{$file->getId()}/presignedurl", [
                     'X-Hasura-Admin-Secret' => $this->adminSecret,
                 ]);
 
@@ -644,12 +645,11 @@ class NHost extends Source
                 ['range' => "bytes=$start-$end"]
             );
 
-            $this->callback([new FileData(
-                $chunkData,
-                $start,
-                $end,
-                $file
-            )]);
+            $file->setData($chunkData)
+                ->setStart($start)
+                ->setEnd($end);
+
+            $this->callback([$file]);
 
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
@@ -657,7 +657,7 @@ class NHost extends Source
             if ($end > $fileSize) {
                 $end = $fileSize - 1;
             }
-        };
+        }
     }
 
     public function exportFunctionsGroup(int $batchSize, array $resources)

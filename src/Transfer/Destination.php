@@ -6,15 +6,11 @@ abstract class Destination extends Target
 {
     /**
      * Source
-     *
-     * @var Source $source
      */
     protected Source $source;
 
     /**
      * Get Source
-     *
-     * @return Source
      */
     public function getSource(): Source
     {
@@ -23,22 +19,16 @@ abstract class Destination extends Target
 
     /**
      * Set Soruce
-     *
-     * @param Source $source
-     *
-     * @return self
      */
     public function setSource(Source $source): self
     {
         $this->source = $source;
+
         return $this;
     }
 
     /**
      * Transfer Resources to Destination from Source callback
-     *
-     * @param array $resources
-     * @param callable $callback
      */
     public function run(array $resources, callable $callback): void
     {
@@ -50,9 +40,7 @@ abstract class Destination extends Target
     /**
      * Import Resources
      *
-     * @param array $resources
-     * @param callable $callback (array $resources)
-     *
+     * @param  callable  $callback (array $resources)
      */
     abstract public function importResources(array $resources, callable $callback): void;
 }

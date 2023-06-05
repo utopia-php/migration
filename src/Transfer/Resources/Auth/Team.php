@@ -3,14 +3,17 @@
 namespace Utopia\Transfer\Resources\Auth;
 
 use Utopia\Transfer\Resource;
-use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Resources\User;
+use Utopia\Transfer\Transfer;
 
 class Team extends Resource
 {
     protected string $id;
+
     protected string $name;
+
     protected array $preferences = [];
+
     protected array $members = [];
 
     public function __construct(string $id, string $name, array $preferences = [], array $members = [])
@@ -39,6 +42,7 @@ class Team extends Resource
     public function setTeamName(string $name): self
     {
         $this->name = $name;
+
         return $this;
     }
 
@@ -50,6 +54,7 @@ class Team extends Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+
         return $this;
     }
 
@@ -61,6 +66,7 @@ class Team extends Resource
     public function setPreferences(array $preferences): self
     {
         $this->preferences = $preferences;
+
         return $this;
     }
 
@@ -70,11 +76,12 @@ class Team extends Resource
     }
 
     /**
-     * @param User[] $members
+     * @param  User[]  $members
      */
     public function setMembers(array $members): self
     {
         $this->members = $members;
+
         return $this;
     }
 

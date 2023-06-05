@@ -5,11 +5,14 @@ namespace Utopia\Transfer\Resources\Auth;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Transfer;
 
-class TeamMembership extends Resource
+class Membership extends Resource
 {
     protected Team $team;
+
     protected string $userId;
+
     protected array $roles;
+
     protected bool $active = true;
 
     public function __construct(Team $team, string $userId, array $roles = [], bool $active = true)
@@ -22,7 +25,7 @@ class TeamMembership extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_TEAM_MEMBERSHIP;
+        return Resource::TYPE_MEMBERSHIP;
     }
 
     public function getGroup(): string
@@ -38,6 +41,7 @@ class TeamMembership extends Resource
     public function setTeam(Team $team): self
     {
         $this->team = $team;
+
         return $this;
     }
 
@@ -49,6 +53,7 @@ class TeamMembership extends Resource
     public function setUserId(string $userId): self
     {
         $this->userId = $userId;
+
         return $this;
     }
 
@@ -60,6 +65,7 @@ class TeamMembership extends Resource
     public function setRoles(array $roles): self
     {
         $this->roles = $roles;
+
         return $this;
     }
 
@@ -71,6 +77,7 @@ class TeamMembership extends Resource
     public function setActive(bool $active): self
     {
         $this->active = $active;
+
         return $this;
     }
 

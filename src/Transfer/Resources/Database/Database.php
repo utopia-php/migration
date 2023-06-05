@@ -16,11 +16,12 @@ const TYPE_NULL = 'null';
 class Database extends Resource
 {
     /**
-     * @var list<Collection> $collections
+     * @var list<Collection>
      */
     private array $collections = [];
 
     protected string $name;
+
     protected string $id;
 
     public function __construct(string $name = '', string $id = '')
@@ -52,6 +53,7 @@ class Database extends Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+
         return $this;
     }
 
@@ -64,8 +66,7 @@ class Database extends Resource
     }
 
     /**
-     * @param list<Collection> $collections
-     * @return self
+     * @param  list<Collection>  $collections
      */
     public function setCollections(array $collections): self
     {
@@ -81,7 +82,7 @@ class Database extends Resource
             'id' => $this->id,
             'collections' => array_map(function ($collection) {
                 return $collection->asArray();
-            }, $this->collections)
+            }, $this->collections),
         ];
     }
 }

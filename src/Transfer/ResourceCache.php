@@ -7,7 +7,7 @@ class ResourceCache
     /**
      * Resource Cache
      *
-     * @var array $resourceCache
+     * @var array
      */
     protected $resourceCache = [];
 
@@ -18,7 +18,7 @@ class ResourceCache
 
     public function add($resource)
     {
-        if (!$resource->getInternalId()) {
+        if (! $resource->getInternalId()) {
             $resourceId = uniqid();
             if (isset($this->resourceCache[$resource->getName()][$resourceId])) {
                 $resourceId = uniqid();
@@ -37,7 +37,7 @@ class ResourceCache
 
     public function update($resource)
     {
-        if (!in_array($resource, $this->resourceCache[$resource->getName()])) {
+        if (! in_array($resource, $this->resourceCache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
         }
 
@@ -53,7 +53,7 @@ class ResourceCache
 
     public function remove($resource)
     {
-        if (!in_array($resource, $this->resourceCache[$resource->getName()])) {
+        if (! in_array($resource, $this->resourceCache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
         }
 
@@ -63,9 +63,8 @@ class ResourceCache
     /**
      * Get Resources
      *
-     * @param string|Resource $resourceType
-     *
-     * @return Resource[]
+     * @param  string|resource  $resourceType
+     * @return resource[]
      */
     public function get($resource)
     {

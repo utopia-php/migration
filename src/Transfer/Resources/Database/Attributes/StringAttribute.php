@@ -8,15 +8,11 @@ use Utopia\Transfer\Resources\Database\Collection;
 class StringAttribute extends Attribute
 {
     protected ?string $default;
+
     protected int $size = 256;
 
     /**
-     * @param string $key
-     * @param Collection $collection
-     * @param bool $required
-     * @param bool $array
-     * @param ?string $default
-     * @param int $size
+     * @param  ?string  $default
      */
     public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?string $default = null, int $size = 256)
     {
@@ -38,6 +34,7 @@ class StringAttribute extends Attribute
     public function setSize(int $size): self
     {
         $this->size = $size;
+
         return $this;
     }
 

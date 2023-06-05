@@ -8,26 +8,35 @@ use Utopia\Transfer\Transfer;
 abstract class Attribute extends Resource
 {
     public const TYPE_STRING = 'stringAttribute';
+
     public const TYPE_INTEGER = 'intAttribute';
+
     public const TYPE_FLOAT = 'floatAttribute';
+
     public const TYPE_BOOLEAN = 'boolAttribute';
+
     public const TYPE_DATETIME = 'dateTimeAttribute';
+
     public const TYPE_EMAIL = 'emailAttribute';
+
     public const TYPE_ENUM = 'enumAttribute';
+
     public const TYPE_IP = 'IPAttribute';
+
     public const TYPE_URL = 'URLAttribute';
+
     public const TYPE_RELATIONSHIP = 'relationshipAttribute';
 
     protected string $key;
+
     protected bool $required;
+
     protected bool $array;
+
     protected Collection $collection;
 
     /**
-     * @param string $key
-     * @param bool $required
-     * @param bool $array
-     * @param int $size
+     * @param  int  $size
      */
     public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false)
     {
@@ -57,6 +66,7 @@ abstract class Attribute extends Resource
     public function setKey(string $key): self
     {
         $this->key = $key;
+
         return $this;
     }
 
@@ -68,6 +78,7 @@ abstract class Attribute extends Resource
     public function setCollection(Collection $collection)
     {
         $this->collection = $collection;
+
         return $this;
     }
 
@@ -79,6 +90,7 @@ abstract class Attribute extends Resource
     public function setRequired(bool $required): self
     {
         $this->required = $required;
+
         return $this;
     }
 
@@ -90,6 +102,7 @@ abstract class Attribute extends Resource
     public function setArray(bool $array): self
     {
         $this->array = $array;
+
         return $this;
     }
 

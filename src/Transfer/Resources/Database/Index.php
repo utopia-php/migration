@@ -8,23 +8,24 @@ use Utopia\Transfer\Transfer;
 class Index extends Resource
 {
     protected string $key;
+
     protected string $type;
+
     protected array $attributes;
+
     protected array $orders;
+
     protected Collection $collection;
 
     public const TYPE_UNIQUE = 'unique';
+
     public const TYPE_FULLTEXT = 'fulltext';
+
     public const TYPE_KEY = 'key';
 
     /**
-     * @param string $key
-     * @param string $type
-     * @param Collection $collection
-     * @param list<Attribute> $attributes
-     * @param array $orders
+     * @param  list<Attribute>  $attributes
      */
-
     public function __construct(string $id, string $key, Collection $collection, string $type = '', array $attributes = [], array $orders = [])
     {
         $this->id = $id;
@@ -53,6 +54,7 @@ class Index extends Resource
     public function setKey(string $key): self
     {
         $this->key = $key;
+
         return $this;
     }
 
@@ -64,6 +66,7 @@ class Index extends Resource
     public function setCollection(Collection $collection): self
     {
         $this->collection = $collection;
+
         return $this;
     }
 
@@ -75,6 +78,7 @@ class Index extends Resource
     public function setType(string $type): self
     {
         $this->type = $type;
+
         return $this;
     }
 
@@ -84,12 +88,12 @@ class Index extends Resource
     }
 
     /**
-     * @param list<Attribute> $attributes
-     * @return self
+     * @param  list<Attribute>  $attributes
      */
     public function setAttributes(array $attributes): self
     {
         $this->attributes = $attributes;
+
         return $this;
     }
 
@@ -101,6 +105,7 @@ class Index extends Resource
     public function setOrders(array $orders): self
     {
         $this->orders = $orders;
+
         return $this;
     }
 

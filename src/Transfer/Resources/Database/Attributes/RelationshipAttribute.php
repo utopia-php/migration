@@ -8,24 +8,17 @@ use Utopia\Transfer\Resources\Database\Collection;
 class RelationshipAttribute extends Attribute
 {
     protected string $relatedCollection;
+
     protected string $relationType;
+
     protected bool $twoWay;
+
     protected string $twoWayKey;
+
     protected string $onDelete;
+
     protected string $side;
 
-    /**
-     * @param string $key
-     * @param Collection $collection
-     * @param bool $required
-     * @param bool $array
-     * @param string $relatedCollection
-     * @param string $relationType
-     * @param bool $twoWay
-     * @param string $twoWayKey
-     * @param string $onDelete
-     * @param string $side
-     */
     public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, string $relatedCollection = '', string $relationType = '', bool $twoWay = false, string $twoWayKey = '', string $onDelete = '', string $side = '')
     {
         parent::__construct($key, $collection, $required, $array);

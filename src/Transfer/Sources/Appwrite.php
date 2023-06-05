@@ -2,7 +2,6 @@
 
 namespace Utopia\Transfer\Sources;
 
-use Utopia\Transfer\Source;
 use Appwrite\Client;
 use Appwrite\Query;
 use Appwrite\Services\Databases;
@@ -11,8 +10,11 @@ use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Transfer\Resource;
+use Utopia\Transfer\Resources\Auth\Hash;
+use Utopia\Transfer\Resources\Auth\Team;
+use Utopia\Transfer\Resources\Auth\Membership;
+use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
-use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\EmailAttribute;
@@ -20,23 +22,20 @@ use Utopia\Transfer\Resources\Database\Attributes\EnumAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\IPAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\RelationshipAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
 use Utopia\Transfer\Resources\Database\Attributes\URLAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\RelationshipAttribute;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Database\Document;
-use Utopia\Transfer\Resources\Auth\User;
-use Utopia\Transfer\Resources\Auth\Hash;
 use Utopia\Transfer\Resources\Database\Index;
-use Utopia\Transfer\Resources\Storage\Bucket;
-use Utopia\Transfer\Resources\Functions\EnvVar;
-use Utopia\Transfer\Resources\Storage\File;
-use Utopia\Transfer\Resources\Storage\FileData;
-use Utopia\Transfer\Resources\Functions\Func;
-use Utopia\Transfer\Resources\Auth\Team;
-use Utopia\Transfer\Resources\Auth\TeamMembership;
 use Utopia\Transfer\Resources\Functions\Deployment;
+use Utopia\Transfer\Resources\Functions\EnvVar;
+use Utopia\Transfer\Resources\Functions\Func;
+use Utopia\Transfer\Resources\Storage\Bucket;
+use Utopia\Transfer\Resources\Storage\File;
+use Utopia\Transfer\Source;
+use Utopia\Transfer\Transfer;
 
 class Appwrite extends Source
 {
@@ -45,22 +44,13 @@ class Appwrite extends Source
      */
     protected $client = null;
 
-    /**
-     * @var string
-     */
     protected string $project = '';
 
-    /**
-     * @var string
-     */
     protected string $key = '';
 
     /**
      * Constructor
      *
-     * @param string $project
-     * @param string $endpoint
-     * @param string $key
      *
      * @return self
      */
@@ -80,18 +70,14 @@ class Appwrite extends Source
 
     /**
      * Get Name
-     *
-     * @return string
      */
     public static function getName(): string
     {
-        return "Appwrite";
+        return 'Appwrite';
     }
 
     /**
      * Get Supported Resources
-     *
-     * @return array
      */
     public function getSupportedResources(): array
     {
@@ -99,7 +85,7 @@ class Appwrite extends Source
             // Auth
             Resource::TYPE_USER,
             Resource::TYPE_TEAM,
-            Resource::TYPE_TEAM_MEMBERSHIP,
+            Resource::TYPE_MEMBERSHIP,
 
             // Database
             Resource::TYPE_DATABASE,
@@ -111,7 +97,6 @@ class Appwrite extends Source
             // Storage
             Resource::TYPE_BUCKET,
             Resource::TYPE_FILE,
-            Resource::TYPE_FILEDATA,
 
             // Functions
             Resource::TYPE_FUNCTION,
@@ -149,11 +134,11 @@ class Appwrite extends Source
                 $report[Resource::TYPE_TEAM] = $teamsClient->list()['total'];
             }
 
-            if (in_array(Resource::TYPE_TEAM_MEMBERSHIP, $resources)) {
-                $report[Resource::TYPE_TEAM_MEMBERSHIP] = 0;
+            if (in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
+                $report[Resource::TYPE_MEMBERSHIP] = 0;
                 $teams = $teamsClient->list()['teams'];
                 foreach ($teams as $team) {
-                    $report[Resource::TYPE_TEAM_MEMBERSHIP] += $teamsClient->listMemberships($team['$id'])['total'];
+                    $report[Resource::TYPE_MEMBERSHIP] += $teamsClient->listMemberships($team['$id'])['total'];
                 }
             }
 
@@ -258,8 +243,7 @@ class Appwrite extends Source
     /**
      * Export Auth Resources
      *
-     * @param int $batchSize Max 100
-     *
+     * @param  int  $batchSize Max 100
      * @return void
      */
     public function exportAuthGroup(int $batchSize, array $resources)
@@ -272,8 +256,8 @@ class Appwrite extends Source
             $this->exportTeams($batchSize);
         }
 
-        if (in_array(Resource::TYPE_TEAM_MEMBERSHIP, $resources)) {
-            $this->exportTeamMemberships($batchSize);
+        if (in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
+            $this->exportMemberships($batchSize);
         }
     }
 
@@ -294,23 +278,23 @@ class Appwrite extends Source
 
             $response = $usersClient->list($queries);
 
-            if ($response["total"] == 0) {
+            if ($response['total'] == 0) {
                 break;
             }
 
-            foreach ($response["users"] as $user) {
+            foreach ($response['users'] as $user) {
                 $users[] = new User(
                     $user['$id'],
-                    $user["email"],
-                    $user["name"],
-                    $user["password"] ? new Hash($user["password"], $user["hash"]) : null,
-                    $user["phone"],
+                    $user['email'],
+                    $user['name'],
+                    $user['password'] ? new Hash($user['password'], $user['hash']) : null,
+                    $user['phone'],
                     $this->calculateTypes($user),
-                    "",
-                    $user["emailVerification"],
-                    $user["phoneVerification"],
-                    !$user["status"],
-                    $user["prefs"]
+                    '',
+                    $user['emailVerification'],
+                    $user['phoneVerification'],
+                    ! $user['status'],
+                    $user['prefs']
                 );
 
                 $lastDocument = $user['$id'];
@@ -341,15 +325,15 @@ class Appwrite extends Source
 
             $response = $teamsClient->list($queries);
 
-            if ($response["total"] == 0) {
+            if ($response['total'] == 0) {
                 break;
             }
 
-            foreach ($response["teams"] as $team) {
+            foreach ($response['teams'] as $team) {
                 $teams[] = new Team(
                     $team['$id'],
-                    $team["name"],
-                    $team["prefs"],
+                    $team['name'],
+                    $team['prefs'],
                 );
 
                 $lastDocument = $team['$id'];
@@ -363,7 +347,7 @@ class Appwrite extends Source
         }
     }
 
-    private function exportTeamMemberships(int $batchSize)
+    private function exportMemberships(int $batchSize)
     {
         $teamsClient = new Teams($this->client);
 
@@ -373,6 +357,7 @@ class Appwrite extends Source
         $cacheTeams = $this->resourceCache->get(Team::getName());
 
         foreach ($cacheTeams as $team) {
+            /** @param Team $team */
             while (true) {
                 $memberships = [];
 
@@ -384,12 +369,12 @@ class Appwrite extends Source
 
                 $response = $teamsClient->listMemberships($team->getId(), $queries);
 
-                if ($response["total"] == 0) {
+                if ($response['total'] == 0) {
                     break;
                 }
 
-                foreach ($response["memberships"] as $membership) {
-                    $memberships[] = new TeamMembership(
+                foreach ($response['memberships'] as $membership) {
+                    $memberships[] = new Membership(
                         $team,
                         $membership['userId'],
                         $membership['roles'],
@@ -431,7 +416,6 @@ class Appwrite extends Source
         }
     }
 
-
     private function exportDocuments(int $batchSize)
     {
         $databaseClient = new Databases($this->client);
@@ -456,7 +440,7 @@ class Appwrite extends Source
                     $queries
                 );
 
-                foreach ($response["documents"] as $document) {
+                foreach ($response['documents'] as $document) {
                     $id = $document['$id'];
                     $permissions = $document['$permissions'];
                     unset($document['$id']);
@@ -478,7 +462,7 @@ class Appwrite extends Source
 
                 $this->callback($documents);
 
-                if (count($response["documents"]) < $batchSize) {
+                if (count($response['documents']) < $batchSize) {
                     break;
                 }
             }
@@ -487,115 +471,115 @@ class Appwrite extends Source
 
     private function convertAttribute(array $value, Collection $collection): Attribute
     {
-        switch ($value["type"]) {
-            case "string":
-                if (!isset($value["format"])) {
+        switch ($value['type']) {
+            case 'string':
+                if (! isset($value['format'])) {
                     return new StringAttribute(
-                        $value["key"],
+                        $value['key'],
                         $collection,
-                        $value["required"],
-                        $value["array"],
-                        $value["default"],
-                        $value["size"] ?? 0
+                        $value['required'],
+                        $value['array'],
+                        $value['default'],
+                        $value['size'] ?? 0
                     );
                 }
 
-                switch ($value["format"]) {
-                    case "email":
+                switch ($value['format']) {
+                    case 'email':
                         return new EmailAttribute(
-                            $value["key"],
+                            $value['key'],
                             $collection,
-                            $value["required"],
-                            $value["array"],
-                            $value["default"]
+                            $value['required'],
+                            $value['array'],
+                            $value['default']
                         );
-                    case "enum":
+                    case 'enum':
                         return new EnumAttribute(
-                            $value["key"],
+                            $value['key'],
                             $collection,
-                            $value["elements"],
-                            $value["required"],
-                            $value["array"],
-                            $value["default"]
+                            $value['elements'],
+                            $value['required'],
+                            $value['array'],
+                            $value['default']
                         );
-                    case "url":
+                    case 'url':
                         return new URLAttribute(
-                            $value["key"],
+                            $value['key'],
                             $collection,
-                            $value["required"],
-                            $value["array"],
-                            $value["default"]
+                            $value['required'],
+                            $value['array'],
+                            $value['default']
                         );
-                    case "ip":
+                    case 'ip':
                         return new IPAttribute(
-                            $value["key"],
+                            $value['key'],
                             $collection,
-                            $value["required"],
-                            $value["array"],
-                            $value["default"]
+                            $value['required'],
+                            $value['array'],
+                            $value['default']
                         );
-                    case "datetime":
+                    case 'datetime':
                         return new DateTimeAttribute(
-                            $value["key"],
+                            $value['key'],
                             $collection,
-                            $value["required"],
-                            $value["array"],
-                            $value["default"]
+                            $value['required'],
+                            $value['array'],
+                            $value['default']
                         );
                     default:
                         return new StringAttribute(
-                            $value["key"],
+                            $value['key'],
                             $collection,
-                            $value["required"],
-                            $value["array"],
-                            $value["default"],
-                            $value["size"] ?? 0
+                            $value['required'],
+                            $value['array'],
+                            $value['default'],
+                            $value['size'] ?? 0
                         );
                 }
-            case "boolean":
+            case 'boolean':
                 return new BoolAttribute(
-                    $value["key"],
+                    $value['key'],
                     $collection,
-                    $value["required"],
-                    $value["array"],
-                    $value["default"]
+                    $value['required'],
+                    $value['array'],
+                    $value['default']
                 );
-            case "integer":
+            case 'integer':
                 return new IntAttribute(
-                    $value["key"],
+                    $value['key'],
                     $collection,
-                    $value["required"],
-                    $value["array"],
-                    $value["default"],
-                    $value["min"] ?? 0,
-                    $value["max"] ?? 0
+                    $value['required'],
+                    $value['array'],
+                    $value['default'],
+                    $value['min'] ?? 0,
+                    $value['max'] ?? 0
                 );
-            case "double":
+            case 'double':
                 return new FloatAttribute(
-                    $value["key"],
+                    $value['key'],
                     $collection,
-                    $value["required"],
-                    $value["array"],
-                    $value["default"],
-                    $value["min"] ?? 0,
-                    $value["max"] ?? 0
+                    $value['required'],
+                    $value['array'],
+                    $value['default'],
+                    $value['min'] ?? 0,
+                    $value['max'] ?? 0
                 );
-            case "relationship":
+            case 'relationship':
                 return new RelationshipAttribute(
-                    $value["key"],
+                    $value['key'],
                     $collection,
-                    $value["required"],
-                    $value["array"],
-                    $value["relatedCollection"],
-                    $value["relationType"],
-                    $value["twoWay"],
-                    $value["twoWayKey"],
-                    $value["onDelete"],
-                    $value["side"]
+                    $value['required'],
+                    $value['array'],
+                    $value['relatedCollection'],
+                    $value['relationType'],
+                    $value['twoWay'],
+                    $value['twoWayKey'],
+                    $value['onDelete'],
+                    $value['side']
                 );
         }
 
-        throw new \Exception("Unknown attribute type: " . $value["type"]);
+        throw new \Exception('Unknown attribute type: '.$value['type']);
     }
 
     private function exportDatabases(int $batchSize)
@@ -615,9 +599,9 @@ class Appwrite extends Source
 
             $response = $databaseClient->list($queries);
 
-            foreach ($response["databases"] as $database) {
+            foreach ($response['databases'] as $database) {
                 $newDatabase = new Database(
-                    $database["name"],
+                    $database['name'],
                     $database['$id']
                 );
 
@@ -654,12 +638,12 @@ class Appwrite extends Source
                     $queries
                 );
 
-                foreach ($response["collections"] as $collection) {
+                foreach ($response['collections'] as $collection) {
                     $newCollection = new Collection(
                         $database,
-                        $collection["name"],
+                        $collection['name'],
                         $collection['$id'],
-                        $collection["documentSecurity"],
+                        $collection['documentSecurity'],
                         $collection['$permissions']
                     );
 
@@ -683,7 +667,6 @@ class Appwrite extends Source
         $lastDocument = null;
         $collections = $this->resourceCache->get(Collection::getName());
         /** @var Collection[] $collections */
-
         foreach ($collections as $collection) {
             while (true) {
                 $queries = [Query::limit($batchSize)];
@@ -699,7 +682,7 @@ class Appwrite extends Source
                     $queries
                 );
 
-                foreach ($response["attributes"] as $attribute) {
+                foreach ($response['attributes'] as $attribute) {
                     $attributes[] = $this->convertAttribute($attribute, $collection);
                 }
 
@@ -736,14 +719,14 @@ class Appwrite extends Source
                     $queries
                 );
 
-                foreach ($response["indexes"] as $index) {
+                foreach ($response['indexes'] as $index) {
                     $indexes[] = new Index(
-                        "unique()",
-                        $index["key"],
+                        'unique()',
+                        $index['key'],
                         $collection,
-                        $index["type"],
-                        $index["attributes"],
-                        $index["orders"]
+                        $index['type'],
+                        $index['attributes'],
+                        $index['orders']
                     );
                 }
 
@@ -758,17 +741,17 @@ class Appwrite extends Source
 
     private function calculateTypes(array $user): array
     {
-        if (empty($user["email"]) && empty($user["phone"])) {
+        if (empty($user['email']) && empty($user['phone'])) {
             return [User::TYPE_ANONYMOUS];
         }
 
         $types = [];
 
-        if (!empty($user["email"])) {
+        if (! empty($user['email'])) {
             $types[] = User::TYPE_EMAIL;
         }
 
-        if (!empty($user["phone"])) {
+        if (! empty($user['phone'])) {
             $types[] = User::TYPE_PHONE;
         }
 
@@ -837,7 +820,7 @@ class Appwrite extends Source
                     $queries
                 );
 
-                foreach ($response["files"] as $file) {
+                foreach ($response['files'] as $file) {
                     $this->handleDataTransfer(new File(
                         $file['$id'],
                         $bucket,
@@ -851,7 +834,7 @@ class Appwrite extends Source
                     $lastDocument = $file['$id'];
                 }
 
-                if (count($response["files"]) < $batchSize) {
+                if (count($response['files']) < $batchSize) {
                     break;
                 }
             }
@@ -880,12 +863,11 @@ class Appwrite extends Source
             );
 
             // Send the chunk to the callback function
-            $this->callback([new FileData(
-                $chunkData,
-                $start,
-                $end,
-                $file
-            )]);
+            $file->setData($chunkData)
+                ->setStart($start)
+                ->setEnd($end);
+
+            $this->callback([$file]);
 
             // Update the range
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
@@ -955,7 +937,6 @@ class Appwrite extends Source
 
         foreach ($functions as $func) {
             /** @var Func $func */
-
             $lastDocument = null;
             while (true) {
                 $queries = [Query::limit($batchSize)];
@@ -969,13 +950,13 @@ class Appwrite extends Source
                     $queries
                 );
 
-                foreach ($response["deployments"] as $deployment) {
+                foreach ($response['deployments'] as $deployment) {
                     $this->handleDeploymentData($func, $deployment);
 
                     $lastDocument = $deployment['$id'];
                 }
 
-                if (count($response["deployments"]) < $batchSize) {
+                if (count($response['deployments']) < $batchSize) {
                     break;
                 }
             }

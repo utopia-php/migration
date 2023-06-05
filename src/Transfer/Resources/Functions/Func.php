@@ -8,12 +8,19 @@ use Utopia\Transfer\Transfer;
 class Func extends Resource
 {
     protected string $name;
+
     protected string $id;
+
     protected array $execute;
+
     protected bool $enabled;
+
     protected string $runtime;
+
     protected array $events;
+
     protected string $schedule;
+
     protected int $timeout;
 
     public function __construct(string $name, string $id, string $runtime, array $execute = [], bool $enabled = true, array $events = [], string $schedule = '', int $timeout = 0)
@@ -51,6 +58,7 @@ class Func extends Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+
         return $this;
     }
 
@@ -62,6 +70,7 @@ class Func extends Resource
     public function setExecute(array $execute): self
     {
         $this->execute = $execute;
+
         return $this;
     }
 
@@ -73,6 +82,7 @@ class Func extends Resource
     public function setEnabled(bool $enabled): self
     {
         $this->enabled = $enabled;
+
         return $this;
     }
 
@@ -84,6 +94,7 @@ class Func extends Resource
     public function setRuntime(string $runtime): self
     {
         $this->runtime = $runtime;
+
         return $this;
     }
 
@@ -95,6 +106,7 @@ class Func extends Resource
     public function setEvents(array $events): self
     {
         $this->events = $events;
+
         return $this;
     }
 
@@ -106,6 +118,7 @@ class Func extends Resource
     public function setSchedule(string $schedule): self
     {
         $this->schedule = $schedule;
+
         return $this;
     }
 
@@ -117,6 +130,7 @@ class Func extends Resource
     public function setTimeout(int $timeout): self
     {
         $this->timeout = $timeout;
+
         return $this;
     }
 

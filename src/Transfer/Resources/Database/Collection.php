@@ -8,36 +8,23 @@ use Utopia\Transfer\Transfer;
 class Collection extends Resource
 {
     /**
-     * @var list<Attribute> $columns
+     * @var list<Attribute>
      */
-
     private array $columns = [];
 
     /**
-     * @var list<Index> $indexes
+     * @var list<Index>
      */
     private array $indexes = [];
 
     private Database $database;
 
-    /**
-     * @var array $permissions
-     */
     protected array $permissions = [];
 
-    /**
-     * @var bool $documentSecurity
-     */
     protected bool $documentSecurity = false;
 
-    /**
-     * @var string $name
-     */
     protected string $name;
 
-    /**
-     * @var string $id
-     */
     protected string $id;
 
     public function __construct(Database $database, string $name, string $id, bool $documentSecurity = false, array $permissions = [])
@@ -67,6 +54,7 @@ class Collection extends Resource
     public function setDatabase(Database $database): self
     {
         $this->database = $database;
+
         return $this;
     }
 
@@ -78,6 +66,7 @@ class Collection extends Resource
     public function setCollectionName(string $name): self
     {
         $this->name = $name;
+
         return $this;
     }
 
@@ -89,6 +78,7 @@ class Collection extends Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+
         return $this;
     }
 
@@ -100,6 +90,7 @@ class Collection extends Resource
     public function setDocumentSecurity(bool $documentSecurity): self
     {
         $this->documentSecurity = $documentSecurity;
+
         return $this;
     }
 
@@ -111,6 +102,7 @@ class Collection extends Resource
     public function setPermissions(array $permissions): self
     {
         $this->permissions = $permissions;
+
         return $this;
     }
 

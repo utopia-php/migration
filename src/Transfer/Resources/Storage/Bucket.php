@@ -8,14 +8,23 @@ use Utopia\Transfer\Transfer;
 class Bucket extends Resource
 {
     protected string $id;
+
     protected array $permissions;
+
     protected bool $fileSecurity;
+
     protected string $name;
+
     protected bool $enabled;
+
     protected int $maxFileSize;
+
     protected array $allowedFileExtensions;
+
     protected string $compression;
+
     protected bool $encryption;
+
     protected bool $antiVirus;
 
     public function __construct(string $id = '', array $permissions = [], bool $fileSecurity = false, string $name = '', bool $enabled = false, int $maxFileSize = 0, array $allowedFileExtensions = [], string $compression = '', bool $encryption = false, bool $antiVirus = false)
@@ -50,6 +59,7 @@ class Bucket extends Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+
         return $this;
     }
 
@@ -61,6 +71,7 @@ class Bucket extends Resource
     public function setPermissions(array $permissions): self
     {
         $this->permissions = $permissions;
+
         return $this;
     }
 
@@ -72,6 +83,7 @@ class Bucket extends Resource
     public function setFileSecurity(bool $fileSecurity): self
     {
         $this->fileSecurity = $fileSecurity;
+
         return $this;
     }
 
@@ -83,6 +95,7 @@ class Bucket extends Resource
     public function setBucketName(string $name): self
     {
         $this->name = $name;
+
         return $this;
     }
 
@@ -94,6 +107,7 @@ class Bucket extends Resource
     public function setEnabled(bool $enabled): self
     {
         $this->enabled = $enabled;
+
         return $this;
     }
 
@@ -105,6 +119,7 @@ class Bucket extends Resource
     public function setMaxFileSize(int $maxFileSize): self
     {
         $this->maxFileSize = $maxFileSize;
+
         return $this;
     }
 
@@ -116,6 +131,7 @@ class Bucket extends Resource
     public function setAllowedFileExtensions(array $allowedFileExtensions): self
     {
         $this->allowedFileExtensions = $allowedFileExtensions;
+
         return $this;
     }
 
@@ -127,6 +143,7 @@ class Bucket extends Resource
     public function setCompression(string $compression): self
     {
         $this->compression = $compression;
+
         return $this;
     }
 
@@ -138,6 +155,7 @@ class Bucket extends Resource
     public function setEncryption(bool $encryption): self
     {
         $this->encryption = $encryption;
+
         return $this;
     }
 
@@ -149,6 +167,7 @@ class Bucket extends Resource
     public function setAntiVirus(bool $antiVirus): self
     {
         $this->antiVirus = $antiVirus;
+
         return $this;
     }
 

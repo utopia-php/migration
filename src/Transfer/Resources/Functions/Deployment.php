@@ -3,18 +3,24 @@
 namespace Utopia\Transfer\Resources\Functions;
 
 use Utopia\Transfer\Resource;
-use Utopia\Transfer\Resources\Functions\Func;
 use Utopia\Transfer\Transfer;
 
 class Deployment extends Resource
 {
     protected string $id;
+
     protected Func $func;
+
     protected string $entrypoint;
+
     protected int $size;
+
     protected int $start;
+
     protected int $end;
+
     protected string $data;
+
     protected bool $activated;
 
     public function __construct(string $id, Func $func, int $size, string $entrypoint, int $start = 0, int $end = 0, string $data = '', bool $activated = false)
@@ -47,6 +53,7 @@ class Deployment extends Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+
         return $this;
     }
 
@@ -58,12 +65,14 @@ class Deployment extends Resource
     public function setFunction(Func $func): self
     {
         $this->func = $func;
+
         return $this;
     }
 
     public function setSize(int $size): self
     {
         $this->size = $size;
+
         return $this;
     }
 
@@ -75,6 +84,7 @@ class Deployment extends Resource
     public function setEntrypoint(string $entrypoint): self
     {
         $this->entrypoint = $entrypoint;
+
         return $this;
     }
 
@@ -86,6 +96,7 @@ class Deployment extends Resource
     public function setStart(int $start): self
     {
         $this->start = $start;
+
         return $this;
     }
 
@@ -97,6 +108,7 @@ class Deployment extends Resource
     public function setEnd(int $end): self
     {
         $this->end = $end;
+
         return $this;
     }
 
@@ -108,6 +120,7 @@ class Deployment extends Resource
     public function setData(string $data): self
     {
         $this->data = $data;
+
         return $this;
     }
 
@@ -119,6 +132,7 @@ class Deployment extends Resource
     public function setActivated(bool $activated): self
     {
         $this->activated = $activated;
+
         return $this;
     }
 

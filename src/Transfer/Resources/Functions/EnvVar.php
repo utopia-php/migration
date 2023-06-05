@@ -8,7 +8,9 @@ use Utopia\Transfer\Transfer;
 class EnvVar extends Resource
 {
     protected Func $func;
+
     protected string $key;
+
     protected string $value;
 
     public function __construct(Func $func, string $key, string $value)
@@ -36,6 +38,7 @@ class EnvVar extends Resource
     public function setFunc(Func $func): self
     {
         $this->func = $func;
+
         return $this;
     }
 
@@ -47,6 +50,7 @@ class EnvVar extends Resource
     public function setKey(string $key): self
     {
         $this->key = $key;
+
         return $this;
     }
 
@@ -58,6 +62,7 @@ class EnvVar extends Resource
     public function setValue(string $value): self
     {
         $this->value = $value;
+
         return $this;
     }
 

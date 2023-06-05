@@ -3,8 +3,6 @@
 namespace Utopia\Transfer\Sources;
 
 use Utopia\Transfer\Resource;
-use Utopia\Transfer\Source;
-use Utopia\Transfer\Transfer;
 use Utopia\Transfer\Resources\Auth\Hash;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
@@ -18,13 +16,17 @@ use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Database\Document;
 use Utopia\Transfer\Resources\Storage\Bucket;
 use Utopia\Transfer\Resources\Storage\File;
-use Utopia\Transfer\Resources\Storage\FileData;
+use Utopia\Transfer\Source;
+use Utopia\Transfer\Transfer;
 
 class Firebase extends Source
 {
     private array $serviceAccount;
+
     private string $projectID;
+
     private string $currentToken = '';
+
     private int $tokenExpires = 0;
 
     public function __construct(array $serviceAccount)
@@ -50,21 +52,21 @@ class Firebase extends Source
             'scope' => 'https://www.googleapis.com/auth/firebase https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/datastore',
             'exp' => time() + 3600,
             'iat' => time(),
-            'aud' => 'https://oauth2.googleapis.com/token'
+            'aud' => 'https://oauth2.googleapis.com/token',
         ];
 
         $jwtHeader = [
             'alg' => 'RS256',
-            'typ' => 'JWT'
+            'typ' => 'JWT',
         ];
 
-        $jwtPayload = $this->base64UrlEncode(json_encode($jwtHeader)) . '.' . $this->base64UrlEncode(json_encode($jwtClaim));
+        $jwtPayload = $this->base64UrlEncode(json_encode($jwtHeader)).'.'.$this->base64UrlEncode(json_encode($jwtClaim));
 
         $jwtSignature = '';
         openssl_sign($jwtPayload, $jwtSignature, $this->serviceAccount['private_key'], 'sha256');
         $jwtSignature = $this->base64UrlEncode($jwtSignature);
 
-        return $jwtPayload . '.' . $jwtSignature;
+        return $jwtPayload.'.'.$jwtSignature;
     }
 
     /**
@@ -81,18 +83,18 @@ class Firebase extends Source
                 'Content-Type' => 'application/x-www-form-urlencoded',
             ], [
                 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                'assertion' => $this->calculateJWT()
+                'assertion' => $this->calculateJWT(),
             ]);
 
             $this->currentToken = $response['access_token'];
             $this->tokenExpires = time() + $response['expires_in'];
-            $this->headers['Authorization'] = 'Bearer ' . $this->currentToken;
+            $this->headers['Authorization'] = 'Bearer '.$this->currentToken;
         } catch (\Exception $e) {
-            throw new \Exception('Failed to authenticate with Firebase: ' . $e->getMessage());
+            throw new \Exception('Failed to authenticate with Firebase: '.$e->getMessage());
         }
     }
 
-    public function call(string $method, string $path = '', array $headers = array(), array $params = array()): array|string
+    public function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
     {
         $this->authenticate();
 
@@ -101,8 +103,6 @@ class Firebase extends Source
 
     /**
      * Get Supported Resources
-     *
-     * @return array
      */
     public function getSupportedResources(): array
     {
@@ -119,7 +119,6 @@ class Firebase extends Source
             // Storage
             Resource::TYPE_BUCKET,
             Resource::TYPE_FILE,
-            Resource::TYPE_FILEDATA
         ];
     }
 
@@ -138,7 +137,7 @@ class Firebase extends Source
     private function exportUsers(int $batchSize)
     {
         // Fetch our Hash Config
-        $hashConfig = ($this->call('GET', 'https://identitytoolkit.googleapis.com/admin/v2/projects/' . $this->projectID . '/config'))["signIn"]["hashConfig"];
+        $hashConfig = ($this->call('GET', 'https://identitytoolkit.googleapis.com/admin/v2/projects/'.$this->projectID.'/config'))['signIn']['hashConfig'];
 
         $nextPageToken = null;
 
@@ -147,33 +146,33 @@ class Firebase extends Source
             $users = [];
 
             $request = [
-                "targetProjectId" => $this->projectID,
-                "maxResults" => $batchSize,
+                'targetProjectId' => $this->projectID,
+                'maxResults' => $batchSize,
             ];
 
             if ($nextPageToken) {
-                $request["nextPageToken"] = $nextPageToken;
+                $request['nextPageToken'] = $nextPageToken;
             }
 
             $response = $this->call('POST', 'https://identitytoolkit.googleapis.com/identitytoolkit/v3/relyingparty/downloadAccount', [
                 'Content-Type' => 'application/json',
             ], $request);
 
-            $result = $response["users"];
-            $nextPageToken = $response["nextPageToken"] ?? null;
+            $result = $response['users'];
+            $nextPageToken = $response['nextPageToken'] ?? null;
 
             foreach ($result as $user) {
                 $users[] = new User(
-                    $user["localId"] ?? '',
-                    $user["email"] ?? '',
-                    $user["displayName"] ?? $user["email"] ?? '',
-                    new Hash($user["passwordHash"] ?? '', $user["salt"] ?? '', Hash::SCRYPT_MODIFIED, $hashConfig["saltSeparator"], $hashConfig["signerKey"]),
-                    $user["phoneNumber"] ?? '',
+                    $user['localId'] ?? '',
+                    $user['email'] ?? '',
+                    $user['displayName'] ?? $user['email'] ?? '',
+                    new Hash($user['passwordHash'] ?? '', $user['salt'] ?? '', Hash::SCRYPT_MODIFIED, $hashConfig['saltSeparator'], $hashConfig['signerKey']),
+                    $user['phoneNumber'] ?? '',
                     $this->calculateUserType($user['providerUserInfo'] ?? []),
                     '',
-                    $user["emailVerified"],
+                    $user['emailVerified'],
                     false, // Can't get phone number status on firebase :/
-                    $user["disabled"]
+                    $user['disabled']
                 );
             }
 
@@ -194,7 +193,7 @@ class Firebase extends Source
         $types = [];
 
         foreach ($providerData as $provider) {
-            switch ($provider["providerId"]) {
+            switch ($provider['providerId']) {
                 case 'password':
                     $types[] = User::TYPE_EMAIL;
                     break;
@@ -231,11 +230,11 @@ class Firebase extends Source
         while (true) {
             $collections = [];
 
-            $result = $this->call('POST', $baseURL . ':listCollectionIds', [
+            $result = $this->call('POST', $baseURL.':listCollectionIds', [
                 'Content-Type' => 'application/json',
             ], [
                 'pageSize' => $batchSize,
-                'pageToken' => $nextPageToken
+                'pageToken' => $nextPageToken,
             ]);
 
             // Transfer Collections
@@ -265,28 +264,28 @@ class Firebase extends Source
 
     private function convertAttribute(Collection $collection, string $key, array $field): Attribute
     {
-        if (array_key_exists("booleanValue", $field)) {
+        if (array_key_exists('booleanValue', $field)) {
             return new BoolAttribute($key, $collection, false, false, null);
-        } elseif (array_key_exists("bytesValue", $field)) {
+        } elseif (array_key_exists('bytesValue', $field)) {
             return new StringAttribute($key, $collection, false, false, null, 1000000);
-        } elseif (array_key_exists("doubleValue", $field)) {
+        } elseif (array_key_exists('doubleValue', $field)) {
             return new FloatAttribute($key, $collection, false, false, null);
-        } elseif (array_key_exists("integerValue", $field)) {
+        } elseif (array_key_exists('integerValue', $field)) {
             return new IntAttribute($key, $collection, false, false, null);
-        } elseif (array_key_exists("mapValue", $field)) {
+        } elseif (array_key_exists('mapValue', $field)) {
             return new StringAttribute($key, $collection, false, false, null, 1000000);
-        } elseif (array_key_exists("nullValue", $field)) {
+        } elseif (array_key_exists('nullValue', $field)) {
             return new StringAttribute($key, $collection, false, false, null, 1000000);
-        } elseif (array_key_exists("referenceValue", $field)) {
+        } elseif (array_key_exists('referenceValue', $field)) {
             return new StringAttribute($key, $collection, false, false, null, 1000000); //TODO: This should be a reference attribute
-        } elseif (array_key_exists("stringValue", $field)) {
+        } elseif (array_key_exists('stringValue', $field)) {
             return new StringAttribute($key, $collection, false, false, null, 1000000);
-        } elseif (array_key_exists("timestampValue", $field)) {
+        } elseif (array_key_exists('timestampValue', $field)) {
             return new DateTimeAttribute($key, $collection, false, false, null);
-        } elseif (array_key_exists("geoPointValue", $field)) {
+        } elseif (array_key_exists('geoPointValue', $field)) {
             return new StringAttribute($key, $collection, false, false, null, 1000000);
-        } elseif (array_key_exists("arrayValue", $field)) {
-            return $this->calculateArrayType($collection, $key, $field["arrayValue"]);
+        } elseif (array_key_exists('arrayValue', $field)) {
+            return $this->calculateArrayType($collection, $key, $field['arrayValue']);
         } else {
             throw new \Exception('Unknown field type');
         }
@@ -297,8 +296,8 @@ class Firebase extends Source
         $isSameType = true;
         $previousType = null;
 
-        foreach ($data["values"] as $field) {
-            if (!$previousType) {
+        foreach ($data['values'] as $field) {
+            if (! $previousType) {
                 $previousType = $this->convertAttribute($collection, $key, $field);
             } elseif ($previousType->getName() != ($this->convertAttribute($collection, $key, $field))->getName()) {
                 $isSameType = false;
@@ -308,6 +307,7 @@ class Firebase extends Source
 
         if ($isSameType) {
             $previousType->setArray(true);
+
             return $previousType;
         } else {
             return new StringAttribute($key, $collection, false, true, null, 1000000);
@@ -316,7 +316,7 @@ class Firebase extends Source
 
     private function handleCollection(Collection $collection, int $batchSize, bool $transferDocuments)
     {
-        $resourceURL = 'https://firestore.googleapis.com/v1/projects/' . $this->projectID . '/databases/' . $collection->getDatabase()->getId() . '/documents/' . $collection->getId();
+        $resourceURL = 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases/'.$collection->getDatabase()->getId().'/documents/'.$collection->getId();
 
         $nextPageToken = null;
 
@@ -330,7 +330,7 @@ class Firebase extends Source
                 'Content-Type' => 'application/json',
             ], [
                 'pageSize' => $batchSize,
-                'pageToken' => $nextPageToken
+                'pageToken' => $nextPageToken,
             ]);
 
             if (empty($result)) {
@@ -340,12 +340,12 @@ class Firebase extends Source
             // Calculate Schema and handle subcollections
             $documentSchema = [];
             foreach ($result['documents'] as $document) {
-                if (!isset($document['fields'])) {
+                if (! isset($document['fields'])) {
                     continue; //TODO: Transfer Empty Documents
                 }
 
                 foreach ($document['fields'] as $key => $field) {
-                    if (!isset($documentSchema[$key])) {
+                    if (! isset($documentSchema[$key])) {
                         $documentSchema[$key] = $this->convertAttribute($collection, $key, $field);
                     }
                 }
@@ -368,27 +368,27 @@ class Firebase extends Source
 
     private function calculateValue(array $field)
     {
-        if (array_key_exists("booleanValue", $field)) {
+        if (array_key_exists('booleanValue', $field)) {
             return $field['booleanValue'];
-        } elseif (array_key_exists("bytesValue", $field)) {
+        } elseif (array_key_exists('bytesValue', $field)) {
             return $field['bytesValue'];
-        } elseif (array_key_exists("doubleValue", $field)) {
+        } elseif (array_key_exists('doubleValue', $field)) {
             return $field['doubleValue'];
-        } elseif (array_key_exists("integerValue", $field)) {
+        } elseif (array_key_exists('integerValue', $field)) {
             return $field['integerValue'];
-        } elseif (array_key_exists("mapValue", $field)) {
+        } elseif (array_key_exists('mapValue', $field)) {
             return $field['mapValue'];
-        } elseif (array_key_exists("nullValue", $field)) {
+        } elseif (array_key_exists('nullValue', $field)) {
             return $field['nullValue'];
-        } elseif (array_key_exists("referenceValue", $field)) {
+        } elseif (array_key_exists('referenceValue', $field)) {
             return $field['referenceValue']; //TODO: This should be a reference attribute
-        } elseif (array_key_exists("stringValue", $field)) {
+        } elseif (array_key_exists('stringValue', $field)) {
             return $field['stringValue'];
-        } elseif (array_key_exists("timestampValue", $field)) {
+        } elseif (array_key_exists('timestampValue', $field)) {
             return $field['timestampValue'];
-        } elseif (array_key_exists("geoPointValue", $field)) {
+        } elseif (array_key_exists('geoPointValue', $field)) {
             return $field['geoPointValue'];
-        } elseif (array_key_exists("arrayValue", $field)) {
+        } elseif (array_key_exists('arrayValue', $field)) {
             //TODO:
         } else {
             throw new \Exception('Unknown field type');
@@ -427,7 +427,7 @@ class Firebase extends Source
                 'project' => $this->projectID,
                 'maxResults' => $batchsize,
                 'pageToken' => $nextPageToken,
-                'alt' => 'json'
+                'alt' => 'json',
             ]);
 
             if (empty($result)) {
@@ -438,7 +438,7 @@ class Firebase extends Source
                 $this->callback([new Bucket($bucket['id'], [], false, $bucket['name'])]);
             }
 
-            if (!isset($result['nextPageToken'])) {
+            if (! isset($result['nextPageToken'])) {
                 break;
             }
 
@@ -451,7 +451,7 @@ class Firebase extends Source
         $buckets = $this->resourceCache->get(Bucket::getName());
 
         foreach ($buckets as $bucket) {
-            $endpoint = 'https://storage.googleapis.com/storage/v1/b/' . $bucket->getId() . '/o';
+            $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$bucket->getId().'/o';
 
             $nextPageToken = null;
 
@@ -460,14 +460,14 @@ class Firebase extends Source
                     'Content-Type' => 'application/json',
                 ], [
                     'pageSize' => $batchsize,
-                    'pageToken' => $nextPageToken
+                    'pageToken' => $nextPageToken,
                 ]);
 
                 if (empty($result)) {
                     break;
                 }
 
-                if (!isset($result['items'])) {
+                if (! isset($result['items'])) {
                     break;
                 }
 
@@ -486,25 +486,24 @@ class Firebase extends Source
 
     public function handleDataTransfer(File $file)
     {
-        $endpoint = 'https://storage.googleapis.com/storage/v1/b/' . $file->getBucket()->getId() . '/o/' . $file->getId() . '?alt=media';
+        $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$file->getBucket()->getId().'/o/'.$file->getId().'?alt=media';
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 
         while (true) {
             $result = $this->call('GET', $endpoint, [
-                'Range' => 'bytes=' . $start . '-' . $end
+                'Range' => 'bytes='.$start.'-'.$end,
             ]);
 
             if (empty($result)) {
                 break;
             }
 
-            $this->callback([new FileData(
-                $result,
-                $start,
-                $end,
-                $file
-            )]);
+            $file->setData($result)
+                ->setStart($start)
+                ->setEnd($end);
+
+            $this->callback([$file]);
 
             if (strlen($result) < Transfer::STORAGE_MAX_CHUNK_SIZE) {
                 break;

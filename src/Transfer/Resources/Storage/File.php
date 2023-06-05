@@ -8,14 +8,26 @@ use Utopia\Transfer\Transfer;
 class File extends Resource
 {
     protected string $id;
+
     protected Bucket $bucket;
+
     protected string $name;
+
     protected string $signature;
+
     protected string $mimeType;
+
     protected array $permissions;
+
     protected int $size;
 
-    public function __construct(string $id = '', Bucket $bucket = null, string $name = '', string $signature = '', string $mimeType = '', array $permissions = [], int $size = 0)
+    protected string $data;
+
+    protected int $start;
+
+    protected int $end;
+
+    public function __construct(string $id = '', Bucket $bucket = null, string $name = '', string $signature = '', string $mimeType = '', array $permissions = [], int $size = 0, string $data = '', int $start = 0, int $end = 0)
     {
         $this->id = $id;
         $this->bucket = $bucket;
@@ -24,6 +36,9 @@ class File extends Resource
         $this->mimeType = $mimeType;
         $this->permissions = $permissions;
         $this->size = $size;
+        $this->data = $data;
+        $this->start = $start;
+        $this->end = $end;
     }
 
     public static function getName(): string
@@ -44,6 +59,7 @@ class File extends Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+
         return $this;
     }
 
@@ -55,6 +71,7 @@ class File extends Resource
     public function setBucket(Bucket $bucket): self
     {
         $this->bucket = $bucket;
+
         return $this;
     }
 
@@ -63,10 +80,16 @@ class File extends Resource
         return $this->name;
     }
 
-    public function setFileName(string $name): self
+    public function setName(string $name): self
     {
         $this->name = $name;
+
         return $this;
+    }
+
+    public function getSize(): int
+    {
+        return $this->size;
     }
 
     public function getSignature(): string
@@ -77,6 +100,7 @@ class File extends Resource
     public function setSignature(string $signature): self
     {
         $this->signature = $signature;
+
         return $this;
     }
 
@@ -88,6 +112,7 @@ class File extends Resource
     public function setMimeType(string $mimeType): self
     {
         $this->mimeType = $mimeType;
+
         return $this;
     }
 
@@ -96,26 +121,71 @@ class File extends Resource
         return $this->permissions;
     }
 
-    public function getSize(): int
+    public function setPermissions(array $permissions): self
     {
-        return $this->size;
+        $this->permissions = $permissions;
+
+        return $this;
     }
 
-    public function setSize(int $size): self
+    public function getData(): string
     {
-        $this->size = $size;
+        return $this->data;
+    }
+
+    public function setData(string $data): self
+    {
+        $this->data = $data;
+
         return $this;
+    }
+
+    public function getStart(): int
+    {
+        return $this->start;
+    }
+
+    public function setStart(int $start): self
+    {
+        $this->start = $start;
+
+        return $this;
+    }
+
+    public function getEnd(): int
+    {
+        return $this->end;
+    }
+
+    public function setEnd(int $end): self
+    {
+        $this->end = $end;
+
+        return $this;
+    }
+
+    public function getSizeInBytes(): int
+    {
+        return strlen($this->data);
+    }
+
+    public function getChunkSize(): int
+    {
+        return $this->end - $this->start;
     }
 
     public function asArray(): array
     {
         return [
             'id' => $this->id,
-            'bucket' => $this->bucket->asArray(),
+            'bucket' => $this->bucket->getId(),
             'name' => $this->name,
             'signature' => $this->signature,
             'mimeType' => $this->mimeType,
+            'permissions' => $this->permissions,
             'size' => $this->size,
+            'start' => $this->start,
+            'end' => $this->end,
         ];
     }
 }

@@ -69,12 +69,6 @@ Destinations:
 
 Utopia Transfer requires PHP 8.0 or later. We recommend using the latest PHP version whenever possible.
 
-## Authors
-
-**Bradley Schofield**
-
-+ [https://github.com/PineappleIOnic](https://github.com/PineappleIOnic)
-
 ## Copyright and license
 
 The MIT License (MIT) [http://www.opensource.org/licenses/mit-license.php](http://www.opensource.org/licenses/mit-license.php)

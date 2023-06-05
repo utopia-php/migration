@@ -8,9 +8,13 @@ use Utopia\Transfer\Transfer;
 class Document extends Resource
 {
     protected string $id;
+
     protected Database $database;
+
     protected Collection $collection;
+
     protected array $data;
+
     protected array $permissions;
 
     public function __construct(string $id, Database $database, Collection $collection, array $data = [], array $permissions = [])
@@ -40,6 +44,7 @@ class Document extends Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+
         return $this;
     }
 
@@ -51,6 +56,7 @@ class Document extends Resource
     public function setDatabase(Database $database): self
     {
         $this->database = $database;
+
         return $this;
     }
 
@@ -62,6 +68,7 @@ class Document extends Resource
     public function setCollection(Collection $collection): self
     {
         $this->collection = $collection;
+
         return $this;
     }
 
@@ -73,13 +80,12 @@ class Document extends Resource
     /**
      * Set Data
      *
-     * @param array<string, mixed> $data
-     *
-     * @return self
+     * @param  array<string, mixed>  $data
      */
     public function setData(array $data): self
     {
         $this->data = $data;
+
         return $this;
     }
 
@@ -91,13 +97,12 @@ class Document extends Resource
     /**
      * Set Permissions
      *
-     * @param array<string> $permissions
-     *
-     * @return self
+     * @param  array<string>  $permissions
      */
     public function setPermissions(array $permissions): self
     {
         $this->permissions = $permissions;
+
         return $this;
     }
 
