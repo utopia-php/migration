@@ -451,6 +451,7 @@ class Firebase extends Source
         $buckets = $this->cache->get(Bucket::getName());
 
         foreach ($buckets as $bucket) {
+            /** @var Bucket $bucket */
             $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$bucket->getId().'/o';
 
             $nextPageToken = null;

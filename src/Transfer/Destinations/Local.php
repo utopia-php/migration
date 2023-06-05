@@ -79,7 +79,7 @@ class Local extends Destination
         return $report;
     }
 
-    public function sync(): void
+    private function sync(): void
     {
         $jsonEncodedData = \json_encode($this->data, JSON_PRETTY_PRINT);
 
@@ -90,10 +90,10 @@ class Local extends Destination
         \file_put_contents($this->path . '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
     }
 
-    public function importResources(array $resources, callable $callback): void
+    protected function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var resource $resource */
+            /** @var Resource $resource */
             switch ($resource->getName()) {
                 case 'Deployment':
                     /** @var Deployment $resource */

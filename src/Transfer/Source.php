@@ -19,7 +19,7 @@ abstract class Source extends Target
         $this->transferCallback = function (array $returnedResources) use ($callback, $resources) {
             $prunedResurces = [];
             foreach ($returnedResources as $resource) {
-                /** @var resource $resource */
+                /** @var Resource $resource */
                 if (! in_array($resource->getName(), $resources)) {
                     $resource->setStatus(Resource::STATUS_SKIPPED);
                 } else {

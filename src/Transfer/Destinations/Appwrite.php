@@ -214,10 +214,10 @@ class Appwrite extends Destination
         }
     }
 
-    public function importResources(array $resources, callable $callback): void
+    protected function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var resource $resource */
+            /** @var Resource $resource */
             switch ($resource->getGroup()) {
                 case Transfer::GROUP_DATABASES:
                     $responseResource = $this->importDatabaseResource($resource);

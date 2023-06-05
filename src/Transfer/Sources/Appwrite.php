@@ -357,7 +357,7 @@ class Appwrite extends Source
         $cacheTeams = $this->cache->get(Team::getName());
 
         foreach ($cacheTeams as $team) {
-            /** @param Team $team */
+            /** @var Team $team */
             while (true) {
                 $memberships = [];
 
@@ -625,6 +625,7 @@ class Appwrite extends Source
 
         $databases = $this->cache->get(Database::getName());
         foreach ($databases as $database) {
+            /** @var Database $database */
             while (true) {
                 $queries = [Query::limit($batchSize)];
                 $collections = [];
@@ -806,6 +807,7 @@ class Appwrite extends Source
 
         $buckets = $this->cache->get(Bucket::getName());
         foreach ($buckets as $bucket) {
+            /** @var Bucket $bucket */
             $lastDocument = null;
 
             while (true) {

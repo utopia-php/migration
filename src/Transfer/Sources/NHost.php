@@ -271,6 +271,7 @@ class NHost extends Source
         $databases = $this->cache->get(Database::getName());
 
         foreach ($databases as $database) {
+            /** @var Database $database */
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = :database');
             $statement->execute([':database' => $database->getName()]);
             $total = $statement->fetchColumn();
@@ -576,6 +577,7 @@ class NHost extends Source
         $buckets = $this->cache->get(Bucket::getName());
 
         foreach ($buckets as $bucket) {
+            /** @var Bucket $bucket */
             $totalStatement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.files WHERE bucket_id=:bucketId');
             $totalStatement->execute([':bucketId' => $bucket->getId()]);
             $total = $totalStatement->fetchColumn();
