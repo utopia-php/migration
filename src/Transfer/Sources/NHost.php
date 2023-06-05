@@ -500,9 +500,6 @@ class NHost extends Source
 
             return new Index($matches['name'], $matches['name'], $collection, $type, $attributes, $order);
         } else {
-            // $this->logs[Log::ERROR][] = new Log('Skipping index due to unsupported format: ' . $index['indexdef'] . ' for index: ' . $index['indexname'] . '. Transfers only support BTree.', \time());
-            // Add error here for unsupported index format
-
             return false;
         }
     }
