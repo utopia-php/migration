@@ -127,7 +127,7 @@ class Firebase extends Source
         throw new \Exception('Not implemented');
     }
 
-    public function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportAuthGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_USER, $resources)) {
             $this->exportUsers($batchSize);
@@ -217,11 +217,11 @@ class Firebase extends Source
         }
 
         if (in_array(Resource::TYPE_COLLECTION, $resources)) {
-            $this->handleDBData($batchSize, in_array(Resource::TYPE_DOCUMENT, $resources), $database);
+            $this->exportDB($batchSize, in_array(Resource::TYPE_DOCUMENT, $resources), $database);
         }
     }
 
-    private function handleDBData(int $batchSize, bool $pushDocuments, Database $database)
+    private function exportDB(int $batchSize, bool $pushDocuments, Database $database)
     {
         $baseURL = "https://firestore.googleapis.com/v1/{$this->projectID}/databases/(default)";
 
@@ -251,7 +251,7 @@ class Firebase extends Source
 
             // Transfer Documents and Calculate Schema
             foreach ($collections as $collection) {
-                $this->handleCollection($collection, $batchSize, $pushDocuments);
+                $this->exportCollection($collection, $batchSize, $pushDocuments);
             }
 
             if (count($result['collectionIds']) < $batchSize) {
@@ -314,7 +314,7 @@ class Firebase extends Source
         }
     }
 
-    private function handleCollection(Collection $collection, int $batchSize, bool $transferDocuments)
+    private function exportCollection(Collection $collection, int $batchSize, bool $transferDocuments)
     {
         $resourceURL = 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases/'.$collection->getDatabase()->getId().'/documents/'.$collection->getId();
 
@@ -472,7 +472,7 @@ class Firebase extends Source
                 }
 
                 foreach ($result['items'] as $item) {
-                    $this->handleDataTransfer(new File($item['name'], $bucket, $item['name']));
+                    $this->exportFile(new File($item['name'], $bucket, $item['name']));
                 }
 
                 if (count($result['items']) < $batchsize) {
@@ -484,7 +484,7 @@ class Firebase extends Source
         }
     }
 
-    public function handleDataTransfer(File $file)
+    public function exportFile(File $file)
     {
         $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$file->getBucket()->getId().'/o/'.$file->getId().'?alt=media';
         $start = 0;

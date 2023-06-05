@@ -152,7 +152,7 @@ class Supabase extends NHost
         return $report;
     }
 
-    public function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportAuthGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_USER, $resources)) {
             $this->exportUsers($batchSize);
@@ -238,7 +238,7 @@ class Supabase extends NHost
         }
     }
 
-    private function exportBuckets(int $batchSize)
+    protected function exportBuckets(int $batchSize)
     {
         $statement = $this->pdo->prepare('SELECT * FROM storage.buckets order by created_at');
         $statement->execute();
@@ -292,7 +292,7 @@ class Supabase extends NHost
                 foreach ($files as $file) {
                     $metadata = json_decode($file['metadata'], true);
 
-                    $this->handleDataTransfer(new File(
+                    $this->exportFile(new File(
                         $file['id'],
                         $bucket,
                         $file['name'],
@@ -306,7 +306,7 @@ class Supabase extends NHost
         }
     }
 
-    private function handleDataTransfer(File $file)
+    private function exportFile(File $file)
     {
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;

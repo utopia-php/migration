@@ -79,7 +79,7 @@ class Local extends Destination
         return $report;
     }
 
-    public function syncFile(): void
+    public function sync(): void
     {
         $jsonEncodedData = \json_encode($this->data, JSON_PRETTY_PRINT);
 
@@ -130,7 +130,7 @@ class Local extends Destination
 
             $resource->setStatus(Resource::STATUS_SUCCESS);
             $this->cache->update($resource);
-            $this->syncFile();
+            $this->sync();
         }
 
         $callback($resources);

@@ -246,7 +246,7 @@ class Appwrite extends Source
      * @param  int  $batchSize Max 100
      * @return void
      */
-    public function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportAuthGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_USER, $resources)) {
             $this->exportUsers($batchSize);
@@ -473,7 +473,7 @@ class Appwrite extends Source
     {
         switch ($value['type']) {
             case 'string':
-                if (! isset($value['format'])) {
+                if (!isset($value['format'])) {
                     return new StringAttribute(
                         $value['key'],
                         $collection,
@@ -821,7 +821,7 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['files'] as $file) {
-                    $this->handleDataTransfer(new File(
+                    $this->exportFileData(new File(
                         $file['$id'],
                         $bucket,
                         $file['name'],
@@ -841,7 +841,7 @@ class Appwrite extends Source
         }
     }
 
-    private function handleDataTransfer(File $file)
+    private function exportFileData(File $file)
     {
         // Set the chunk size (5MB)
         $start = 0;
@@ -951,7 +951,7 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['deployments'] as $deployment) {
-                    $this->handleDeploymentData($func, $deployment);
+                    $this->exportDeploymentData($func, $deployment);
 
                     $lastDocument = $deployment['$id'];
                 }
@@ -963,7 +963,7 @@ class Appwrite extends Source
         }
     }
 
-    public function handleDeploymentData(Func $func, array $deployment)
+    public function exportDeploymentData(Func $func, array $deployment)
     {
         // Set the chunk size (5MB)
         $start = 0;

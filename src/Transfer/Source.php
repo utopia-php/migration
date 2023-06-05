@@ -37,12 +37,13 @@ abstract class Source extends Target
     /**
      * Export Resources
      *
-     * @param  string[]  $resources
+     * @param string[] $resources
      * @return void
      */
     public function exportResources(array $resources, int $batchSize)
     {
         // Convert Resources back into their relevant groups
+
         $groups = [];
         foreach ($resources as $resource) {
             if (in_array($resource, Transfer::GROUP_AUTH_RESOURCES)) {
@@ -82,35 +83,35 @@ abstract class Source extends Target
     /**
      * Export Auth Group
      *
-     * @param  array  $resources Resources to export
+     * @param array $resources Resources to export
      * @return void
      */
-    abstract public function exportAuthGroup(int $batchSize, array $resources);
+    abstract protected function exportAuthGroup(int $batchSize, array $resources);
 
     /**
      * Export Databases Group
      *
-     * @param  int  $batchSize Max 100
-     * @param  array  $resources Resources to export
+     * @param int $batchSize Max 100
+     * @param array $resources Resources to export
      * @return void
      */
-    abstract public function exportDatabasesGroup(int $batchSize, array $resources);
+    abstract protected function exportDatabasesGroup(int $batchSize, array $resources);
 
     /**
      * Export Storage Group
      *
-     * @param  int  $batchSize Max 5
-     * @param  array  $resources Resources to export
+     * @param int $batchSize Max 5
+     * @param array $resources Resources to export
      * @return void
      */
-    abstract public function exportStorageGroup(int $batchSize, array $resources);
+    abstract protected function exportStorageGroup(int $batchSize, array $resources);
 
     /**
      * Export Functions Group
      *
-     * @param  int  $batchSize Max 100
-     * @param  array  $resources Resources to export
+     * @param int $batchSize Max 100
+     * @param array $resources Resources to export
      * @return void
      */
-    abstract public function exportFunctionsGroup(int $batchSize, array $resources);
+    abstract protected function exportFunctionsGroup(int $batchSize, array $resources);
 }

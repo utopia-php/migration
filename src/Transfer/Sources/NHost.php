@@ -190,7 +190,7 @@ class NHost extends Source
         return $report;
     }
 
-    public function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportAuthGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_USER, $resources)) {
             $this->exportUsers($batchSize);
@@ -448,7 +448,6 @@ class NHost extends Source
                 );
                 break;
             default:
-                // $this->logs[Log::WARNING][] = new Log('Unknown data type: ' . $column['data_type'] . ' for column: ' . $column['column_name'] . ' Falling back to string.', \time()); TODO: Figure out how to deal with warnings
                 return new StringAttribute(
                     $column['column_name'],
                     $collection,
@@ -538,7 +537,7 @@ class NHost extends Source
         }
     }
 
-    public function exportBuckets(int $batchSize)
+    protected function exportBuckets(int $batchSize)
     {
         $total = $this->pdo->query('SELECT COUNT(*) FROM storage.buckets')->fetchColumn();
 
@@ -597,7 +596,7 @@ class NHost extends Source
                 $offset += $batchSize;
 
                 foreach ($files as $file) {
-                    $this->handleDataTransfer(new File(
+                    $this->exportFile(new File(
                         $file['id'],
                         $bucket,
                         $file['name'],
@@ -611,7 +610,7 @@ class NHost extends Source
         }
     }
 
-    public function handleDataTransfer(File $file)
+    public function exportFile(File $file)
     {
         $url = "https://{$this->subdomain}.storage.{$this->region}.nhost.run";
         $start = 0;

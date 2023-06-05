@@ -157,7 +157,7 @@ abstract class Target
             $finalKey = $prefix ? "{$prefix}[{$key}]" : $key;
 
             if (is_array($value)) {
-                $output += $this->flatten($value, $finalKey); // @todo: handle name collision here if needed
+                $output += $this->flatten($value, $finalKey);
             } else {
                 $output[$finalKey] = $value;
             }
