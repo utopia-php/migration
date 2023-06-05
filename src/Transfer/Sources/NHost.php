@@ -235,7 +235,7 @@ class NHost extends Source
         }
     }
 
-    public function exportDatabasesGroup(int $batchSize, array $resources)
+    protected function exportDatabasesGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $this->exportDatabases($batchSize);
@@ -526,7 +526,7 @@ class NHost extends Source
         return $types;
     }
 
-    public function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportStorageGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
@@ -574,7 +574,7 @@ class NHost extends Source
         }
     }
 
-    public function exportFiles(int $batchSize)
+    private function exportFiles(int $batchSize)
     {
         $buckets = $this->cache->get(Bucket::getName());
 
@@ -610,7 +610,7 @@ class NHost extends Source
         }
     }
 
-    public function exportFile(File $file)
+    private function exportFile(File $file)
     {
         $url = "https://{$this->subdomain}.storage.{$this->region}.nhost.run";
         $start = 0;
@@ -659,7 +659,7 @@ class NHost extends Source
         }
     }
 
-    public function exportFunctionsGroup(int $batchSize, array $resources)
+    protected function exportFunctionsGroup(int $batchSize, array $resources)
     {
         throw new \Exception('Not Implemented');
     }

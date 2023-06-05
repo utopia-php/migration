@@ -94,7 +94,7 @@ class Firebase extends Source
         }
     }
 
-    public function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
+    protected function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
     {
         $this->authenticate();
 
@@ -209,7 +209,7 @@ class Firebase extends Source
         return $types;
     }
 
-    public function exportDatabasesGroup(int $batchSize, array $resources)
+    protected function exportDatabasesGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $database = new Database('default', '(default)');
@@ -405,7 +405,7 @@ class Firebase extends Source
         return new Document($document['name'], $collection->getDatabase(), $collection, $data, []);
     }
 
-    public function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportStorageGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
@@ -416,7 +416,7 @@ class Firebase extends Source
         }
     }
 
-    public function exportBuckets(int $batchsize)
+    private function exportBuckets(int $batchsize)
     {
         $endpoint = 'https://storage.googleapis.com/storage/v1/b';
 
@@ -446,7 +446,7 @@ class Firebase extends Source
         }
     }
 
-    public function exportFiles(int $batchsize)
+    private function exportFiles(int $batchsize)
     {
         $buckets = $this->cache->get(Bucket::getName());
 
@@ -484,7 +484,7 @@ class Firebase extends Source
         }
     }
 
-    public function exportFile(File $file)
+    private function exportFile(File $file)
     {
         $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$file->getBucket()->getId().'/o/'.$file->getId().'?alt=media';
         $start = 0;
@@ -514,7 +514,7 @@ class Firebase extends Source
         }
     }
 
-    public function exportFunctionsGroup(int $batchSize, array $resources)
+    protected function exportFunctionsGroup(int $batchSize, array $resources)
     {
         throw new \Exception('Not implemented');
     }

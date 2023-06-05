@@ -2,7 +2,7 @@
 
 namespace Tests\E2E\Sources;
 
-class Appwrite extends SourceTest
+class AppwriteTest extends SourceTest
 {
     public function testExportResources(): void
     {

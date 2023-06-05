@@ -2,10 +2,10 @@
 
 namespace Utopia\Tests;
 
-use Utopia\Transfer\Destination;
+use Utopia\Transfer\Source;
 use Utopia\Transfer\Transfer;
 
-class MockSource extends Destination
+class MockSource extends Source
 {
     public static function getName(): string
     {
@@ -21,10 +21,6 @@ class MockSource extends Destination
             Transfer::GROUP_SETTINGS,
             Transfer::GROUP_STORAGE,
         ];
-    }
-
-    public function importResources(array $resources, callable $callback): void
-    {
     }
 
     public function report(array $groups = []): array

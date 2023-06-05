@@ -227,7 +227,7 @@ class Supabase extends NHost
         return $types;
     }
 
-    public function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportStorageGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);

@@ -393,7 +393,7 @@ class Appwrite extends Source
         }
     }
 
-    public function exportDatabasesGroup(int $batchSize, array $resources)
+    protected function exportDatabasesGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $this->exportDatabases($batchSize);
@@ -758,7 +758,7 @@ class Appwrite extends Source
         return $types;
     }
 
-    public function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportStorageGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
@@ -879,7 +879,7 @@ class Appwrite extends Source
         }
     }
 
-    public function exportFunctionsGroup(int $batchSize, array $resources)
+    protected function exportFunctionsGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_FUNCTION, $resources)) {
             $this->exportFunctions($batchSize);
@@ -890,7 +890,7 @@ class Appwrite extends Source
         }
     }
 
-    public function exportFunctions(int $batchSize)
+    private function exportFunctions(int $batchSize)
     {
         //TODO: Implement batching
         $functionsClient = new Functions($this->client);
@@ -929,7 +929,7 @@ class Appwrite extends Source
         $this->callback($convertedResources);
     }
 
-    public function exportDeployments(int $batchSize)
+    private function exportDeployments(int $batchSize)
     {
         $functionsClient = new Functions($this->client);
 
@@ -963,7 +963,7 @@ class Appwrite extends Source
         }
     }
 
-    public function exportDeploymentData(Func $func, array $deployment)
+    private function exportDeploymentData(Func $func, array $deployment)
     {
         // Set the chunk size (5MB)
         $start = 0;

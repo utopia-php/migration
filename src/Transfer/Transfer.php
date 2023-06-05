@@ -47,8 +47,8 @@ class Transfer
         $this->destination = $destination;
         $this->cache = new Cache();
 
-        $this->source->registerTransferCache($this->cache);
-        $this->destination->registerTransferCache($this->cache);
+        $this->source->registerCache($this->cache);
+        $this->destination->registerCache($this->cache);
         $this->destination->setSource($source);
 
         return $this;
