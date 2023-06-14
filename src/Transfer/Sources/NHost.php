@@ -2,6 +2,7 @@
 
 namespace Utopia\Transfer\Sources;
 
+use PDO;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Auth\Hash;
 use Utopia\Transfer\Resources\Auth\User;
@@ -50,12 +51,19 @@ class NHost extends Source
         $this->username = $username;
         $this->password = $password;
         $this->port = $port;
+    }
 
-        try {
-            $this->pdo = new \PDO('pgsql:host='.$this->subdomain.'.db.'.$this->region.'.nhost.run'.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
-        } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database: '.$e->getMessage());
+    public function getDatabase(): PDO
+    {
+        if (!$this->pdo) {
+            try {
+                $this->pdo = new \PDO('pgsql:host=' . $this->subdomain . '.db.' . $this->region . '.nhost.run' . ';port=' . $this->port . ';dbname=' . $this->databaseName, $this->username, $this->password);
+            } catch (\PDOException $e) {
+                throw new \Exception('Failed to connect to database: ' . $e->getMessage());
+            }
         }
+
+        return $this->pdo;
     }
 
     public static function getName(): string
@@ -94,22 +102,22 @@ class NHost extends Source
         }
 
         try {
-            $this->pdo = new \PDO('pgsql:host='.$this->subdomain.'.db.'.$this->region.'.nhost.run'.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
+           $db = $this->getDatabase();
         } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database. PDO Code: '.$e->getCode().' Error: '.$e->getMessage());
+            throw new \Exception('Failed to connect to database. PDO Code: ' . $e->getCode() . ' Error: ' . $e->getMessage());
         }
 
-        if (! empty($this->pdo->errorCode())) {
-            throw new \Exception('Failed to connect to database. PDO Code: '.$this->pdo->errorCode().(empty($this->pdo->errorInfo()[2]) ? '' : ' Error: '.$this->pdo->errorInfo()[2]));
+        if (!empty($db->errorCode())) {
+            throw new \Exception('Failed to connect to database. PDO Code: ' . $db->errorCode() . (empty($db->errorInfo()[2]) ? '' : ' Error: ' . $db->errorInfo()[2]));
         }
 
         // Auth
         if (in_array(Resource::TYPE_USER, $resources)) {
-            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM auth.users');
+            $statement = $db->prepare('SELECT COUNT(*) FROM auth.users');
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access users table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access users table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_USER] = $statement->fetchColumn();
@@ -121,44 +129,44 @@ class NHost extends Source
         }
 
         if (in_array(Resource::TYPE_COLLECTION, $resources)) {
-            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
+            $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_COLLECTION] = $statement->fetchColumn();
         }
 
         if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = \'public\'');
+            $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = \'public\'');
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access columns table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access columns table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_ATTRIBUTE] = $statement->fetchColumn();
         }
 
         if (in_array(Resource::TYPE_INDEX, $resources)) {
-            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM pg_indexes WHERE schemaname = \'public\'');
+            $statement = $db->prepare('SELECT COUNT(*) FROM pg_indexes WHERE schemaname = \'public\'');
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access indexes table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access indexes table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
         }
 
         if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
-            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
+            $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_DOCUMENT] = $statement->fetchColumn();
@@ -166,22 +174,22 @@ class NHost extends Source
 
         // Storage
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
-            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.buckets');
+            $statement = $db->prepare('SELECT COUNT(*) FROM storage.buckets');
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access buckets table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access buckets table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_BUCKET] = $statement->fetchColumn();
         }
 
         if (in_array(Resource::TYPE_FILE, $resources)) {
-            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.files');
+            $statement = $db->prepare('SELECT COUNT(*) FROM storage.files');
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access files table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access files table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_FILE] = $statement->fetchColumn();
@@ -199,12 +207,14 @@ class NHost extends Source
 
     private function exportUsers(int $batchSize)
     {
-        $total = $this->pdo->query('SELECT COUNT(*) FROM auth.users')->fetchColumn();
+        $db = $this->getDatabase();
+
+        $total = $db->query('SELECT COUNT(*) FROM auth.users')->fetchColumn();
 
         $offset = 0;
 
         while ($offset < $total) {
-            $statement = $this->pdo->prepare('SELECT * FROM auth.users order by created_at LIMIT :limit OFFSET :offset');
+            $statement = $db->prepare('SELECT * FROM auth.users order by created_at LIMIT :limit OFFSET :offset');
             $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
             $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
             $statement->execute();
@@ -269,16 +279,18 @@ class NHost extends Source
     private function exportCollections(int $batchSize)
     {
         $databases = $this->cache->get(Database::getName());
+        $db = $this->getDatabase();
 
         foreach ($databases as $database) {
-            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = :database');
+            /** @var Database $database */
+            $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = :database');
             $statement->execute([':database' => $database->getName()]);
             $total = $statement->fetchColumn();
 
             $offset = 0;
 
             while ($offset < $total) {
-                $statement = $this->pdo->prepare('SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\' order by table_name LIMIT :limit OFFSET :offset');
+                $statement = $db->prepare('SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\' order by table_name LIMIT :limit OFFSET :offset');
                 $statement->execute([':limit' => $batchSize, ':offset' => $offset]);
 
                 $tables = $statement->fetchAll(\PDO::FETCH_ASSOC);
@@ -299,10 +311,11 @@ class NHost extends Source
     private function exportAttributes(int $batchSize)
     {
         $collections = $this->cache->get(Collection::getName());
+        $db = $this->getDatabase();
 
         foreach ($collections as $collection) {
             /** @var Collection $collection */
-            $statement = $this->pdo->prepare('SELECT * FROM information_schema."columns" where "table_name" = :tableName');
+            $statement = $db->prepare('SELECT * FROM information_schema."columns" where "table_name" = :tableName');
             $statement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
             $statement->execute();
             $databaseCollection = $statement->fetchAll(\PDO::FETCH_ASSOC);
@@ -320,10 +333,11 @@ class NHost extends Source
     private function exportIndexes(int $batchSize)
     {
         $collections = $this->cache->get(Collection::getName());
+        $db = $this->getDatabase();
 
         foreach ($collections as $collection) {
             /** @var Collection $collection */
-            $indexStatement = $this->pdo->prepare('SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :tableName');
+            $indexStatement = $db->prepare('SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :tableName');
             $indexStatement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
             $indexStatement->execute();
 
@@ -342,18 +356,19 @@ class NHost extends Source
     private function exportDocuments(int $batchSize)
     {
         $databases = $this->cache->get(Database::getName());
+        $db = $this->getDatabase();
 
         foreach ($databases as $database) {
             /** @var Database $database */
             $collections = $database->getCollections();
 
             foreach ($collections as $collection) {
-                $total = $this->pdo->query('SELECT COUNT(*) FROM '.$collection->getCollectionName())->fetchColumn();
+                $total = $db->query('SELECT COUNT(*) FROM ' . $collection->getCollectionName())->fetchColumn();
 
                 $offset = 0;
 
                 while ($offset < $total) {
-                    $statement = $this->pdo->prepare('SELECT row_to_json(t) FROM (SELECT * FROM '.$collection->getCollectionName().' LIMIT :limit OFFSET :offset) t;');
+                    $statement = $db->prepare('SELECT row_to_json(t) FROM (SELECT * FROM ' . $collection->getCollectionName() . ' LIMIT :limit OFFSET :offset) t;');
                     $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
                     $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
                     $statement->execute();
@@ -375,7 +390,7 @@ class NHost extends Source
                         $processedData = [];
                         foreach ($collectionAttributes as $attribute) {
                             /** @var Attribute $attribute */
-                            if (! $attribute->getArray() && \is_array($data[$attribute->getKey()])) {
+                            if (!$attribute->getArray() && \is_array($data[$attribute->getKey()])) {
                                 $processedData[$attribute->getKey()] = json_encode($data[$attribute->getKey()]);
                             } else {
                                 $processedData[$attribute->getKey()] = $data[$attribute->getKey()];
@@ -396,7 +411,7 @@ class NHost extends Source
         $isArray = $column['data_type'] === 'ARRAY';
 
         switch ($isArray ? str_replace('_', '', $column['udt_name']) : $column['data_type']) {
-            // Numbers
+                // Numbers
             case 'boolean':
             case 'bool':
                 return new BoolAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
@@ -515,11 +530,11 @@ class NHost extends Source
 
         $types = [];
 
-        if (! empty($user['password_hash'])) {
+        if (!empty($user['password_hash'])) {
             $types[] = User::TYPE_EMAIL;
         }
 
-        if (! empty($user['phone_number'])) {
+        if (!empty($user['phone_number'])) {
             $types[] = User::TYPE_PHONE;
         }
 
@@ -539,12 +554,13 @@ class NHost extends Source
 
     protected function exportBuckets(int $batchSize)
     {
-        $total = $this->pdo->query('SELECT COUNT(*) FROM storage.buckets')->fetchColumn();
+        $db = $this->getDatabase();
+        $total = $db->query('SELECT COUNT(*) FROM storage.buckets')->fetchColumn();
 
         $offset = 0;
 
         while ($offset < $total) {
-            $statement = $this->pdo->prepare('SELECT * FROM storage.buckets order by created_at LIMIT :limit OFFSET :offset');
+            $statement = $db->prepare('SELECT * FROM storage.buckets order by created_at LIMIT :limit OFFSET :offset');
             $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
             $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
             $statement->execute();
@@ -577,15 +593,17 @@ class NHost extends Source
     public function exportFiles(int $batchSize)
     {
         $buckets = $this->cache->get(Bucket::getName());
+        $db = $this->getDatabase();
 
         foreach ($buckets as $bucket) {
-            $totalStatement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.files WHERE bucket_id=:bucketId');
+            /** @var Bucket $bucket */
+            $totalStatement = $db->prepare('SELECT COUNT(*) FROM storage.files WHERE bucket_id=:bucketId');
             $totalStatement->execute([':bucketId' => $bucket->getId()]);
             $total = $totalStatement->fetchColumn();
 
             $offset = 0;
             while ($offset < $total) {
-                $statement = $this->pdo->prepare('SELECT * FROM storage.files WHERE bucket_id=:bucketId order by created_at LIMIT :limit OFFSET :offset');
+                $statement = $db->prepare('SELECT * FROM storage.files WHERE bucket_id=:bucketId order by created_at LIMIT :limit OFFSET :offset');
                 $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
                 $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
                 $statement->bindValue(':bucketId', $bucket->getId(), \PDO::PARAM_STR);
@@ -617,7 +635,7 @@ class NHost extends Source
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 
         $fileSize = $file->getSize();
-        $response = $this->call('GET', $url."/v1/files/{$file->getId()}/presignedurl", [
+        $response = $this->call('GET', $url . "/v1/files/{$file->getId()}/presignedurl", [
             'X-Hasura-Admin-Secret' => $this->adminSecret,
         ]);
 
