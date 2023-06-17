@@ -35,7 +35,7 @@ abstract class Target
     /**
      * Get Supported Resources
      */
-    abstract public function getSupportedResources(): array;
+    abstract static function getSupportedResources(): array;
 
     /**
      * Register Transfer Cache

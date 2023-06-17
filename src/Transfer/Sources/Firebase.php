@@ -104,7 +104,7 @@ class Firebase extends Source
     /**
      * Get Supported Resources
      */
-    public function getSupportedResources(): array
+    static function getSupportedResources(): array
     {
         return [
             // Auth
@@ -451,6 +451,7 @@ class Firebase extends Source
         $buckets = $this->cache->get(Bucket::getName());
 
         foreach ($buckets as $bucket) {
+            /** @var Bucket $bucket */
             $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$bucket->getId().'/o';
 
             $nextPageToken = null;
@@ -467,7 +468,7 @@ class Firebase extends Source
                     break;
                 }
 
-                if (! isset($result['items'])) {
+                if (!isset($result['items'])) {
                     break;
                 }
 

@@ -77,7 +77,7 @@ class Transfer
 
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
-                /** @var resource $resource */
+                /** @var Resource $resource */
                 if (! array_key_exists($resource->getName(), $status)) {
                     $status[$resource->getName()] = [
                         Resource::STATUS_PENDING => 0,

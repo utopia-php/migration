@@ -42,7 +42,7 @@ class Local extends Destination
     /**
      * Get Supported Resources
      */
-    public function getSupportedResources(): array
+    static function getSupportedResources(): array
     {
         return [
             Resource::TYPE_ATTRIBUTE,
@@ -93,7 +93,7 @@ class Local extends Destination
     public function importResources(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var resource $resource */
+            /** @var Resource $resource */
             switch ($resource->getName()) {
                 case 'Deployment':
                     /** @var Deployment $resource */
