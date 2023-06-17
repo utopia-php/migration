@@ -1,14 +1,28 @@
 <?php
 
-namespace Tests\E2E\Sources;
+namespace Utopia\Tests\E2E\Sources;
 
 use PHPUnit\Framework\TestCase;
+use Utopia\Tests\E2E\Adapters\MockDestination;
+use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Source;
+use Utopia\Transfer\Transfer;
 
-abstract class SourceTest extends TestCase
+abstract class SourceCore extends TestCase
 {
+    protected ?Transfer $transfer = null;
     protected ?Source $source = null;
+    protected ?Destination $destination = null;
+
+    public function __construct()
+    {
+        if (!$this->source)
+            throw new \Exception('Source not set');
+
+        $this->destination = new MockDestination();
+        $this->transfer = new Transfer($this->source, $this->destination);
+    }
 
     public function testGetName(): void
     {
@@ -30,16 +44,4 @@ abstract class SourceTest extends TestCase
 
         $this->assertNotNull($this->source->cache);
     }
-
-    abstract public function testReport(): void;
-
-    public function validateReport(array $report)
-    {
-        foreach ($report as $resource => $amount) {
-            $this->assertContains($resource, Resource::ALL_RESOURCES);
-            $this->assertIsInt($amount);
-        }
-    }
-
-    abstract public function testExportResources(): void;
 }

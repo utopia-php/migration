@@ -67,7 +67,7 @@ class Appwrite extends Destination
     /**
      * Get Supported Resources
      */
-    public function getSupportedResources(): array
+    static function getSupportedResources(): array
     {
         return [
             // Auth

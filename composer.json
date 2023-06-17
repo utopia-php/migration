@@ -19,6 +19,9 @@
             "Utopia\\Transfer\\": "src/Transfer"
         }
     },
+    "autoload-dev": {
+        "psr-4": {"Utopia\\Tests\\": "tests/Transfer"}
+    },
     "require": {
         "php": ">=8.0",
         "utopia-php/cli": "^0.13.0",

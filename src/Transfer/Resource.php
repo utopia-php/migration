@@ -23,8 +23,7 @@ abstract class Resource
      */
     public const STATUS_DISREGARDED = 'DISREGARDED';
 
-    public const TYPE_ATTRIBUTE = 'Attribute';
-
+    // Master Resources
     public const TYPE_BUCKET = 'Bucket';
 
     public const TYPE_COLLECTION = 'Collection';
@@ -35,7 +34,17 @@ abstract class Resource
 
     public const TYPE_FILE = 'File';
 
+    public const TYPE_USER = 'User';
+
+    public const TYPE_TEAM = 'Team';
+
+    public const TYPE_MEMBERSHIP = 'Membership';
+
     public const TYPE_FUNCTION = 'Function';
+
+    // Children (Resources that are created by other resources)
+
+    public const TYPE_ATTRIBUTE = 'Attribute';
 
     public const TYPE_DEPLOYMENT = 'Deployment';
 
@@ -43,13 +52,7 @@ abstract class Resource
 
     public const TYPE_INDEX = 'Index';
 
-    public const TYPE_USER = 'User';
-
     public const TYPE_ENVVAR = 'EnvVar';
-
-    public const TYPE_TEAM = 'Team';
-
-    public const TYPE_MEMBERSHIP = 'Membership';
 
     public const ALL_RESOURCES = [
         self::TYPE_ATTRIBUTE,

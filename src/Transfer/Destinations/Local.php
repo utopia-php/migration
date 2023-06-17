@@ -42,7 +42,7 @@ class Local extends Destination
     /**
      * Get Supported Resources
      */
-    public function getSupportedResources(): array
+    static function getSupportedResources(): array
     {
         return [
             Resource::TYPE_ATTRIBUTE,

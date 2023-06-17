@@ -262,7 +262,7 @@ class Supabase extends NHost
         $this->callback($transferBuckets);
     }
 
-    private function exportFiles(int $batchSize)
+    public function exportFiles(int $batchSize)
     {
         /**
          * TODO: Supabase has folders, with enough folders within folders this could cause us to hit the max name length
@@ -306,7 +306,7 @@ class Supabase extends NHost
         }
     }
 
-    private function exportFile(File $file)
+    public function exportFile(File $file)
     {
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;

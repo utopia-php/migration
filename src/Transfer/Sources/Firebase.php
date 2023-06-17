@@ -104,7 +104,7 @@ class Firebase extends Source
     /**
      * Get Supported Resources
      */
-    public function getSupportedResources(): array
+    static function getSupportedResources(): array
     {
         return [
             // Auth
@@ -468,7 +468,7 @@ class Firebase extends Source
                     break;
                 }
 
-                if (! isset($result['items'])) {
+                if (!isset($result['items'])) {
                     break;
                 }
 
