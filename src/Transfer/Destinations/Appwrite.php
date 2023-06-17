@@ -543,7 +543,7 @@ class Appwrite extends Destination
                     $hash->getSalt(),
                     $hash->getSeparator(),
                     $hash->getSigningKey(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
             case Hash::BCRYPT:
@@ -551,7 +551,7 @@ class Appwrite extends Destination
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
             case Hash::ARGON2:
@@ -559,7 +559,7 @@ class Appwrite extends Destination
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
             case Hash::SHA256:
@@ -568,7 +568,7 @@ class Appwrite extends Destination
                     $user->getEmail(),
                     $hash->getHash(),
                     'sha256',
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
             case Hash::PHPASS:
@@ -576,7 +576,7 @@ class Appwrite extends Destination
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
             case Hash::SCRYPT:
@@ -589,7 +589,7 @@ class Appwrite extends Destination
                     $hash->getPasswordMemory(),
                     $hash->getPasswordParallel(),
                     $hash->getPasswordLength(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
             case Hash::PLAINTEXT:
@@ -598,7 +598,7 @@ class Appwrite extends Destination
                     $user->getEmail(),
                     $user->getPhone(),
                     $hash->getHash(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
         }
