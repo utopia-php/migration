@@ -2,6 +2,11 @@
 
 namespace Utopia\Transfer;
 
+/**
+ * Cache stores a local version of all data copied over from the source, This can be used as reference point for
+ * previous transfers and also help the destination to determine what needs to be updated, modified, 
+ * added or removed. It is also used for debugging and validation purposes.
+ */
 class Cache
 {
     protected $cache = [];
@@ -11,9 +16,17 @@ class Cache
         $this->cache = [];
     }
 
+    /**
+     * Add Resource
+     * 
+     * Places the resource in the cache, in the cache backend this also gets assigned a unique ID.
+     * 
+     * @param Resource $resource
+     * @return void
+     */
     public function add($resource)
     {
-        if (! $resource->getInternalId()) {
+        if (!$resource->getInternalId()) {
             $resourceId = uniqid();
             if (isset($this->cache[$resource->getName()][$resourceId])) {
                 $resourceId = uniqid();
@@ -30,9 +43,18 @@ class Cache
         }
     }
 
+    /**
+     * Update Resource
+     * 
+     * Updates the resource in the cache, if the resource does not exist in the cache an exception is thrown.
+     * Use Add to add a new resource to the cache.
+     * 
+     * @param Resource $resource
+     * @return void
+     */
     public function update($resource)
     {
-        if (! in_array($resource, $this->cache[$resource->getName()])) {
+        if (!in_array($resource, $this->cache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
         }
 
@@ -46,9 +68,17 @@ class Cache
         }
     }
 
+    /**
+     * Remove Resource
+     * 
+     * Removes the resource from the cache, if the resource does not exist in the cache an exception is thrown.
+     * 
+     * @param Resource $resource
+     * @return void
+     */
     public function remove($resource)
     {
-        if (! in_array($resource, $this->cache[$resource->getName()])) {
+        if (!in_array($resource, $this->cache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
         }
 
@@ -70,11 +100,23 @@ class Cache
         }
     }
 
+    /**
+     * Get All Resources
+     *
+     * @return array
+     */
     public function getAll()
     {
         return $this->cache;
     }
 
+    /**
+     * Wipe Cache
+     * 
+     * Removes all resources from the cache.
+     * 
+     * @return void
+     */
     public function wipe()
     {
         $this->cache = [];

@@ -71,7 +71,7 @@ abstract class Target
     protected function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
     {
         $headers = array_merge($this->headers, $headers);
-        $ch = curl_init((str_contains($path, 'http') ? $path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '') : $this->endpoint.$path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '')));
+        $ch = curl_init((str_contains($path, 'http') ? $path.(($method == 'GET' && !empty($params)) ? '?'.http_build_query($params) : '') : $this->endpoint.$path.(($method == 'GET' && !empty($params)) ? '?'.http_build_query($params) : '')));
         $responseHeaders = [];
         $responseStatus = -1;
         $responseType = '';

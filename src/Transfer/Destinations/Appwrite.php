@@ -502,7 +502,7 @@ class Appwrite extends Destination
                     }
 
                     if ($resource->getDisabled()) {
-                        $userService->updateStatus($resource->getId(), ! $resource->getDisabled());
+                        $userService->updateStatus($resource->getId(), !$resource->getDisabled());
                     }
 
                     break;
@@ -517,6 +517,8 @@ class Appwrite extends Destination
                     // $teamService->createMembership($resource->getTeam()->getId(), $resource->getRoles(), )
                     // break;
             }
+
+            $resource->setStatus(Resource::STATUS_SUCCESS);
         } catch (\Exception $e) {
             $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
         } finally {

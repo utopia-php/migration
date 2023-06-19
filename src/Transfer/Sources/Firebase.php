@@ -297,7 +297,7 @@ class Firebase extends Source
         $previousType = null;
 
         foreach ($data['values'] as $field) {
-            if (! $previousType) {
+            if (!$previousType) {
                 $previousType = $this->convertAttribute($collection, $key, $field);
             } elseif ($previousType->getName() != ($this->convertAttribute($collection, $key, $field))->getName()) {
                 $isSameType = false;
@@ -340,12 +340,12 @@ class Firebase extends Source
             // Calculate Schema and handle subcollections
             $documentSchema = [];
             foreach ($result['documents'] as $document) {
-                if (! isset($document['fields'])) {
+                if (!isset($document['fields'])) {
                     continue; //TODO: Transfer Empty Documents
                 }
 
                 foreach ($document['fields'] as $key => $field) {
-                    if (! isset($documentSchema[$key])) {
+                    if (!isset($documentSchema[$key])) {
                         $documentSchema[$key] = $this->convertAttribute($collection, $key, $field);
                     }
                 }
@@ -438,7 +438,7 @@ class Firebase extends Source
                 $this->callback([new Bucket($bucket['id'], [], false, $bucket['name'])]);
             }
 
-            if (! isset($result['nextPageToken'])) {
+            if (!isset($result['nextPageToken'])) {
                 break;
             }
 

@@ -5,6 +5,9 @@ namespace Utopia\Transfer\Resources\Auth;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Transfer;
 
+/**
+ * Represents a membership of a user in a team
+ */
 class Membership extends Resource
 {
     protected Team $team;

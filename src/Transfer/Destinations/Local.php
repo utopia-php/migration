@@ -62,6 +62,9 @@ class Local extends Destination
         ];
     }
 
+    /**
+     * Report checks if all resources are accessible and ready for writing.
+     */
     public function report(array $resources = []): array
     {
         $report = [];
@@ -79,6 +82,9 @@ class Local extends Destination
         return $report;
     }
 
+    /**
+     * Write all data to file
+     */
     private function sync(): void
     {
         $jsonEncodedData = \json_encode($this->data, JSON_PRETTY_PRINT);

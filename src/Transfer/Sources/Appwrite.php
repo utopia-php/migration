@@ -293,7 +293,7 @@ class Appwrite extends Source
                     '',
                     $user['emailVerification'],
                     $user['phoneVerification'],
-                    ! $user['status'],
+                    !$user['status'],
                     $user['prefs']
                 );
 
@@ -748,11 +748,11 @@ class Appwrite extends Source
 
         $types = [];
 
-        if (! empty($user['email'])) {
+        if (!empty($user['email'])) {
             $types[] = User::TYPE_EMAIL;
         }
 
-        if (! empty($user['phone'])) {
+        if (!empty($user['phone'])) {
             $types[] = User::TYPE_PHONE;
         }
 
