@@ -7,11 +7,11 @@ use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Auth\Hash;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
-use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\Boolean;
+use Utopia\Transfer\Resources\Database\Attributes\DateTime;
+use Utopia\Transfer\Resources\Database\Attributes\Decimal;
+use Utopia\Transfer\Resources\Database\Attributes\Integer;
+use Utopia\Transfer\Resources\Database\Attributes\Text;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Database\Document;
@@ -414,24 +414,24 @@ class NHost extends Source
                 // Numbers
             case 'boolean':
             case 'bool':
-                return new BoolAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new Boolean($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
             case 'smallint':
             case 'int2':
-                return new IntAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -32768, 32767);
+                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -32768, 32767);
             case 'integer':
             case 'int4':
-                return new IntAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -2147483648, 2147483647);
+                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -2147483648, 2147483647);
             case 'bigint':
             case 'int8':
             case 'numeric':
-                return new IntAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
             case 'decimal':
             case 'real':
             case 'double precision':
             case 'float4':
             case 'float8':
             case 'money':
-                return new FloatAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new Decimal($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
                 // Time (Conversion happens with documents)
             case 'timestamp with time zone':
             case 'date':
@@ -442,7 +442,7 @@ class NHost extends Source
             case 'time':
             case 'timetz':
             case 'interval':
-                return new DateTimeAttribute($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, null);
+                return new DateTime($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, null);
                 break;
                 // Strings and Objects
             case 'uuid':
@@ -453,7 +453,7 @@ class NHost extends Source
             case 'jsonb':
             case 'varchar':
             case 'bytea':
-                return new StringAttribute(
+                return new Text(
                     $column['column_name'],
                     $collection,
                     $column['is_nullable'] === 'NO',
@@ -463,7 +463,7 @@ class NHost extends Source
                 );
                 break;
             default:
-                return new StringAttribute(
+                return new Text(
                     $column['column_name'],
                     $collection,
                     $column['is_nullable'] === 'NO',

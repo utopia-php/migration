@@ -6,11 +6,11 @@ use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Auth\Hash;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
-use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\Boolean;
+use Utopia\Transfer\Resources\Database\Attributes\DateTime;
+use Utopia\Transfer\Resources\Database\Attributes\Decimal;
+use Utopia\Transfer\Resources\Database\Attributes\Integer;
+use Utopia\Transfer\Resources\Database\Attributes\Text;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Database\Document;
@@ -265,25 +265,25 @@ class Firebase extends Source
     private function convertAttribute(Collection $collection, string $key, array $field): Attribute
     {
         if (array_key_exists('booleanValue', $field)) {
-            return new BoolAttribute($key, $collection, false, false, null);
+            return new Boolean($key, $collection, false, false, null);
         } elseif (array_key_exists('bytesValue', $field)) {
-            return new StringAttribute($key, $collection, false, false, null, 1000000);
+            return new Text($key, $collection, false, false, null, 1000000);
         } elseif (array_key_exists('doubleValue', $field)) {
-            return new FloatAttribute($key, $collection, false, false, null);
+            return new Decimal($key, $collection, false, false, null);
         } elseif (array_key_exists('integerValue', $field)) {
-            return new IntAttribute($key, $collection, false, false, null);
+            return new Integer($key, $collection, false, false, null);
         } elseif (array_key_exists('mapValue', $field)) {
-            return new StringAttribute($key, $collection, false, false, null, 1000000);
+            return new Text($key, $collection, false, false, null, 1000000);
         } elseif (array_key_exists('nullValue', $field)) {
-            return new StringAttribute($key, $collection, false, false, null, 1000000);
+            return new Text($key, $collection, false, false, null, 1000000);
         } elseif (array_key_exists('referenceValue', $field)) {
-            return new StringAttribute($key, $collection, false, false, null, 1000000); //TODO: This should be a reference attribute
+            return new Text($key, $collection, false, false, null, 1000000); //TODO: This should be a reference attribute
         } elseif (array_key_exists('stringValue', $field)) {
-            return new StringAttribute($key, $collection, false, false, null, 1000000);
+            return new Text($key, $collection, false, false, null, 1000000);
         } elseif (array_key_exists('timestampValue', $field)) {
-            return new DateTimeAttribute($key, $collection, false, false, null);
+            return new DateTime($key, $collection, false, false, null);
         } elseif (array_key_exists('geoPointValue', $field)) {
-            return new StringAttribute($key, $collection, false, false, null, 1000000);
+            return new Text($key, $collection, false, false, null, 1000000);
         } elseif (array_key_exists('arrayValue', $field)) {
             return $this->calculateArrayType($collection, $key, $field['arrayValue']);
         } else {
@@ -310,7 +310,7 @@ class Firebase extends Source
 
             return $previousType;
         } else {
-            return new StringAttribute($key, $collection, false, true, null, 1000000);
+            return new Text($key, $collection, false, true, null, 1000000);
         }
     }
 

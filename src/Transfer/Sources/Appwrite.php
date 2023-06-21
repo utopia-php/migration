@@ -15,16 +15,18 @@ use Utopia\Transfer\Resources\Auth\Team;
 use Utopia\Transfer\Resources\Auth\Membership;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
-use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\EmailAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\EnumAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\IPAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\RelationshipAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\URLAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\Bool;
+use Utopia\Transfer\Resources\Database\Attributes\Boolean;
+use Utopia\Transfer\Resources\Database\Attributes\DateTime;
+use Utopia\Transfer\Resources\Database\Attributes\Decimal;
+use Utopia\Transfer\Resources\Database\Attributes\Email;
+use Utopia\Transfer\Resources\Database\Attributes\Enum;
+use Utopia\Transfer\Resources\Database\Attributes\Float;
+use Utopia\Transfer\Resources\Database\Attributes\Integer;
+use Utopia\Transfer\Resources\Database\Attributes\IP;
+use Utopia\Transfer\Resources\Database\Attributes\Relationship;
+use Utopia\Transfer\Resources\Database\Attributes\Text;
+use Utopia\Transfer\Resources\Database\Attributes\URL;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Database\Document;
@@ -474,7 +476,7 @@ class Appwrite extends Source
         switch ($value['type']) {
             case 'string':
                 if (!isset($value['format'])) {
-                    return new StringAttribute(
+                    return new Text(
                         $value['key'],
                         $collection,
                         $value['required'],
@@ -486,7 +488,7 @@ class Appwrite extends Source
 
                 switch ($value['format']) {
                     case 'email':
-                        return new EmailAttribute(
+                        return new Email(
                             $value['key'],
                             $collection,
                             $value['required'],
@@ -494,7 +496,7 @@ class Appwrite extends Source
                             $value['default']
                         );
                     case 'enum':
-                        return new EnumAttribute(
+                        return new Enum(
                             $value['key'],
                             $collection,
                             $value['elements'],
@@ -503,7 +505,7 @@ class Appwrite extends Source
                             $value['default']
                         );
                     case 'url':
-                        return new URLAttribute(
+                        return new URL(
                             $value['key'],
                             $collection,
                             $value['required'],
@@ -511,7 +513,7 @@ class Appwrite extends Source
                             $value['default']
                         );
                     case 'ip':
-                        return new IPAttribute(
+                        return new IP(
                             $value['key'],
                             $collection,
                             $value['required'],
@@ -519,7 +521,7 @@ class Appwrite extends Source
                             $value['default']
                         );
                     case 'datetime':
-                        return new DateTimeAttribute(
+                        return new DateTime(
                             $value['key'],
                             $collection,
                             $value['required'],
@@ -527,7 +529,7 @@ class Appwrite extends Source
                             $value['default']
                         );
                     default:
-                        return new StringAttribute(
+                        return new Text(
                             $value['key'],
                             $collection,
                             $value['required'],
@@ -537,7 +539,7 @@ class Appwrite extends Source
                         );
                 }
             case 'boolean':
-                return new BoolAttribute(
+                return new Boolean(
                     $value['key'],
                     $collection,
                     $value['required'],
@@ -545,7 +547,7 @@ class Appwrite extends Source
                     $value['default']
                 );
             case 'integer':
-                return new IntAttribute(
+                return new Integer(
                     $value['key'],
                     $collection,
                     $value['required'],
@@ -555,7 +557,7 @@ class Appwrite extends Source
                     $value['max'] ?? 0
                 );
             case 'double':
-                return new FloatAttribute(
+                return new Decimal(
                     $value['key'],
                     $collection,
                     $value['required'],
@@ -565,7 +567,7 @@ class Appwrite extends Source
                     $value['max'] ?? 0
                 );
             case 'relationship':
-                return new RelationshipAttribute(
+                return new Relationship(
                     $value['key'],
                     $collection,
                     $value['required'],

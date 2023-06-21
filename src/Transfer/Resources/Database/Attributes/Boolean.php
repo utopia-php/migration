@@ -5,7 +5,7 @@ namespace Utopia\Transfer\Resources\Database\Attributes;
 use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Collection;
 
-class BoolAttribute extends Attribute
+class Boolean extends Attribute
 {
     protected string $key;
 
@@ -26,7 +26,7 @@ class BoolAttribute extends Attribute
 
     public function getTypeName(): string
     {
-        return 'boolAttribute';
+        return Attribute::TYPE_BOOLEAN;
     }
 
     public function getDefault(): ?bool

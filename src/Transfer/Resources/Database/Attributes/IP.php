@@ -5,7 +5,7 @@ namespace Utopia\Transfer\Resources\Database\Attributes;
 use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Collection;
 
-class IPAttribute extends Attribute
+class IP extends Attribute
 {
     protected ?string $default;
 
@@ -30,6 +30,6 @@ class IPAttribute extends Attribute
 
     public function getTypeName(): string
     {
-        return 'IPAttribute';
+        return Attribute::TYPE_IP;
     }
 }

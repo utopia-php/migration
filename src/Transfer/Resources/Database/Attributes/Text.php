@@ -5,7 +5,7 @@ namespace Utopia\Transfer\Resources\Database\Attributes;
 use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Collection;
 
-class StringAttribute extends Attribute
+class Text extends Attribute
 {
     protected ?string $default;
 
@@ -23,7 +23,7 @@ class StringAttribute extends Attribute
 
     public function getTypeName(): string
     {
-        return 'stringAttribute';
+        return Attribute::TYPE_STRING;
     }
 
     public function getSize(): int
