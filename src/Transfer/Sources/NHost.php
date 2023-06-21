@@ -230,7 +230,7 @@ class NHost extends Source
                     $user['id'],
                     $user['email'] ?? '',
                     $user['display_name'] ?? '',
-                    new Hash($user['password_hash'], '', Hash::BCRYPT),
+                    new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT),
                     $user['phone_number'] ?? '',
                     $this->calculateUserTypes($user),
                     '',

@@ -166,7 +166,7 @@ class Firebase extends Source
                     $user['localId'] ?? '',
                     $user['email'] ?? '',
                     $user['displayName'] ?? $user['email'] ?? '',
-                    new Hash($user['passwordHash'] ?? '', $user['salt'] ?? '', Hash::SCRYPT_MODIFIED, $hashConfig['saltSeparator'], $hashConfig['signerKey']),
+                    new Hash($user['passwordHash'] ?? '', $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'], $hashConfig['signerKey']),
                     $user['phoneNumber'] ?? '',
                     $this->calculateUserType($user['providerUserInfo'] ?? []),
                     '',

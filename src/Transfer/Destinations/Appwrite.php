@@ -537,7 +537,7 @@ class Appwrite extends Destination
         }
 
         switch ($hash->getAlgorithm()) {
-            case Hash::SCRYPT_MODIFIED:
+            case Hash::ALGORITHM_SCRYPT_MODIFIED:
                 $result = $auth->createScryptModifiedUser(
                     $user->getId(),
                     $user->getEmail(),
@@ -548,7 +548,7 @@ class Appwrite extends Destination
                     empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::BCRYPT:
+            case Hash::ALGORITHM_BCRYPT:
                 $result = $auth->createBcryptUser(
                     $user->getId(),
                     $user->getEmail(),
@@ -556,7 +556,7 @@ class Appwrite extends Destination
                     empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::ARGON2:
+            case Hash::ALGORITHM_ARGON2:
                 $result = $auth->createArgon2User(
                     $user->getId(),
                     $user->getEmail(),
@@ -564,7 +564,7 @@ class Appwrite extends Destination
                     empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::SHA256:
+            case Hash::ALGORITHM_SHA256:
                 $result = $auth->createShaUser(
                     $user->getId(),
                     $user->getEmail(),
@@ -573,7 +573,7 @@ class Appwrite extends Destination
                     empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::PHPASS:
+            case Hash::ALGORITHM_PHPASS:
                 $result = $auth->createPHPassUser(
                     $user->getId(),
                     $user->getEmail(),
@@ -581,7 +581,7 @@ class Appwrite extends Destination
                     empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::SCRYPT:
+            case Hash::ALGORITHM_SCRYPT:
                 $result = $auth->createScryptUser(
                     $user->getId(),
                     $user->getEmail(),
@@ -594,7 +594,7 @@ class Appwrite extends Destination
                     empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::PLAINTEXT:
+            case Hash::ALGORITHM_PLAINTEXT:
                 $result = $auth->create(
                     $user->getId(),
                     $user->getEmail(),
