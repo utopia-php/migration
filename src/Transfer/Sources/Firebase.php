@@ -264,30 +264,31 @@ class Firebase extends Source
 
     private function convertAttribute(Collection $collection, string $key, array $field): Attribute
     {
-        if (array_key_exists('booleanValue', $field)) {
-            return new Boolean($key, $collection, false, false, null);
-        } elseif (array_key_exists('bytesValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000);
-        } elseif (array_key_exists('doubleValue', $field)) {
-            return new Decimal($key, $collection, false, false, null);
-        } elseif (array_key_exists('integerValue', $field)) {
-            return new Integer($key, $collection, false, false, null);
-        } elseif (array_key_exists('mapValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000);
-        } elseif (array_key_exists('nullValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000);
-        } elseif (array_key_exists('referenceValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000); //TODO: This should be a reference attribute
-        } elseif (array_key_exists('stringValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000);
-        } elseif (array_key_exists('timestampValue', $field)) {
-            return new DateTime($key, $collection, false, false, null);
-        } elseif (array_key_exists('geoPointValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000);
-        } elseif (array_key_exists('arrayValue', $field)) {
-            return $this->calculateArrayType($collection, $key, $field['arrayValue']);
-        } else {
-            throw new \Exception('Unknown field type');
+        switch (true) {
+            case array_key_exists('booleanValue', $field):
+                return new Boolean($key, $collection, false, false, null);
+            case array_key_exists('bytesValue', $field):
+                return new Text($key, $collection, false, false, null, 1000000);
+            case array_key_exists('doubleValue', $field):
+                return new Decimal($key, $collection, false, false, null);
+            case array_key_exists('integerValue', $field):
+                return new Integer($key, $collection, false, false, null);
+            case array_key_exists('mapValue', $field):
+                return new Text($key, $collection, false, false, null, 1000000);
+            case array_key_exists('nullValue', $field):
+                return new Text($key, $collection, false, false, null, 1000000);
+            case array_key_exists('referenceValue', $field):
+                return new Text($key, $collection, false, false, null, 1000000); //TODO: This should be a reference attribute
+            case array_key_exists('stringValue', $field):
+                return new Text($key, $collection, false, false, null, 1000000);
+            case array_key_exists('timestampValue', $field):
+                return new DateTime($key, $collection, false, false, null);
+            case array_key_exists('geoPointValue', $field):
+                return new Text($key, $collection, false, false, null, 1000000);
+            case array_key_exists('arrayValue', $field):
+                return $this->calculateArrayType($collection, $key, $field['arrayValue']);
+            default:
+                throw new \Exception('Unknown field type');
         }
     }
 
