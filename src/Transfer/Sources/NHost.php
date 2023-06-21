@@ -198,7 +198,7 @@ class NHost extends Source
         return $report;
     }
 
-    protected function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_USER, $resources)) {
             $this->exportUsers($batchSize);
@@ -245,7 +245,7 @@ class NHost extends Source
         }
     }
 
-    protected function exportDatabasesGroup(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $this->exportDatabases($batchSize);
@@ -538,7 +538,7 @@ class NHost extends Source
         return $types;
     }
 
-    protected function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
@@ -674,7 +674,7 @@ class NHost extends Source
         }
     }
 
-    protected function exportFunctionsGroup(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources)
     {
         throw new \Exception('Not Implemented');
     }

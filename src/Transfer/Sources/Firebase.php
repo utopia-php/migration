@@ -127,7 +127,7 @@ class Firebase extends Source
         throw new \Exception('Not implemented');
     }
 
-    protected function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_USER, $resources)) {
             $this->exportUsers($batchSize);
@@ -209,7 +209,7 @@ class Firebase extends Source
         return $types;
     }
 
-    protected function exportDatabasesGroup(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $database = new Database('default', '(default)');
@@ -405,7 +405,7 @@ class Firebase extends Source
         return new Document($document['name'], $collection->getDatabase(), $collection, $data, []);
     }
 
-    protected function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
@@ -515,7 +515,7 @@ class Firebase extends Source
         }
     }
 
-    protected function exportFunctionsGroup(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources)
     {
         throw new \Exception('Not implemented');
     }

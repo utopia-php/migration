@@ -3,6 +3,7 @@
 namespace Utopia\Tests\E2E\Sources;
 
 use PHPUnit\Framework\TestCase;
+use Utopia\Tests\E2E\Adapters\Mock;
 use Utopia\Tests\E2E\Adapters\MockDestination;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resource;
@@ -20,7 +21,7 @@ abstract class Base extends TestCase
         if (!$this->source)
             throw new \Exception('Source not set');
 
-        $this->destination = new MockDestination();
+        $this->destination = new Mock();
         $this->transfer = new Transfer($this->source, $this->destination);
     }
 

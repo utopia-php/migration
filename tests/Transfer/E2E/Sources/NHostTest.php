@@ -5,12 +5,14 @@ namespace Utopia\Tests\E2E\Sources;
 use Utopia\Transfer\Sources\NHost;
 use Utopia\Transfer\Transfer;
 use Utopia\Tests\E2E\Adapters\Mock;
+use Utopia\Transfer\Destination;
+use Utopia\Transfer\Source;
 
-class NHostTest extends SourceCore
+class NHostTest extends Base
 {
-    protected ?NHost $source = null;
+    protected ?Source $source = null;
     protected ?Transfer $transfer = null;
-    protected ?Mock $destination = null;
+    protected ?Destination $destination = null;
 
     public function __construct()
     {

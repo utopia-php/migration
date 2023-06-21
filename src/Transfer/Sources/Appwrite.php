@@ -248,7 +248,7 @@ class Appwrite extends Source
      * @param  int  $batchSize Max 100
      * @return void
      */
-    protected function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_USER, $resources)) {
             $this->exportUsers($batchSize);
@@ -395,7 +395,7 @@ class Appwrite extends Source
         }
     }
 
-    protected function exportDatabasesGroup(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $this->exportDatabases($batchSize);
@@ -761,7 +761,7 @@ class Appwrite extends Source
         return $types;
     }
 
-    protected function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
@@ -883,7 +883,7 @@ class Appwrite extends Source
         }
     }
 
-    protected function exportFunctionsGroup(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_FUNCTION, $resources)) {
             $this->exportFunctions($batchSize);

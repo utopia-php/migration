@@ -44,7 +44,7 @@ class Hash extends Resource
 
     private int $passwordLength = 0;
 
-    public function __construct(string $hash, string $salt = '', string $algorithm = self::SHA256, string $separator = '', string $signingKey = '', int $passwordCpu = 0, int $passwordMemory = 0, int $passwordParallel = 0, int $passwordLength = 0)
+    public function __construct(string $hash, string $salt = '', string $algorithm = self::ALGORITHM_SHA256, string $separator = '', string $signingKey = '', int $passwordCpu = 0, int $passwordMemory = 0, int $passwordParallel = 0, int $passwordLength = 0)
     {
         $this->hash = $hash;
         $this->salt = $salt;

@@ -34,7 +34,7 @@ class Mock extends Source
      * @param array $resources Resources to export
      * @return void
      */
-    protected function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources)
     {
         
     }
@@ -46,7 +46,7 @@ class Mock extends Source
      * @param array $resources Resources to export
      * @return void
      */
-    protected function exportDatabasesGroup(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources)
     {
         
     }
@@ -58,7 +58,7 @@ class Mock extends Source
      * @param array $resources Resources to export
      * @return void
      */
-    protected function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         
     }
@@ -70,7 +70,7 @@ class Mock extends Source
      * @param array $resources Resources to export
      * @return void
      */
-    protected function exportFunctionsGroup(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources)
     {
         
     }
