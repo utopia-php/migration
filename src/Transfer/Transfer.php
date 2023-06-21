@@ -4,17 +4,17 @@ namespace Utopia\Transfer;
 
 class Transfer
 {
-    public const GROUP_GENERAL = 'General';
+    public const GROUP_GENERAL = 'general';
 
-    public const GROUP_AUTH = 'Auth';
+    public const GROUP_AUTH = 'auth';
 
-    public const GROUP_STORAGE = 'Storage';
+    public const GROUP_STORAGE = 'storage';
 
-    public const GROUP_FUNCTIONS = 'Functions';
+    public const GROUP_FUNCTIONS = 'functions';
 
-    public const GROUP_DATABASES = 'Databases';
+    public const GROUP_DATABASES = 'databases';
 
-    public const GROUP_SETTINGS = 'Settings';
+    public const GROUP_SETTINGS = 'settings';
 
     public const GROUP_AUTH_RESOURCES = [Resource::TYPE_USER, Resource::TYPE_TEAM, Resource::TYPE_MEMBERSHIP, Resource::TYPE_HASH];
 

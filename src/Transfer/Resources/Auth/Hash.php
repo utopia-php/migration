@@ -10,27 +10,27 @@ use Utopia\Transfer\Transfer;
  */
 class Hash extends Resource
 {
-    public const SCRYPT_MODIFIED = 'ScryptModified';
+    public const ALGORITHM_SCRYPT_MODIFIED = 'scryptModified';
 
-    public const BCRYPT = 'Bcrypt';
+    public const ALGORITHM_BCRYPT = 'bcrypt';
 
-    public const MD5 = 'MD5';
+    public const ALGORITHM_MD5 = 'md5';
 
-    public const ARGON2 = 'Argon2';
+    public const ALGORITHM_ARGON2 = 'argon2';
 
-    public const SHA256 = 'SHA256';
+    public const ALGORITHM_SHA256 = 'sha256';
 
-    public const PHPASS = 'PHPass';
+    public const ALGORITHM_PHPASS = 'phpass';
 
-    public const SCRYPT = 'Scrypt';
+    public const ALGORITHM_SCRYPT = 'scrypt';
 
-    public const PLAINTEXT = 'PlainText';
+    public const ALGORITHM_PLAINTEXT = 'plainText';
 
     private string $hash;
 
     private string $salt = '';
 
-    private string $algorithm = self::SHA256;
+    private string $algorithm = self::ALGORITHM_SHA256;
 
     private string $separator = '';
 
