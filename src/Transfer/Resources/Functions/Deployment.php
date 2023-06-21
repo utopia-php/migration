@@ -7,7 +7,7 @@ use Utopia\Transfer\Transfer;
 
 class Deployment extends Resource
 {
-    protected string $id;
+    protected ?string $id;
 
     protected Func $func;
 
@@ -45,7 +45,7 @@ class Deployment extends Resource
         return Transfer::GROUP_FUNCTIONS;
     }
 
-    public function getId(): string
+    public function getId(): ?string
     {
         return $this->id;
     }

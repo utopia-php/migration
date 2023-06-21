@@ -3,6 +3,7 @@
 namespace Utopia\Transfer\Sources;
 
 use Appwrite\Client;
+use Appwrite\ID;
 use Appwrite\Query;
 use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
@@ -781,9 +782,9 @@ class Appwrite extends Source
         foreach ($buckets['buckets'] as $bucket) {
             $convertedBuckets[] = new Bucket(
                 $bucket['$id'],
+                $bucket['name'],
                 $bucket['$permissions'],
                 $bucket['fileSecurity'],
-                $bucket['name'],
                 $bucket['enabled'],
                 $bucket['maximumFileSize'],
                 $bucket['allowedFileExtensions'],

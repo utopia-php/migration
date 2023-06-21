@@ -74,7 +74,12 @@ abstract class Resource
     /**
      * ID of the resource
      */
-    protected string $id = '';
+    protected ?string $id;
+
+    /**
+     * Original ID of the resource
+     */
+    protected string $originalId = '';
 
     /**
      * Internal ID
@@ -104,7 +109,7 @@ abstract class Resource
     /**
      * Get ID
      */
-    public function getId(): string
+    public function getId(): ?string
     {
         return $this->id;
     }
@@ -115,6 +120,24 @@ abstract class Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+
+        return $this;
+    }
+
+    /**
+     * Get Original ID
+     */
+    public function getOriginalId(): string
+    {
+        return $this->originalId;
+    }
+
+    /**
+     * Set Original ID
+     */
+    public function setOriginalId(string $originalId): self
+    {
+        $this->originalId = $originalId;
 
         return $this;
     }

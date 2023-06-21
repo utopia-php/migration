@@ -17,7 +17,7 @@ class User extends Resource
 
     public const TYPE_OAUTH = 'oauth';
 
-    protected string $id = '';
+    protected ?string $id = '';
 
     protected string $email = '';
 
@@ -40,7 +40,7 @@ class User extends Resource
     protected array $preferences = [];
 
     public function __construct(
-        string $id = '',
+        ?string $id,
         string $email = '',
         string $username = '',
         ?Hash $passwordHash = null,
@@ -76,7 +76,7 @@ class User extends Resource
     /**
      * Get ID
      */
-    public function getId(): string
+    public function getId(): ?string
     {
         return $this->id;
     }

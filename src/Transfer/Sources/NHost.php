@@ -42,6 +42,8 @@ class NHost extends Source
 
     public string $adminSecret;
 
+    public string $storageURL;
+
     public function __construct(string $subdomain, string $region, string $adminSecret, string $databaseName, string $username, string $password, string $port = '5432')
     {
         $this->subdomain = $subdomain;
@@ -51,6 +53,7 @@ class NHost extends Source
         $this->username = $username;
         $this->password = $password;
         $this->port = $port;
+        $this->storageURL = "https://{$this->subdomain}.storage.{$this->region}.nhost.run";
     }
 
     public function getDatabase(): PDO
@@ -284,14 +287,14 @@ class NHost extends Source
         foreach ($databases as $database) {
             /** @var Database $database */
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = :database');
-            $statement->execute([':database' => $database->getName()]);
-            $total = $statement->fetchColumn();
+            $statement->execute([':database' => $database->getId()]);
+            $total = $statement->fetchColumn(0);
 
             $offset = 0;
 
             while ($offset < $total) {
-                $statement = $db->prepare('SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\' order by table_name LIMIT :limit OFFSET :offset');
-                $statement->execute([':limit' => $batchSize, ':offset' => $offset]);
+                $statement = $db->prepare('SELECT table_name FROM information_schema.tables WHERE table_schema = :database order by table_name LIMIT :limit OFFSET :offset');
+                $statement->execute([':limit' => $batchSize, ':offset' => $offset, ':database' => $database->getId()]);
 
                 $tables = $statement->fetchAll(\PDO::FETCH_ASSOC);
 
@@ -574,16 +577,8 @@ class NHost extends Source
             foreach ($buckets as $bucket) {
                 $transferBuckets[] = new Bucket(
                     $bucket['id'],
-                    [],
-                    false,
-                    $bucket['id'],
-                    true,
-                    $bucket['max_upload_file_size'],
-                    [],
-                    '',
-                    false,
-                    false
-                );
+                    $bucket['id']
+                ); //TODO: To add file_size transfer then we need to be able to see the destination's limit on files.
             }
 
             $this->callback($transferBuckets);
@@ -630,12 +625,11 @@ class NHost extends Source
 
     public function exportFile(File $file)
     {
-        $url = "https://{$this->subdomain}.storage.{$this->region}.nhost.run";
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 
         $fileSize = $file->getSize();
-        $response = $this->call('GET', $url . "/v1/files/{$file->getId()}/presignedurl", [
+        $response = $this->call('GET', $this->storageURL . "/v1/files/{$file->getId()}/presignedurl", [
             'X-Hasura-Admin-Secret' => $this->adminSecret,
         ]);
 

@@ -15,7 +15,7 @@ abstract class SourceCore extends TestCase
     protected ?Source $source = null;
     protected ?Destination $destination = null;
 
-    public function __construct()
+    protected function setUp(): void
     {
         if (!$this->source)
             throw new \Exception('Source not set');

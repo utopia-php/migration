@@ -212,7 +212,8 @@ class Firebase extends Source
     public function exportDatabasesGroup(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
-            $database = new Database('default', '(default)');
+            $database = new Database('default', 'default');
+            $database->setOriginalId('(default)');
             $this->callback([$database]);
         }
 
@@ -223,7 +224,7 @@ class Firebase extends Source
 
     private function exportDB(int $batchSize, bool $pushDocuments, Database $database)
     {
-        $baseURL = "https://firestore.googleapis.com/v1/{$this->projectID}/databases/(default)";
+        $baseURL = "https://firestore.googleapis.com/v1/projects/{$this->projectID}/databases/(default)/documents";
 
         $nextPageToken = null;
         $allCollections = [];
@@ -283,9 +284,11 @@ class Firebase extends Source
         } elseif (array_key_exists('timestampValue', $field)) {
             return new DateTimeAttribute($key, $collection, false, false, null);
         } elseif (array_key_exists('geoPointValue', $field)) {
-            return new StringAttribute($key, $collection, false, false, null, 1000000);
+            return new FloatAttribute($key, $collection, false, true, null, -180, 180);
         } elseif (array_key_exists('arrayValue', $field)) {
             return $this->calculateArrayType($collection, $key, $field['arrayValue']);
+        }  elseif (array_key_exists('fields', $field)) {
+
         } else {
             throw new \Exception('Unknown field type');
         }
@@ -316,7 +319,7 @@ class Firebase extends Source
 
     private function exportCollection(Collection $collection, int $batchSize, bool $transferDocuments)
     {
-        $resourceURL = 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases/'.$collection->getDatabase()->getId().'/documents/'.$collection->getId();
+        $resourceURL = 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases/'.$collection->getDatabase()->getOriginalId().'/documents/'.$collection->getId();
 
         $nextPageToken = null;
 
@@ -355,6 +358,7 @@ class Firebase extends Source
 
             // Transfer Documents
             if ($transferDocuments) {
+                $this->callback(array_values($documentSchema));
                 $this->callback($documents);
             }
 
@@ -377,7 +381,7 @@ class Firebase extends Source
         } elseif (array_key_exists('integerValue', $field)) {
             return $field['integerValue'];
         } elseif (array_key_exists('mapValue', $field)) {
-            return $field['mapValue'];
+            return json_encode($field['mapValue']);
         } elseif (array_key_exists('nullValue', $field)) {
             return $field['nullValue'];
         } elseif (array_key_exists('referenceValue', $field)) {
@@ -387,8 +391,10 @@ class Firebase extends Source
         } elseif (array_key_exists('timestampValue', $field)) {
             return $field['timestampValue'];
         } elseif (array_key_exists('geoPointValue', $field)) {
-            return $field['geoPointValue'];
+            return [$field['geoPointValue']['latitude'], $field['geoPointValue']['longitude']];
         } elseif (array_key_exists('arrayValue', $field)) {
+            //TODO:
+        } else if (array_key_exists('referenceValue', $field)) {
             //TODO:
         } else {
             throw new \Exception('Unknown field type');
@@ -402,7 +408,10 @@ class Firebase extends Source
             $data[$key] = $this->calculateValue($field);
         }
 
-        return new Document($document['name'], $collection->getDatabase(), $collection, $data, []);
+        $documentID = explode('/', $document['name']);
+        $documentID = end($documentID);
+
+        return new Document($documentID, $collection->getDatabase(), $collection, $data, []);
     }
 
     public function exportStorageGroup(int $batchSize, array $resources)
@@ -435,7 +444,7 @@ class Firebase extends Source
             }
 
             foreach ($result['items'] as $bucket) {
-                $this->callback([new Bucket($bucket['id'], [], false, $bucket['name'])]);
+                $this->callback([new Bucket($bucket['id'], $bucket['name'], [], false)]);
             }
 
             if (! isset($result['nextPageToken'])) {

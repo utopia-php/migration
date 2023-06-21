@@ -1,16 +1,18 @@
-FROM postgres:alpine3.18 as supabase-db
-COPY ./tests/Transfer/resources/supabase/backup.tar /docker-entrypoint-initdb.d/backup.tar
-COPY ./tests/Transfer/resources/restore.sh /docker-entrypoint-initdb.d/restore.sh
+FROM supabase/postgres:15.1.0.96 as supabase-db
+COPY ./tests/Transfer/resources/supabase/dump.sql /docker-entrypoint-initdb.d/dump.sql
+COPY ./tests/Transfer/resources/supabase/aaa.sql /docker-entrypoint-initdb.d/aaa.sql
+RUN rm -rf /docker-entrypoint-initdb.d/migrate.sh
 
 FROM postgres:alpine3.18 as nhost-db
-COPY ./tests/Transfer/resources/nhost/backup.tar /docker-entrypoint-initdb.d/backup.tar
-COPY ./tests/Transfer/resources/restore.sh /docker-entrypoint-initdb.d/restore.sh
+COPY ./tests/Transfer/resources/nhost/dump.sql /docker-entrypoint-initdb.d/dump.sql
+COPY ./tests/Transfer/resources/nhost/aaa.sql /docker-entrypoint-initdb.d/aaa.sql
 
 # Use my fork of mockoon while waiting for range headers to be merged
 FROM node:14-alpine3.14 as mock-api
 WORKDIR /app
+RUN apk add --no-cache git
 RUN git clone https://github.com/PineappleIOnic/mockoon.git . 
-RUN npm run bootstrap
+RUN npm install --omit=dev
 RUN npm run build:libs
 RUN npm run build:cli
 RUN mv ./packages/cli/dist/run /usr/local/bin/mockoon

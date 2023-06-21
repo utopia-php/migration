@@ -7,7 +7,7 @@ use Utopia\Transfer\Transfer;
 
 class File extends Resource
 {
-    protected string $id;
+    protected ?string $id;
 
     protected Bucket $bucket;
 
@@ -51,7 +51,7 @@ class File extends Resource
         return Transfer::GROUP_STORAGE;
     }
 
-    public function getId(): string
+    public function getId(): ?string
     {
         return $this->id;
     }

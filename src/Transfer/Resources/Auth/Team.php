@@ -8,7 +8,7 @@ use Utopia\Transfer\Transfer;
 
 class Team extends Resource
 {
-    protected string $id;
+    protected ?string $id;
 
     protected string $name;
 
@@ -46,7 +46,7 @@ class Team extends Resource
         return $this;
     }
 
-    public function getId(): string
+    public function getId(): ?string
     {
         return $this->id;
     }

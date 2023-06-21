@@ -26,6 +26,27 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
+  
+  mock-api:
+    build:
+      context: .
+      target: mock-api
+    networks:
+      - tests
+    ports:
+      - "3000:3000"
+    environment:
+      - NHOST_DB_URL=postgres://postgres:postgres@nhost-db:5432/postgres
+      - SUPABASE_DB_URL=postgres://postgres:postgres@supabase-db:5432/postgres
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    restart: always
+    ports:
+      - 9506:8080
+    networks:
+      - tests
 
   tests:
     build:
