@@ -86,7 +86,7 @@ abstract class Source extends Target
      * @param array $resources Resources to export
      * @return void
      */
-    abstract protected function exportAuthGroup(int $batchSize, array $resources);
+    abstract protected function exportGroupAuth(int $batchSize, array $resources);
 
     /**
      * Export Databases Group
