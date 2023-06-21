@@ -87,9 +87,9 @@ abstract class Resource
     protected string $status = self::STATUS_PENDING;
 
     /**
-     * Reason for the status
+     * message for the status
      */
-    protected string $reason = '';
+    protected string $message = '';
 
     /**
      * Gets the name of the adapter.
@@ -148,20 +148,30 @@ abstract class Resource
     /**
      * Set Status
      */
-    public function setStatus(string $status, string $reason = ''): self
+    public function setStatus(string $status, string $message = ''): self
     {
         $this->status = $status;
-        $this->reason = $reason;
+        $this->message = $message;
 
         return $this;
     }
 
     /**
-     * Get Reason
+     * Get message
      */
-    public function getReason(): string
+    public function getMessage(): string
     {
-        return $this->reason;
+        return $this->message;
+    }
+
+    /**
+     * Set message
+     */
+    public function setMessage(string $message): self
+    {
+        $this->message = $message;
+
+        return $this;
     }
 
     /**

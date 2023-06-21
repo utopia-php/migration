@@ -12,7 +12,7 @@ class Mock extends Source
         return 'MockSource';
     }
 
-    public function getSupportedResources(): array
+    static function getSupportedResources(): array
     {
         return [
             Transfer::GROUP_AUTH,
