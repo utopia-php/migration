@@ -9,7 +9,7 @@ use Utopia\Transfer\Resource;
 use Utopia\Transfer\Source;
 use Utopia\Transfer\Transfer;
 
-abstract class SourceCore extends TestCase
+abstract class Base extends TestCase
 {
     protected ?Transfer $transfer = null;
     protected ?Source $source = null;
