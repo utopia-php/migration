@@ -31,12 +31,12 @@ cleanupAppwrite();
 //     $_ENV['SOURCE_APPWRITE_TEST_KEY']
 // );
 
-// $firebase = json_decode($_ENV['FIREBASE_TEST_ACCOUNT'], true);
+$firebase = json_decode($_ENV['FIREBASE_TEST_ACCOUNT'], true);
 
-// $sourceFirebase = new Firebase(
-//     $firebase,
-//     $firebase['project_id'] ?? '',
-// );
+$sourceFirebase = new Firebase(
+    $firebase,
+    $firebase['project_id'] ?? '',
+);
 
 // $sourceNHost = new NHost(
 //     $_ENV['NHOST_TEST_SUBDOMAIN'] ?? '',
@@ -71,7 +71,7 @@ $destinationLocal = new Local(__DIR__ . '/localBackup/');
  * Initialise Transfer Class
  */
 $transfer = new Transfer(
-    $sourceSupabase,
+    $sourceFirebase,
     $destinationLocal
 );
 

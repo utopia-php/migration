@@ -223,7 +223,7 @@ class Firebase extends Source
 
     private function exportDB(int $batchSize, bool $pushDocuments, Database $database)
     {
-        $baseURL = "https://firestore.googleapis.com/v1/{$this->projectID}/databases/(default)";
+        $baseURL = "https://firestore.googleapis.com/v1/projects/{$this->projectID}/databases/(default)/documents";
 
         $nextPageToken = null;
         $allCollections = [];
