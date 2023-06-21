@@ -7,7 +7,7 @@ use Utopia\Transfer\Transfer;
 
 abstract class Attribute extends Resource
 {
-    public const TYPE_STRING = 'stringAttribute';
+    public const TYPE_STRING = 'string';
 
     public const TYPE_INTEGER = 'intAttribute';
 
