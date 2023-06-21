@@ -5,7 +5,7 @@ namespace Utopia\Tests;
 use Utopia\Transfer\Source;
 use Utopia\Transfer\Transfer;
 
-class MockSource extends Source
+class Mock extends Source
 {
     public static function getName(): string
     {
