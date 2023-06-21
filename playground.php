@@ -59,11 +59,11 @@ $sourceSupabase = new Supabase(
 /**
  * Initialise All Destination Adapters
  */
-$destinationAppwrite = new AppwriteDestination(
-    $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
-    $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
-    $_ENV['DESTINATION_APPWRITE_TEST_KEY']
-);
+// $destinationAppwrite = new AppwriteDestination(
+//     $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
+//     $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
+//     $_ENV['DESTINATION_APPWRITE_TEST_KEY']
+// );
 
 $destinationLocal = new Local(__DIR__ . '/localBackup/');
 
@@ -72,7 +72,7 @@ $destinationLocal = new Local(__DIR__ . '/localBackup/');
  */
 $transfer = new Transfer(
     $sourceSupabase,
-    $destinationAppwrite
+    $destinationLocal
 );
 
 /**

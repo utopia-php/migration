@@ -152,7 +152,7 @@ class Supabase extends NHost
         return $report;
     }
 
-    protected function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_USER, $resources)) {
             $this->exportUsers($batchSize);
@@ -227,7 +227,7 @@ class Supabase extends NHost
         return $types;
     }
 
-    protected function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
