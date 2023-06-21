@@ -7,25 +7,25 @@ use Utopia\Transfer\Transfer;
 
 abstract class Attribute extends Resource
 {
-    public const TYPE_STRING = 'stringAttribute';
+    public const TYPE_STRING = 'string';
 
-    public const TYPE_INTEGER = 'intAttribute';
+    public const TYPE_INTEGER = 'int';
 
-    public const TYPE_FLOAT = 'floatAttribute';
+    public const TYPE_FLOAT = 'float';
 
-    public const TYPE_BOOLEAN = 'boolAttribute';
+    public const TYPE_BOOLEAN = 'bool';
 
-    public const TYPE_DATETIME = 'dateTimeAttribute';
+    public const TYPE_DATETIME = 'dateTime';
 
-    public const TYPE_EMAIL = 'emailAttribute';
+    public const TYPE_EMAIL = 'email';
 
-    public const TYPE_ENUM = 'enumAttribute';
+    public const TYPE_ENUM = 'enum';
 
-    public const TYPE_IP = 'IPAttribute';
+    public const TYPE_IP = 'IP';
 
-    public const TYPE_URL = 'URLAttribute';
+    public const TYPE_URL = 'URL';
 
-    public const TYPE_RELATIONSHIP = 'relationshipAttribute';
+    public const TYPE_RELATIONSHIP = 'relationship';
 
     protected string $key;
 
