@@ -1,0 +1,35 @@
+{
+    "name": "utopia-php/transfer",
+    "description": "A simple library to transfer resources between services.",
+    "type": "library",
+    "keywords": ["php", "framework", "upf", "utopia", "transfer"],
+    "license": "MIT",
+    "minimum-stability": "stable",
+    "authors": [{
+            "name": "Eldad Fux",
+            "email": "eldad@appwrite.io"
+        },
+        {
+            "name": "Bradley Schofield",
+            "email": "bradley@appwrite.io"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Utopia\\Transfer\\": "src/Transfer"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {"Utopia\\Tests\\": "tests/Transfer"}
+    },
+    "require": {
+        "php": ">=8.0",
+        "utopia-php/cli": "^0.13.0",
+        "appwrite/appwrite": "^8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.3",
+        "vlucas/phpdotenv": "^5.5",
+        "laravel/pint": "^1.10"
+    }
+}

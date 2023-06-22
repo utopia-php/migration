@@ -1,0 +1,47 @@
+version: '3'
+
+services:
+  supabase-db:
+    build:
+      context: .
+      target: supabase-db
+    ports:
+      - "5432:5432"
+    networks:
+      - tests
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+
+  nhost-db:
+    build:
+      context: .
+      target: nhost-db
+    networks:
+      - tests
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+
+  tests:
+    build:
+      context: .
+      target: tests
+    networks:
+      - tests
+    volumes:
+      - ./:/app
+    working_dir: /app
+    depends_on:
+      - supabase-db
+      - nhost-db
+    environment:
+      - NHOST_DB_URL=postgres://postgres:postgres@nhost-db:5432/postgres
+      - SUPABASE_DB_URL=postgres://postgres:postgres@supabase-db:5432/postgres
+
+networks:
+  tests:
