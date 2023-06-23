@@ -5,7 +5,7 @@ namespace Utopia\Transfer\Resources\Database\Attributes;
 use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Collection;
 
-class DateTimeAttribute extends Attribute
+class DateTime extends Attribute
 {
     protected ?string $default;
 
@@ -30,6 +30,6 @@ class DateTimeAttribute extends Attribute
 
     public function getTypeName(): string
     {
-        return 'dateTimeAttribute';
+        return Attribute::TYPE_DATETIME;
     }
 }

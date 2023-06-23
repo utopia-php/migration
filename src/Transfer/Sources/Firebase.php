@@ -6,11 +6,11 @@ use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Auth\Hash;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
-use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\Boolean;
+use Utopia\Transfer\Resources\Database\Attributes\DateTime;
+use Utopia\Transfer\Resources\Database\Attributes\Decimal;
+use Utopia\Transfer\Resources\Database\Attributes\Integer;
+use Utopia\Transfer\Resources\Database\Attributes\Text;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Database\Document;
@@ -94,7 +94,7 @@ class Firebase extends Source
         }
     }
 
-    public function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
+    protected function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
     {
         $this->authenticate();
 
@@ -127,7 +127,7 @@ class Firebase extends Source
         throw new \Exception('Not implemented');
     }
 
-    protected function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_USER, $resources)) {
             $this->exportUsers($batchSize);
@@ -166,7 +166,7 @@ class Firebase extends Source
                     $user['localId'] ?? '',
                     $user['email'] ?? '',
                     $user['displayName'] ?? $user['email'] ?? '',
-                    new Hash($user['passwordHash'] ?? '', $user['salt'] ?? '', Hash::SCRYPT_MODIFIED, $hashConfig['saltSeparator'], $hashConfig['signerKey']),
+                    new Hash($user['passwordHash'] ?? '', $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'], $hashConfig['signerKey']),
                     $user['phoneNumber'] ?? '',
                     $this->calculateUserType($user['providerUserInfo'] ?? []),
                     '',
@@ -209,7 +209,7 @@ class Firebase extends Source
         return $types;
     }
 
-    public function exportDatabasesGroup(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $database = new Database('default', 'default');
@@ -224,6 +224,7 @@ class Firebase extends Source
 
     private function exportDB(int $batchSize, bool $pushDocuments, Database $database)
     {
+        $baseURL = "https://firestore.googleapis.com/v1/projects/{$this->projectID}/databases/(default)/documents";
         $baseURL = "https://firestore.googleapis.com/v1/projects/{$this->projectID}/databases/(default)/documents";
 
         $nextPageToken = null;
@@ -284,11 +285,9 @@ class Firebase extends Source
         } elseif (array_key_exists('timestampValue', $field)) {
             return new DateTimeAttribute($key, $collection, false, false, null);
         } elseif (array_key_exists('geoPointValue', $field)) {
-            return new FloatAttribute($key, $collection, false, true, null, -180, 180);
+            return new StringAttribute($key, $collection, false, false, null, 1000000);
         } elseif (array_key_exists('arrayValue', $field)) {
             return $this->calculateArrayType($collection, $key, $field['arrayValue']);
-        }  elseif (array_key_exists('fields', $field)) {
-
         } else {
             throw new \Exception('Unknown field type');
         }
@@ -300,7 +299,7 @@ class Firebase extends Source
         $previousType = null;
 
         foreach ($data['values'] as $field) {
-            if (! $previousType) {
+            if (!$previousType) {
                 $previousType = $this->convertAttribute($collection, $key, $field);
             } elseif ($previousType->getName() != ($this->convertAttribute($collection, $key, $field))->getName()) {
                 $isSameType = false;
@@ -313,7 +312,7 @@ class Firebase extends Source
 
             return $previousType;
         } else {
-            return new StringAttribute($key, $collection, false, true, null, 1000000);
+            return new Text($key, $collection, false, true, null, 1000000);
         }
     }
 
@@ -343,12 +342,12 @@ class Firebase extends Source
             // Calculate Schema and handle subcollections
             $documentSchema = [];
             foreach ($result['documents'] as $document) {
-                if (! isset($document['fields'])) {
+                if (!isset($document['fields'])) {
                     continue; //TODO: Transfer Empty Documents
                 }
 
                 foreach ($document['fields'] as $key => $field) {
-                    if (! isset($documentSchema[$key])) {
+                    if (!isset($documentSchema[$key])) {
                         $documentSchema[$key] = $this->convertAttribute($collection, $key, $field);
                     }
                 }
@@ -414,7 +413,7 @@ class Firebase extends Source
         return new Document($documentID, $collection->getDatabase(), $collection, $data, []);
     }
 
-    public function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
@@ -425,7 +424,7 @@ class Firebase extends Source
         }
     }
 
-    public function exportBuckets(int $batchsize)
+    private function exportBuckets(int $batchsize)
     {
         $endpoint = 'https://storage.googleapis.com/storage/v1/b';
 
@@ -447,7 +446,7 @@ class Firebase extends Source
                 $this->callback([new Bucket($bucket['id'], $bucket['name'], [], false)]);
             }
 
-            if (! isset($result['nextPageToken'])) {
+            if (!isset($result['nextPageToken'])) {
                 break;
             }
 
@@ -455,7 +454,7 @@ class Firebase extends Source
         }
     }
 
-    public function exportFiles(int $batchsize)
+    private function exportFiles(int $batchsize)
     {
         $buckets = $this->cache->get(Bucket::getName());
 
@@ -494,7 +493,7 @@ class Firebase extends Source
         }
     }
 
-    public function exportFile(File $file)
+    private function exportFile(File $file)
     {
         $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$file->getBucket()->getId().'/o/'.$file->getId().'?alt=media';
         $start = 0;
@@ -524,7 +523,7 @@ class Firebase extends Source
         }
     }
 
-    public function exportFunctionsGroup(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources)
     {
         throw new \Exception('Not implemented');
     }

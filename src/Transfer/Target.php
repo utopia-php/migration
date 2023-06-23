@@ -38,9 +38,9 @@ abstract class Target
     abstract static function getSupportedResources(): array;
 
     /**
-     * Register Transfer Cache
+     * Register Cache
      */
-    public function registerTransferCache(Cache &$cache): void
+    public function registerCache(Cache &$cache): void
     {
         $this->cache = &$cache;
     }
@@ -68,10 +68,10 @@ abstract class Target
      *
      * @throws \Exception
      */
-    public function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
+    protected function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
     {
         $headers = array_merge($this->headers, $headers);
-        $ch = curl_init((str_contains($path, 'http') ? $path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '') : $this->endpoint.$path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '')));
+        $ch = curl_init((str_contains($path, 'http') ? $path.(($method == 'GET' && !empty($params)) ? '?'.http_build_query($params) : '') : $this->endpoint.$path.(($method == 'GET' && !empty($params)) ? '?'.http_build_query($params) : '')));
         $responseHeaders = [];
         $responseStatus = -1;
         $responseType = '';

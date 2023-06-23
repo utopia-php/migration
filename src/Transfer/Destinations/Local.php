@@ -62,6 +62,9 @@ class Local extends Destination
         ];
     }
 
+    /**
+     * Report checks if all resources are accessible and ready for writing.
+     */
     public function report(array $resources = []): array
     {
         $report = [];
@@ -79,7 +82,10 @@ class Local extends Destination
         return $report;
     }
 
-    public function sync(): void
+    /**
+     * Write all data to file
+     */
+    private function sync(): void
     {
         $jsonEncodedData = \json_encode($this->data, JSON_PRETTY_PRINT);
 
@@ -90,7 +96,7 @@ class Local extends Destination
         \file_put_contents($this->path . '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
     }
 
-    public function importResources(array $resources, callable $callback): void
+    protected function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
             /** @var Resource $resource */

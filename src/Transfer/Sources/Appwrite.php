@@ -16,16 +16,18 @@ use Utopia\Transfer\Resources\Auth\Team;
 use Utopia\Transfer\Resources\Auth\Membership;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
-use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\EmailAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\EnumAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\IPAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\RelationshipAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\URLAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\Bool;
+use Utopia\Transfer\Resources\Database\Attributes\Boolean;
+use Utopia\Transfer\Resources\Database\Attributes\DateTime;
+use Utopia\Transfer\Resources\Database\Attributes\Decimal;
+use Utopia\Transfer\Resources\Database\Attributes\Email;
+use Utopia\Transfer\Resources\Database\Attributes\Enum;
+use Utopia\Transfer\Resources\Database\Attributes\Float;
+use Utopia\Transfer\Resources\Database\Attributes\Integer;
+use Utopia\Transfer\Resources\Database\Attributes\IP;
+use Utopia\Transfer\Resources\Database\Attributes\Relationship;
+use Utopia\Transfer\Resources\Database\Attributes\Text;
+use Utopia\Transfer\Resources\Database\Attributes\URL;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Database\Document;
@@ -247,7 +249,7 @@ class Appwrite extends Source
      * @param  int  $batchSize Max 100
      * @return void
      */
-    protected function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_USER, $resources)) {
             $this->exportUsers($batchSize);
@@ -294,7 +296,7 @@ class Appwrite extends Source
                     '',
                     $user['emailVerification'],
                     $user['phoneVerification'],
-                    ! $user['status'],
+                    !$user['status'],
                     $user['prefs']
                 );
 
@@ -358,7 +360,7 @@ class Appwrite extends Source
         $cacheTeams = $this->cache->get(Team::getName());
 
         foreach ($cacheTeams as $team) {
-            /** @param Team $team */
+            /** @var Team $team */
             while (true) {
                 $memberships = [];
 
@@ -394,7 +396,7 @@ class Appwrite extends Source
         }
     }
 
-    public function exportDatabasesGroup(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $this->exportDatabases($batchSize);
@@ -475,7 +477,7 @@ class Appwrite extends Source
         switch ($value['type']) {
             case 'string':
                 if (!isset($value['format'])) {
-                    return new StringAttribute(
+                    return new Text(
                         $value['key'],
                         $collection,
                         $value['required'],
@@ -487,7 +489,7 @@ class Appwrite extends Source
 
                 switch ($value['format']) {
                     case 'email':
-                        return new EmailAttribute(
+                        return new Email(
                             $value['key'],
                             $collection,
                             $value['required'],
@@ -495,7 +497,7 @@ class Appwrite extends Source
                             $value['default']
                         );
                     case 'enum':
-                        return new EnumAttribute(
+                        return new Enum(
                             $value['key'],
                             $collection,
                             $value['elements'],
@@ -504,7 +506,7 @@ class Appwrite extends Source
                             $value['default']
                         );
                     case 'url':
-                        return new URLAttribute(
+                        return new URL(
                             $value['key'],
                             $collection,
                             $value['required'],
@@ -512,7 +514,7 @@ class Appwrite extends Source
                             $value['default']
                         );
                     case 'ip':
-                        return new IPAttribute(
+                        return new IP(
                             $value['key'],
                             $collection,
                             $value['required'],
@@ -520,7 +522,7 @@ class Appwrite extends Source
                             $value['default']
                         );
                     case 'datetime':
-                        return new DateTimeAttribute(
+                        return new DateTime(
                             $value['key'],
                             $collection,
                             $value['required'],
@@ -528,7 +530,7 @@ class Appwrite extends Source
                             $value['default']
                         );
                     default:
-                        return new StringAttribute(
+                        return new Text(
                             $value['key'],
                             $collection,
                             $value['required'],
@@ -538,7 +540,7 @@ class Appwrite extends Source
                         );
                 }
             case 'boolean':
-                return new BoolAttribute(
+                return new Boolean(
                     $value['key'],
                     $collection,
                     $value['required'],
@@ -546,7 +548,7 @@ class Appwrite extends Source
                     $value['default']
                 );
             case 'integer':
-                return new IntAttribute(
+                return new Integer(
                     $value['key'],
                     $collection,
                     $value['required'],
@@ -556,7 +558,7 @@ class Appwrite extends Source
                     $value['max'] ?? 0
                 );
             case 'double':
-                return new FloatAttribute(
+                return new Decimal(
                     $value['key'],
                     $collection,
                     $value['required'],
@@ -566,7 +568,7 @@ class Appwrite extends Source
                     $value['max'] ?? 0
                 );
             case 'relationship':
-                return new RelationshipAttribute(
+                return new Relationship(
                     $value['key'],
                     $collection,
                     $value['required'],
@@ -626,6 +628,7 @@ class Appwrite extends Source
 
         $databases = $this->cache->get(Database::getName());
         foreach ($databases as $database) {
+            /** @var Database $database */
             while (true) {
                 $queries = [Query::limit($batchSize)];
                 $collections = [];
@@ -748,18 +751,18 @@ class Appwrite extends Source
 
         $types = [];
 
-        if (! empty($user['email'])) {
+        if (!empty($user['email'])) {
             $types[] = User::TYPE_EMAIL;
         }
 
-        if (! empty($user['phone'])) {
+        if (!empty($user['phone'])) {
             $types[] = User::TYPE_PHONE;
         }
 
         return $types;
     }
 
-    public function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
@@ -807,6 +810,7 @@ class Appwrite extends Source
 
         $buckets = $this->cache->get(Bucket::getName());
         foreach ($buckets as $bucket) {
+            /** @var Bucket $bucket */
             $lastDocument = null;
 
             while (true) {
@@ -880,7 +884,7 @@ class Appwrite extends Source
         }
     }
 
-    public function exportFunctionsGroup(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_FUNCTION, $resources)) {
             $this->exportFunctions($batchSize);
@@ -891,7 +895,7 @@ class Appwrite extends Source
         }
     }
 
-    public function exportFunctions(int $batchSize)
+    private function exportFunctions(int $batchSize)
     {
         //TODO: Implement batching
         $functionsClient = new Functions($this->client);
@@ -930,7 +934,7 @@ class Appwrite extends Source
         $this->callback($convertedResources);
     }
 
-    public function exportDeployments(int $batchSize)
+    private function exportDeployments(int $batchSize)
     {
         $functionsClient = new Functions($this->client);
 
@@ -964,7 +968,7 @@ class Appwrite extends Source
         }
     }
 
-    public function exportDeploymentData(Func $func, array $deployment)
+    private function exportDeploymentData(Func $func, array $deployment)
     {
         // Set the chunk size (5MB)
         $start = 0;

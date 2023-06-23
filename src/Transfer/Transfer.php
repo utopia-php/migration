@@ -4,17 +4,17 @@ namespace Utopia\Transfer;
 
 class Transfer
 {
-    public const GROUP_GENERAL = 'General';
+    public const GROUP_GENERAL = 'general';
 
-    public const GROUP_AUTH = 'Auth';
+    public const GROUP_AUTH = 'auth';
 
-    public const GROUP_STORAGE = 'Storage';
+    public const GROUP_STORAGE = 'storage';
 
-    public const GROUP_FUNCTIONS = 'Functions';
+    public const GROUP_FUNCTIONS = 'functions';
 
-    public const GROUP_DATABASES = 'Databases';
+    public const GROUP_DATABASES = 'databases';
 
-    public const GROUP_SETTINGS = 'Settings';
+    public const GROUP_SETTINGS = 'settings';
 
     public const GROUP_AUTH_RESOURCES = [Resource::TYPE_USER, Resource::TYPE_TEAM, Resource::TYPE_MEMBERSHIP, Resource::TYPE_HASH];
 
@@ -47,8 +47,8 @@ class Transfer
         $this->destination = $destination;
         $this->cache = new Cache();
 
-        $this->source->registerTransferCache($this->cache);
-        $this->destination->registerTransferCache($this->cache);
+        $this->source->registerCache($this->cache);
+        $this->destination->registerCache($this->cache);
         $this->destination->setSource($source);
 
         return $this;
@@ -78,7 +78,7 @@ class Transfer
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
                 /** @var Resource $resource */
-                if (! array_key_exists($resource->getName(), $status)) {
+                if (!array_key_exists($resource->getName(), $status)) {
                     $status[$resource->getName()] = [
                         Resource::STATUS_PENDING => 0,
                         Resource::STATUS_SUCCESS => 0,

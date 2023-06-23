@@ -3,13 +3,14 @@
 namespace Utopia\Tests\E2E\Sources;
 
 use PHPUnit\Framework\TestCase;
+use Utopia\Tests\E2E\Adapters\Mock;
 use Utopia\Tests\E2E\Adapters\MockDestination;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Source;
 use Utopia\Transfer\Transfer;
 
-abstract class SourceCore extends TestCase
+abstract class Base extends TestCase
 {
     protected ?Transfer $transfer = null;
     protected ?Source $source = null;
@@ -20,7 +21,7 @@ abstract class SourceCore extends TestCase
         if (!$this->source)
             throw new \Exception('Source not set');
 
-        $this->destination = new MockDestination();
+        $this->destination = new Mock();
         $this->transfer = new Transfer($this->source, $this->destination);
     }
 
@@ -38,9 +39,9 @@ abstract class SourceCore extends TestCase
         }
     }
 
-    public function testTransferCache(): void
+    public function testCache(): void
     {
-        $this->source->registerTransferCache($this->createMock(\Utopia\Transfer\Cache::class));
+        $this->source->registerCache($this->createMock(\Utopia\Transfer\Cache::class));
 
         $this->assertNotNull($this->source->cache);
     }

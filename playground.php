@@ -5,8 +5,9 @@
  *
  * A place to test and debug the Transfer Library stuff
  */
-require_once __DIR__.'/vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
+use Appwrite\Query;
 use Dotenv\Dotenv;
 use Utopia\Transfer\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Transfer\Destinations\Local;
@@ -19,14 +20,16 @@ use Utopia\Transfer\Transfer;
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
+cleanupAppwrite();
+
 /**
  * Initialise All Source Adapters
  */
-$sourceAppwrite = new Appwrite(
-    $_ENV['SOURCE_APPWRITE_TEST_PROJECT'],
-    $_ENV['SOURCE_APPWRITE_TEST_ENDPOINT'],
-    $_ENV['SOURCE_APPWRITE_TEST_KEY']
-);
+// $sourceAppwrite = new Appwrite(
+//     $_ENV['SOURCE_APPWRITE_TEST_PROJECT'],
+//     $_ENV['SOURCE_APPWRITE_TEST_ENDPOINT'],
+//     $_ENV['SOURCE_APPWRITE_TEST_KEY']
+// );
 
 $firebase = json_decode($_ENV['FIREBASE_TEST_ACCOUNT'], true);
 
@@ -35,14 +38,14 @@ $sourceFirebase = new Firebase(
     $firebase['project_id'] ?? '',
 );
 
-$sourceNHost = new NHost(
-    $_ENV['NHOST_TEST_SUBDOMAIN'] ?? '',
-    $_ENV['NHOST_TEST_REGION'] ?? '',
-    $_ENV['NHOST_TEST_SECRET'] ?? '',
-    $_ENV['NHOST_TEST_DATABASE'] ?? '',
-    $_ENV['NHOST_TEST_USERNAME'] ?? '',
-    $_ENV['NHOST_TEST_PASSWORD'] ?? '',
-);
+// $sourceNHost = new NHost(
+//     $_ENV['NHOST_TEST_SUBDOMAIN'] ?? '',
+//     $_ENV['NHOST_TEST_REGION'] ?? '',
+//     $_ENV['NHOST_TEST_SECRET'] ?? '',
+//     $_ENV['NHOST_TEST_DATABASE'] ?? '',
+//     $_ENV['NHOST_TEST_USERNAME'] ?? '',
+//     $_ENV['NHOST_TEST_PASSWORD'] ?? '',
+// );
 
 $sourceSupabase = new Supabase(
     $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
@@ -56,13 +59,13 @@ $sourceSupabase = new Supabase(
 /**
  * Initialise All Destination Adapters
  */
-$destinationAppwrite = new AppwriteDestination(
-    $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
-    $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
-    $_ENV['DESTINATION_APPWRITE_TEST_KEY']
-);
+// $destinationAppwrite = new AppwriteDestination(
+//     $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
+//     $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
+//     $_ENV['DESTINATION_APPWRITE_TEST_KEY']
+// );
 
-$destinationLocal = new Local(__DIR__.'/localBackup/');
+$destinationLocal = new Local(__DIR__ . '/localBackup/');
 
 /**
  * Initialise Transfer Class
@@ -76,7 +79,7 @@ $transfer = new Transfer(
  * Run Transfer
  */
 $transfer->run(
-    [Transfer::GROUP_STORAGE_RESOURCES, Transfer::GROUP_DATABASES_RESOURCES],
+    Supabase::getSupportedResources(),
     function (array $resources) {
     }
 );

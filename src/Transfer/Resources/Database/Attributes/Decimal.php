@@ -5,20 +5,20 @@ namespace Utopia\Transfer\Resources\Database\Attributes;
 use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Collection;
 
-class IntAttribute extends Attribute
+class Decimal extends Attribute
 {
-    protected ?int $default;
+    protected ?float $default;
 
-    protected ?int $min;
+    protected ?float $min;
 
-    protected ?int $max;
+    protected ?float $max;
 
     /**
-     * @param  ?int  $default
-     * @param  ?int  $min
-     * @param  ?int  $max
+     * @param  ?float  $default
+     * @param  ?float  $min
+     * @param  ?float  $max
      */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?int $default = null, int $min = null, int $max = null)
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?float $default = null, float $min = null, float $max = null)
     {
         parent::__construct($key, $collection, $required, $array);
         $this->default = $default;
@@ -28,39 +28,39 @@ class IntAttribute extends Attribute
 
     public function getTypeName(): string
     {
-        return 'intAttribute';
+        return Attribute::TYPE_FLOAT;
     }
 
-    public function getMin(): int|null
+    public function getMin(): float|null
     {
         return $this->min;
     }
 
-    public function getMax(): int|null
+    public function getMax(): float|null
     {
         return $this->max;
     }
 
-    public function setMin(int|null $min): self
+    public function setMin(float $min): self
     {
         $this->min = $min;
 
         return $this;
     }
 
-    public function setMax(int|null $max): self
+    public function setMax(float $max): self
     {
         $this->max = $max;
 
         return $this;
     }
 
-    public function getDefault(): ?int
+    public function getDefault(): ?float
     {
         return $this->default;
     }
 
-    public function setDefault(int $default): self
+    public function setDefault(float $default): self
     {
         $this->default = $default;
 

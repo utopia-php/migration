@@ -5,14 +5,14 @@ namespace Utopia\Tests;
 use Utopia\Transfer\Source;
 use Utopia\Transfer\Transfer;
 
-class MockSource extends Source
+class Mock extends Source
 {
     public static function getName(): string
     {
         return 'MockSource';
     }
 
-    public function getSupportedResources(): array
+    static function getSupportedResources(): array
     {
         return [
             Transfer::GROUP_AUTH,
@@ -21,10 +21,6 @@ class MockSource extends Source
             Transfer::GROUP_SETTINGS,
             Transfer::GROUP_STORAGE,
         ];
-    }
-
-    public function importResources(array $resources, callable $callback): void
-    {
     }
 
     public function report(array $groups = []): array
@@ -38,7 +34,7 @@ class MockSource extends Source
      * @param array $resources Resources to export
      * @return void
      */
-    protected function exportAuthGroup(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources)
     {
         
     }
@@ -50,7 +46,7 @@ class MockSource extends Source
      * @param array $resources Resources to export
      * @return void
      */
-    protected function exportDatabasesGroup(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources)
     {
         
     }
@@ -62,7 +58,7 @@ class MockSource extends Source
      * @param array $resources Resources to export
      * @return void
      */
-    protected function exportStorageGroup(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         
     }
@@ -74,7 +70,7 @@ class MockSource extends Source
      * @param array $resources Resources to export
      * @return void
      */
-    protected function exportFunctionsGroup(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources)
     {
         
     }

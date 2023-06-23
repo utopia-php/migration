@@ -15,16 +15,16 @@ use Utopia\Transfer\Resources\Auth\Hash;
 use Utopia\Transfer\Resources\Auth\Membership;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
-use Utopia\Transfer\Resources\Database\Attributes\BoolAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\DateTimeAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\EmailAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\EnumAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\FloatAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\IntAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\IPAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\RelationshipAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\StringAttribute;
-use Utopia\Transfer\Resources\Database\Attributes\URLAttribute;
+use Utopia\Transfer\Resources\Database\Attributes\Boolean;
+use Utopia\Transfer\Resources\Database\Attributes\DateTime;
+use Utopia\Transfer\Resources\Database\Attributes\Email;
+use Utopia\Transfer\Resources\Database\Attributes\Enum;
+use Utopia\Transfer\Resources\Database\Attributes\Decimal;
+use Utopia\Transfer\Resources\Database\Attributes\Integer;
+use Utopia\Transfer\Resources\Database\Attributes\IP;
+use Utopia\Transfer\Resources\Database\Attributes\Relationship;
+use Utopia\Transfer\Resources\Database\Attributes\Text;
+use Utopia\Transfer\Resources\Database\Attributes\URL;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Database\Document;
@@ -214,7 +214,7 @@ class Appwrite extends Destination
         }
     }
 
-    public function importResources(array $resources, callable $callback): void
+    protected function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
             /** @var Resource $resource */
@@ -304,43 +304,43 @@ class Appwrite extends Destination
 
         switch ($attribute->getTypeName()) {
             case Attribute::TYPE_STRING:
-                /** @var StringAttribute $attribute */
+                /** @var Text $attribute */
                 $databaseService->createStringAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getSize(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_INTEGER:
-                /** @var IntAttribute $attribute */
+                /** @var Integer $attribute */
                 $databaseService->createIntegerAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getMin(), $attribute->getMax() ?? null, $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_FLOAT:
-                /** @var FloatAttribute $attribute */
+                /** @var Decimal $attribute */
                 $databaseService->createFloatAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), null, null, $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_BOOLEAN:
-                /** @var BoolAttribute $attribute */
+                /** @var Boolean $attribute */
                 $databaseService->createBooleanAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_DATETIME:
-                /** @var DateTimeAttribute $attribute */
-                $databaseService->createDateTimeAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                /** @var DateTime $attribute */
+                $databaseService->createDatetimeAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_EMAIL:
-                /** @var EmailAttribute $attribute */
+                /** @var Email $attribute */
                 $databaseService->createEmailAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_IP:
-                /** @var IPAttribute $attribute */
-                $databaseService->createIPAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                /** @var IP $attribute */
+                $databaseService->createIpAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_URL:
                 /** @var URLAttribute $attribute */
                 $databaseService->createUrlAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_ENUM:
-                /** @var EnumAttribute $attribute */
+                /** @var Enum $attribute */
                 $databaseService->createEnumAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getElements(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_RELATIONSHIP:
-                /** @var RelationshipAttribute $attribute */
+                /** @var Relationship $attribute */
                 $databaseService->createRelationshipAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getRelatedCollection(), $attribute->getRelationType(), $attribute->getTwoWay(), $attribute->getKey(), $attribute->getTwoWayKey(), $attribute->getOnDelete());
                 break;
             default:
@@ -508,7 +508,7 @@ class Appwrite extends Destination
                     }
 
                     if ($resource->getDisabled()) {
-                        $userService->updateStatus($resource->getId(), ! $resource->getDisabled());
+                        $userService->updateStatus($resource->getId(), !$resource->getDisabled());
                     }
 
                     break;
@@ -523,6 +523,8 @@ class Appwrite extends Destination
                     // $teamService->createMembership($resource->getTeam()->getId(), $resource->getRoles(), )
                     // break;
             }
+
+            $resource->setStatus(Resource::STATUS_SUCCESS);
         } catch (\Exception $e) {
             $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
         } finally {
@@ -541,7 +543,7 @@ class Appwrite extends Destination
         }
 
         switch ($hash->getAlgorithm()) {
-            case Hash::SCRYPT_MODIFIED:
+            case Hash::ALGORITHM_SCRYPT_MODIFIED:
                 $result = $auth->createScryptModifiedUser(
                     $user->getId(),
                     $user->getEmail(),
@@ -549,43 +551,43 @@ class Appwrite extends Destination
                     $hash->getSalt(),
                     $hash->getSeparator(),
                     $hash->getSigningKey(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::BCRYPT:
+            case Hash::ALGORITHM_BCRYPT:
                 $result = $auth->createBcryptUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::ARGON2:
+            case Hash::ALGORITHM_ARGON2:
                 $result = $auth->createArgon2User(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::SHA256:
+            case Hash::ALGORITHM_SHA256:
                 $result = $auth->createShaUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
                     'sha256',
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::PHPASS:
+            case Hash::ALGORITHM_PHPASS:
                 $result = $auth->createPHPassUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::SCRYPT:
+            case Hash::ALGORITHM_SCRYPT:
                 $result = $auth->createScryptUser(
                     $user->getId(),
                     $user->getEmail(),
@@ -595,16 +597,16 @@ class Appwrite extends Destination
                     $hash->getPasswordMemory(),
                     $hash->getPasswordParallel(),
                     $hash->getPasswordLength(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
-            case Hash::PLAINTEXT:
+            case Hash::ALGORITHM_PLAINTEXT:
                 $result = $auth->create(
                     $user->getId(),
                     $user->getEmail(),
                     $user->getPhone(),
                     $hash->getHash(),
-                    $user->getUsername()
+                    empty($user->getUsername()) ? null : $user->getUsername() 
                 );
                 break;
         }

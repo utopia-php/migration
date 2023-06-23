@@ -5,7 +5,7 @@ namespace Utopia\Transfer\Resources\Database\Attributes;
 use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Collection;
 
-class URLAttribute extends Attribute
+class URL extends Attribute
 {
     protected ?string $default;
 
@@ -30,6 +30,6 @@ class URLAttribute extends Attribute
 
     public function getTypeName(): string
     {
-        return 'URLAttribute';
+        return Attribute::TYPE_URL;;
     }
 }

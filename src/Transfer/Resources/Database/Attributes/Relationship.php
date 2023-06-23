@@ -5,7 +5,7 @@ namespace Utopia\Transfer\Resources\Database\Attributes;
 use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Collection;
 
-class RelationshipAttribute extends Attribute
+class Relationship extends Attribute
 {
     protected string $relatedCollection;
 
@@ -32,7 +32,7 @@ class RelationshipAttribute extends Attribute
 
     public function getTypeName(): string
     {
-        return 'relationshipAttribute';
+        return Attribute::TYPE_RELATIONSHIP;
     }
 
     public function getRelatedCollection(): string

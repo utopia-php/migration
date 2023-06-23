@@ -33,7 +33,7 @@ abstract class Destination extends Target
     public function run(array $resources, callable $callback): void
     {
         $this->source->run($resources, function (array $resources) use ($callback) {
-            $this->importResources($resources, $callback);
+            $this->import($resources, $callback);
         });
     }
 
@@ -42,5 +42,5 @@ abstract class Destination extends Target
      *
      * @param  callable  $callback (array $resources)
      */
-    abstract public function importResources(array $resources, callable $callback): void;
+    abstract protected function import(array $resources, callable $callback): void;
 }

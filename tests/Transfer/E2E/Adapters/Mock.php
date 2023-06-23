@@ -4,13 +4,13 @@ namespace Utopia\Tests\E2E\Adapters;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resource;
 
-class MockDestination extends Destination
+class Mock extends Destination
 {
     public array $data = [];
 
     public static function getName(): string
     {
-        return 'MockDestination';
+        return 'Mock';
     }
 
     static function getSupportedResources(): array

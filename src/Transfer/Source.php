@@ -65,16 +65,16 @@ abstract class Source extends Target
         foreach ($groups as $group => $resources) {
             switch ($group) {
                 case Transfer::GROUP_AUTH:
-                    $this->exportAuthGroup($batchSize, $resources);
+                    $this->exportGroupAuth($batchSize, $resources);
                     break;
                 case Transfer::GROUP_DATABASES:
-                    $this->exportDatabasesGroup($batchSize, $resources);
+                    $this->exportGroupDatabases($batchSize, $resources);
                     break;
                 case Transfer::GROUP_STORAGE:
-                    $this->exportStorageGroup($batchSize, $resources);
+                    $this->exportGroupStorage($batchSize, $resources);
                     break;
                 case Transfer::GROUP_FUNCTIONS:
-                    $this->exportFunctionsGroup($batchSize, $resources);
+                    $this->exportGroupFunctions($batchSize, $resources);
                     break;
             }
         }
@@ -86,7 +86,7 @@ abstract class Source extends Target
      * @param array $resources Resources to export
      * @return void
      */
-    abstract protected function exportAuthGroup(int $batchSize, array $resources);
+    abstract protected function exportGroupAuth(int $batchSize, array $resources);
 
     /**
      * Export Databases Group
@@ -95,7 +95,7 @@ abstract class Source extends Target
      * @param array $resources Resources to export
      * @return void
      */
-    abstract protected function exportDatabasesGroup(int $batchSize, array $resources);
+    abstract protected function exportGroupDatabases(int $batchSize, array $resources);
 
     /**
      * Export Storage Group
@@ -104,7 +104,7 @@ abstract class Source extends Target
      * @param array $resources Resources to export
      * @return void
      */
-    abstract protected function exportStorageGroup(int $batchSize, array $resources);
+    abstract protected function exportGroupStorage(int $batchSize, array $resources);
 
     /**
      * Export Functions Group
@@ -113,5 +113,5 @@ abstract class Source extends Target
      * @param array $resources Resources to export
      * @return void
      */
-    abstract protected function exportFunctionsGroup(int $batchSize, array $resources);
+    abstract protected function exportGroupFunctions(int $batchSize, array $resources);
 }

@@ -4,55 +4,55 @@ namespace Utopia\Transfer;
 
 abstract class Resource
 {
-    public const STATUS_PENDING = 'PENDING';
+    public const STATUS_PENDING = 'pending';
 
-    public const STATUS_SUCCESS = 'SUCCESS';
+    public const STATUS_SUCCESS = 'success';
 
-    public const STATUS_ERROR = 'ERROR';
+    public const STATUS_ERROR = 'error';
 
-    public const STATUS_SKIPPED = 'SKIP';
+    public const STATUS_SKIPPED = 'skip';
 
-    public const STATUS_PROCESSING = 'PROCESSING';
+    public const STATUS_PROCESSING = 'processing';
 
-    public const STATUS_WARNING = 'WARNING';
+    public const STATUS_WARNING = 'warning';
 
     /**
      * For some transfers (namely Firebase) we have to keep resources in cache that do not necessarily need to be Transferred
      * This status is used to mark resources that are not going to be transferred but are still needed for the transfer to work
      * e.g Documents are required for Database transfers because of schema tracing in firebase
      */
-    public const STATUS_DISREGARDED = 'DISREGARDED';
+    public const STATUS_DISREGARDED = 'disregarded';
 
     // Master Resources
-    public const TYPE_BUCKET = 'Bucket';
+    public const TYPE_BUCKET = 'bucket';
 
-    public const TYPE_COLLECTION = 'Collection';
+    public const TYPE_COLLECTION = 'collection';
 
-    public const TYPE_DATABASE = 'Database';
+    public const TYPE_DATABASE = 'database';
 
-    public const TYPE_DOCUMENT = 'Document';
+    public const TYPE_DOCUMENT = 'document';
 
-    public const TYPE_FILE = 'File';
+    public const TYPE_FILE = 'file';
 
-    public const TYPE_USER = 'User';
+    public const TYPE_USER = 'user';
 
-    public const TYPE_TEAM = 'Team';
+    public const TYPE_TEAM = 'team';
 
-    public const TYPE_MEMBERSHIP = 'Membership';
+    public const TYPE_MEMBERSHIP = 'membership';
 
-    public const TYPE_FUNCTION = 'Function';
+    public const TYPE_FUNCTION = 'function';
 
     // Children (Resources that are created by other resources)
 
-    public const TYPE_ATTRIBUTE = 'Attribute';
+    public const TYPE_ATTRIBUTE = 'attribute';
 
-    public const TYPE_DEPLOYMENT = 'Deployment';
+    public const TYPE_DEPLOYMENT = 'deployment';
 
-    public const TYPE_HASH = 'Hash';
+    public const TYPE_HASH = 'hash';
 
-    public const TYPE_INDEX = 'Index';
+    public const TYPE_INDEX = 'index';
 
-    public const TYPE_ENVVAR = 'EnvVar';
+    public const TYPE_ENVVAR = 'envvar';
 
     public const ALL_RESOURCES = [
         self::TYPE_ATTRIBUTE,
@@ -92,9 +92,9 @@ abstract class Resource
     protected string $status = self::STATUS_PENDING;
 
     /**
-     * Reason for the status
+     * message for the status
      */
-    protected string $reason = '';
+    protected string $message = '';
 
     /**
      * Gets the name of the adapter.
@@ -171,20 +171,30 @@ abstract class Resource
     /**
      * Set Status
      */
-    public function setStatus(string $status, string $reason = ''): self
+    public function setStatus(string $status, string $message = ''): self
     {
         $this->status = $status;
-        $this->reason = $reason;
+        $this->message = $message;
 
         return $this;
     }
 
     /**
-     * Get Reason
+     * Get message
      */
-    public function getReason(): string
+    public function getMessage(): string
     {
-        return $this->reason;
+        return $this->message;
+    }
+
+    /**
+     * Set message
+     */
+    public function setMessage(string $message): self
+    {
+        $this->message = $message;
+
+        return $this;
     }
 
     /**

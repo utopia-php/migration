@@ -5,7 +5,7 @@ namespace Utopia\Transfer\Resources\Database\Attributes;
 use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Collection;
 
-class EnumAttribute extends Attribute
+class Enum extends Attribute
 {
     protected ?string $default;
 
@@ -24,7 +24,7 @@ class EnumAttribute extends Attribute
 
     public function getTypeName(): string
     {
-        return 'enumAttribute';
+        return Attribute::TYPE_ENUM;
     }
 
     public function getElements(): array
