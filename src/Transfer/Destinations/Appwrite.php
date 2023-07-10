@@ -24,7 +24,6 @@ use Utopia\Transfer\Resources\Database\Attributes\Integer;
 use Utopia\Transfer\Resources\Database\Attributes\IP;
 use Utopia\Transfer\Resources\Database\Attributes\Relationship;
 use Utopia\Transfer\Resources\Database\Attributes\Text;
-use Utopia\Transfer\Resources\Database\Attributes\URL;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Database;
 use Utopia\Transfer\Resources\Database\Document;
