@@ -206,8 +206,13 @@ class Appwrite extends Source
                 $report[Resource::TYPE_FILE] = 0;
                 $buckets = $storageClient->listBuckets()['buckets'];
                 foreach ($buckets as $bucket) {
-                    $report[Resource::TYPE_FILE] += $storageClient->listFiles($bucket['$id'])['total'];
+                    $files = $storageClient->listFiles($bucket['$id']);
+                    $report[Resource::TYPE_FILE] += $files['total'];
+                    foreach ($files['files'] as $file) {
+                        $report['size'] += $storageClient->getFile($bucket['$id'], $file['$id'])['sizeOriginal'];
+                    }
                 }
+                $report['size'] = $report['size'] / 1024 / 1024; // MB
             }
 
             // Functions
