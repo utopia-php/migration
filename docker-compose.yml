@@ -27,7 +27,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
   
-  mock-api:
+  nhost-storage:
     build:
       context: .
       target: mock-api
@@ -35,9 +35,8 @@ services:
       - tests
     ports:
       - "3000:3000"
-    environment:
-      - NHOST_DB_URL=postgres://postgres:postgres@nhost-db:5432/postgres
-      - SUPABASE_DB_URL=postgres://postgres:postgres@supabase-db:5432/postgres
+    volumes:
+      - ./tests/resources/nhost:/app
 
   adminer:
     image: adminer

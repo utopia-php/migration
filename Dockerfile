@@ -8,25 +8,25 @@ COPY ./tests/Transfer/resources/nhost/dump.sql /docker-entrypoint-initdb.d/dump.
 COPY ./tests/Transfer/resources/nhost/aaa.sql /docker-entrypoint-initdb.d/aaa.sql
 
 # Use my fork of mockoon while waiting for range headers to be merged
-FROM node:14-alpine3.14 as mock-api
+FROM node:20.4-alpine3.17 as mock-api
 WORKDIR /app
 RUN apk add --no-cache git
 RUN git clone https://github.com/PineappleIOnic/mockoon.git . 
-RUN npm install --omit=dev
+RUN git checkout origin/feat-implement-range
+RUN apk add python3 make gcc g++
+WORKDIR /app/mockoon
+RUN npm run bootstrap
 RUN npm run build:libs
 RUN npm run build:cli
-RUN mv ./packages/cli/dist/run /usr/local/bin/mockoon
+ENTRYPOINT /app/mockoon/packages/cli/bin/run -d /app/api.json
 
 FROM composer:2.0 as composer
-
 WORKDIR /usr/local/src/
-
 COPY composer.lock /usr/local/src/
 COPY composer.json /usr/local/src/
-
 RUN composer install --ignore-platform-reqs
 
-FROM php:8.0-fpm-alpine3.14 as tests
+FROM php:8.1.21-fpm-alpine3.18 as tests
 RUN set -ex && apk --no-cache add postgresql-dev
 RUN docker-php-ext-install pdo pdo_pgsql
 COPY ./src /usr/local/src

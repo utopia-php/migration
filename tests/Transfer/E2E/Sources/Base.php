@@ -41,7 +41,8 @@ abstract class Base extends TestCase
 
     public function testCache(): void
     {
-        $this->source->registerCache($this->createMock(\Utopia\Transfer\Cache::class));
+        $cache = $this->createMock(\Utopia\Transfer\Cache::class);
+        $this->source->registerCache($cache);
 
         $this->assertNotNull($this->source->cache);
     }
