@@ -72,7 +72,7 @@ $destinationLocal = new Local(__DIR__ . '/localBackup/');
  */
 $transfer = new Transfer(
     $sourceFirebase,
-    $destinationLocal
+    $destinationAppwrite
 );
 
 /**
@@ -143,7 +143,22 @@ function cleanupAppwrite()
             $fileId = $file['$id'];
             $storageService->deleteFile($bucketId, $fileId);
         }
+
+        $storageService->deleteBucket($bucketId);
     }
 }
 
-var_dump($transfer->getStatusCounters());
+$statusCounters = $transfer->getStatusCounters();
+
+foreach ($statusCounters as $name => $counter) {
+    if ($counter['ERROR'] > 0) {
+        echo 'ERROR: ' . $name . PHP_EOL;
+
+        $caches = $transfer->getCache()->get($name);
+        foreach ($caches as $cache) {
+            if ($cache['status'] === 'ERROR') {
+                echo 'ERROR: ' . $cache['message'] . PHP_EOL;
+            }
+        }
+    }
+}

@@ -9,7 +9,7 @@ class Func extends Resource
 {
     protected string $name;
 
-    protected string $id;
+    protected ?string $id;
 
     protected array $execute;
 
@@ -23,7 +23,7 @@ class Func extends Resource
 
     protected int $timeout;
 
-    public function __construct(string $name, string $id, string $runtime, array $execute = [], bool $enabled = true, array $events = [], string $schedule = '', int $timeout = 0)
+    public function __construct(string $name, ?string $id, string $runtime, array $execute = [], bool $enabled = true, array $events = [], string $schedule = '', int $timeout = 0)
     {
         $this->name = $name;
         $this->id = $id;
@@ -50,7 +50,7 @@ class Func extends Resource
         return $this->name;
     }
 
-    public function getId(): string
+    public function getId(): ?string
     {
         return $this->id;
     }

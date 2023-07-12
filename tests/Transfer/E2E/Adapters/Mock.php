@@ -47,29 +47,8 @@ class Mock extends Destination
                     // file_put_contents($this->path . 'deployments/' . $resource->getId() . '.tar.gz', $resource->getData(), FILE_APPEND);
                     break;
                 case 'File':
-                    //TODO: Handle Files and Deployments
-                    // /** @var File $resource */
-
-                    // // Handle folders
-                    // if (str_contains($resource->getFileName(), '/')) {
-                    //     $folders = explode('/', $resource->getFileName());
-                    //     $folderPath = $this->path . '/files';
-
-                    //     foreach ($folders as $folder) {
-                    //         $folderPath .= '/' . $folder;
-
-                    //         if (!\file_exists($folderPath) && str_contains($folder, '.') === false) {
-                    //             mkdir($folderPath, 0777, true);
-                    //         }
-                    //     }
-                    // }
-
-                    // if ($resource->getStart() === 0 && \file_exists($this->path . '/files/' . $resource->getFileName())) {
-                    //     unlink($this->path . '/files/' . $resource->getFileName());
-                    // }
-
-                    // file_put_contents($this->path . '/files/' . $resource->getFileName(), $resource->getData(), FILE_APPEND);
-                    // break;
+                    /** @var File $resource */
+                    break;
             }
 
             $resource->setStatus(Resource::STATUS_SUCCESS);

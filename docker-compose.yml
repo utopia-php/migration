@@ -26,6 +26,26 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
+  
+  nhost-storage:
+    build:
+      context: .
+      target: mock-api
+    networks:
+      - tests
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./tests/resources/nhost:/app
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    restart: always
+    ports:
+      - 9506:8080
+    networks:
+      - tests
 
   tests:
     build:

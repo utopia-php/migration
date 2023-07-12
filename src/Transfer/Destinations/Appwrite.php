@@ -387,16 +387,16 @@ class Appwrite extends Destination
                 case Resource::TYPE_BUCKET:
                     /** @var Bucket $resource */
                     $response = $storageService->createBucket(
-                        $resource->getId(),
+                        $resource->getId() ?? 'unique()',
                         $resource->getBucketName(),
                         $resource->getPermissions(),
                         $resource->getFileSecurity(),
                         true, // Set to true for now, we'll come back later.
-                        $resource->getMaxFileSize(),
-                        $resource->getAllowedFileExtensions(),
-                        $resource->getCompression(),
-                        $resource->getEncryption(),
-                        $resource->getAntiVirus()
+                        $resource->getMaxFileSize() ?? null,
+                        $resource->getAllowedFileExtensions() ?? null,
+                        $resource->getCompression() ?? 'none',
+                        $resource->getEncryption() ?? null,
+                        $resource->getAntiVirus() ?? null
                     );
                     $resource->setId($response['$id']);
             }
@@ -425,9 +425,11 @@ class Appwrite extends Destination
         if ($file->getSize() <= Transfer::STORAGE_MAX_CHUNK_SIZE) {
             $response = $this->client->call(
                 'POST',
-                "/v1/storage/buckets/{$bucketId}/files",
+                "/storage/buckets/{$bucketId}/files",
                 [
                     'content-type' => 'multipart/form-data',
+                    'X-Appwrite-project' => $this->project,
+                    'x-Appwrite-Key' => $this->key
                 ],
                 [
                     'bucketId' => $bucketId,
@@ -442,12 +444,16 @@ class Appwrite extends Destination
             return $file;
         }
 
+        sleep(1);
+
         $response = $this->client->call(
             'POST',
-            "/v1/storage/buckets/{$bucketId}/files",
+            "/storage/buckets/{$bucketId}/files",
             [
                 'content-type' => 'multipart/form-data',
                 'content-range' => 'bytes '.($file->getStart()).'-'.($file->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $file->getEnd()).'/'.$file->getSize(),
+                'X-Appwrite-project' => $this->project,
+                'x-Appwrite-Key' => $this->key
             ],
             [
                 'bucketId' => $bucketId,
