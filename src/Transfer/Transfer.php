@@ -113,6 +113,8 @@ class Transfer
             }
         }
 
+        $computedResources = array_map('strtolower', $computedResources);
+
         $this->destination->run($computedResources, $callback, $this->source);
     }
 
