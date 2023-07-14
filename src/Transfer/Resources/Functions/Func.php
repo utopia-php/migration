@@ -9,8 +9,6 @@ class Func extends Resource
 {
     protected string $name;
 
-    protected ?string $id;
-
     protected array $execute;
 
     protected bool $enabled;
@@ -23,7 +21,7 @@ class Func extends Resource
 
     protected int $timeout;
 
-    public function __construct(string $name, ?string $id, string $runtime, array $execute = [], bool $enabled = true, array $events = [], string $schedule = '', int $timeout = 0)
+    public function __construct(string $name, string $id, string $runtime, array $execute = [], bool $enabled = true, array $events = [], string $schedule = '', int $timeout = 0)
     {
         $this->name = $name;
         $this->id = $id;
@@ -48,11 +46,6 @@ class Func extends Resource
     public function getFunctionName(): string
     {
         return $this->name;
-    }
-
-    public function getId(): ?string
-    {
-        return $this->id;
     }
 
     public function setId(string $id): self

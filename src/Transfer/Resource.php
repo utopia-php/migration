@@ -42,6 +42,8 @@ abstract class Resource
 
     public const TYPE_FUNCTION = 'function';
 
+    public const TYPE_INDEX = 'index';
+
     // Children (Resources that are created by other resources)
 
     public const TYPE_ATTRIBUTE = 'attribute';
@@ -49,8 +51,6 @@ abstract class Resource
     public const TYPE_DEPLOYMENT = 'deployment';
 
     public const TYPE_HASH = 'hash';
-
-    public const TYPE_INDEX = 'index';
 
     public const TYPE_ENVVAR = 'envvar';
 
@@ -74,7 +74,7 @@ abstract class Resource
     /**
      * ID of the resource
      */
-    protected ?string $id;
+    protected string $id = '';
 
     /**
      * Original ID of the resource
@@ -109,7 +109,7 @@ abstract class Resource
     /**
      * Get ID
      */
-    public function getId(): ?string
+    public function getId(): string
     {
         return $this->id;
     }

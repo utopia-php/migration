@@ -25,9 +25,7 @@ class Collection extends Resource
 
     protected string $name;
 
-    protected ?string $id;
-
-    public function __construct(Database $database, string $name, ?string $id, bool $documentSecurity = false, array $permissions = [])
+    public function __construct(Database $database, string $name, string $id, bool $documentSecurity = false, array $permissions = [])
     {
         $this->database = $database;
         $this->name = $name;
@@ -68,11 +66,6 @@ class Collection extends Resource
         $this->name = $name;
 
         return $this;
-    }
-
-    public function getId(): ?string
-    {
-        return $this->id;
     }
 
     public function setId(string $id): self

@@ -157,7 +157,7 @@ class Transfer
                     'resource' => $type,
                     'id' => $resource->getId(),
                     'status' => $resource->getStatus(),
-                    'message' => $resource->getReason(),
+                    'message' => $resource->getMessage(),
                 ];
             }
         }

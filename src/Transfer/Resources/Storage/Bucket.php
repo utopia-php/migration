@@ -7,8 +7,6 @@ use Utopia\Transfer\Transfer;
 
 class Bucket extends Resource
 {
-    protected ?string $id;
-
     protected ?array $permissions;
 
     protected ?bool $fileSecurity;
@@ -27,7 +25,7 @@ class Bucket extends Resource
 
     protected ?bool $antiVirus;
 
-    public function __construct(string $id = null, string $name = '', array $permissions = [], bool $fileSecurity = false, bool $enabled = false, ?int $maxFileSize = null, array $allowedFileExtensions = [], string $compression = 'none', bool $encryption = false, bool $antiVirus = false)
+    public function __construct(string $id = '', string $name = '', array $permissions = [], bool $fileSecurity = false, bool $enabled = false, ?int $maxFileSize = null, array $allowedFileExtensions = [], string $compression = 'none', bool $encryption = false, bool $antiVirus = false)
     {
         $this->id = $id;
         $this->name = $name;
@@ -49,11 +47,6 @@ class Bucket extends Resource
     public function getGroup(): string
     {
         return Transfer::GROUP_STORAGE;
-    }
-
-    public function getId(): ?string
-    {
-        return $this->id;
     }
 
     public function setId(string $id): self

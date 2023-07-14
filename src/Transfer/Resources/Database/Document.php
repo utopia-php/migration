@@ -7,8 +7,6 @@ use Utopia\Transfer\Transfer;
 
 class Document extends Resource
 {
-    protected ?string $id;
-
     protected Database $database;
 
     protected Collection $collection;
@@ -34,11 +32,6 @@ class Document extends Resource
     public function getGroup(): string
     {
         return Transfer::GROUP_DATABASES;
-    }
-
-    public function getId(): ?string
-    {
-        return $this->id;
     }
 
     public function setId(string $id): self

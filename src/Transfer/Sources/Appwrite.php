@@ -139,7 +139,7 @@ class Appwrite extends Source
                 $report[Resource::TYPE_MEMBERSHIP] = 0;
                 $teams = $teamsClient->list()['teams'];
                 foreach ($teams as $team) {
-                    $report[Resource::TYPE_MEMBERSHIP] += $teamsClient->listMemberships($team['$id'])['total'];
+                    $report[Resource::TYPE_MEMBERSHIP] += $teamsClient->listMemberships($team['$id'], [Query::limit(1)])['total'];
                 }
             }
 
@@ -154,7 +154,7 @@ class Appwrite extends Source
                 $report[Resource::TYPE_COLLECTION] = 0;
                 $databases = $databaseClient->list()['databases'];
                 foreach ($databases as $database) {
-                    $report[Resource::TYPE_COLLECTION] += $databaseClient->listCollections($database['$id'])['total'];
+                    $report[Resource::TYPE_COLLECTION] += $databaseClient->listCollections($database['$id'], [Query::limit(1)])['total'];
                 }
             }
 
@@ -165,7 +165,7 @@ class Appwrite extends Source
                 foreach ($databases as $database) {
                     $collections = $databaseClient->listCollections($database['$id'])['collections'];
                     foreach ($collections as $collection) {
-                        $report[Resource::TYPE_DOCUMENT] += $databaseClient->listDocuments($database['$id'], $collection['$id'])['total'];
+                        $report[Resource::TYPE_DOCUMENT] += $databaseClient->listDocuments($database['$id'], $collection['$id'], [Query::limit(1)])['total'];
                     }
                 }
             }
@@ -203,6 +203,7 @@ class Appwrite extends Source
             $currentPermission = 'files.read';
             if (in_array(Resource::TYPE_FILE, $resources)) {
                 $report[Resource::TYPE_FILE] = 0;
+                $report['size'] = 0;
                 $buckets = $storageClient->listBuckets()['buckets'];
                 foreach ($buckets as $bucket) {
                     $files = $storageClient->listFiles($bucket['$id']);
@@ -224,7 +225,7 @@ class Appwrite extends Source
                 $report[Resource::TYPE_DEPLOYMENT] = 0;
                 $functions = $functionsClient->list()['functions'];
                 foreach ($functions as $function) {
-                    $report[Resource::TYPE_DEPLOYMENT] += $functionsClient->listDeployments($function['$id'])['total'];
+                    $report[Resource::TYPE_DEPLOYMENT] += $functionsClient->listDeployments($function['$id'], [Query::limit(1)])['total'];
                 }
             }
 
@@ -455,6 +456,37 @@ class Appwrite extends Source
                     unset($document['$updatedAt']);
                     unset($document['$createdAt']);
                     unset($document['$databaseId']);
+
+                    // Certain Appwrite versions allowed for data to be required but null
+                    // This isn't allowed in modern versions so we need to remove it by comparing their attributes and replacing it with default value.
+                    $attributes = $this->cache->get(Attribute::getName());
+                    foreach ($attributes as $attribute) {
+                        /** @var Attribute $attribute */
+                        if ($attribute->getCollection()->getId() == $collection->getId()) {
+                            if ($attribute->getRequired() && !isset($document[$attribute->getKey()])) {
+                                switch ($attribute->getTypeName()) {
+                                    case Attribute::TYPE_BOOLEAN:
+                                        $document[$attribute->getKey()] = false;
+                                        break;
+                                    case Attribute::TYPE_STRING:
+                                        $document[$attribute->getKey()] = '';
+                                        break;
+                                    case Attribute::TYPE_INTEGER:
+                                        $document[$attribute->getKey()] = 0;
+                                        break;
+                                    case Attribute::TYPE_FLOAT:
+                                        $document[$attribute->getKey()] = 0.0;
+                                        break;
+                                    case Attribute::TYPE_DATETIME:
+                                        $document[$attribute->getKey()] = 0;
+                                        break;
+                                    case Attribute::TYPE_URL:
+                                        $document[$attribute->getKey()] = 'http://null';
+                                        break;
+                                }
+                            }
+                        }
+                    }
 
                     $documents[] = new Document(
                         $id,
