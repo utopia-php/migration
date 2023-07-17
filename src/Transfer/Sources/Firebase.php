@@ -6,10 +6,6 @@ use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Auth\Hash;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
-use Utopia\Transfer\Resources\Database\Attributes\Boolean;
-use Utopia\Transfer\Resources\Database\Attributes\DateTime;
-use Utopia\Transfer\Resources\Database\Attributes\Decimal;
-use Utopia\Transfer\Resources\Database\Attributes\Integer;
 use Utopia\Transfer\Resources\Database\Attributes\Text;
 use Utopia\Transfer\Resources\Database\Collection;
 use Utopia\Transfer\Resources\Database\Database;
@@ -104,7 +100,7 @@ class Firebase extends Source
     /**
      * Get Supported Resources
      */
-    static function getSupportedResources(): array
+    public static function getSupportedResources(): array
     {
         return [
             // Auth
@@ -299,7 +295,7 @@ class Firebase extends Source
         $previousType = null;
 
         foreach ($data['values'] as $field) {
-            if (!$previousType) {
+            if (! $previousType) {
                 $previousType = $this->convertAttribute($collection, $key, $field);
             } elseif ($previousType->getName() != ($this->convertAttribute($collection, $key, $field))->getName()) {
                 $isSameType = false;
@@ -342,12 +338,12 @@ class Firebase extends Source
             // Calculate Schema and handle subcollections
             $documentSchema = [];
             foreach ($result['documents'] as $document) {
-                if (!isset($document['fields'])) {
+                if (! isset($document['fields'])) {
                     continue; //TODO: Transfer Empty Documents
                 }
 
                 foreach ($document['fields'] as $key => $field) {
-                    if (!isset($documentSchema[$key])) {
+                    if (! isset($documentSchema[$key])) {
                         $documentSchema[$key] = $this->convertAttribute($collection, $key, $field);
                     }
                 }
@@ -393,7 +389,7 @@ class Firebase extends Source
             return [$field['geoPointValue']['latitude'], $field['geoPointValue']['longitude']];
         } elseif (array_key_exists('arrayValue', $field)) {
             //TODO:
-        } else if (array_key_exists('referenceValue', $field)) {
+        } elseif (array_key_exists('referenceValue', $field)) {
             //TODO:
         } else {
             throw new \Exception('Unknown field type');
@@ -446,7 +442,7 @@ class Firebase extends Source
                 $this->callback([new Bucket($bucket['id'], $bucket['name'], [], false)]);
             }
 
-            if (!isset($result['nextPageToken'])) {
+            if (! isset($result['nextPageToken'])) {
                 break;
             }
 
@@ -476,7 +472,7 @@ class Firebase extends Source
                     break;
                 }
 
-                if (!isset($result['items'])) {
+                if (! isset($result['items'])) {
                     break;
                 }
 

@@ -2,16 +2,18 @@
 
 namespace Utopia\Tests\E2E\Sources;
 
-use Utopia\Transfer\Sources\NHost;
-use Utopia\Transfer\Transfer;
 use Utopia\Tests\E2E\Adapters\Mock;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Source;
+use Utopia\Transfer\Sources\NHost;
+use Utopia\Transfer\Transfer;
 
 class NHostTest extends Base
 {
     protected ?Source $source = null;
+
     protected ?Transfer $transfer = null;
+
     protected ?Destination $destination = null;
 
     protected function setUp(): void
@@ -22,7 +24,7 @@ class NHostTest extends Base
 
         while ($tries > 0) {
             try {
-                $pdo = new \PDO('pgsql:host=nhost-db' . ';port=5432;dbname=postgres', 'postgres', 'postgres');
+                $pdo = new \PDO('pgsql:host=nhost-db'.';port=5432;dbname=postgres', 'postgres', 'postgres');
                 $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
                 if ($pdo && $pdo->query('SELECT 1')->fetchColumn() === 1) {
@@ -37,7 +39,7 @@ class NHostTest extends Base
             $tries--;
         }
 
-        if (!$pdo || $tries === 0) {
+        if (! $pdo || $tries === 0) {
             throw new \Exception('DB was offline after 5 tries');
         }
 
@@ -49,7 +51,7 @@ class NHostTest extends Base
             'postgres',
             'password'
         );
-        $this->source->pdo = new \PDO('pgsql:host=nhost-db' . ';port=5432;dbname=postgres', 'postgres', 'postgres');
+        $this->source->pdo = new \PDO('pgsql:host=nhost-db'.';port=5432;dbname=postgres', 'postgres', 'postgres');
         $this->source->storageURL = 'http://nhost-storage';
 
         $this->destination = new Mock();

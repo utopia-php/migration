@@ -193,7 +193,7 @@ const MIME_MAP = ['video/3gpp2' => '3g2',
     'application/x-zip-compressed' => 'zip',
     'application/s-compressed' => 'zip',
     'multipart/x-zip' => 'zip',
-    'text/x-scriptzsh' => 'zsh'
+    'text/x-scriptzsh' => 'zsh',
 ];
 
 class Supabase extends NHost
@@ -213,8 +213,7 @@ class Supabase extends NHost
      *
      * @return self
      */
-    public function __construct(string $endpoint
-   ,       string $key, string $host, string $databaseName, string $username, string $password, string $port = '5432')
+    public function __construct(string $endpoint, string $key, string $host, string $databaseName, string $username, string $password, string $port = '5432')
     {
         $this->endpoint = $endpoint;
         $this->key = $key;
@@ -247,7 +246,7 @@ class Supabase extends NHost
             throw new \Exception('Failed to connect to database. PDO Code: '.$e->getCode().' Error: '.$e->getMessage());
         }
 
-        if (!empty($this->pdo->errorCode())) {
+        if (! empty($this->pdo->errorCode())) {
             throw new \Exception('Failed to connect to database. PDO Code: '.$this->pdo->errorCode().(empty($this->pdo->errorInfo()[2]) ? '' : ' Error: '.$this->pdo->errorInfo()[2]));
         }
 
@@ -372,8 +371,8 @@ class Supabase extends NHost
                     $user['phone'] ?? '',
                     $this->calculateAuthTypes($user),
                     '',
-                    !empty($user['email_confirmed_at']),
-                    !empty($user['phone_confirmed_at']),
+                    ! empty($user['email_confirmed_at']),
+                    ! empty($user['phone_confirmed_at']),
                     false,
                     []
                 );
@@ -402,11 +401,11 @@ class Supabase extends NHost
 
         $types = [];
 
-        if (!empty($user['encrypted_password'])) {
+        if (! empty($user['encrypted_password'])) {
             $types[] = User::TYPE_EMAIL;
         }
 
-        if (!empty($user['phone'])) {
+        if (! empty($user['phone'])) {
             $types[] = User::TYPE_PHONE;
         }
 

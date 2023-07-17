@@ -13,14 +13,13 @@ use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Auth\Hash;
 use Utopia\Transfer\Resources\Auth\Membership;
+use Utopia\Transfer\Resources\Auth\Team;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
-use Utopia\Transfer\Resources\Database\Attributes\Boolean;
 use Utopia\Transfer\Resources\Database\Attributes\DateTime;
+use Utopia\Transfer\Resources\Database\Attributes\Decimal;
 use Utopia\Transfer\Resources\Database\Attributes\Email;
 use Utopia\Transfer\Resources\Database\Attributes\Enum;
-use Utopia\Transfer\Resources\Database\Attributes\Decimal;
-use Utopia\Transfer\Resources\Database\Attributes\Integer;
 use Utopia\Transfer\Resources\Database\Attributes\IP;
 use Utopia\Transfer\Resources\Database\Attributes\Relationship;
 use Utopia\Transfer\Resources\Database\Attributes\Text;
@@ -66,7 +65,7 @@ class Appwrite extends Destination
     /**
      * Get Supported Resources
      */
-    static function getSupportedResources(): array
+    public static function getSupportedResources(): array
     {
         return [
             // Auth
@@ -216,7 +215,7 @@ class Appwrite extends Destination
     protected function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var Resource $resource */
+            /** @var resource $resource */
             switch ($resource->getGroup()) {
                 case Transfer::GROUP_DATABASES:
                     $responseResource = $this->importDatabaseResource($resource);
@@ -279,13 +278,26 @@ class Appwrite extends Destination
                     break;
                 case Resource::TYPE_DOCUMENT:
                     /** @var Document $resource */
-                    $databaseService->createDocument(
-                        $resource->getDatabase()->getId(),
-                        $resource->getCollection()->getId(),
-                        $resource->getId(),
-                        $resource->getData(),
-                        $resource->getPermissions()
-                    );
+                    // Check if document has already been created by subcollection
+                    $docExists = array_key_exists($resource->getId(), $this->cache->get(Resource::TYPE_DOCUMENT));
+
+                    if ($docExists) {
+                        $resource->setStatus(Resource::STATUS_SKIPPED, 'Document has been already created by relationship');
+
+                        return $resource;
+                    }
+
+                    try {
+                        $databaseService->createDocument(
+                            $resource->getDatabase()->getId(),
+                            $resource->getCollection()->getId(),
+                            $resource->getId(),
+                            $resource->getData(),
+                            $resource->getPermissions()
+                        );
+                    } catch (\Exception $e) {
+                        $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                    }
                     break;
             }
 
@@ -307,7 +319,7 @@ class Appwrite extends Destination
                 $databaseService->createStringAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getSize(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_INTEGER:
-                /** @var Integer $attribute */
+                /** @var int $attribute */
                 $databaseService->createIntegerAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getMin(), $attribute->getMax() ?? null, $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_FLOAT:
@@ -315,7 +327,7 @@ class Appwrite extends Destination
                 $databaseService->createFloatAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), null, null, $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_BOOLEAN:
-                /** @var Boolean $attribute */
+                /** @var bool $attribute */
                 $databaseService->createBooleanAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_DATETIME:
@@ -340,7 +352,16 @@ class Appwrite extends Destination
                 break;
             case Attribute::TYPE_RELATIONSHIP:
                 /** @var Relationship $attribute */
-                $databaseService->createRelationshipAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getRelatedCollection(), $attribute->getRelationType(), $attribute->getTwoWay(), $attribute->getKey(), $attribute->getTwoWayKey(), $attribute->getOnDelete());
+                $databaseService->createRelationshipAttribute(
+                    $attribute->getCollection()->getDatabase()->getId(),
+                    $attribute->getCollection()->getId(),
+                    $attribute->getRelatedCollection(),
+                    $attribute->getRelationType(),
+                    $attribute->getTwoWay(),
+                    $attribute->getKey(),
+                    $attribute->getTwoWayKey(),
+                    $attribute->getOnDelete()
+                );
                 break;
             default:
                 throw new \Exception('Invalid attribute type');
@@ -412,7 +433,6 @@ class Appwrite extends Destination
     /**
      * Import File Data
      *
-     * @param File $file
      *
      * @returns File
      */
@@ -429,7 +449,7 @@ class Appwrite extends Destination
                 [
                     'content-type' => 'multipart/form-data',
                     'X-Appwrite-project' => $this->project,
-                    'x-Appwrite-Key' => $this->key
+                    'x-Appwrite-Key' => $this->key,
                 ],
                 [
                     'bucketId' => $bucketId,
@@ -453,7 +473,7 @@ class Appwrite extends Destination
                 'content-type' => 'multipart/form-data',
                 'content-range' => 'bytes '.($file->getStart()).'-'.($file->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $file->getEnd()).'/'.$file->getSize(),
                 'X-Appwrite-project' => $this->project,
-                'x-Appwrite-Key' => $this->key
+                'x-Appwrite-Key' => $this->key,
             ],
             [
                 'bucketId' => $bucketId,
@@ -486,8 +506,18 @@ class Appwrite extends Destination
                     /** @var User $resource */
                     if (in_array(User::TYPE_EMAIL, $resource->getTypes())) {
                         $this->importPasswordUser($resource);
+                    } elseif (in_array(User::TYPE_ANONYMOUS, $resource->getTypes()) || in_array(User::TYPE_OAUTH, $resource->getTypes())) {
+                        $resource->setStatus(Resource::STATUS_WARNING, 'Anonymous and OAuth users cannot be imported.');
+
+                        return $resource;
                     } else {
-                        $userService->create($resource->getId(), $resource->getEmail(), $resource->getPhone(), null, $resource->getName());
+                        $userService->create(
+                            $resource->getId(),
+                            null,
+                            in_array(User::TYPE_PHONE, $resource->getTypes()) ? $resource->getPhone() : null,
+                            null,
+                            $resource->getName()
+                        );
                     }
 
                     if ($resource->getUsername()) {
@@ -507,24 +537,24 @@ class Appwrite extends Destination
                     }
 
                     if ($resource->getDisabled()) {
-                        $userService->updateStatus($resource->getId(), !$resource->getDisabled());
+                        $userService->updateStatus($resource->getId(), ! $resource->getDisabled());
                     }
 
                     break;
                 case Resource::TYPE_TEAM:
                     /** @var Team $resource */
-                    $teamService->create($resource->getId(), $resource->getName());
-                    $teamService->updatePrefs($resource->getId(), $resource->getPrefs());
+                    $teamService->create($resource->getId(), $resource->getTeamName());
+                    $teamService->updatePrefs($resource->getId(), $resource->getPreferences());
                     break;
                 case Resource::TYPE_MEMBERSHIP:
                     /** @var Membership $resource */
                     //TODO: Discuss in meeting.
                     // $teamService->createMembership($resource->getTeam()->getId(), $resource->getRoles(), )
-                    // break;
+                    break;
             }
 
             $resource->setStatus(Resource::STATUS_SUCCESS);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
         } finally {
             return $resource;
@@ -537,8 +567,8 @@ class Appwrite extends Destination
         $hash = $user->getPasswordHash();
         $result = null;
 
-        if (empty($hash->getHash())) {
-            throw new \Exception('User password hash is empty');
+        if (! $hash) {
+            throw new \Exception('Password hash is missing');
         }
 
         switch ($hash->getAlgorithm()) {
@@ -550,7 +580,7 @@ class Appwrite extends Destination
                     $hash->getSalt(),
                     $hash->getSeparator(),
                     $hash->getSigningKey(),
-                    empty($user->getUsername()) ? null : $user->getUsername() 
+                    empty($user->getUsername()) ? null : $user->getUsername()
                 );
                 break;
             case Hash::ALGORITHM_BCRYPT:
@@ -558,7 +588,7 @@ class Appwrite extends Destination
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    empty($user->getUsername()) ? null : $user->getUsername() 
+                    empty($user->getUsername()) ? null : $user->getUsername()
                 );
                 break;
             case Hash::ALGORITHM_ARGON2:
@@ -566,7 +596,7 @@ class Appwrite extends Destination
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    empty($user->getUsername()) ? null : $user->getUsername() 
+                    empty($user->getUsername()) ? null : $user->getUsername()
                 );
                 break;
             case Hash::ALGORITHM_SHA256:
@@ -575,7 +605,7 @@ class Appwrite extends Destination
                     $user->getEmail(),
                     $hash->getHash(),
                     'sha256',
-                    empty($user->getUsername()) ? null : $user->getUsername() 
+                    empty($user->getUsername()) ? null : $user->getUsername()
                 );
                 break;
             case Hash::ALGORITHM_PHPASS:
@@ -583,7 +613,7 @@ class Appwrite extends Destination
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    empty($user->getUsername()) ? null : $user->getUsername() 
+                    empty($user->getUsername()) ? null : $user->getUsername()
                 );
                 break;
             case Hash::ALGORITHM_SCRYPT:
@@ -596,7 +626,7 @@ class Appwrite extends Destination
                     $hash->getPasswordMemory(),
                     $hash->getPasswordParallel(),
                     $hash->getPasswordLength(),
-                    empty($user->getUsername()) ? null : $user->getUsername() 
+                    empty($user->getUsername()) ? null : $user->getUsername()
                 );
                 break;
             case Hash::ALGORITHM_PLAINTEXT:
@@ -605,7 +635,7 @@ class Appwrite extends Destination
                     $user->getEmail(),
                     $user->getPhone(),
                     $hash->getHash(),
-                    empty($user->getUsername()) ? null : $user->getUsername() 
+                    empty($user->getUsername()) ? null : $user->getUsername()
                 );
                 break;
         }

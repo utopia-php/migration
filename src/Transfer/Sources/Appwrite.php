@@ -3,7 +3,6 @@
 namespace Utopia\Transfer\Sources;
 
 use Appwrite\Client;
-use Appwrite\ID;
 use Appwrite\Query;
 use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
@@ -12,8 +11,8 @@ use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Auth\Hash;
-use Utopia\Transfer\Resources\Auth\Team;
 use Utopia\Transfer\Resources\Auth\Membership;
+use Utopia\Transfer\Resources\Auth\Team;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Attributes\Boolean;
@@ -80,7 +79,7 @@ class Appwrite extends Source
     /**
      * Get Supported Resources
      */
-    static function getSupportedResources(): array
+    public static function getSupportedResources(): array
     {
         return [
             // Auth
@@ -237,6 +236,8 @@ class Appwrite extends Source
                 }
             }
 
+            $report['version'] = $this->call('GET', '/health/version', ['X-Appwrite-Key' => '', 'X-Appwrite-Project' => ''])['version'];
+
             return $report;
         } catch (\Exception $e) {
             if ($e->getCode() === 403) {
@@ -300,7 +301,7 @@ class Appwrite extends Source
                     '',
                     $user['emailVerification'],
                     $user['phoneVerification'],
-                    !$user['status'],
+                    ! $user['status'],
                     $user['prefs']
                 );
 
@@ -463,7 +464,7 @@ class Appwrite extends Source
                     foreach ($attributes as $attribute) {
                         /** @var Attribute $attribute */
                         if ($attribute->getCollection()->getId() == $collection->getId()) {
-                            if ($attribute->getRequired() && !isset($document[$attribute->getKey()])) {
+                            if ($attribute->getRequired() && ! isset($document[$attribute->getKey()])) {
                                 switch ($attribute->getTypeName()) {
                                     case Attribute::TYPE_BOOLEAN:
                                         $document[$attribute->getKey()] = false;
@@ -488,11 +489,13 @@ class Appwrite extends Source
                         }
                     }
 
+                    $cleanData = $this->handleSubcollections($document, $collection, ['$databaseId', '$collectionId', '$createdAt', '$updatedAt', '$permissions']);
+
                     $documents[] = new Document(
                         $id,
                         $collection->getDatabase(),
                         $collection,
-                        $document,
+                        $cleanData,
                         $permissions
                     );
                     $lastDocument = $id;
@@ -507,11 +510,28 @@ class Appwrite extends Source
         }
     }
 
+    private function handleSubcollections($document, Collection $collection, $keys = [])
+    {
+        if (! array_key_exists('$id', $document)) {
+            return $document;
+        }
+
+        foreach ($document as $key => &$value) {
+            if (in_array($key, $keys, true)) {
+                unset($document[$key]);
+            } elseif (is_array($value)) {
+                $value = $this->handleSubcollections($value, $collection, $keys);
+            }
+        }
+
+        return $document;
+    }
+
     private function convertAttribute(array $value, Collection $collection): Attribute
     {
         switch ($value['type']) {
             case 'string':
-                if (!isset($value['format'])) {
+                if (! isset($value['format'])) {
                     return new Text(
                         $value['key'],
                         $collection,
@@ -721,7 +741,27 @@ class Appwrite extends Source
                     $queries
                 );
 
+                // Remove two way relationship attributes
+                $this->cache->get(Resource::TYPE_ATTRIBUTE);
+
+                $knownTwoways = [];
+
+                foreach ($this->cache->get(Resource::TYPE_ATTRIBUTE) as $attribute) {
+                    /** @var Attribute|Relationship $attribute */
+                    if ($attribute->getTypeName() == Attribute::TYPE_RELATIONSHIP && $attribute->getTwoWay()) {
+                        $knownTwoways[] = $attribute->getTwoWayKey();
+                    }
+                }
+
                 foreach ($response['attributes'] as $attribute) {
+                    if (in_array($attribute['key'], $knownTwoways)) {
+                        continue;
+                    }
+
+                    if ($attribute['type'] === 'relationship') {
+                        $knownTwoways[] = $attribute['twoWayKey'];
+                    }
+
                     $attributes[] = $this->convertAttribute($attribute, $collection);
                 }
 
@@ -786,11 +826,11 @@ class Appwrite extends Source
 
         $types = [];
 
-        if (!empty($user['email'])) {
+        if (! empty($user['email'])) {
             $types[] = User::TYPE_EMAIL;
         }
 
-        if (!empty($user['phone'])) {
+        if (! empty($user['phone'])) {
             $types[] = User::TYPE_PHONE;
         }
 
@@ -972,8 +1012,14 @@ class Appwrite extends Source
     private function exportDeployments(int $batchSize)
     {
         $functionsClient = new Functions($this->client);
-
         $functions = $this->cache->get(Func::getName());
+
+        // exportDeploymentData doesn't exist on Appwrite versions prior to 1.4
+        $appwriteVersion = $this->client->call('GET', '/v1/health/version')['version'];
+
+        if (version_compare($appwriteVersion, '1.4.0', '<')) {
+            return;
+        }
 
         foreach ($functions as $func) {
             /** @var Func $func */

@@ -24,10 +24,10 @@ class Local extends Destination
     {
         $this->path = $path;
 
-        if (!\file_exists($this->path)) {
+        if (! \file_exists($this->path)) {
             mkdir($this->path, 0777, true);
-            mkdir($this->path . '/files', 0777, true);
-            mkdir($this->path . '/deployments', 0777, true);
+            mkdir($this->path.'/files', 0777, true);
+            mkdir($this->path.'/deployments', 0777, true);
         }
     }
 
@@ -42,7 +42,7 @@ class Local extends Destination
     /**
      * Get Supported Resources
      */
-    static function getSupportedResources(): array
+    public static function getSupportedResources(): array
     {
         return [
             Resource::TYPE_ATTRIBUTE,
@@ -58,7 +58,7 @@ class Local extends Destination
             Resource::TYPE_INDEX,
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
-            Resource::TYPE_USER
+            Resource::TYPE_USER,
         ];
     }
 
@@ -74,9 +74,9 @@ class Local extends Destination
         }
 
         // Check we can write to the file
-        if (!\is_writable($this->path . '/backup.json')) {
-            $report[Transfer::GROUP_DATABASES][] = 'Unable to write to file: ' . $this->path;
-            throw new \Exception('Unable to write to file: ' . $this->path);
+        if (! \is_writable($this->path.'/backup.json')) {
+            $report[Transfer::GROUP_DATABASES][] = 'Unable to write to file: '.$this->path;
+            throw new \Exception('Unable to write to file: '.$this->path);
         }
 
         return $report;
@@ -93,13 +93,13 @@ class Local extends Destination
             throw new \Exception('Unable to encode data to JSON, Are you accidentally encoding binary data?');
         }
 
-        \file_put_contents($this->path . '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
+        \file_put_contents($this->path.'/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
     }
 
     protected function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var Resource $resource */
+            /** @var resource $resource */
             switch ($resource->getName()) {
                 case 'Deployment':
                     /** @var Deployment $resource */
@@ -107,7 +107,7 @@ class Local extends Destination
                         $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
                     }
 
-                    file_put_contents($this->path . 'deployments/' . $resource->getId() . '.tar.gz', $resource->getData(), FILE_APPEND);
+                    file_put_contents($this->path.'deployments/'.$resource->getId().'.tar.gz', $resource->getData(), FILE_APPEND);
                     break;
                 case 'File':
                     /** @var File $resource */
@@ -115,22 +115,22 @@ class Local extends Destination
                     // Handle folders
                     if (str_contains($resource->getFileName(), '/')) {
                         $folders = explode('/', $resource->getFileName());
-                        $folderPath = $this->path . '/files';
+                        $folderPath = $this->path.'/files';
 
                         foreach ($folders as $folder) {
-                            $folderPath .= '/' . $folder;
+                            $folderPath .= '/'.$folder;
 
-                            if (!\file_exists($folderPath) && str_contains($folder, '.') === false) {
+                            if (! \file_exists($folderPath) && str_contains($folder, '.') === false) {
                                 mkdir($folderPath, 0777, true);
                             }
                         }
                     }
 
-                    if ($resource->getStart() === 0 && \file_exists($this->path . '/files/' . $resource->getFileName())) {
-                        unlink($this->path . '/files/' . $resource->getFileName());
+                    if ($resource->getStart() === 0 && \file_exists($this->path.'/files/'.$resource->getFileName())) {
+                        unlink($this->path.'/files/'.$resource->getFileName());
                     }
 
-                    file_put_contents($this->path . '/files/' . $resource->getFileName(), $resource->getData(), FILE_APPEND);
+                    file_put_contents($this->path.'/files/'.$resource->getFileName(), $resource->getData(), FILE_APPEND);
                     break;
             }
 

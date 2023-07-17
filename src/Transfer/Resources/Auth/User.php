@@ -120,7 +120,7 @@ class User extends Resource
     /**
      * Get Password Hash
      */
-    public function getPasswordHash(): Hash
+    public function getPasswordHash(): ?Hash
     {
         return $this->passwordHash;
     }

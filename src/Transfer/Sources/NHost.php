@@ -58,11 +58,11 @@ class NHost extends Source
 
     public function getDatabase(): PDO
     {
-        if (!$this->pdo) {
+        if (! $this->pdo) {
             try {
-                $this->pdo = new \PDO('pgsql:host=' . $this->subdomain . '.db.' . $this->region . '.nhost.run' . ';port=' . $this->port . ';dbname=' . $this->databaseName, $this->username, $this->password);
+                $this->pdo = new \PDO('pgsql:host='.$this->subdomain.'.db.'.$this->region.'.nhost.run'.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
             } catch (\PDOException $e) {
-                throw new \Exception('Failed to connect to database: ' . $e->getMessage());
+                throw new \Exception('Failed to connect to database: '.$e->getMessage());
             }
         }
 
@@ -77,7 +77,7 @@ class NHost extends Source
     /**
      * Get Supported Resources
      */
-    static function getSupportedResources(): array
+    public static function getSupportedResources(): array
     {
         return [
             // Auth
@@ -105,13 +105,13 @@ class NHost extends Source
         }
 
         try {
-           $db = $this->getDatabase();
+            $db = $this->getDatabase();
         } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database. PDO Code: ' . $e->getCode() . ' Error: ' . $e->getMessage());
+            throw new \Exception('Failed to connect to database. PDO Code: '.$e->getCode().' Error: '.$e->getMessage());
         }
 
-        if (!empty($db->errorCode())) {
-            throw new \Exception('Failed to connect to database. PDO Code: ' . $db->errorCode() . (empty($db->errorInfo()[2]) ? '' : ' Error: ' . $db->errorInfo()[2]));
+        if (! empty($db->errorCode())) {
+            throw new \Exception('Failed to connect to database. PDO Code: '.$db->errorCode().(empty($db->errorInfo()[2]) ? '' : ' Error: '.$db->errorInfo()[2]));
         }
 
         // Auth
@@ -120,7 +120,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access users table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access users table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_USER] = $statement->fetchColumn();
@@ -136,7 +136,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_COLLECTION] = $statement->fetchColumn();
@@ -147,7 +147,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access columns table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access columns table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_ATTRIBUTE] = $statement->fetchColumn();
@@ -158,7 +158,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access indexes table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access indexes table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
@@ -169,7 +169,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_DOCUMENT] = $statement->fetchColumn();
@@ -181,7 +181,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access buckets table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access buckets table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_BUCKET] = $statement->fetchColumn();
@@ -192,7 +192,7 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access files table. Error: ' . $statement->errorInfo()[2]);
+                throw new \Exception('Failed to access files table. Error: '.$statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_FILE] = $statement->fetchColumn();
@@ -366,12 +366,12 @@ class NHost extends Source
             $collections = $database->getCollections();
 
             foreach ($collections as $collection) {
-                $total = $db->query('SELECT COUNT(*) FROM ' . $collection->getCollectionName())->fetchColumn();
+                $total = $db->query('SELECT COUNT(*) FROM '.$collection->getCollectionName())->fetchColumn();
 
                 $offset = 0;
 
                 while ($offset < $total) {
-                    $statement = $db->prepare('SELECT row_to_json(t) FROM (SELECT * FROM ' . $collection->getCollectionName() . ' LIMIT :limit OFFSET :offset) t;');
+                    $statement = $db->prepare('SELECT row_to_json(t) FROM (SELECT * FROM '.$collection->getCollectionName().' LIMIT :limit OFFSET :offset) t;');
                     $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
                     $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
                     $statement->execute();
@@ -393,7 +393,7 @@ class NHost extends Source
                         $processedData = [];
                         foreach ($collectionAttributes as $attribute) {
                             /** @var Attribute $attribute */
-                            if (!$attribute->getArray() && \is_array($data[$attribute->getKey()])) {
+                            if (! $attribute->getArray() && \is_array($data[$attribute->getKey()])) {
                                 $processedData[$attribute->getKey()] = json_encode($data[$attribute->getKey()]);
                             } else {
                                 $processedData[$attribute->getKey()] = $data[$attribute->getKey()];
@@ -414,7 +414,7 @@ class NHost extends Source
         $isArray = $column['data_type'] === 'ARRAY';
 
         switch ($isArray ? str_replace('_', '', $column['udt_name']) : $column['data_type']) {
-                // Numbers
+            // Numbers
             case 'boolean':
             case 'bool':
                 return new Boolean($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
@@ -530,11 +530,11 @@ class NHost extends Source
 
         $types = [];
 
-        if (!empty($user['password_hash'])) {
+        if (! empty($user['password_hash'])) {
             $types[] = User::TYPE_EMAIL;
         }
 
-        if (!empty($user['phone_number'])) {
+        if (! empty($user['phone_number'])) {
             $types[] = User::TYPE_PHONE;
         }
 
@@ -626,7 +626,7 @@ class NHost extends Source
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 
         $fileSize = $file->getSize();
-        $response = $this->call('GET', $this->storageURL . "/v1/files/{$file->getId()}/presignedurl", [
+        $response = $this->call('GET', $this->storageURL."/v1/files/{$file->getId()}/presignedurl", [
             'X-Hasura-Admin-Secret' => $this->adminSecret,
         ]);
 

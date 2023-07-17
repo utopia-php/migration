@@ -30,6 +30,6 @@ class URL extends Attribute
 
     public function getTypeName(): string
     {
-        return Attribute::TYPE_URL;;
+        return Attribute::TYPE_URL;
     }
 }
