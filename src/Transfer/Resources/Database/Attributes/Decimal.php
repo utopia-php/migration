@@ -18,7 +18,7 @@ class Decimal extends Attribute
      * @param  ?float  $min
      * @param  ?float  $max
      */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?float $default = null, float $min = null, float $max = null)
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, float $default = null, float $min = null, float $max = null)
     {
         parent::__construct($key, $collection, $required, $array);
         $this->default = $default;
@@ -31,12 +31,12 @@ class Decimal extends Attribute
         return Attribute::TYPE_FLOAT;
     }
 
-    public function getMin(): float|null
+    public function getMin(): ?float
     {
         return $this->min;
     }
 
-    public function getMax(): float|null
+    public function getMax(): ?float
     {
         return $this->max;
     }

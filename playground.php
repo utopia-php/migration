@@ -5,7 +5,7 @@
  *
  * A place to test and debug the Transfer Library stuff
  */
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__.'/vendor/autoload.php';
 
 use Appwrite\Query;
 use Dotenv\Dotenv;
@@ -65,7 +65,7 @@ $sourceSupabase = new Supabase(
 //     $_ENV['DESTINATION_APPWRITE_TEST_KEY']
 // );
 
-$destinationLocal = new Local(__DIR__ . '/localBackup/');
+$destinationLocal = new Local(__DIR__.'/localBackup/');
 
 /**
  * Initialise Transfer Class

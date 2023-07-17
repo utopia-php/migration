@@ -18,7 +18,7 @@ class Integer extends Attribute
      * @param  ?int  $min
      * @param  ?int  $max
      */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?int $default = null, int $min = null, int $max = null)
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, int $default = null, int $min = null, int $max = null)
     {
         parent::__construct($key, $collection, $required, $array);
         $this->default = $default;
@@ -31,24 +31,24 @@ class Integer extends Attribute
         return Attribute::TYPE_INTEGER;
     }
 
-    public function getMin(): int|null
+    public function getMin(): ?int
     {
         return $this->min;
     }
 
-    public function getMax(): int|null
+    public function getMax(): ?int
     {
         return $this->max;
     }
 
-    public function setMin(int|null $min): self
+    public function setMin(?int $min): self
     {
         $this->min = $min;
 
         return $this;
     }
 
-    public function setMax(int|null $max): self
+    public function setMax(?int $max): self
     {
         $this->max = $max;
 

@@ -12,7 +12,7 @@ class URL extends Attribute
     /**
      * @param  ?string  $default
      */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?string $default = null)
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, string $default = null)
     {
         parent::__construct($key, $collection, $required, $array);
         $this->default = $default;
@@ -30,6 +30,6 @@ class URL extends Attribute
 
     public function getTypeName(): string
     {
-        return Attribute::TYPE_URL;;
+        return Attribute::TYPE_URL;
     }
 }
