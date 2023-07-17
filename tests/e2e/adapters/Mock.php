@@ -12,7 +12,7 @@ class Mock extends Source
         return 'MockSource';
     }
 
-    static function getSupportedResources(): array
+    public static function getSupportedResources(): array
     {
         return [
             Transfer::GROUP_AUTH,
@@ -31,47 +31,47 @@ class Mock extends Source
     /**
      * Export Auth Group
      *
-     * @param array $resources Resources to export
+     * @param  array  $resources Resources to export
      * @return void
      */
     protected function exportGroupAuth(int $batchSize, array $resources)
     {
-        
+
     }
 
     /**
      * Export Databases Group
      *
-     * @param int $batchSize Max 100
-     * @param array $resources Resources to export
+     * @param  int  $batchSize Max 100
+     * @param  array  $resources Resources to export
      * @return void
      */
     protected function exportGroupDatabases(int $batchSize, array $resources)
     {
-        
+
     }
 
     /**
      * Export Storage Group
      *
-     * @param int $batchSize Max 5
-     * @param array $resources Resources to export
+     * @param  int  $batchSize Max 5
+     * @param  array  $resources Resources to export
      * @return void
      */
     protected function exportGroupStorage(int $batchSize, array $resources)
     {
-        
+
     }
 
     /**
      * Export Functions Group
      *
-     * @param int $batchSize Max 100
-     * @param array $resources Resources to export
+     * @param  int  $batchSize Max 100
+     * @param  array  $resources Resources to export
      * @return void
      */
     protected function exportGroupFunctions(int $batchSize, array $resources)
     {
-        
+
     }
 }

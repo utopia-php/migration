@@ -19,8 +19,8 @@ abstract class Source extends Target
         $this->transferCallback = function (array $returnedResources) use ($callback, $resources) {
             $prunedResurces = [];
             foreach ($returnedResources as $resource) {
-                /** @var Resource $resource */
-                if (!in_array($resource->getName(), $resources)) {
+                /** @var resource $resource */
+                if (! in_array($resource->getName(), $resources)) {
                     $resource->setStatus(Resource::STATUS_SKIPPED);
                 } else {
                     $prunedResurces[] = $resource;
@@ -37,7 +37,7 @@ abstract class Source extends Target
     /**
      * Export Resources
      *
-     * @param string[] $resources
+     * @param  string[]  $resources
      * @return void
      */
     public function exportResources(array $resources, int $batchSize)
@@ -83,7 +83,7 @@ abstract class Source extends Target
     /**
      * Export Auth Group
      *
-     * @param array $resources Resources to export
+     * @param  array  $resources Resources to export
      * @return void
      */
     abstract protected function exportGroupAuth(int $batchSize, array $resources);
@@ -91,8 +91,8 @@ abstract class Source extends Target
     /**
      * Export Databases Group
      *
-     * @param int $batchSize Max 100
-     * @param array $resources Resources to export
+     * @param  int  $batchSize Max 100
+     * @param  array  $resources Resources to export
      * @return void
      */
     abstract protected function exportGroupDatabases(int $batchSize, array $resources);
@@ -100,8 +100,8 @@ abstract class Source extends Target
     /**
      * Export Storage Group
      *
-     * @param int $batchSize Max 5
-     * @param array $resources Resources to export
+     * @param  int  $batchSize Max 5
+     * @param  array  $resources Resources to export
      * @return void
      */
     abstract protected function exportGroupStorage(int $batchSize, array $resources);
@@ -109,8 +109,8 @@ abstract class Source extends Target
     /**
      * Export Functions Group
      *
-     * @param int $batchSize Max 100
-     * @param array $resources Resources to export
+     * @param  int  $batchSize Max 100
+     * @param  array  $resources Resources to export
      * @return void
      */
     abstract protected function exportGroupFunctions(int $batchSize, array $resources);

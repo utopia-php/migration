@@ -1,4 +1,5 @@
 <?php
+
 namespace Utopia\Tests\E2E\Adapters;
 
 use Utopia\Transfer\Destination;
@@ -13,7 +14,7 @@ class Mock extends Destination
         return 'Mock';
     }
 
-    static function getSupportedResources(): array
+    public static function getSupportedResources(): array
     {
         return [
             Resource::TYPE_ATTRIBUTE,
@@ -36,7 +37,7 @@ class Mock extends Destination
     public function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var Resource $resource */
+            /** @var resource $resource */
             switch ($resource->getName()) {
                 case 'Deployment':
                     /** @var Deployment $resource */

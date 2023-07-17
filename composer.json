@@ -22,6 +22,10 @@
     "autoload-dev": {
         "psr-4": {"Utopia\\Tests\\": "tests/Transfer"}
     },
+    "scripts": {
+        "lint": "./vendor/bin/pint --test",
+        "format": "./vendor/bin/pint"
+    },
     "require": {
         "php": ">=8.0",
         "utopia-php/cli": "^0.13.0",

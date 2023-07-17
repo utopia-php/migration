@@ -43,7 +43,7 @@ class User extends Resource
         string $id = '',
         string $email = '',
         string $username = '',
-        ?Hash $passwordHash = null,
+        Hash $passwordHash = null,
         string $phone = '',
         array $types = [self::TYPE_ANONYMOUS],
         string $oauthProvider = '',
