@@ -407,19 +407,19 @@ class Appwrite extends Destination
                     break;
                 case Resource::TYPE_BUCKET:
                     /** @var Bucket $resource */
-                    if ($resource->getUpdateLimits()) {
+                    if (! $resource->getUpdateLimits()) {
                         $response = $storageService->createBucket(
                             $resource->getId() ?? 'unique()',
                             $resource->getBucketName(),
                             $resource->getPermissions(),
                             $resource->getFileSecurity(),
                             true, // Set to true for now, we'll come back later.
-                            30000000000,
+                            null,
                             null,
                             $resource->getCompression() ?? 'none',
                             $resource->getEncryption() ?? null,
                             $resource->getAntiVirus() ?? null
-                        );   
+                        );
                     } else {
                         $response = $storageService->updateBucket(
                             $resource->getId(),
@@ -441,7 +441,6 @@ class Appwrite extends Destination
         } catch (\Exception $e) {
             $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
         } finally {
-            $resource->setData('');
             return $resource;
         }
     }
@@ -476,6 +475,7 @@ class Appwrite extends Destination
             );
 
             $file->setStatus(Resource::STATUS_SUCCESS);
+            $file->setData('');
 
             return $file;
         }

@@ -840,7 +840,7 @@ class Appwrite extends Source
     protected function exportGroupStorage(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
-            $this->exportBuckets($batchSize);
+            $this->exportBuckets($batchSize, false);
         }
 
         if (in_array(Resource::TYPE_FILE, $resources)) {
@@ -852,7 +852,7 @@ class Appwrite extends Source
         }
     }
 
-    private function exportBuckets(int $batchSize, $updateLimits = false)
+    private function exportBuckets(int $batchSize, bool $updateLimits)
     {
         $storageClient = new Storage($this->client);
 
@@ -861,7 +861,7 @@ class Appwrite extends Source
         $convertedBuckets = [];
 
         foreach ($buckets['buckets'] as $bucket) {
-            $convertedBuckets[] = new Bucket(
+            $bucket = new Bucket(
                 $bucket['$id'],
                 $bucket['name'],
                 $bucket['$permissions'],
@@ -874,6 +874,9 @@ class Appwrite extends Source
                 $bucket['antivirus'],
                 $updateLimits
             );
+
+            $bucket->setUpdateLimits($updateLimits);
+            $convertedBuckets[] = $bucket;
         }
 
         if (empty($convertedBuckets)) {

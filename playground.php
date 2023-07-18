@@ -72,8 +72,8 @@ $destinationLocal = new Local(__DIR__.'/localBackup/');
  * Initialise Transfer Class
  */
 $transfer = new Transfer(
-    $sourceSupabase,
-    $destinationLocal
+    $sourceAppwrite,
+    $destinationAppwrite
 );
 
 /**
