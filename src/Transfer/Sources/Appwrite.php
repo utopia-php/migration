@@ -1035,7 +1035,7 @@ class Appwrite extends Source
         $functions = $this->cache->get(Func::getName());
 
         // exportDeploymentData doesn't exist on Appwrite versions prior to 1.4
-        $appwriteVersion = $this->client->call('GET', '/v1/health/version')['version'];
+        $appwriteVersion = $this->call('GET', '/health/version', ['X-Appwrite-Key' => '', 'X-Appwrite-Project' => ''])['version'];
 
         if (version_compare($appwriteVersion, '1.4.0', '<')) {
             return;

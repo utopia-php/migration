@@ -73,30 +73,13 @@ $destinationLocal = new Local(__DIR__.'/localBackup/');
  */
 $transfer = new Transfer(
     $sourceAppwrite,
-    $destinationAppwrite
+    $destinationLocal
 );
 
 /**
  * Run Transfer
  */
-$transfer->run(
-    [
-        // Auth
-        // Resource::TYPE_USER,
-        // Resource::TYPE_TEAM,
-        // Resource::TYPE_MEMBERSHIP,
-
-        // Database
-        // Resource::TYPE_DATABASE,
-        // Resource::TYPE_COLLECTION,
-        // Resource::TYPE_ATTRIBUTE,
-        // Resource::TYPE_INDEX,
-        // Resource::TYPE_DOCUMENT,
-
-        // Storage
-        Resource::TYPE_BUCKET,
-        Resource::TYPE_FILE,
-    ],
+$transfer->run($destinationAppwrite->getSupportedResources(),
     function (array $resources) {
     }
 );
