@@ -332,6 +332,15 @@ class Supabase extends NHost
             }
 
             $report[Resource::TYPE_FILE] = $statement->fetchColumn();
+
+            $statementFileSize = $this->pdo->prepare('SELECT objects.metadata FROM storage.objects;');
+            $statementFileSize->execute();
+
+            foreach ($statementFileSize->fetchAll(\PDO::FETCH_ASSOC) as $file) {
+                $metadata = json_decode($file['metadata'], true);
+
+                $report['size'] += ($metadata['size'] / 1024 / 1024); // MB
+            }
         }
 
         return $report;
@@ -434,7 +443,7 @@ class Supabase extends NHost
 
         foreach ($buckets as $bucket) {
             $convertedBucket = new Bucket(
-                null,
+                '',
                 $bucket['name'],
                 [],
                 false,

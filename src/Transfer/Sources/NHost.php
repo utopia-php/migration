@@ -196,6 +196,15 @@ class NHost extends Source
             }
 
             $report[Resource::TYPE_FILE] = $statement->fetchColumn();
+
+            $statement = $db->prepare('SELECT SUM(storage.files."size") from storage.files;');
+            $statement->execute();
+
+            if ($statement->errorCode() !== '00000') {
+                throw new \Exception('Failed to access files table. Error: '.$statement->errorInfo()[2]);
+            }
+
+            $report['size'] = ($statement->fetchColumn()) / 1024 / 1024; // MB;
         }
 
         return $report;
