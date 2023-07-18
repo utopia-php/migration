@@ -12,16 +12,16 @@ class Membership extends Resource
 {
     protected Team $team;
 
-    protected string $userId;
+    protected User $user;
 
     protected array $roles;
 
     protected bool $active = true;
 
-    public function __construct(Team $team, string $userId, array $roles = [], bool $active = true)
+    public function __construct(Team $team, User $user, array $roles = [], bool $active = true)
     {
         $this->team = $team;
-        $this->userId = $userId;
+        $this->user = $user;
         $this->roles = $roles;
         $this->active = $active;
     }
@@ -48,14 +48,14 @@ class Membership extends Resource
         return $this;
     }
 
-    public function getUserId(): string
+    public function getUser(): User
     {
-        return $this->userId;
+        return $this->user;
     }
 
-    public function setUserId(string $userId): self
+    public function setUser(User $user): self
     {
-        $this->userId = $userId;
+        $this->user = $user;
 
         return $this;
     }
@@ -87,7 +87,7 @@ class Membership extends Resource
     public function asArray(): array
     {
         return [
-            'userId' => $this->userId,
+            'userId' => $this->user->getId(),
             'roles' => $this->roles,
             'active' => $this->active,
         ];

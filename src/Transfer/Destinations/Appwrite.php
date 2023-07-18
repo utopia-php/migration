@@ -564,8 +564,8 @@ class Appwrite extends Destination
                     break;
                 case Resource::TYPE_MEMBERSHIP:
                     /** @var Membership $resource */
-                    //TODO: Discuss in meeting.
-                    // $teamService->createMembership($resource->getTeam()->getId(), $resource->getRoles(), )
+                    $user = $resource->getUser();
+                    $teamService->createMembership($resource->getTeam()->getId(), $resource->getRoles(), '', $user->getEmail(), $user->getId(), $user->getPhone(), $user->getName());
                     break;
             }
 
