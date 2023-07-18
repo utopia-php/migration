@@ -846,9 +846,13 @@ class Appwrite extends Source
         if (in_array(Resource::TYPE_FILE, $resources)) {
             $this->exportFiles($batchSize);
         }
+
+        if (in_array(Resource::TYPE_BUCKET, $resources)) {
+            $this->exportBuckets($batchSize, true);
+        }
     }
 
-    private function exportBuckets(int $batchSize)
+    private function exportBuckets(int $batchSize, $updateLimits = false)
     {
         $storageClient = new Storage($this->client);
 
@@ -868,6 +872,7 @@ class Appwrite extends Source
                 $bucket['compression'],
                 $bucket['encryption'],
                 $bucket['antivirus'],
+                $updateLimits
             );
         }
 

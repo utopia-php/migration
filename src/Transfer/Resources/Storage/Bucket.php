@@ -25,7 +25,9 @@ class Bucket extends Resource
 
     protected ?bool $antiVirus;
 
-    public function __construct(string $id = '', string $name = '', array $permissions = [], bool $fileSecurity = false, bool $enabled = false, ?int $maxFileSize = null, array $allowedFileExtensions = [], string $compression = 'none', bool $encryption = false, bool $antiVirus = false)
+    protected bool $updateLimits = false;
+
+    public function __construct(string $id = '', string $name = '', array $permissions = [], bool $fileSecurity = false, bool $enabled = false, ?int $maxFileSize = null, array $allowedFileExtensions = [], string $compression = 'none', bool $encryption = false, bool $antiVirus = false, bool $updateLimits = false)
     {
         $this->id = $id;
         $this->name = $name;
@@ -160,6 +162,18 @@ class Bucket extends Resource
     public function setAntiVirus(bool $antiVirus): self
     {
         $this->antiVirus = $antiVirus;
+
+        return $this;
+    }
+
+    public function getUpdateLimits(): bool
+    {
+        return $this->updateLimits;
+    }
+
+    public function setUpdateLimits(bool $updateLimits): self
+    {
+        $this->updateLimits = $updateLimits;
 
         return $this;
     }

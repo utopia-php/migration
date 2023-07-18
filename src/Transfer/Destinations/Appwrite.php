@@ -407,18 +407,33 @@ class Appwrite extends Destination
                     break;
                 case Resource::TYPE_BUCKET:
                     /** @var Bucket $resource */
-                    $response = $storageService->createBucket(
-                        $resource->getId() ?? 'unique()',
-                        $resource->getBucketName(),
-                        $resource->getPermissions(),
-                        $resource->getFileSecurity(),
-                        true, // Set to true for now, we'll come back later.
-                        $resource->getMaxFileSize() ?? null,
-                        $resource->getAllowedFileExtensions() ?? null,
-                        $resource->getCompression() ?? 'none',
-                        $resource->getEncryption() ?? null,
-                        $resource->getAntiVirus() ?? null
-                    );
+                    if ($resource->getUpdateLimits()) {
+                        $response = $storageService->createBucket(
+                            $resource->getId() ?? 'unique()',
+                            $resource->getBucketName(),
+                            $resource->getPermissions(),
+                            $resource->getFileSecurity(),
+                            true, // Set to true for now, we'll come back later.
+                            30000000000,
+                            null,
+                            $resource->getCompression() ?? 'none',
+                            $resource->getEncryption() ?? null,
+                            $resource->getAntiVirus() ?? null
+                        );   
+                    } else {
+                        $response = $storageService->updateBucket(
+                            $resource->getId(),
+                            $resource->getBucketName(),
+                            $resource->getPermissions(),
+                            $resource->getFileSecurity(),
+                            $resource->getEnabled(),
+                            $resource->getMaxFileSize() ?? null,
+                            $resource->getAllowedFileExtensions() ?? null,
+                            $resource->getCompression() ?? 'none',
+                            $resource->getEncryption() ?? null,
+                            $resource->getAntiVirus() ?? null
+                        );
+                    }
                     $resource->setId($response['$id']);
             }
 
