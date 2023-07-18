@@ -850,7 +850,6 @@ class Appwrite extends Source
 
     private function exportBuckets(int $batchSize)
     {
-        //TODO: Impl batching
         $storageClient = new Storage($this->client);
 
         $buckets = $storageClient->listBuckets();
@@ -972,7 +971,6 @@ class Appwrite extends Source
 
     private function exportFunctions(int $batchSize)
     {
-        //TODO: Implement batching
         $functionsClient = new Functions($this->client);
 
         $functions = $functionsClient->list();

@@ -443,7 +443,7 @@ class Supabase extends NHost
 
         foreach ($buckets as $bucket) {
             $convertedBucket = new Bucket(
-                '',
+                'unique()',
                 $bucket['name'],
                 [],
                 false,

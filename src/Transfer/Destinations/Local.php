@@ -99,17 +99,18 @@ class Local extends Destination
     protected function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var resource $resource */
+            /** @var Resource $resource */
             switch ($resource->getName()) {
-                case 'Deployment':
+                case Resource::TYPE_DEPLOYMENT:
                     /** @var Deployment $resource */
                     if ($resource->getStart() === 0) {
                         $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
                     }
 
                     file_put_contents($this->path.'deployments/'.$resource->getId().'.tar.gz', $resource->getData(), FILE_APPEND);
+                    $resource->setData('');
                     break;
-                case 'File':
+                case Resource::TYPE_FILE:
                     /** @var File $resource */
 
                     // Handle folders
@@ -131,6 +132,10 @@ class Local extends Destination
                     }
 
                     file_put_contents($this->path.'/files/'.$resource->getFileName(), $resource->getData(), FILE_APPEND);
+                    $resource->setData('');
+                    break;
+                default:
+                    $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
                     break;
             }
 

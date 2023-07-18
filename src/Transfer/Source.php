@@ -19,21 +19,16 @@ abstract class Source extends Target
         $this->transferCallback = function (array $returnedResources) use ($callback, $resources) {
             $prunedResurces = [];
             foreach ($returnedResources as $resource) {
-                /** @var resource $resource */
+                /** @var Resource $resource */
                 if (! in_array($resource->getName(), $resources)) {
                     $resource->setStatus(Resource::STATUS_SKIPPED);
                 } else {
-                    if ($resource->getName() === Resource::TYPE_FILE || $resource->getName() === Resource::TYPE_DEPLOYMENT) {
-                        /** @var File $resource */
-                        $resource->setData(''); // Clear data to save memory
-                    }
-
                     $prunedResurces[] = $resource;
                 }
             }
 
-            $this->cache->addAll($returnedResources);
-            $callback($prunedResurces);
+            $this->cache->addAll($prunedResurces);
+            $callback($returnedResources);
         };
 
         $this->exportResources($resources, 100);

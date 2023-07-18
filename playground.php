@@ -48,14 +48,14 @@ $sourceFirebase = new Firebase(
 //     $_ENV['NHOST_TEST_PASSWORD'] ?? '',
 // );
 
-// $sourceSupabase = new Supabase(
-//     $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
-//     $_ENV['SUPABASE_TEST_KEY'] ?? '',
-//     $_ENV['SUPABASE_TEST_HOST'] ?? '',
-//     $_ENV['SUPABASE_TEST_DATABASE'] ?? '',
-//     $_ENV['SUPABASE_TEST_USERNAME'] ?? '',
-//     $_ENV['SUPABASE_TEST_PASSWORD'] ?? '',
-// );
+$sourceSupabase = new Supabase(
+    $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
+    $_ENV['SUPABASE_TEST_KEY'] ?? '',
+    $_ENV['SUPABASE_TEST_HOST'] ?? '',
+    $_ENV['SUPABASE_TEST_DATABASE'] ?? '',
+    $_ENV['SUPABASE_TEST_USERNAME'] ?? '',
+    $_ENV['SUPABASE_TEST_PASSWORD'] ?? '',
+);
 
 /**
  * Initialise All Destination Adapters
@@ -72,8 +72,8 @@ $destinationLocal = new Local(__DIR__.'/localBackup/');
  * Initialise Transfer Class
  */
 $transfer = new Transfer(
-    $sourceAppwrite,
-    $destinationAppwrite
+    $sourceSupabase,
+    $destinationLocal
 );
 
 /**
@@ -87,15 +87,15 @@ $transfer->run(
         // Resource::TYPE_MEMBERSHIP,
 
         // Database
-        Resource::TYPE_DATABASE,
-        Resource::TYPE_COLLECTION,
-        Resource::TYPE_ATTRIBUTE,
-        Resource::TYPE_INDEX,
-        Resource::TYPE_DOCUMENT,
+        // Resource::TYPE_DATABASE,
+        // Resource::TYPE_COLLECTION,
+        // Resource::TYPE_ATTRIBUTE,
+        // Resource::TYPE_INDEX,
+        // Resource::TYPE_DOCUMENT,
 
         // Storage
-        // Resource::TYPE_BUCKET,
-        // Resource::TYPE_FILE,
+        Resource::TYPE_BUCKET,
+        Resource::TYPE_FILE,
     ],
     function (array $resources) {
     }

@@ -215,7 +215,7 @@ class Appwrite extends Destination
     protected function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var resource $resource */
+            /** @var Resource $resource */
             switch ($resource->getGroup()) {
                 case Transfer::GROUP_DATABASES:
                     $responseResource = $this->importDatabaseResource($resource);
@@ -319,7 +319,7 @@ class Appwrite extends Destination
                 $databaseService->createStringAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getSize(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_INTEGER:
-                /** @var int $attribute */
+                /** @var Integer $attribute */
                 $databaseService->createIntegerAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getMin(), $attribute->getMax() ?? null, $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_FLOAT:
@@ -327,7 +327,7 @@ class Appwrite extends Destination
                 $databaseService->createFloatAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), null, null, $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_BOOLEAN:
-                /** @var bool $attribute */
+                /** @var Boolean $attribute */
                 $databaseService->createBooleanAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_DATETIME:
@@ -393,7 +393,7 @@ class Appwrite extends Destination
         throw new \Exception('Attribute creation timeout');
     }
 
-    public function importFileResource(Resource $resource): Resource
+    public function importFileResource(File|Bucket $resource): Resource
     {
         $storageService = new Storage($this->client);
 
@@ -426,6 +426,7 @@ class Appwrite extends Destination
         } catch (\Exception $e) {
             $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
         } finally {
+            $resource->setData('');
             return $resource;
         }
     }
