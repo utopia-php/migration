@@ -438,6 +438,25 @@ class Appwrite extends Source
         }
     }
 
+    function cleanupSubcollectionData(array $document, bool $root = true) {
+        if ($root) {
+            unset($document['$id']);
+        }
+        unset($document['$permissions']);
+        unset($document['$collectionId']);
+        unset($document['$updatedAt']);
+        unset($document['$createdAt']);
+        unset($document['$databaseId']);
+
+        foreach ($document as $key => $value) {
+            if (is_array($value)) {
+                $document[$key] = $this->cleanupSubcollectionData($value, false);
+            }
+        }
+
+        return $document;
+    }
+
     private function exportDocuments(int $batchSize)
     {
         $databaseClient = new Databases($this->client);
@@ -465,12 +484,8 @@ class Appwrite extends Source
                 foreach ($response['documents'] as $document) {
                     $id = $document['$id'];
                     $permissions = $document['$permissions'];
-                    unset($document['$id']);
-                    unset($document['$permissions']);
-                    unset($document['$collectionId']);
-                    unset($document['$updatedAt']);
-                    unset($document['$createdAt']);
-                    unset($document['$databaseId']);
+
+                    $document = $this->cleanupSubcollectionData($document);
 
                     // Certain Appwrite versions allowed for data to be required but null
                     // This isn't allowed in modern versions so we need to remove it by comparing their attributes and replacing it with default value.

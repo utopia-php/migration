@@ -710,7 +710,7 @@ class Appwrite extends Destination
         if ($deployment->getSize() <= Transfer::STORAGE_MAX_CHUNK_SIZE) {
             $response = $this->client->call(
                 'POST',
-                "/v1/functions/{$functionId}/deployments",
+                "/functions/{$functionId}/deployments",
                 [
                     'content-type' => 'multipart/form-data',
                 ],

@@ -54,8 +54,8 @@ class Cache
      */
     public function update($resource)
     {
-        if (!in_array($resource, $this->cache[$resource->getName()])) {
-            throw new \Exception('Resource does not exist in cache');
+        if (!in_array($resource->getName(), $this->cache)) {
+            $this->add($resource);
         }
 
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
