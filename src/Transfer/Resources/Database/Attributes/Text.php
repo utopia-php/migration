@@ -14,7 +14,7 @@ class Text extends Attribute
     /**
      * @param  ?string  $default
      */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?string $default = null, int $size = 256)
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, string $default = null, int $size = 256)
     {
         parent::__construct($key, $collection, $required, $array);
         $this->default = $default;

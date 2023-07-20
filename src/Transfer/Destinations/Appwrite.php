@@ -215,7 +215,7 @@ class Appwrite extends Destination
     protected function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var Resource $resource */
+            /** @var resource $resource */
             switch ($resource->getGroup()) {
                 case Transfer::GROUP_DATABASES:
                     $responseResource = $this->importDatabaseResource($resource);
@@ -319,7 +319,7 @@ class Appwrite extends Destination
                 $databaseService->createStringAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getSize(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_INTEGER:
-                /** @var Integer $attribute */
+                /** @var int $attribute */
                 $databaseService->createIntegerAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getMin(), $attribute->getMax() ?? null, $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_FLOAT:
@@ -327,7 +327,7 @@ class Appwrite extends Destination
                 $databaseService->createFloatAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), null, null, $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_BOOLEAN:
-                /** @var Boolean $attribute */
+                /** @var bool $attribute */
                 $databaseService->createBooleanAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
                 break;
             case Attribute::TYPE_DATETIME:
@@ -577,7 +577,7 @@ class Appwrite extends Destination
         }
     }
 
-    public function importPasswordUser(User $user): array|null
+    public function importPasswordUser(User $user): ?array
     {
         $auth = new Users($this->client);
         $hash = $user->getPasswordHash();

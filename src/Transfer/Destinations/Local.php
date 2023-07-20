@@ -99,7 +99,7 @@ class Local extends Destination
     protected function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var Resource $resource */
+            /** @var resource $resource */
             switch ($resource->getName()) {
                 case Resource::TYPE_DEPLOYMENT:
                     /** @var Deployment $resource */
