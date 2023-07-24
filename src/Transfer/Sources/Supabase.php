@@ -343,6 +343,7 @@ class Supabase extends NHost
             }
         }
 
+        $this->previousReport = $report;
         return $report;
     }
 

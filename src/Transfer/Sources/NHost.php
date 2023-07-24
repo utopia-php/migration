@@ -207,6 +207,7 @@ class NHost extends Source
             $report['size'] = ($statement->fetchColumn()) / 1024 / 1024; // MB;
         }
 
+        $this->previousReport = $report;
         return $report;
     }
 

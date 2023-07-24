@@ -5,6 +5,7 @@ namespace Utopia\Transfer;
 abstract class Source extends Target
 {
     protected $transferCallback;
+    public $previousReport = [];
 
     public function callback(array $resources): void
     {

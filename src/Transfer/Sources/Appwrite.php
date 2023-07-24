@@ -238,6 +238,7 @@ class Appwrite extends Source
 
             $report['version'] = $this->call('GET', '/health/version', ['X-Appwrite-Key' => '', 'X-Appwrite-Project' => ''])['version'];
 
+            $this->previousReport = $report;
             return $report;
         } catch (\Exception $e) {
             if ($e->getCode() === 403) {
