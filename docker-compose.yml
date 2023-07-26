@@ -33,19 +33,8 @@ services:
       target: mock-api
     networks:
       - tests
-    ports:
-      - "3000:3000"
     volumes:
-      - ./tests/resources/nhost:/app
-
-  adminer:
-    image: adminer
-    container_name: adminer
-    restart: always
-    ports:
-      - 9506:8080
-    networks:
-      - tests
+      - ./tests/Transfer/resources/nhost:/mockoon
 
   tests:
     build:
@@ -59,6 +48,7 @@ services:
     depends_on:
       - supabase-db
       - nhost-db
+      - nhost-storage
     environment:
       - NHOST_DB_URL=postgres://postgres:postgres@nhost-db:5432/postgres
       - SUPABASE_DB_URL=postgres://postgres:postgres@supabase-db:5432/postgres

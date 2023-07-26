@@ -831,7 +831,6 @@ ALTER FUNCTION storage.update_updated_at_column() OWNER TO supabase_storage_admi
 -- Name: secrets_encrypt_secret_secret(); Type: FUNCTION; Schema: vault; Owner: supabase_admin
 --
 
-
 ALTER FUNCTION vault.secrets_encrypt_secret_secret() OWNER TO supabase_admin;
 
 SET default_tablespace = '';

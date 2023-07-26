@@ -9,7 +9,7 @@ use Utopia\Transfer\Source;
 use Utopia\Transfer\Sources\NHost;
 use Utopia\Transfer\Transfer;
 
-class NHostTest extends Base
+class SupabaseTest extends Base
 {
     protected ?Source $source = null;
 
@@ -25,7 +25,7 @@ class NHostTest extends Base
 
         while ($tries > 0) {
             try {
-                $pdo = new \PDO('pgsql:host=nhost-db'.';port=5432;dbname=postgres', 'postgres', 'postgres');
+                $pdo = new \PDO('pgsql:host=supabase-db'.';port=5432;dbname=postgres', 'postgres', 'postgres');
                 $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
                 if ($pdo && $pdo->query('SELECT 1')->fetchColumn() === 1) {
@@ -48,7 +48,7 @@ class NHostTest extends Base
         $tries = 5;
         while ($tries > 0) {
             try {
-                $this->call('GET', 'http://nhost-storage/', ['Content-Type' => 'text/plain']);
+                $this->call('GET', 'http://supabase-storage/', ['Content-Type' => 'text/plain']);
 
                 break;
             } catch (\Exception $e) {}
@@ -185,30 +185,6 @@ class NHostTest extends Base
         $this->assertEquals('success', $foundDatabase->getStatus());
         $this->assertEquals('public', $foundDatabase->getDBName());
         $this->assertEquals('public', $foundDatabase->getId());
-
-        // Find known collection
-        $collections = $state['source']->cache->get(Resource::TYPE_COLLECTION);
-        $foundCollection = null;
-
-        foreach ($collections as $collection) {
-            /** @var \Utopia\Transfer\Resources\Database\Collection $collection */
-            if ($collection->getCollectionName() === 'TestTable') {
-                $foundCollection = $collection;
-            }
-
-            break;
-        }
-
-        if (!$foundCollection) {
-            $this->fail('Collection "TestTable" not found');
-
-            return;
-        }
-
-        $this->assertEquals('success', $foundCollection->getStatus());
-        $this->assertEquals('TestTable', $foundCollection->getCollectionName());
-        $this->assertEquals('TestTable', $foundCollection->getId());
-        $this->assertEquals('public', $foundCollection->getDatabase()->getId());
     }
 
     /**

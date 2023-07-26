@@ -26,13 +26,19 @@ class Cache
      */
     public function add($resource)
     {
-        if (! $resource->getInternalId()) {
+        if (!$resource->getInternalId()) {
             $resourceId = uniqid();
             if (isset($this->cache[$resource->getName()][$resourceId])) {
                 $resourceId = uniqid();
             }
             $resource->setInternalId(uniqid());
         }
+
+        if ($resource->getName() == Resource::TYPE_FILE || $resource->getName() == Resource::TYPE_FUNCTION) {
+            /** @var \Utopia\Transfer\Resources\Storage\File|\Utopia\Transfer\Resources\Functions\Func $resource */
+            $resource->setData(''); // Prevent Memory Leak
+        }
+
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
     }
 

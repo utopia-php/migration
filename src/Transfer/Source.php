@@ -21,7 +21,7 @@ abstract class Source extends Target
             $prunedResurces = [];
             foreach ($returnedResources as $resource) {
                 /** @var Resource $resource */
-                if (! in_array($resource->getName(), $resources)) {
+                if (!in_array($resource->getName(), $resources)) {
                     $resource->setStatus(Resource::STATUS_SKIPPED);
                 } else {
                     $prunedResurces[] = $resource;

@@ -224,6 +224,7 @@ class Supabase extends NHost
         $this->port = $port;
 
         $this->headers['Authorization'] = 'Bearer '.$this->key;
+        $this->headers['apiKey'] = $this->key;
 
         try {
             $this->pdo = new \PDO('pgsql:host='.$this->host.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);

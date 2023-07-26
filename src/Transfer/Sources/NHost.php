@@ -359,7 +359,9 @@ class NHost extends Source
             foreach ($databaseIndexes as $index) {
                 $result = $this->convertIndex($index, $collection);
 
-                $indexes[] = $result;
+                if ($result) {
+                    $indexes[] = $result;
+                }
             }
 
             $this->callback($indexes);

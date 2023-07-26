@@ -7,29 +7,6 @@ SET default_transaction_read_only = off;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 
-
-
---
--- Drop roles
---
-
-DROP ROLE IF EXISTS anon;
-DROP ROLE IF EXISTS authenticated;
-DROP ROLE IF EXISTS authenticator;
-DROP ROLE IF EXISTS dashboard_user;
-DROP ROLE IF EXISTS pgbouncer;
-DROP ROLE IF EXISTS pgsodium_keyholder;
-DROP ROLE IF EXISTS pgsodium_keyiduser;
-DROP ROLE IF EXISTS pgsodium_keymaker;
-DROP ROLE IF EXISTS pgtle_admin;
-DROP ROLE IF EXISTS service_role;
-DROP ROLE IF EXISTS supabase_admin;
-DROP ROLE IF EXISTS supabase_auth_admin;
-DROP ROLE IF EXISTS supabase_read_only_user;
-DROP ROLE IF EXISTS supabase_replication_admin;
-DROP ROLE IF EXISTS supabase_storage_admin;
-
-
 --
 -- Roles
 --

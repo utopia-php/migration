@@ -39,14 +39,14 @@ $sourceFirebase = new Firebase(
     $firebase['project_id'] ?? '',
 );
 
-// $sourceNHost = new NHost(
-//     $_ENV['NHOST_TEST_SUBDOMAIN'] ?? '',
-//     $_ENV['NHOST_TEST_REGION'] ?? '',
-//     $_ENV['NHOST_TEST_SECRET'] ?? '',
-//     $_ENV['NHOST_TEST_DATABASE'] ?? '',
-//     $_ENV['NHOST_TEST_USERNAME'] ?? '',
-//     $_ENV['NHOST_TEST_PASSWORD'] ?? '',
-// );
+$sourceNHost = new NHost(
+    $_ENV['NHOST_TEST_SUBDOMAIN'] ?? '',
+    $_ENV['NHOST_TEST_REGION'] ?? '',
+    $_ENV['NHOST_TEST_SECRET'] ?? '',
+    $_ENV['NHOST_TEST_DATABASE'] ?? '',
+    $_ENV['NHOST_TEST_USERNAME'] ?? '',
+    $_ENV['NHOST_TEST_PASSWORD'] ?? '',
+);
 
 $sourceSupabase = new Supabase(
     $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
@@ -72,7 +72,7 @@ $destinationLocal = new Local(__DIR__.'/localBackup/');
  * Initialise Transfer Class
  */
 $transfer = new Transfer(
-    $sourceAppwrite,
+    $sourceNHost,
     $destinationLocal
 );
 
@@ -161,5 +161,3 @@ foreach ($cache as $type => $resources) {
         var_dump($resource);
     }
 }
-
-return $report;

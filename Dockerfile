@@ -11,14 +11,17 @@ COPY ./tests/Transfer/resources/nhost/aaa.sql /docker-entrypoint-initdb.d/aaa.sq
 FROM node:20.4-alpine3.17 as mock-api
 WORKDIR /app
 RUN apk add --no-cache git
-RUN git clone https://github.com/PineappleIOnic/mockoon.git . 
+RUN git clone https://github.com/PineappleIOnic/mockoon.git
+WORKDIR /app/mockoon
 RUN git checkout origin/feat-implement-range
 RUN apk add python3 make gcc g++
-WORKDIR /app/mockoon
 RUN npm run bootstrap
 RUN npm run build:libs
 RUN npm run build:cli
-ENTRYPOINT /app/mockoon/packages/cli/bin/run -d /app/api.json
+RUN cd packages/cli && npm install -g .
+RUN adduser --shell /bin/sh --disabled-password --gecos "" mockoon
+USER mockoon
+CMD mockoon-cli start --data /mockoon/api.json --port 80 --disable-log-to-file && tail -f /dev/null
 
 FROM composer:2.0 as composer
 WORKDIR /usr/local/src/

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 14.5 (Debian 14.5-2.pgdg110+2)
+-- Dumped from database version 14.6 (Debian 14.6-1.pgdg110+1)
 -- Dumped by pg_dump version 15.3
 
 SET statement_timeout = 0;
@@ -15,9 +15,6 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
-
--- Name: auth; Type: SCHEMA; Schema: -; Owner: nhost_admin
---
 
 CREATE SCHEMA auth;
 
@@ -263,15 +260,29 @@ COMMENT ON TABLE auth.providers IS 'List of available Oauth providers. Don''t mo
 
 
 --
+-- Name: refresh_token_types; Type: TABLE; Schema: auth; Owner: nhost_auth_admin
+--
+
+CREATE TABLE auth.refresh_token_types (
+    value text NOT NULL,
+    comment text
+);
+
+
+ALTER TABLE auth.refresh_token_types OWNER TO nhost_auth_admin;
+
+--
 -- Name: refresh_tokens; Type: TABLE; Schema: auth; Owner: nhost_auth_admin
 --
 
 CREATE TABLE auth.refresh_tokens (
-    refresh_token uuid NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     expires_at timestamp with time zone NOT NULL,
     user_id uuid NOT NULL,
-    refresh_token_hash character varying(255) GENERATED ALWAYS AS (sha256(((refresh_token)::text)::bytea)) STORED
+    metadata jsonb,
+    type text DEFAULT 'regular'::text NOT NULL,
+    refresh_token_hash character varying(255)
 );
 
 
@@ -282,13 +293,6 @@ ALTER TABLE auth.refresh_tokens OWNER TO nhost_auth_admin;
 --
 
 COMMENT ON TABLE auth.refresh_tokens IS 'User refresh tokens. Hasura auth uses them to rotate new access tokens as long as the refresh token is not expired. Don''t modify its structure as Hasura Auth relies on it to function properly.';
-
-
---
--- Name: COLUMN refresh_tokens.refresh_token; Type: COMMENT; Schema: auth; Owner: nhost_auth_admin
---
-
-COMMENT ON COLUMN auth.refresh_tokens.refresh_token IS 'DEPRECATED: auto-generated refresh token id. Will be replaced by a genereric id column that will be used as a primary key, not the refresh token itself. Use refresh_token_hash instead.';
 
 
 --
@@ -553,57 +557,27 @@ CREATE TABLE hdb_catalog.hdb_version (
     version text NOT NULL,
     upgraded_on timestamp with time zone NOT NULL,
     cli_state jsonb DEFAULT '{}'::jsonb NOT NULL,
-    console_state jsonb DEFAULT '{}'::jsonb NOT NULL
+    console_state jsonb DEFAULT '{}'::jsonb NOT NULL,
+    ee_client_id text,
+    ee_client_secret text
 );
 
 
 ALTER TABLE hdb_catalog.hdb_version OWNER TO nhost_hasura;
 
 --
--- Name: data_test; Type: TABLE; Schema: public; Owner: nhost_hasura
+-- Name: TestTable; Type: TABLE; Schema: public; Owner: nhost_hasura
 --
 
-CREATE TABLE public.data_test (
-    text text NOT NULL,
-    charvar character varying NOT NULL,
-    "char" bpchar NOT NULL,
-    uuid uuid NOT NULL,
-    json json NOT NULL,
-    jsonb jsonb NOT NULL,
-    "smallint" smallint NOT NULL,
-    "integer" integer NOT NULL,
-    "bigint" bigint NOT NULL,
-    "decimal" numeric NOT NULL,
-    "numeric" numeric NOT NULL,
-    "real" real NOT NULL,
-    double_precision double precision NOT NULL,
-    bool boolean NOT NULL,
-    date date NOT NULL,
-    "timestamp" timestamp without time zone NOT NULL,
-    timestamptz timestamp with time zone NOT NULL,
-    "time" time without time zone NOT NULL,
-    timetz timestamp with time zone NOT NULL,
-    "interval" interval NOT NULL,
-    bytea bytea NOT NULL,
-    money money NOT NULL
+CREATE TABLE public."TestTable" (
+    string text NOT NULL,
+    "integer" bigint NOT NULL,
+    "boolean" boolean NOT NULL,
+    date date NOT NULL
 );
 
 
-ALTER TABLE public.data_test OWNER TO nhost_hasura;
-
---
--- Name: test_table_1; Type: TABLE; Schema: public; Owner: nhost_hasura
---
-
-CREATE TABLE public.test_table_1 (
-    name text NOT NULL,
-    uuid uuid,
-    user_data json NOT NULL,
-    json_binary jsonb
-);
-
-
-ALTER TABLE public.test_table_1 OWNER TO nhost_hasura;
+ALTER TABLE public."TestTable" OWNER TO nhost_hasura;
 
 --
 -- Name: buckets; Type: TABLE; Schema: storage; Owner: nhost_storage_admin
@@ -661,18 +635,22 @@ ALTER TABLE storage.schema_migrations OWNER TO nhost_storage_admin;
 --
 
 COPY auth.migrations (id, name, hash, executed_at) FROM stdin;
-0	create-migrations-table	9c0c864e0ccb0f8d1c77ab0576ef9f2841ec1b68	2023-04-18 03:08:07.102223
-1	create-initial-tables	c16083c88329c867581a9c73c3f140783a1a5df4	2023-04-18 03:08:07.190394
-2	custom-user-fields	78236c9c2b50da88786bcf50099dd290f820e000	2023-04-18 03:08:07.194918
-3	discord-twitch-providers	857db1e92c7a8034e61a3d88ea672aec9b424036	2023-04-18 03:08:07.198837
-4	provider-request-options	42428265112b904903d9ad7833d8acf2812a00ed	2023-04-18 03:08:07.202855
-5	table-comments	78f76f88eff3b11ebab9be4f2469020dae017110	2023-04-18 03:08:07.204858
-6	setup-webauthn	87ba279363f8ecf8b450a681938a74b788cf536c	2023-04-18 03:08:07.221819
-7	add_authenticator_nickname	d32fd62bb7a441eea48c5434f5f3744f2e334288	2023-04-18 03:08:07.22606
-8	workos-provider	0727238a633ff119bedcbebfec6a9ea83b2bd01d	2023-04-18 03:08:07.230566
-9	rename-authenticator-to-security-key	fd7e00bef4d141a6193cf9642afd88fb6fe2b283	2023-04-18 03:08:07.235551
-10	azuread-provider	f492ff4780f8210016e1c12fa0ed83eb4278a780	2023-04-18 03:08:07.243968
-11	add_refresh_token_hash_column	62a2cd295f63153dd9f16f3159d1ab2a49b01c2f	2023-04-18 03:08:07.262305
+0	create-migrations-table	9c0c864e0ccb0f8d1c77ab0576ef9f2841ec1b68	2023-07-25 11:03:00.726234
+1	create-initial-tables	c16083c88329c867581a9c73c3f140783a1a5df4	2023-07-25 11:03:00.800607
+2	custom-user-fields	78236c9c2b50da88786bcf50099dd290f820e000	2023-07-25 11:03:00.805145
+3	discord-twitch-providers	857db1e92c7a8034e61a3d88ea672aec9b424036	2023-07-25 11:03:00.809131
+4	provider-request-options	42428265112b904903d9ad7833d8acf2812a00ed	2023-07-25 11:03:00.813437
+5	table-comments	78f76f88eff3b11ebab9be4f2469020dae017110	2023-07-25 11:03:00.815186
+6	setup-webauthn	87ba279363f8ecf8b450a681938a74b788cf536c	2023-07-25 11:03:00.829301
+7	add_authenticator_nickname	d32fd62bb7a441eea48c5434f5f3744f2e334288	2023-07-25 11:03:00.832627
+8	workos-provider	0727238a633ff119bedcbebfec6a9ea83b2bd01d	2023-07-25 11:03:00.83641
+9	rename-authenticator-to-security-key	fd7e00bef4d141a6193cf9642afd88fb6fe2b283	2023-07-25 11:03:00.840136
+10	azuread-provider	f492ff4780f8210016e1c12fa0ed83eb4278a780	2023-07-25 11:03:00.84337
+11	add_refresh_token_hash_column	62a2cd295f63153dd9f16f3159d1ab2a49b01c2f	2023-07-25 11:03:00.852059
+12	add_refresh_token_metadata	3daa907e813d1e8b72107112a89916909702897c	2023-07-25 11:03:00.858989
+13	add_refresh_token_type	5f2472c56df4c4735f6add046782680eb27484e5	2023-07-25 11:03:00.862626
+14	alter_refresh_token_type	a059cb9fda67f286e6bd2765f8aa7ea1e4a7fd6c	2023-07-25 11:03:00.879516
+15	rename_refresh_token_column	71e1d7fa6e6056fa193b4ff4d6f8e61cf3f5cd9f	2023-07-25 11:03:00.883585
 \.
 
 
@@ -708,10 +686,20 @@ azuread
 
 
 --
+-- Data for Name: refresh_token_types; Type: TABLE DATA; Schema: auth; Owner: nhost_auth_admin
+--
+
+COPY auth.refresh_token_types (value, comment) FROM stdin;
+regular	Regular refresh token
+pat	Personal access token
+\.
+
+
+--
 -- Data for Name: refresh_tokens; Type: TABLE DATA; Schema: auth; Owner: nhost_auth_admin
 --
 
-COPY auth.refresh_tokens (refresh_token, created_at, expires_at, user_id) FROM stdin;
+COPY auth.refresh_tokens (id, created_at, expires_at, user_id, metadata, type, refresh_token_hash) FROM stdin;
 \.
 
 
@@ -739,8 +727,8 @@ COPY auth.user_providers (id, created_at, updated_at, user_id, access_token, ref
 --
 
 COPY auth.user_roles (id, created_at, user_id, role) FROM stdin;
-31f489e2-18a2-446f-989d-5c51aa490d38	2023-05-11 05:01:30.97538+00	d148130e-b92f-4aed-ba91-7885a988dbad	me
-fefa3f20-6d80-4593-8753-09c29cf5446a	2023-05-11 05:01:30.97538+00	d148130e-b92f-4aed-ba91-7885a988dbad	user
+1503b765-f2a4-45de-956d-05c42a7e48de	2023-07-25 11:04:13.96605+00	8ff692dc-3f4f-4be1-879c-aafa46eadf10	me
+9c231460-8803-4269-b689-212e56ee7e72	2023-07-25 11:04:13.96605+00	8ff692dc-3f4f-4be1-879c-aafa46eadf10	user
 \.
 
 
@@ -757,7 +745,7 @@ COPY auth.user_security_keys (id, user_id, credential_id, credential_public_key,
 --
 
 COPY auth.users (id, created_at, updated_at, last_seen, disabled, display_name, avatar_url, locale, email, phone_number, password_hash, email_verified, phone_number_verified, new_email, otp_method_last_used, otp_hash, otp_hash_expires_at, default_role, is_anonymous, totp_secret, active_mfa_type, ticket, ticket_expires_at, metadata, webauthn_current_challenge) FROM stdin;
-d148130e-b92f-4aed-ba91-7885a988dbad	2023-05-11 05:01:30.97538+00	2023-05-11 05:01:30.97538+00	\N	f	test@test.com	https://s.gravatar.com/avatar/b642b4217b34b1e8d3bd915fc65c4452?r=g&default=blank	en	test@test.com	\N	$2a$10$J77xU.nuyH2f/6k1jfsn..Mty1i9dMeuKQdMcuBAqLcrDW7f9vKoK	f	f	\N	\N	\N	2023-05-11 05:01:30.97538+00	user	f	\N	\N	verifyEmail:872dc13f-c73d-43a7-ad7b-bd88d0a8e43c	2023-06-10 05:01:30.967+00	{}	\N
+8ff692dc-3f4f-4be1-879c-aafa46eadf10	2023-07-25 11:04:13.96605+00	2023-07-25 11:04:13.96605+00	\N	f	test@test.com	https://s.gravatar.com/avatar/b642b4217b34b1e8d3bd915fc65c4452?r=g&default=blank	en	test@test.com	\N	$2a$10$ARQ/f.K6OmCjZ8XF0U.6fezPMlxDqsmcl0Rs6xQVkvj62u7gcSzOW	f	f	\N	\N	\N	2023-07-25 11:04:13.96605+00	user	f	\N	\N	verifyEmail:d8eddf37-8a59-4a63-a67f-7a2baf5d2fbb	2023-08-24 11:04:13.95+00	{}	\N
 \.
 
 
@@ -790,7 +778,7 @@ COPY hdb_catalog.hdb_cron_events (id, trigger_name, scheduled_time, status, trie
 --
 
 COPY hdb_catalog.hdb_metadata (id, metadata, resource_version) FROM stdin;
-1	{"sources":[{"configuration":{"connection_info":{"database_url":{"from_env":"HASURA_GRAPHQL_DATABASE_URL"},"isolation_level":"read-committed","pool_settings":{"connection_lifetime":600,"idle_timeout":180,"max_connections":50,"retries":1},"use_prepared_statements":true}},"kind":"postgres","name":"default","tables":[{"configuration":{"column_config":{"id":{"custom_name":"id"},"options":{"custom_name":"options"}},"custom_column_names":{"id":"id","options":"options"},"custom_name":"authProviderRequests","custom_root_fields":{"delete":"deleteAuthProviderRequests","delete_by_pk":"deleteAuthProviderRequest","insert":"insertAuthProviderRequests","insert_one":"insertAuthProviderRequest","select":"authProviderRequests","select_aggregate":"authProviderRequestsAggregate","select_by_pk":"authProviderRequest","update":"updateAuthProviderRequests","update_by_pk":"updateAuthProviderRequest"}},"table":{"name":"provider_requests","schema":"auth"}},{"array_relationships":[{"name":"userProviders","using":{"foreign_key_constraint_on":{"column":"provider_id","table":{"name":"user_providers","schema":"auth"}}}}],"configuration":{"column_config":{"id":{"custom_name":"id"}},"custom_column_names":{"id":"id"},"custom_name":"authProviders","custom_root_fields":{"delete":"deleteAuthProviders","delete_by_pk":"deleteAuthProvider","insert":"insertAuthProviders","insert_one":"insertAuthProvider","select":"authProviders","select_aggregate":"authProvidersAggregate","select_by_pk":"authProvider","update":"updateAuthProviders","update_by_pk":"updateAuthProvider"}},"table":{"name":"providers","schema":"auth"}},{"configuration":{"column_config":{"created_at":{"custom_name":"createdAt"},"expires_at":{"custom_name":"expiresAt"},"refresh_token":{"custom_name":"refreshToken"},"refresh_token_hash":{"custom_name":"refreshTokenHash"},"user_id":{"custom_name":"userId"}},"custom_column_names":{"created_at":"createdAt","expires_at":"expiresAt","refresh_token":"refreshToken","refresh_token_hash":"refreshTokenHash","user_id":"userId"},"custom_name":"authRefreshTokens","custom_root_fields":{"delete":"deleteAuthRefreshTokens","delete_by_pk":"deleteAuthRefreshToken","insert":"insertAuthRefreshTokens","insert_one":"insertAuthRefreshToken","select":"authRefreshTokens","select_aggregate":"authRefreshTokensAggregate","select_by_pk":"authRefreshToken","update":"updateAuthRefreshTokens","update_by_pk":"updateAuthRefreshToken"}},"object_relationships":[{"name":"user","using":{"foreign_key_constraint_on":"user_id"}}],"table":{"name":"refresh_tokens","schema":"auth"}},{"array_relationships":[{"name":"userRoles","using":{"foreign_key_constraint_on":{"column":"role","table":{"name":"user_roles","schema":"auth"}}}},{"name":"usersByDefaultRole","using":{"foreign_key_constraint_on":{"column":"default_role","table":{"name":"users","schema":"auth"}}}}],"configuration":{"column_config":{"role":{"custom_name":"role"}},"custom_column_names":{"role":"role"},"custom_name":"authRoles","custom_root_fields":{"delete":"deleteAuthRoles","delete_by_pk":"deleteAuthRole","insert":"insertAuthRoles","insert_one":"insertAuthRole","select":"authRoles","select_aggregate":"authRolesAggregate","select_by_pk":"authRole","update":"updateAuthRoles","update_by_pk":"updateAuthRole"}},"table":{"name":"roles","schema":"auth"}},{"configuration":{"column_config":{"access_token":{"custom_name":"accessToken"},"created_at":{"custom_name":"createdAt"},"id":{"custom_name":"id"},"provider_id":{"custom_name":"providerId"},"provider_user_id":{"custom_name":"providerUserId"},"refresh_token":{"custom_name":"refreshToken"},"updated_at":{"custom_name":"updatedAt"},"user_id":{"custom_name":"userId"}},"custom_column_names":{"access_token":"accessToken","created_at":"createdAt","id":"id","provider_id":"providerId","provider_user_id":"providerUserId","refresh_token":"refreshToken","updated_at":"updatedAt","user_id":"userId"},"custom_name":"authUserProviders","custom_root_fields":{"delete":"deleteAuthUserProviders","delete_by_pk":"deleteAuthUserProvider","insert":"insertAuthUserProviders","insert_one":"insertAuthUserProvider","select":"authUserProviders","select_aggregate":"authUserProvidersAggregate","select_by_pk":"authUserProvider","update":"updateAuthUserProviders","update_by_pk":"updateAuthUserProvider"}},"object_relationships":[{"name":"provider","using":{"foreign_key_constraint_on":"provider_id"}},{"name":"user","using":{"foreign_key_constraint_on":"user_id"}}],"table":{"name":"user_providers","schema":"auth"}},{"configuration":{"column_config":{"created_at":{"custom_name":"createdAt"},"id":{"custom_name":"id"},"role":{"custom_name":"role"},"user_id":{"custom_name":"userId"}},"custom_column_names":{"created_at":"createdAt","id":"id","role":"role","user_id":"userId"},"custom_name":"authUserRoles","custom_root_fields":{"delete":"deleteAuthUserRoles","delete_by_pk":"deleteAuthUserRole","insert":"insertAuthUserRoles","insert_one":"insertAuthUserRole","select":"authUserRoles","select_aggregate":"authUserRolesAggregate","select_by_pk":"authUserRole","update":"updateAuthUserRoles","update_by_pk":"updateAuthUserRole"}},"object_relationships":[{"name":"roleByRole","using":{"foreign_key_constraint_on":"role"}},{"name":"user","using":{"foreign_key_constraint_on":"user_id"}}],"table":{"name":"user_roles","schema":"auth"}},{"configuration":{"column_config":{"credential_id":{"custom_name":"credentialId"},"credential_public_key":{"custom_name":"credentialPublicKey"},"id":{"custom_name":"id"},"user_id":{"custom_name":"userId"}},"custom_column_names":{"credential_id":"credentialId","credential_public_key":"credentialPublicKey","id":"id","user_id":"userId"},"custom_name":"authUserSecurityKeys","custom_root_fields":{"delete":"deleteAuthUserSecurityKeys","delete_by_pk":"deleteAuthUserSecurityKey","insert":"insertAuthUserSecurityKeys","insert_one":"insertAuthUserSecurityKey","select":"authUserSecurityKeys","select_aggregate":"authUserSecurityKeysAggregate","select_by_pk":"authUserSecurityKey","update":"updateAuthUserSecurityKeys","update_by_pk":"updateAuthUserSecurityKey"}},"object_relationships":[{"name":"user","using":{"foreign_key_constraint_on":"user_id"}}],"table":{"name":"user_security_keys","schema":"auth"}},{"array_relationships":[{"name":"refreshTokens","using":{"foreign_key_constraint_on":{"column":"user_id","table":{"name":"refresh_tokens","schema":"auth"}}}},{"name":"roles","using":{"foreign_key_constraint_on":{"column":"user_id","table":{"name":"user_roles","schema":"auth"}}}},{"name":"securityKeys","using":{"foreign_key_constraint_on":{"column":"user_id","table":{"name":"user_security_keys","schema":"auth"}}}},{"name":"userProviders","using":{"foreign_key_constraint_on":{"column":"user_id","table":{"name":"user_providers","schema":"auth"}}}}],"configuration":{"column_config":{"active_mfa_type":{"custom_name":"activeMfaType"},"avatar_url":{"custom_name":"avatarUrl"},"created_at":{"custom_name":"createdAt"},"default_role":{"custom_name":"defaultRole"},"disabled":{"custom_name":"disabled"},"display_name":{"custom_name":"displayName"},"email":{"custom_name":"email"},"email_verified":{"custom_name":"emailVerified"},"id":{"custom_name":"id"},"is_anonymous":{"custom_name":"isAnonymous"},"last_seen":{"custom_name":"lastSeen"},"locale":{"custom_name":"locale"},"new_email":{"custom_name":"newEmail"},"otp_hash":{"custom_name":"otpHash"},"otp_hash_expires_at":{"custom_name":"otpHashExpiresAt"},"otp_method_last_used":{"custom_name":"otpMethodLastUsed"},"password_hash":{"custom_name":"passwordHash"},"phone_number":{"custom_name":"phoneNumber"},"phone_number_verified":{"custom_name":"phoneNumberVerified"},"ticket":{"custom_name":"ticket"},"ticket_expires_at":{"custom_name":"ticketExpiresAt"},"totp_secret":{"custom_name":"totpSecret"},"updated_at":{"custom_name":"updatedAt"},"webauthn_current_challenge":{"custom_name":"currentChallenge"}},"custom_column_names":{"active_mfa_type":"activeMfaType","avatar_url":"avatarUrl","created_at":"createdAt","default_role":"defaultRole","disabled":"disabled","display_name":"displayName","email":"email","email_verified":"emailVerified","id":"id","is_anonymous":"isAnonymous","last_seen":"lastSeen","locale":"locale","new_email":"newEmail","otp_hash":"otpHash","otp_hash_expires_at":"otpHashExpiresAt","otp_method_last_used":"otpMethodLastUsed","password_hash":"passwordHash","phone_number":"phoneNumber","phone_number_verified":"phoneNumberVerified","ticket":"ticket","ticket_expires_at":"ticketExpiresAt","totp_secret":"totpSecret","updated_at":"updatedAt","webauthn_current_challenge":"currentChallenge"},"custom_name":"users","custom_root_fields":{"delete":"deleteUsers","delete_by_pk":"deleteUser","insert":"insertUsers","insert_one":"insertUser","select":"users","select_aggregate":"usersAggregate","select_by_pk":"user","update":"updateUsers","update_by_pk":"updateUser"}},"object_relationships":[{"name":"defaultRoleByRole","using":{"foreign_key_constraint_on":"default_role"}}],"table":{"name":"users","schema":"auth"}},{"table":{"name":"data_test","schema":"public"}},{"table":{"name":"test_table_1","schema":"public"}},{"array_relationships":[{"name":"files","using":{"foreign_key_constraint_on":{"column":"bucket_id","table":{"name":"files","schema":"storage"}}}}],"configuration":{"column_config":{"cache_control":{"custom_name":"cacheControl"},"created_at":{"custom_name":"createdAt"},"download_expiration":{"custom_name":"downloadExpiration"},"id":{"custom_name":"id"},"max_upload_file_size":{"custom_name":"maxUploadFileSize"},"min_upload_file_size":{"custom_name":"minUploadFileSize"},"presigned_urls_enabled":{"custom_name":"presignedUrlsEnabled"},"updated_at":{"custom_name":"updatedAt"}},"custom_column_names":{"cache_control":"cacheControl","created_at":"createdAt","download_expiration":"downloadExpiration","id":"id","max_upload_file_size":"maxUploadFileSize","min_upload_file_size":"minUploadFileSize","presigned_urls_enabled":"presignedUrlsEnabled","updated_at":"updatedAt"},"custom_name":"buckets","custom_root_fields":{"delete":"deleteBuckets","delete_by_pk":"deleteBucket","insert":"insertBuckets","insert_one":"insertBucket","select":"buckets","select_aggregate":"bucketsAggregate","select_by_pk":"bucket","update":"updateBuckets","update_by_pk":"updateBucket"}},"table":{"name":"buckets","schema":"storage"}},{"configuration":{"column_config":{"bucket_id":{"custom_name":"bucketId"},"created_at":{"custom_name":"createdAt"},"etag":{"custom_name":"etag"},"id":{"custom_name":"id"},"is_uploaded":{"custom_name":"isUploaded"},"mime_type":{"custom_name":"mimeType"},"name":{"custom_name":"name"},"size":{"custom_name":"size"},"updated_at":{"custom_name":"updatedAt"},"uploaded_by_user_id":{"custom_name":"uploadedByUserId"}},"custom_column_names":{"bucket_id":"bucketId","created_at":"createdAt","etag":"etag","id":"id","is_uploaded":"isUploaded","mime_type":"mimeType","name":"name","size":"size","updated_at":"updatedAt","uploaded_by_user_id":"uploadedByUserId"},"custom_name":"files","custom_root_fields":{"delete":"deleteFiles","delete_by_pk":"deleteFile","insert":"insertFiles","insert_one":"insertFile","select":"files","select_aggregate":"filesAggregate","select_by_pk":"file","update":"updateFiles","update_by_pk":"updateFile"}},"object_relationships":[{"name":"bucket","using":{"foreign_key_constraint_on":"bucket_id"}}],"table":{"name":"files","schema":"storage"}}]}],"version":3}	22
+1	{"sources":[{"configuration":{"connection_info":{"database_url":{"from_env":"HASURA_GRAPHQL_DATABASE_URL"},"isolation_level":"read-committed","pool_settings":{"connection_lifetime":600,"idle_timeout":180,"max_connections":50,"retries":1},"use_prepared_statements":true}},"kind":"postgres","name":"default","tables":[{"configuration":{"column_config":{"id":{"custom_name":"id"},"options":{"custom_name":"options"}},"custom_column_names":{"id":"id","options":"options"},"custom_name":"authProviderRequests","custom_root_fields":{"delete":"deleteAuthProviderRequests","delete_by_pk":"deleteAuthProviderRequest","insert":"insertAuthProviderRequests","insert_one":"insertAuthProviderRequest","select":"authProviderRequests","select_aggregate":"authProviderRequestsAggregate","select_by_pk":"authProviderRequest","update":"updateAuthProviderRequests","update_by_pk":"updateAuthProviderRequest"}},"table":{"name":"provider_requests","schema":"auth"}},{"array_relationships":[{"name":"userProviders","using":{"foreign_key_constraint_on":{"column":"provider_id","table":{"name":"user_providers","schema":"auth"}}}}],"configuration":{"column_config":{"id":{"custom_name":"id"}},"custom_column_names":{"id":"id"},"custom_name":"authProviders","custom_root_fields":{"delete":"deleteAuthProviders","delete_by_pk":"deleteAuthProvider","insert":"insertAuthProviders","insert_one":"insertAuthProvider","select":"authProviders","select_aggregate":"authProvidersAggregate","select_by_pk":"authProvider","update":"updateAuthProviders","update_by_pk":"updateAuthProvider"}},"table":{"name":"providers","schema":"auth"}},{"array_relationships":[{"name":"refreshTokens","using":{"foreign_key_constraint_on":{"column":"type","table":{"name":"refresh_tokens","schema":"auth"}}}}],"configuration":{"column_config":{},"custom_column_names":{},"custom_name":"authRefreshTokenTypes","custom_root_fields":{"delete":"deleteAuthRefreshTokenTypes","delete_by_pk":"deleteAuthRefreshTokenType","insert":"insertAuthRefreshTokenTypes","insert_one":"insertAuthRefreshTokenType","select":"authRefreshTokenTypes","select_aggregate":"authRefreshTokenTypesAggregate","select_by_pk":"authRefreshTokenType","update":"updateAuthRefreshTokenTypes","update_by_pk":"updateAuthRefreshTokenType"}},"is_enum":true,"table":{"name":"refresh_token_types","schema":"auth"}},{"configuration":{"column_config":{"created_at":{"custom_name":"createdAt"},"expires_at":{"custom_name":"expiresAt"},"refresh_token_hash":{"custom_name":"refreshTokenHash"},"user_id":{"custom_name":"userId"}},"custom_column_names":{"created_at":"createdAt","expires_at":"expiresAt","refresh_token_hash":"refreshTokenHash","user_id":"userId"},"custom_name":"authRefreshTokens","custom_root_fields":{"delete":"deleteAuthRefreshTokens","delete_by_pk":"deleteAuthRefreshToken","insert":"insertAuthRefreshTokens","insert_one":"insertAuthRefreshToken","select":"authRefreshTokens","select_aggregate":"authRefreshTokensAggregate","select_by_pk":"authRefreshToken","update":"updateAuthRefreshTokens","update_by_pk":"updateAuthRefreshToken"}},"delete_permissions":[{"permission":{"filter":{"_and":[{"user_id":{"_eq":"X-Hasura-User-Id"}},{"type":{"_eq":"pat"}}]}},"role":"user"}],"object_relationships":[{"name":"user","using":{"foreign_key_constraint_on":"user_id"}}],"select_permissions":[{"permission":{"columns":["id","created_at","expires_at","metadata","type","user_id"],"filter":{"user_id":{"_eq":"X-Hasura-User-Id"}}},"role":"user"}],"table":{"name":"refresh_tokens","schema":"auth"}},{"array_relationships":[{"name":"userRoles","using":{"foreign_key_constraint_on":{"column":"role","table":{"name":"user_roles","schema":"auth"}}}},{"name":"usersByDefaultRole","using":{"foreign_key_constraint_on":{"column":"default_role","table":{"name":"users","schema":"auth"}}}}],"configuration":{"column_config":{"role":{"custom_name":"role"}},"custom_column_names":{"role":"role"},"custom_name":"authRoles","custom_root_fields":{"delete":"deleteAuthRoles","delete_by_pk":"deleteAuthRole","insert":"insertAuthRoles","insert_one":"insertAuthRole","select":"authRoles","select_aggregate":"authRolesAggregate","select_by_pk":"authRole","update":"updateAuthRoles","update_by_pk":"updateAuthRole"}},"table":{"name":"roles","schema":"auth"}},{"configuration":{"column_config":{"access_token":{"custom_name":"accessToken"},"created_at":{"custom_name":"createdAt"},"id":{"custom_name":"id"},"provider_id":{"custom_name":"providerId"},"provider_user_id":{"custom_name":"providerUserId"},"refresh_token":{"custom_name":"refreshToken"},"updated_at":{"custom_name":"updatedAt"},"user_id":{"custom_name":"userId"}},"custom_column_names":{"access_token":"accessToken","created_at":"createdAt","id":"id","provider_id":"providerId","provider_user_id":"providerUserId","refresh_token":"refreshToken","updated_at":"updatedAt","user_id":"userId"},"custom_name":"authUserProviders","custom_root_fields":{"delete":"deleteAuthUserProviders","delete_by_pk":"deleteAuthUserProvider","insert":"insertAuthUserProviders","insert_one":"insertAuthUserProvider","select":"authUserProviders","select_aggregate":"authUserProvidersAggregate","select_by_pk":"authUserProvider","update":"updateAuthUserProviders","update_by_pk":"updateAuthUserProvider"}},"object_relationships":[{"name":"provider","using":{"foreign_key_constraint_on":"provider_id"}},{"name":"user","using":{"foreign_key_constraint_on":"user_id"}}],"table":{"name":"user_providers","schema":"auth"}},{"configuration":{"column_config":{"created_at":{"custom_name":"createdAt"},"id":{"custom_name":"id"},"role":{"custom_name":"role"},"user_id":{"custom_name":"userId"}},"custom_column_names":{"created_at":"createdAt","id":"id","role":"role","user_id":"userId"},"custom_name":"authUserRoles","custom_root_fields":{"delete":"deleteAuthUserRoles","delete_by_pk":"deleteAuthUserRole","insert":"insertAuthUserRoles","insert_one":"insertAuthUserRole","select":"authUserRoles","select_aggregate":"authUserRolesAggregate","select_by_pk":"authUserRole","update":"updateAuthUserRoles","update_by_pk":"updateAuthUserRole"}},"object_relationships":[{"name":"roleByRole","using":{"foreign_key_constraint_on":"role"}},{"name":"user","using":{"foreign_key_constraint_on":"user_id"}}],"table":{"name":"user_roles","schema":"auth"}},{"configuration":{"column_config":{"credential_id":{"custom_name":"credentialId"},"credential_public_key":{"custom_name":"credentialPublicKey"},"id":{"custom_name":"id"},"user_id":{"custom_name":"userId"}},"custom_column_names":{"credential_id":"credentialId","credential_public_key":"credentialPublicKey","id":"id","user_id":"userId"},"custom_name":"authUserSecurityKeys","custom_root_fields":{"delete":"deleteAuthUserSecurityKeys","delete_by_pk":"deleteAuthUserSecurityKey","insert":"insertAuthUserSecurityKeys","insert_one":"insertAuthUserSecurityKey","select":"authUserSecurityKeys","select_aggregate":"authUserSecurityKeysAggregate","select_by_pk":"authUserSecurityKey","update":"updateAuthUserSecurityKeys","update_by_pk":"updateAuthUserSecurityKey"}},"object_relationships":[{"name":"user","using":{"foreign_key_constraint_on":"user_id"}}],"table":{"name":"user_security_keys","schema":"auth"}},{"array_relationships":[{"name":"refreshTokens","using":{"foreign_key_constraint_on":{"column":"user_id","table":{"name":"refresh_tokens","schema":"auth"}}}},{"name":"roles","using":{"foreign_key_constraint_on":{"column":"user_id","table":{"name":"user_roles","schema":"auth"}}}},{"name":"securityKeys","using":{"foreign_key_constraint_on":{"column":"user_id","table":{"name":"user_security_keys","schema":"auth"}}}},{"name":"userProviders","using":{"foreign_key_constraint_on":{"column":"user_id","table":{"name":"user_providers","schema":"auth"}}}}],"configuration":{"column_config":{"active_mfa_type":{"custom_name":"activeMfaType"},"avatar_url":{"custom_name":"avatarUrl"},"created_at":{"custom_name":"createdAt"},"default_role":{"custom_name":"defaultRole"},"disabled":{"custom_name":"disabled"},"display_name":{"custom_name":"displayName"},"email":{"custom_name":"email"},"email_verified":{"custom_name":"emailVerified"},"id":{"custom_name":"id"},"is_anonymous":{"custom_name":"isAnonymous"},"last_seen":{"custom_name":"lastSeen"},"locale":{"custom_name":"locale"},"new_email":{"custom_name":"newEmail"},"otp_hash":{"custom_name":"otpHash"},"otp_hash_expires_at":{"custom_name":"otpHashExpiresAt"},"otp_method_last_used":{"custom_name":"otpMethodLastUsed"},"password_hash":{"custom_name":"passwordHash"},"phone_number":{"custom_name":"phoneNumber"},"phone_number_verified":{"custom_name":"phoneNumberVerified"},"ticket":{"custom_name":"ticket"},"ticket_expires_at":{"custom_name":"ticketExpiresAt"},"totp_secret":{"custom_name":"totpSecret"},"updated_at":{"custom_name":"updatedAt"},"webauthn_current_challenge":{"custom_name":"currentChallenge"}},"custom_column_names":{"active_mfa_type":"activeMfaType","avatar_url":"avatarUrl","created_at":"createdAt","default_role":"defaultRole","disabled":"disabled","display_name":"displayName","email":"email","email_verified":"emailVerified","id":"id","is_anonymous":"isAnonymous","last_seen":"lastSeen","locale":"locale","new_email":"newEmail","otp_hash":"otpHash","otp_hash_expires_at":"otpHashExpiresAt","otp_method_last_used":"otpMethodLastUsed","password_hash":"passwordHash","phone_number":"phoneNumber","phone_number_verified":"phoneNumberVerified","ticket":"ticket","ticket_expires_at":"ticketExpiresAt","totp_secret":"totpSecret","updated_at":"updatedAt","webauthn_current_challenge":"currentChallenge"},"custom_name":"users","custom_root_fields":{"delete":"deleteUsers","delete_by_pk":"deleteUser","insert":"insertUsers","insert_one":"insertUser","select":"users","select_aggregate":"usersAggregate","select_by_pk":"user","update":"updateUsers","update_by_pk":"updateUser"}},"object_relationships":[{"name":"defaultRoleByRole","using":{"foreign_key_constraint_on":"default_role"}}],"table":{"name":"users","schema":"auth"}},{"table":{"name":"TestTable","schema":"public"}},{"array_relationships":[{"name":"files","using":{"foreign_key_constraint_on":{"column":"bucket_id","table":{"name":"files","schema":"storage"}}}}],"configuration":{"column_config":{"cache_control":{"custom_name":"cacheControl"},"created_at":{"custom_name":"createdAt"},"download_expiration":{"custom_name":"downloadExpiration"},"id":{"custom_name":"id"},"max_upload_file_size":{"custom_name":"maxUploadFileSize"},"min_upload_file_size":{"custom_name":"minUploadFileSize"},"presigned_urls_enabled":{"custom_name":"presignedUrlsEnabled"},"updated_at":{"custom_name":"updatedAt"}},"custom_column_names":{"cache_control":"cacheControl","created_at":"createdAt","download_expiration":"downloadExpiration","id":"id","max_upload_file_size":"maxUploadFileSize","min_upload_file_size":"minUploadFileSize","presigned_urls_enabled":"presignedUrlsEnabled","updated_at":"updatedAt"},"custom_name":"buckets","custom_root_fields":{"delete":"deleteBuckets","delete_by_pk":"deleteBucket","insert":"insertBuckets","insert_one":"insertBucket","select":"buckets","select_aggregate":"bucketsAggregate","select_by_pk":"bucket","update":"updateBuckets","update_by_pk":"updateBucket"}},"table":{"name":"buckets","schema":"storage"}},{"configuration":{"column_config":{"bucket_id":{"custom_name":"bucketId"},"created_at":{"custom_name":"createdAt"},"etag":{"custom_name":"etag"},"id":{"custom_name":"id"},"is_uploaded":{"custom_name":"isUploaded"},"mime_type":{"custom_name":"mimeType"},"name":{"custom_name":"name"},"size":{"custom_name":"size"},"updated_at":{"custom_name":"updatedAt"},"uploaded_by_user_id":{"custom_name":"uploadedByUserId"}},"custom_column_names":{"bucket_id":"bucketId","created_at":"createdAt","etag":"etag","id":"id","is_uploaded":"isUploaded","mime_type":"mimeType","name":"name","size":"size","updated_at":"updatedAt","uploaded_by_user_id":"uploadedByUserId"},"custom_name":"files","custom_root_fields":{"delete":"deleteFiles","delete_by_pk":"deleteFile","insert":"insertFiles","insert_one":"insertFile","select":"files","select_aggregate":"filesAggregate","select_by_pk":"file","update":"updateFiles","update_by_pk":"updateFile"}},"object_relationships":[{"name":"bucket","using":{"foreign_key_constraint_on":"bucket_id"}}],"table":{"name":"files","schema":"storage"}}]}],"version":3}	7
 \.
 
 
@@ -815,7 +803,7 @@ COPY hdb_catalog.hdb_scheduled_events (id, webhook_conf, scheduled_time, retry_c
 --
 
 COPY hdb_catalog.hdb_schema_notifications (id, notification, resource_version, instance_id, updated_at) FROM stdin;
-1	{"metadata":false,"remote_schemas":[],"sources":["default"],"data_connectors":[]}	22	99337c5e-5108-4930-aaf3-66e079655667	2023-04-18 03:08:07.470393+00
+1	{"metadata":false,"remote_schemas":[],"sources":[],"data_connectors":[]}	7	3e840c3c-50b3-4860-9c05-dca4f48ff1ba	2023-07-25 11:03:01.079463+00
 \.
 
 
@@ -823,26 +811,17 @@ COPY hdb_catalog.hdb_schema_notifications (id, notification, resource_version, i
 -- Data for Name: hdb_version; Type: TABLE DATA; Schema: hdb_catalog; Owner: nhost_hasura
 --
 
-COPY hdb_catalog.hdb_version (hasura_uuid, version, upgraded_on, cli_state, console_state) FROM stdin;
-1e3c7077-3b31-4c5d-b58b-dc7f7c1d84f9	47	2023-04-18 03:07:45.413334+00	{}	{"console_notifications": {"admin": {"date": "2023-05-10T12:50:38.771Z", "read": [], "showBadge": false}}, "telemetryNotificationShown": true}
+COPY hdb_catalog.hdb_version (hasura_uuid, version, upgraded_on, cli_state, console_state, ee_client_id, ee_client_secret) FROM stdin;
+1ca70c2d-0475-468f-ae8c-7b2a1ae60887	48	2023-07-25 11:02:37.40342+00	{}	{}	\N	\N
 \.
 
 
 --
--- Data for Name: data_test; Type: TABLE DATA; Schema: public; Owner: nhost_hasura
+-- Data for Name: TestTable; Type: TABLE DATA; Schema: public; Owner: nhost_hasura
 --
 
-COPY public.data_test (text, charvar, "char", uuid, json, jsonb, "smallint", "integer", "bigint", "decimal", "numeric", "real", double_precision, bool, date, "timestamp", timestamptz, "time", timetz, "interval", bytea, money) FROM stdin;
-text	charvar	bpchar	c7654b8a-4e90-4da3-aff1-d58d804d1ac2	{"hello": "world!"}	{"hello": "world!"}	32767	2147483647	9223372036854775807	131072	1000	100	100	t	2023-05-26	2023-05-26 10:54:23	2023-05-26 10:54:23+00	10:54:23	2023-05-26 10:54:23+00	34293:33:09	\\x68656c6c6f21	$20.23
-\.
-
-
---
--- Data for Name: test_table_1; Type: TABLE DATA; Schema: public; Owner: nhost_hasura
---
-
-COPY public.test_table_1 (name, uuid, user_data, json_binary) FROM stdin;
-Sarah	22598e7c-3f7d-4d94-9690-67ad925e17ce	{ "name": "Sarah", "data": { "test": "Test" } }	{"text": "hello world!"}
+COPY public."TestTable" (string, "integer", "boolean", date) FROM stdin;
+Hello World	42	f	2004-03-30
 \.
 
 
@@ -851,7 +830,7 @@ Sarah	22598e7c-3f7d-4d94-9690-67ad925e17ce	{ "name": "Sarah", "data": { "test": 
 --
 
 COPY storage.buckets (id, created_at, updated_at, download_expiration, min_upload_file_size, max_upload_file_size, cache_control, presigned_urls_enabled) FROM stdin;
-default	2023-04-18 03:07:31.49138+00	2023-04-18 03:07:31.49138+00	30	1	50000000	max-age=3600	t
+default	2023-07-25 11:02:53.50777+00	2023-07-25 11:02:53.50777+00	30	1	50000000	max-age=3600	t
 \.
 
 
@@ -860,7 +839,7 @@ default	2023-04-18 03:07:31.49138+00	2023-04-18 03:07:31.49138+00	30	1	50000000	
 --
 
 COPY storage.files (id, created_at, updated_at, bucket_id, name, size, mime_type, etag, is_uploaded, uploaded_by_user_id) FROM stdin;
-e851840b-0a9d-493a-af9a-1d6e18b8dd3a	2023-06-21 11:02:54.058916+00	2023-06-21 11:02:54.20817+00	default	tulips.png	679233	image/png	"2e57bf7a8a9bc49b3eacca90c921a4ae"	t	\N
+ea86457d-594b-4ea0-bb63-3b3fbc08ff47	2023-07-25 12:13:07.057526+00	2023-07-25 12:13:07.221984+00	default	tulips.png	679233	image/png	"2e57bf7a8a9bc49b3eacca90c921a4ae"	t	\N
 \.
 
 
@@ -906,11 +885,19 @@ ALTER TABLE ONLY auth.providers
 
 
 --
+-- Name: refresh_token_types refresh_token_types_pkey; Type: CONSTRAINT; Schema: auth; Owner: nhost_auth_admin
+--
+
+ALTER TABLE ONLY auth.refresh_token_types
+    ADD CONSTRAINT refresh_token_types_pkey PRIMARY KEY (value);
+
+
+--
 -- Name: refresh_tokens refresh_tokens_pkey; Type: CONSTRAINT; Schema: auth; Owner: nhost_auth_admin
 --
 
 ALTER TABLE ONLY auth.refresh_tokens
-    ADD CONSTRAINT refresh_tokens_pkey PRIMARY KEY (refresh_token);
+    ADD CONSTRAINT refresh_tokens_pkey PRIMARY KEY (id);
 
 
 --
@@ -1074,27 +1061,11 @@ ALTER TABLE ONLY hdb_catalog.hdb_version
 
 
 --
--- Name: data_test data_test_pkey; Type: CONSTRAINT; Schema: public; Owner: nhost_hasura
+-- Name: TestTable TestTable_pkey; Type: CONSTRAINT; Schema: public; Owner: nhost_hasura
 --
 
-ALTER TABLE ONLY public.data_test
-    ADD CONSTRAINT data_test_pkey PRIMARY KEY (text);
-
-
---
--- Name: test_table_1 test_table_1_pkey; Type: CONSTRAINT; Schema: public; Owner: nhost_hasura
---
-
-ALTER TABLE ONLY public.test_table_1
-    ADD CONSTRAINT test_table_1_pkey PRIMARY KEY (name);
-
-
---
--- Name: test_table_1 test_table_1_uuid_key; Type: CONSTRAINT; Schema: public; Owner: nhost_hasura
---
-
-ALTER TABLE ONLY public.test_table_1
-    ADD CONSTRAINT test_table_1_uuid_key UNIQUE (uuid);
+ALTER TABLE ONLY public."TestTable"
+    ADD CONSTRAINT "TestTable_pkey" PRIMARY KEY (string);
 
 
 --
@@ -1255,6 +1226,14 @@ ALTER TABLE ONLY auth.user_security_keys
 
 
 --
+-- Name: refresh_tokens refresh_tokens_types_fkey; Type: FK CONSTRAINT; Schema: auth; Owner: nhost_auth_admin
+--
+
+ALTER TABLE ONLY auth.refresh_tokens
+    ADD CONSTRAINT refresh_tokens_types_fkey FOREIGN KEY (type) REFERENCES auth.refresh_token_types(value) ON UPDATE RESTRICT ON DELETE RESTRICT;
+
+
+--
 -- Name: hdb_cron_event_invocation_logs hdb_cron_event_invocation_logs_event_id_fkey; Type: FK CONSTRAINT; Schema: hdb_catalog; Owner: nhost_hasura
 --
 
@@ -1337,6 +1316,13 @@ GRANT ALL ON TABLE auth.provider_requests TO nhost_hasura;
 --
 
 GRANT ALL ON TABLE auth.providers TO nhost_hasura;
+
+
+--
+-- Name: TABLE refresh_token_types; Type: ACL; Schema: auth; Owner: nhost_auth_admin
+--
+
+GRANT ALL ON TABLE auth.refresh_token_types TO nhost_hasura;
 
 
 --

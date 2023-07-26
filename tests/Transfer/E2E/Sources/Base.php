@@ -48,4 +48,84 @@ abstract class Base extends TestCase
 
         $this->assertNotNull($this->source->cache);
     }
+
+    /**
+     * Call
+     *
+     * Make an API call
+     *
+     * @throws \Exception
+     */
+    protected function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
+    {
+        $ch = curl_init((str_contains($path, 'http') ? $path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '') : $path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '')));
+        $responseHeaders = [];
+        $responseStatus = -1;
+        $responseType = '';
+        $responseBody = '';
+
+        switch ($headers['Content-Type']) {
+            case 'application/json':
+                $query = json_encode($params);
+                break;
+
+            default:
+                $query = http_build_query($params);
+                break;
+        }
+
+        foreach ($headers as $i => $header) {
+            $headers[] = $i.':'.$header;
+            unset($headers[$i]);
+        }
+
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_USERAGENT, php_uname('s').'-'.php_uname('r').':php-'.phpversion());
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
+            $len = strlen($header);
+            $header = explode(':', strtolower($header), 2);
+
+            if (count($header) < 2) { // ignore invalid headers
+                return $len;
+            }
+
+            $responseHeaders[strtolower(trim($header[0]))] = trim($header[1]);
+
+            return $len;
+        });
+
+        if ($method != 'GET') {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $query);
+        }
+
+        $responseBody = curl_exec($ch);
+
+        $responseType = key_exists('Content-Type', $responseHeaders) ?? $responseHeaders['content-type'] ?? '';
+        $responseStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        switch (substr($responseType, 0, strpos($responseType, ';'))) {
+            case 'application/json':
+                $responseBody = json_decode($responseBody, true);
+                break;
+        }
+
+        if (curl_errno($ch)) {
+            throw new \Exception(curl_error($ch));
+        }
+
+        curl_close($ch);
+
+        if ($responseStatus >= 400) {
+            if (is_array($responseBody)) {
+                throw new \Exception(json_encode($responseBody));
+            } else {
+                throw new \Exception($responseStatus.': '.$responseBody);
+            }
+        }
+
+        return $responseBody;
+    }
 }

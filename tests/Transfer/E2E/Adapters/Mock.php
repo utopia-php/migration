@@ -37,7 +37,7 @@ class Mock extends Destination
     public function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var resource $resource */
+            /** @var Resource $resource */
             switch ($resource->getName()) {
                 case 'Deployment':
                     /** @var Deployment $resource */
