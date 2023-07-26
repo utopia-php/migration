@@ -36,7 +36,7 @@ class NHostTest extends Base
             } catch (\PDOException $e) {
             }
 
-            usleep(1000000);
+            sleep(1);
             $tries--;
         }
 
@@ -54,7 +54,7 @@ class NHostTest extends Base
             } catch (\Exception $e) {
             }
 
-            usleep(1000000);
+            sleep(5);
             $tries--;
         }
 
