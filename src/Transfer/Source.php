@@ -28,8 +28,8 @@ abstract class Source extends Target
                 }
             }
 
-            $this->cache->addAll($prunedResurces);
             $callback($returnedResources);
+            $this->cache->addAll($prunedResurces);
         };
 
         $this->exportResources($resources, 100);
