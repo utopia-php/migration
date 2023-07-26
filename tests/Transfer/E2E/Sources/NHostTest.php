@@ -40,7 +40,7 @@ class NHostTest extends Base
             $tries--;
         }
 
-        if (!$pdo || $tries === 0) {
+        if (! $pdo || $tries === 0) {
             throw new \Exception('DB was offline after 5 tries');
         }
 
@@ -51,7 +51,8 @@ class NHostTest extends Base
                 $this->call('GET', 'http://nhost-storage/', ['Content-Type' => 'text/plain']);
 
                 break;
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+            }
 
             usleep(1000000);
             $tries--;
@@ -95,7 +96,8 @@ class NHostTest extends Base
     {
         $this->transfer->run(
             $this->source->getSupportedResources(),
-            function () {}
+            function () {
+            }
         );
 
         $this->assertEquals(0, count($this->transfer->getReport('error')));
@@ -145,7 +147,7 @@ class NHostTest extends Base
             break;
         }
 
-        if (!$foundUser) {
+        if (! $foundUser) {
             $this->fail('User "test@test.com" not found');
 
             return;
@@ -176,7 +178,7 @@ class NHostTest extends Base
             break;
         }
 
-        if (!$foundDatabase) {
+        if (! $foundDatabase) {
             $this->fail('Database "public" not found');
 
             return;
@@ -199,7 +201,7 @@ class NHostTest extends Base
             break;
         }
 
-        if (!$foundCollection) {
+        if (! $foundCollection) {
             $this->fail('Collection "TestTable" not found');
 
             return;
@@ -229,7 +231,7 @@ class NHostTest extends Base
             break;
         }
 
-        if (!$foundBucket) {
+        if (! $foundBucket) {
             $this->fail('Bucket "default" not found');
 
             return;
@@ -251,13 +253,12 @@ class NHostTest extends Base
             break;
         }
 
-        if (!$foundFile) {
+        if (! $foundFile) {
             $this->fail('File "tulips.png" not found');
 
             return;
         }
         /** @var \Utopia\Transfer\Resources\Storage\File $foundFile */
-
         $this->assertEquals('success', $foundFile->getStatus());
         $this->assertEquals('tulips.png', $foundFile->getFileName());
         $this->assertEquals('default', $foundFile->getBucket()->getId());

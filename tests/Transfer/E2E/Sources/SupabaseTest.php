@@ -6,7 +6,6 @@ use Utopia\Tests\E2E\Adapters\Mock;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Source;
-use Utopia\Transfer\Sources\NHost;
 use Utopia\Transfer\Sources\Supabase;
 use Utopia\Transfer\Transfer;
 
@@ -41,7 +40,7 @@ class SupabaseTest extends Base
             $tries--;
         }
 
-        if (!$pdo || $tries === 0) {
+        if (! $pdo || $tries === 0) {
             throw new \Exception('DB was offline after 5 tries');
         }
 
@@ -76,7 +75,8 @@ class SupabaseTest extends Base
     public function testRunTransfer($state)
     {
         $this->transfer->run($this->source->getSupportedResources(),
-            function () {}
+            function () {
+            }
         );
 
         $this->assertEquals(0, count($this->transfer->getReport('error')));
@@ -127,7 +127,7 @@ class SupabaseTest extends Base
             }
         }
 
-        if (!$foundUser) {
+        if (! $foundUser) {
             $this->fail('User "albert.kihn95@yahoo.com" not found');
 
             return;
@@ -158,7 +158,7 @@ class SupabaseTest extends Base
             break;
         }
 
-        if (!$foundDatabase) {
+        if (! $foundDatabase) {
             $this->fail('Database "public" not found');
 
             return;
@@ -173,7 +173,7 @@ class SupabaseTest extends Base
         $this->assertGreaterThan(0, count($collections));
 
         $foundCollection = null;
-        
+
         foreach ($collections as $collection) {
             /** @var \Utopia\Transfer\Resources\Database\Collection $collection */
             if ($collection->getDatabase()->getDBName() === 'public' && $collection->getCollectionName() === 'test') {
@@ -183,7 +183,7 @@ class SupabaseTest extends Base
             }
         }
 
-        if (!$foundCollection) {
+        if (! $foundCollection) {
             $this->fail('Collection "test" not found');
 
             return;
@@ -209,7 +209,7 @@ class SupabaseTest extends Base
             break;
         }
 
-        if (!$foundDocument) {
+        if (! $foundDocument) {
             $this->fail('Document "1" not found');
 
             return;
@@ -238,7 +238,7 @@ class SupabaseTest extends Base
             break;
         }
 
-        if (!$foundBucket) {
+        if (! $foundBucket) {
             $this->fail('Bucket "Test Bucket 1" not found');
 
             return;
@@ -261,13 +261,12 @@ class SupabaseTest extends Base
             break;
         }
 
-        if (!$foundFile) {
+        if (! $foundFile) {
             $this->fail('File "tulips.png" not found');
 
             return;
         }
         /** @var \Utopia\Transfer\Resources\Storage\File $foundFile */
-
         $this->assertEquals('success', $foundFile->getStatus());
         $this->assertEquals('tulips.png', $foundFile->getFileName());
         $this->assertEquals('image/png', $foundFile->getMimeType());

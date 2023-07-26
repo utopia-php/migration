@@ -21,12 +21,12 @@ class Cache
      *
      * Places the resource in the cache, in the cache backend this also gets assigned a unique ID.
      *
-     * @param  Resource  $resource
+     * @param  resource  $resource
      * @return void
      */
     public function add($resource)
     {
-        if (!$resource->getInternalId()) {
+        if (! $resource->getInternalId()) {
             $resourceId = uniqid();
             if (isset($this->cache[$resource->getName()][$resourceId])) {
                 $resourceId = uniqid();
@@ -55,12 +55,12 @@ class Cache
      * Updates the resource in the cache, if the resource does not exist in the cache an exception is thrown.
      * Use Add to add a new resource to the cache.
      *
-     * @param  Resource  $resource
+     * @param  resource  $resource
      * @return void
      */
     public function update($resource)
     {
-        if (!in_array($resource->getName(), $this->cache)) {
+        if (! in_array($resource->getName(), $this->cache)) {
             $this->add($resource);
         }
 
@@ -79,7 +79,7 @@ class Cache
      *
      * Removes the resource from the cache, if the resource does not exist in the cache an exception is thrown.
      *
-     * @param  Resource  $resource
+     * @param  resource  $resource
      * @return void
      */
     public function remove($resource)

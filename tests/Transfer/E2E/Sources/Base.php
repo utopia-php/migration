@@ -103,7 +103,7 @@ abstract class Base extends TestCase
 
         $responseBody = curl_exec($ch);
 
-        $responseType = key_exists('Content-Type', $responseHeaders) ?? $responseHeaders['content-type'] ?? '';
+        $responseType = array_key_exists('Content-Type', $responseHeaders) ?? $responseHeaders['content-type'] ?? '';
         $responseStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
         switch (substr($responseType, 0, strpos($responseType, ';'))) {

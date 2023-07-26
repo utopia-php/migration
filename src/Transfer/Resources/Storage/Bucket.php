@@ -27,7 +27,7 @@ class Bucket extends Resource
 
     protected bool $updateLimits = false;
 
-    public function __construct(string $id = '', string $name = '', array $permissions = [], bool $fileSecurity = false, bool $enabled = false, ?int $maxFileSize = null, array $allowedFileExtensions = [], string $compression = 'none', bool $encryption = false, bool $antiVirus = false, bool $updateLimits = false)
+    public function __construct(string $id = '', string $name = '', array $permissions = [], bool $fileSecurity = false, bool $enabled = false, int $maxFileSize = null, array $allowedFileExtensions = [], string $compression = 'none', bool $encryption = false, bool $antiVirus = false, bool $updateLimits = false)
     {
         $this->id = $id;
         $this->name = $name;

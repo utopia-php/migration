@@ -98,7 +98,7 @@ class Transfer
 
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
-                /** @var Resource $resource */
+                /** @var resource $resource */
                 $status[$resource->getName()][$resource->getStatus()]++;
             }
         }
