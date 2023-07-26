@@ -35,4 +35,4 @@ RUN docker-php-ext-install pdo pdo_pgsql
 COPY ./src /usr/local/src
 COPY ./tests /usr/local/src/tests
 COPY --from=composer /usr/local/src/vendor /usr/local/src/vendor
-CMD php ./vendor/bin/phpunit
+CMD tail -f /dev/null
