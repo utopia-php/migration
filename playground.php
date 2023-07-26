@@ -76,12 +76,14 @@ $transfer = new Transfer(
     $destinationLocal
 );
 
+$sourceSupabase->report();
+
 /**
  * Run Transfer
  */
 $transfer->run($sourceAppwrite->getSupportedResources(),
-    function (array $resources) {
-        
+    function (array $resources) use ($transfer) {
+        var_dump($transfer->getStatusCounters());
     }
 );
 

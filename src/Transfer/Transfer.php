@@ -89,8 +89,10 @@ class Transfer
         }
 
         if ($this->source->previousReport) {
-            foreach ($this->source->previousReport as $resource) {
-                $status[$resource['resource']]['pending'] = $resource;
+            foreach ($this->source->previousReport as $resource => $data) {
+                if ($resource != 'size' && $resource != 'version') {
+                    $status[$resource]['pending'] = $data;
+                }
             }
         }
 
