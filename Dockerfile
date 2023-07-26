@@ -25,7 +25,6 @@ CMD mockoon-cli start --data /mockoon/api.json --port 80 --disable-log-to-file &
 
 FROM composer:2.0 as composer
 WORKDIR /usr/local/src/
-COPY composer.lock /usr/local/src/
 COPY composer.json /usr/local/src/
 RUN composer install --ignore-platform-reqs
 
