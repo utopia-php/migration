@@ -371,19 +371,23 @@ class NHost extends Source
     private function exportDocuments(int $batchSize)
     {
         $databases = $this->cache->get(Database::getName());
+        $collections = $this->cache->get(Collection::getName());
         $db = $this->getDatabase();
 
         foreach ($databases as $database) {
             /** @var Database $database */
-            $collections = $database->getCollections();
+            $collections = array_filter($collections, function (Collection $collection) use ($database) {
+                return $collection->getDatabase()->getId() === $database->getId();
+            });
 
             foreach ($collections as $collection) {
-                $total = $db->query('SELECT COUNT(*) FROM '.$collection->getCollectionName())->fetchColumn();
+                /** @var Collection $collection */
+                $total = $db->query('SELECT COUNT(*) FROM '.$collection->getDatabase()->getDBName().'."'.$collection->getCollectionName().'"')->fetchColumn();
 
                 $offset = 0;
 
                 while ($offset < $total) {
-                    $statement = $db->prepare('SELECT row_to_json(t) FROM (SELECT * FROM '.$collection->getCollectionName().' LIMIT :limit OFFSET :offset) t;');
+                    $statement = $db->prepare('SELECT row_to_json(t) FROM (SELECT * FROM '.$collection->getDatabase()->getDBName().'."'.$collection->getCollectionName().'" LIMIT :limit OFFSET :offset) t;');
                     $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
                     $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
                     $statement->execute();
@@ -396,7 +400,7 @@ class NHost extends Source
 
                     $attributes = $this->cache->get(Attribute::getName());
                     $collectionAttributes = array_filter($attributes, function (Attribute $attribute) use ($collection) {
-                        return $attribute->getId() === $collection->getId();
+                        return $attribute->getCollection()->getId() === $collection->getId();
                     });
 
                     foreach ($documents as $document) {
@@ -405,7 +409,7 @@ class NHost extends Source
                         $processedData = [];
                         foreach ($collectionAttributes as $attribute) {
                             /** @var Attribute $attribute */
-                            if (! $attribute->getArray() && \is_array($data[$attribute->getKey()])) {
+                            if (!$attribute->getArray() && \is_array($data[$attribute->getKey()])) {
                                 $processedData[$attribute->getKey()] = json_encode($data[$attribute->getKey()]);
                             } else {
                                 $processedData[$attribute->getKey()] = $data[$attribute->getKey()];

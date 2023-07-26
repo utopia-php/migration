@@ -2,9 +2,9 @@
   "uuid": "d9c54163-f7fd-499a-b67f-1243dd8bbd23",
   "lastMigration": 27,
   "name": "Supabase Storage API",
-  "endpointPrefix": "",
+  "endpointPrefix": "storage/v1",
   "latency": 0,
-  "port": 81,
+  "port": 80,
   "hostname": "",
   "folders": [],
   "routes": [
@@ -489,15 +489,55 @@
               "value": "application/json"
             }
           ],
-          "bodyType": "INLINE",
-          "filePath": "",
+          "bodyType": "FILE",
+          "filePath": "./tulips.png",
           "databucketID": "",
           "sendFileAsBody": false,
-          "rules": [],
+          "rules": [
+            {
+              "target": "header",
+              "modifier": "apiKey",
+              "value": "",
+              "invert": true,
+              "operator": "null"
+            },
+            {
+              "target": "header",
+              "modifier": "Authorization",
+              "value": "",
+              "invert": true,
+              "operator": "null"
+            }
+          ],
           "rulesOperator": "OR",
           "disableTemplating": false,
           "fallbackTo404": false,
           "default": true
+        },
+        {
+          "uuid": "45c78e9e-853e-439b-96a5-446c7a931e4f",
+          "body": "{\n    \"statusCode\": \"400\",\n    \"error\": \"Error\",\n    \"message\": \"headers must have required property 'authorization'\"\n}",
+          "latency": 0,
+          "statusCode": 400,
+          "label": "",
+          "headers": [],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "header",
+              "modifier": "Authorization",
+              "value": "",
+              "invert": false,
+              "operator": "null"
+            }
+          ],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false
         }
       ],
       "enabled": true,

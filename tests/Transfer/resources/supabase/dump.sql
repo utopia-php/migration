@@ -1862,9 +1862,7 @@ COPY storage.migrations (id, name, hash, executed_at) FROM stdin;
 --
 
 COPY storage.objects (id, bucket_id, name, owner, created_at, updated_at, last_accessed_at, metadata, version) FROM stdin;
-2693082f-39c6-4750-8ed4-47e11269ae25	Test Bucket 1	25MiB.bin	\N	2023-04-26 05:36:24.101743+00	2023-04-26 05:36:26.52988+00	2023-04-26 05:36:24.101743+00	{"eTag": "\\"eeb74bf4aa3e578d69f97e8053b34ede-6\\"", "size": 26214400, "mimetype": "application/macbinary", "cacheControl": "max-age=3600", "lastModified": "2023-04-26T05:36:26.000Z", "contentLength": 26214400, "httpStatusCode": 200}	\N
 808135d7-ee5b-4b7b-a5be-cfd007ae157d	Test Bucket 1	tulips.png	\N	2023-05-22 05:33:26.676802+00	2023-05-22 05:33:27.307468+00	2023-05-22 05:33:26.676802+00	{"eTag": "\\"2e57bf7a8a9bc49b3eacca90c921a4ae\\"", "size": 679233, "mimetype": "image/png", "cacheControl": "max-age=3600", "lastModified": "2023-05-22T05:33:28.000Z", "contentLength": 679233, "httpStatusCode": 200}	\N
-6684d39c-723f-446e-b8f2-195defc2b132	Test Bucket 1	pictures/tulips.png	\N	2023-05-22 05:33:41.44723+00	2023-05-22 05:33:41.619794+00	2023-05-22 05:33:41.44723+00	{"eTag": "\\"2e57bf7a8a9bc49b3eacca90c921a4ae\\"", "size": 679233, "mimetype": "image/png", "cacheControl": "max-age=3600", "lastModified": "2023-05-22T05:33:42.000Z", "contentLength": 679233, "httpStatusCode": 200}	\N
 \.
 
 

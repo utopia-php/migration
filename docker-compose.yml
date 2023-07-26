@@ -36,6 +36,15 @@ services:
     volumes:
       - ./tests/Transfer/resources/nhost:/mockoon
 
+  supabase-api:
+    build:
+      context: .
+      target: mock-api
+    networks:
+      - tests
+    volumes:
+      - ./tests/Transfer/resources/supabase:/mockoon
+
   tests:
     build:
       context: .

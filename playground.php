@@ -72,15 +72,16 @@ $destinationLocal = new Local(__DIR__.'/localBackup/');
  * Initialise Transfer Class
  */
 $transfer = new Transfer(
-    $sourceNHost,
+    $sourceSupabase,
     $destinationLocal
 );
 
 /**
  * Run Transfer
  */
-$transfer->run($destinationAppwrite->getSupportedResources(),
+$transfer->run($sourceAppwrite->getSupportedResources(),
     function (array $resources) {
+        
     }
 );
 

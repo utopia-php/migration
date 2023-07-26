@@ -337,6 +337,7 @@ class Supabase extends NHost
             $statementFileSize = $this->pdo->prepare('SELECT objects.metadata FROM storage.objects;');
             $statementFileSize->execute();
 
+            $report['size'] = 0;
             foreach ($statementFileSize->fetchAll(\PDO::FETCH_ASSOC) as $file) {
                 $metadata = json_decode($file['metadata'], true);
 
