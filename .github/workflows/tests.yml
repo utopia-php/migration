@@ -16,4 +16,4 @@ jobs:
 
       - name: Run Tests
         run: |
-          docker-compose up -d --build && docker compose exec tests php ./vendor/bin/phpunit
+          docker-compose up -d --build && sleep 5 && docker compose exec tests php ./vendor/bin/phpunit

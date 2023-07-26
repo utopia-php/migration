@@ -239,6 +239,7 @@ class Appwrite extends Source
             $report['version'] = $this->call('GET', '/health/version', ['X-Appwrite-Key' => '', 'X-Appwrite-Project' => ''])['version'];
 
             $this->previousReport = $report;
+
             return $report;
         } catch (\Exception $e) {
             if ($e->getCode() === 403) {
@@ -392,7 +393,7 @@ class Appwrite extends Source
                     }
                 }
 
-                if (!$user) {
+                if (! $user) {
                     throw new \Exception('User not found');
                 }
 
@@ -439,7 +440,8 @@ class Appwrite extends Source
         }
     }
 
-    function cleanupSubcollectionData(array $document, bool $root = true) {
+    public function cleanupSubcollectionData(array $document, bool $root = true)
+    {
         if ($root) {
             unset($document['$id']);
         }

@@ -5,6 +5,7 @@ namespace Utopia\Transfer;
 abstract class Source extends Target
 {
     protected $transferCallback;
+
     public $previousReport = [];
 
     public function callback(array $resources): void
@@ -20,8 +21,8 @@ abstract class Source extends Target
         $this->transferCallback = function (array $returnedResources) use ($callback, $resources) {
             $prunedResurces = [];
             foreach ($returnedResources as $resource) {
-                /** @var Resource $resource */
-                if (!in_array($resource->getName(), $resources)) {
+                /** @var resource $resource */
+                if (! in_array($resource->getName(), $resources)) {
                     $resource->setStatus(Resource::STATUS_SKIPPED);
                 } else {
                     $prunedResurces[] = $resource;
