@@ -7,7 +7,6 @@
  */
 require_once __DIR__.'/vendor/autoload.php';
 
-use Appwrite\Query;
 use Dotenv\Dotenv;
 use Utopia\Transfer\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Transfer\Destinations\Local;
@@ -82,7 +81,7 @@ $sourceSupabase->report();
  * Run Transfer
  */
 $transfer->run($sourceAppwrite->getSupportedResources(),
-    function (array $resources) use ($transfer) {
+    function (array $resources) {
     }
 );
 
