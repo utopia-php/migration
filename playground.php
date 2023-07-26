@@ -83,73 +83,8 @@ $sourceSupabase->report();
  */
 $transfer->run($sourceAppwrite->getSupportedResources(),
     function (array $resources) use ($transfer) {
-        var_dump($transfer->getStatusCounters());
     }
 );
-
-// function cleanupAppwrite()
-// {
-//     $client = new \Appwrite\Client();
-
-//     $client
-//         ->setEndpoint($_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'])
-//         ->setProject($_ENV['DESTINATION_APPWRITE_TEST_PROJECT'])
-//         ->setKey($_ENV['DESTINATION_APPWRITE_TEST_KEY']);
-
-//     $databaseService = new \Appwrite\Services\Databases($client);
-//     $listDatabases = $databaseService->list();
-//     foreach ($listDatabases['databases'] as $database) {
-//         $databaseId = $database['$id'];
-//         $listCollections = $databaseService->listCollections($databaseId);
-//         foreach ($listCollections['collections'] as $collection) {
-//             $collectionId = $collection['$id'];
-//             $listDocuments = $databaseService->listDocuments($databaseId, $collectionId);
-//             foreach ($listDocuments['documents'] as $document) {
-//                 $documentId = $document['$id'];
-//                 $databaseService->deleteDocument($databaseId, $collectionId, $documentId);
-//             }
-//         }
-
-//         $databaseService->delete($databaseId);
-//     }
-
-//     $usersService = new \Appwrite\Services\Users($client);
-//     $listUsers = $usersService->list();
-//     if ($listUsers['total'] > count($listUsers['users'])) {
-//         while ($listUsers['total'] > count($listUsers['users'])) {
-//             $listUsers['users'] = array_merge($listUsers['users'], $usersService->list(
-//                 [Query::cursorAfter(
-//                     $listUsers['users'][count($listUsers['users']) - 1]['$id']
-//                 )]
-//             )['users']);
-//         }
-//     }
-
-//     foreach ($listUsers['users'] as $user) {
-//         $userId = $user['$id'];
-//         $usersService->delete($userId);
-//     }
-
-//     $teamsService = new \Appwrite\Services\Teams($client);
-//     $listTeams = $teamsService->list();
-//     foreach ($listTeams['teams'] as $team) {
-//         $teamId = $team['$id'];
-//         $teamsService->delete($teamId);
-//     }
-
-//     $storageService = new \Appwrite\Services\Storage($client);
-//     $listBuckets = $storageService->listBuckets();
-//     foreach ($listBuckets['buckets'] as $bucket) {
-//         $bucketId = $bucket['$id'];
-//         $listFiles = $storageService->listFiles($bucketId);
-//         foreach ($listFiles['files'] as $file) {
-//             $fileId = $file['$id'];
-//             $storageService->deleteFile($bucketId, $fileId);
-//         }
-
-//         $storageService->deleteBucket($bucketId);
-//     }
-// }
 
 $report = [];
 
@@ -160,7 +95,5 @@ foreach ($cache as $type => $resources) {
         if ($resource->getStatus() !== Resource::STATUS_ERROR) {
             continue;
         }
-
-        var_dump($resource);
     }
 }
