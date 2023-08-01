@@ -49,13 +49,6 @@ class File extends Resource
         return Transfer::GROUP_STORAGE;
     }
 
-    public function setId(string $id): self
-    {
-        $this->id = $id;
-
-        return $this;
-    }
-
     public function getBucket(): Bucket
     {
         return $this->bucket;

@@ -43,13 +43,6 @@ class Deployment extends Resource
         return Transfer::GROUP_FUNCTIONS;
     }
 
-    public function setId(string $id): self
-    {
-        $this->id = $id;
-
-        return $this;
-    }
-
     public function getFunction(): Func
     {
         return $this->func;

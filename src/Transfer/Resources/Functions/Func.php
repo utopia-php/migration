@@ -48,13 +48,6 @@ class Func extends Resource
         return $this->name;
     }
 
-    public function setId(string $id): self
-    {
-        $this->id = $id;
-
-        return $this;
-    }
-
     public function getExecute(): array
     {
         return $this->execute;

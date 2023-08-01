@@ -72,16 +72,6 @@ class User extends Resource
     }
 
     /**
-     * Set ID
-     */
-    public function setId(string $id): self
-    {
-        $this->id = $id;
-
-        return $this;
-    }
-
-    /**
      * Get Email
      */
     public function getEmail(): string

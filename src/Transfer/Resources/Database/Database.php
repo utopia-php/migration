@@ -43,13 +43,6 @@ class Database extends Resource
         return $this->name;
     }
 
-    public function setId(string $id): self
-    {
-        $this->id = $id;
-
-        return $this;
-    }
-
     /**
      * @return list<Collection>
      */

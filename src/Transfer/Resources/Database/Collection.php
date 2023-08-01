@@ -68,13 +68,6 @@ class Collection extends Resource
         return $this;
     }
 
-    public function setId(string $id): self
-    {
-        $this->id = $id;
-
-        return $this;
-    }
-
     public function getDocumentSecurity(): bool
     {
         return $this->documentSecurity;
