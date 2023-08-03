@@ -495,7 +495,9 @@ class Appwrite extends Source
                     $attributes = $this->cache->get(Attribute::getName());
                     foreach ($attributes as $attribute) {
                         /** @var Attribute $attribute */
-                        if ($attribute->getCollection()->getId() == $collection->getId()) {
+                        if ($attribute->getCollection()->getId() !== $collection->getId()) {
+                            continue;
+                        }
                             if ($attribute->getRequired() && ! isset($document[$attribute->getKey()])) {
                                 switch ($attribute->getTypeName()) {
                                     case Attribute::TYPE_BOOLEAN:
