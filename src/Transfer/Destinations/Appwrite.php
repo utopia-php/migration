@@ -464,7 +464,7 @@ class Appwrite extends Destination
                 [
                     'content-type' => 'multipart/form-data',
                     'X-Appwrite-project' => $this->project,
-                    'x-Appwrite-Key' => $this->key,
+                    'X-Appwrite-Key' => $this->key,
                 ],
                 [
                     'bucketId' => $bucketId,
