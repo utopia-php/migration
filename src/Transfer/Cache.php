@@ -35,7 +35,7 @@ class Cache
         }
 
         if ($resource->getName() == Resource::TYPE_FILE || $resource->getName() == Resource::TYPE_FUNCTION) {
-            /** @var \Utopia\Transfer\Resources\Storage\File|\Utopia\Transfer\Resources\Functions\Func $resource */
+            /** @var File|Func $resource *
             $resource->setData(''); // Prevent Memory Leak
         }
 
