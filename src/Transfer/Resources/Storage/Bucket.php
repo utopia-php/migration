@@ -7,8 +7,6 @@ use Utopia\Transfer\Transfer;
 
 class Bucket extends Resource
 {
-    protected ?array $permissions;
-
     protected ?bool $fileSecurity;
 
     protected string $name;
@@ -49,18 +47,6 @@ class Bucket extends Resource
     public function getGroup(): string
     {
         return Transfer::GROUP_STORAGE;
-    }
-
-    public function getPermissions(): array
-    {
-        return $this->permissions;
-    }
-
-    public function setPermissions(array $permissions): self
-    {
-        $this->permissions = $permissions;
-
-        return $this;
     }
 
     public function getFileSecurity(): bool

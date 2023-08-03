@@ -13,8 +13,6 @@ class Document extends Resource
 
     protected array $data;
 
-    protected array $permissions;
-
     public function __construct(string $id, Database $database, Collection $collection, array $data = [], array $permissions = [])
     {
         $this->id = $id;
@@ -71,23 +69,6 @@ class Document extends Resource
     public function setData(array $data): self
     {
         $this->data = $data;
-
-        return $this;
-    }
-
-    public function getPermissions(): array
-    {
-        return $this->permissions;
-    }
-
-    /**
-     * Set Permissions
-     *
-     * @param  array<string>  $permissions
-     */
-    public function setPermissions(array $permissions): self
-    {
-        $this->permissions = $permissions;
 
         return $this;
     }

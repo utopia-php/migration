@@ -15,8 +15,6 @@ class File extends Resource
 
     protected string $mimeType;
 
-    protected array $permissions;
-
     protected int $size;
 
     protected string $data;
@@ -98,18 +96,6 @@ class File extends Resource
     public function setMimeType(string $mimeType): self
     {
         $this->mimeType = $mimeType;
-
-        return $this;
-    }
-
-    public function getPermissions(): array
-    {
-        return $this->permissions;
-    }
-
-    public function setPermissions(array $permissions): self
-    {
-        $this->permissions = $permissions;
 
         return $this;
     }

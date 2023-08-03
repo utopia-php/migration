@@ -19,8 +19,6 @@ class Collection extends Resource
 
     private Database $database;
 
-    protected array $permissions = [];
-
     protected bool $documentSecurity = false;
 
     protected string $name;
@@ -76,18 +74,6 @@ class Collection extends Resource
     public function setDocumentSecurity(bool $documentSecurity): self
     {
         $this->documentSecurity = $documentSecurity;
-
-        return $this;
-    }
-
-    public function getPermissions(): array
-    {
-        return $this->permissions;
-    }
-
-    public function setPermissions(array $permissions): self
-    {
-        $this->permissions = $permissions;
 
         return $this;
     }

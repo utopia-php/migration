@@ -463,7 +463,7 @@ class Appwrite extends Destination
                 "/storage/buckets/{$bucketId}/files",
                 [
                     'content-type' => 'multipart/form-data',
-                    'X-Appwrite-project' => $this->project,
+                    'X-Appwrite-Project' => $this->project,
                     'X-Appwrite-Key' => $this->key,
                 ],
                 [
@@ -488,7 +488,7 @@ class Appwrite extends Destination
             [
                 'content-type' => 'multipart/form-data',
                 'content-range' => 'bytes '.($file->getStart()).'-'.($file->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $file->getEnd()).'/'.$file->getSize(),
-                'X-Appwrite-project' => $this->project,
+                'X-Appwrite-Project' => $this->project,
                 'x-Appwrite-Key' => $this->key,
             ],
             [
@@ -565,7 +565,15 @@ class Appwrite extends Destination
                 case Resource::TYPE_MEMBERSHIP:
                     /** @var Membership $resource */
                     $user = $resource->getUser();
-                    $teamService->createMembership($resource->getTeam()->getId(), $resource->getRoles(), '', $user->getEmail(), $user->getId(), $user->getPhone(), $user->getName());
+                    $teamService->createMembership(
+                        $resource->getTeam()->getId(), 
+                        $resource->getRoles(), 
+                        '', 
+                        $user->getEmail(), 
+                        $user->getId(),
+                        $user->getPhone(), 
+                        $user->getName()
+                    );
                     break;
             }
 

@@ -1,6 +1,8 @@
 <?php
 
 namespace Utopia\Transfer;
+use \Utopia\Transfer\Resources\Storage\File;
+use \Utopia\Transfer\Resources\Functions\Func;
 
 /**
  * Cache stores a local version of all data copied over from the source, This can be used as reference point for
@@ -35,7 +37,7 @@ class Cache
         }
 
         if ($resource->getName() == Resource::TYPE_FILE || $resource->getName() == Resource::TYPE_FUNCTION) {
-            /** @var File|Func $resource *
+            /** @var File|Func $resource */
             $resource->setData(''); // Prevent Memory Leak
         }
 

@@ -225,7 +225,6 @@ class Firebase extends Source
     private function exportDB(int $batchSize, bool $pushDocuments, Database $database)
     {
         $baseURL = "https://firestore.googleapis.com/v1/projects/{$this->projectID}/databases/(default)/documents";
-        $baseURL = "https://firestore.googleapis.com/v1/projects/{$this->projectID}/databases/(default)/documents";
 
         $nextPageToken = null;
         $allCollections = [];
@@ -407,10 +406,10 @@ class Firebase extends Source
             $data[$key] = $this->calculateValue($field);
         }
 
-        $documentID = explode('/', $document['name']);
-        $documentID = end($documentID);
+        $documentId = explode('/', $document['name']);
+        $documentId = end($documentId);
 
-        return new Document($documentID, $collection->getDatabase(), $collection, $data, []);
+        return new Document($documentId, $collection->getDatabase(), $collection, $data, []);
     }
 
     protected function exportGroupStorage(int $batchSize, array $resources)

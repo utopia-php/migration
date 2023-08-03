@@ -20,8 +20,6 @@ use Utopia\Transfer\Transfer;
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
-// cleanupAppwrite();
-
 /**
  * Initialise All Source Adapters
  */

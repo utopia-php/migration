@@ -97,6 +97,11 @@ abstract class Resource
     protected string $message = '';
 
     /**
+     * Permissions
+     */
+    protected array $permissions = [];
+
+    /**
      * Gets the name of the adapter.
      */
     abstract public static function getName(): string;
@@ -193,6 +198,28 @@ abstract class Resource
     public function setMessage(string $message): self
     {
         $this->message = $message;
+
+        return $this;
+    }
+
+    /**
+     * Get Permissions
+     * 
+     * @return array<string>
+     */
+    public function getPermissions(): array
+    {
+        return $this->permissions;
+    }
+
+    /**
+     * Set Permissions
+     * 
+     * @param array<string> $permissions
+     */
+    public function setPermissions(array $permissions): self
+    {
+        $this->permissions = $permissions;
 
         return $this;
     }
