@@ -480,8 +480,6 @@ class Appwrite extends Destination
             return $file;
         }
 
-        sleep(1);
-
         $response = $this->client->call(
             'POST',
             "/storage/buckets/{$bucketId}/files",
@@ -566,12 +564,12 @@ class Appwrite extends Destination
                     /** @var Membership $resource */
                     $user = $resource->getUser();
                     $teamService->createMembership(
-                        $resource->getTeam()->getId(), 
-                        $resource->getRoles(), 
-                        '', 
-                        $user->getEmail(), 
+                        $resource->getTeam()->getId(),
+                        $resource->getRoles(),
+                        '',
+                        $user->getEmail(),
                         $user->getId(),
-                        $user->getPhone(), 
+                        $user->getPhone(),
                         $user->getName()
                     );
                     break;

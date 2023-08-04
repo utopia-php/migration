@@ -6,7 +6,10 @@ abstract class Source extends Target
 {
     protected $transferCallback;
 
-    public $previousReport = [];
+    /**
+     * @var array<string, int>
+     */
+    public array $previousReport = [];
 
     public function callback(array $resources): void
     {

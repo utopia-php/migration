@@ -1,8 +1,9 @@
 <?php
 
 namespace Utopia\Transfer;
-use \Utopia\Transfer\Resources\Storage\File;
-use \Utopia\Transfer\Resources\Functions\Func;
+
+use Utopia\Transfer\Resources\Functions\Func;
+use Utopia\Transfer\Resources\Storage\File;
 
 /**
  * Cache stores a local version of all data copied over from the source, This can be used as reference point for

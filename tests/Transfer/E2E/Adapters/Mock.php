@@ -47,7 +47,7 @@ class Mock extends Destination
 
                     // file_put_contents($this->path . 'deployments/' . $resource->getId() . '.tar.gz', $resource->getData(), FILE_APPEND);
                     break;
-                case 'File':
+                case Resource::TYPE_FILE:
                     /** @var File $resource */
                     break;
             }

@@ -58,7 +58,15 @@ abstract class Base extends TestCase
      */
     protected function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
     {
-        $ch = curl_init((str_contains($path, 'http') ? $path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '') : $path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '')));
+        $queryString = '';
+        if ($method == 'GET' && ! empty($params)) {
+            $queryString = '?'.http_build_query($params);
+        }
+
+        $url = $path.$queryString;
+
+        $ch = curl_init($url);
+
         $responseHeaders = [];
         $responseStatus = -1;
         $responseType = '';
@@ -103,7 +111,7 @@ abstract class Base extends TestCase
 
         $responseBody = curl_exec($ch);
 
-        $responseType = array_key_exists('Content-Type', $responseHeaders) ?? $responseHeaders['content-type'] ?? '';
+        $responseType = $responseHeaders['Content-Type'] ?? $responseHeaders['content-type'] ?? '';
         $responseStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
         switch (substr($responseType, 0, strpos($responseType, ';'))) {

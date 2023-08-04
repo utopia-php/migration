@@ -440,11 +440,12 @@ class Appwrite extends Source
         }
     }
 
-    public function cleanupSubcollectionData(array $document, bool $root = true)
+    public function stripMetadata(array $document, bool $root = true)
     {
         if ($root) {
             unset($document['$id']);
         }
+
         unset($document['$permissions']);
         unset($document['$collectionId']);
         unset($document['$updatedAt']);
@@ -453,7 +454,7 @@ class Appwrite extends Source
 
         foreach ($document as $key => $value) {
             if (is_array($value)) {
-                $document[$key] = $this->cleanupSubcollectionData($value, false);
+                $document[$key] = $this->stripMetadata($value, false);
             }
         }
 
@@ -488,7 +489,7 @@ class Appwrite extends Source
                     $id = $document['$id'];
                     $permissions = $document['$permissions'];
 
-                    $document = $this->cleanupSubcollectionData($document);
+                    $document = $this->stripMetadata($document);
 
                     // Certain Appwrite versions allowed for data to be required but null
                     // This isn't allowed in modern versions so we need to remove it by comparing their attributes and replacing it with default value.
@@ -498,32 +499,32 @@ class Appwrite extends Source
                         if ($attribute->getCollection()->getId() !== $collection->getId()) {
                             continue;
                         }
-                            if ($attribute->getRequired() && ! isset($document[$attribute->getKey()])) {
-                                switch ($attribute->getTypeName()) {
-                                    case Attribute::TYPE_BOOLEAN:
-                                        $document[$attribute->getKey()] = false;
-                                        break;
-                                    case Attribute::TYPE_STRING:
-                                        $document[$attribute->getKey()] = '';
-                                        break;
-                                    case Attribute::TYPE_INTEGER:
-                                        $document[$attribute->getKey()] = 0;
-                                        break;
-                                    case Attribute::TYPE_FLOAT:
-                                        $document[$attribute->getKey()] = 0.0;
-                                        break;
-                                    case Attribute::TYPE_DATETIME:
-                                        $document[$attribute->getKey()] = 0;
-                                        break;
-                                    case Attribute::TYPE_URL:
-                                        $document[$attribute->getKey()] = 'http://null';
-                                        break;
-                                }
+
+                        if ($attribute->getRequired() && ! isset($document[$attribute->getKey()])) {
+                            switch ($attribute->getTypeName()) {
+                                case Attribute::TYPE_BOOLEAN:
+                                    $document[$attribute->getKey()] = false;
+                                    break;
+                                case Attribute::TYPE_STRING:
+                                    $document[$attribute->getKey()] = '';
+                                    break;
+                                case Attribute::TYPE_INTEGER:
+                                    $document[$attribute->getKey()] = 0;
+                                    break;
+                                case Attribute::TYPE_FLOAT:
+                                    $document[$attribute->getKey()] = 0.0;
+                                    break;
+                                case Attribute::TYPE_DATETIME:
+                                    $document[$attribute->getKey()] = 0;
+                                    break;
+                                case Attribute::TYPE_URL:
+                                    $document[$attribute->getKey()] = 'http://null';
+                                    break;
                             }
                         }
                     }
 
-                    $cleanData = $this->handleSubcollections($document, $collection, ['$databaseId', '$collectionId', '$createdAt', '$updatedAt', '$permissions']);
+                    $cleanData = $this->stripMetadata($document);
 
                     $documents[] = new Document(
                         $id,
@@ -542,23 +543,6 @@ class Appwrite extends Source
                 }
             }
         }
-    }
-
-    private function handleSubcollections($document, Collection $collection, $keys = [])
-    {
-        if (! array_key_exists('$id', $document)) {
-            return $document;
-        }
-
-        foreach ($document as $key => &$value) {
-            if (in_array($key, $keys, true)) {
-                unset($document[$key]);
-            } elseif (is_array($value)) {
-                $value = $this->handleSubcollections($value, $collection, $keys);
-            }
-        }
-
-        return $document;
     }
 
     private function convertAttribute(array $value, Collection $collection): Attribute
