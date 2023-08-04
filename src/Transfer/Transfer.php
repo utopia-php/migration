@@ -100,6 +100,7 @@ class Transfer
             foreach ($resources as $resource) {
                 /** @var resource $resource */
                 $status[$resource->getName()][$resource->getStatus()]++;
+                $status[$resource->getName()]['pending']--;
             }
         }
 
