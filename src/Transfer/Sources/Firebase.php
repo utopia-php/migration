@@ -124,7 +124,34 @@ class Firebase extends Source
 
     public function report(array $resources = []): array
     {
-        throw new \Exception('Not implemented');
+        // Check our service account is valid
+        if (!isset($this->serviceAccount['project_id'])) {
+            throw new \Exception('Invalid Firebase Service Account');
+        }
+
+        $this->authenticate();
+
+        $scopes = $this->call('GET', 'https://www.googleapis.com/oauth2/v1/tokeninfo?access_token='.$this->currentToken)['scope'];
+
+        if (empty($scopes)) {
+            throw new \Exception('Failed to fetch scopes');
+        }
+
+        $scopes = explode(' ', $scopes);
+
+        if (!in_array('https://www.googleapis.com/auth/firebase', $scopes)) {
+            throw new \Exception('Firebase Scope Missing');
+        }
+
+        if (!in_array('https://www.googleapis.com/auth/cloud-platform', $scopes)) {
+            throw new \Exception('Cloud Platform Scope Missing');
+        }
+
+        if (!in_array('https://www.googleapis.com/auth/datastore', $scopes)) {
+            throw new \Exception('Datastore Scope Missing');
+        }
+
+        return [];
     }
 
     protected function exportGroupAuth(int $batchSize, array $resources)
