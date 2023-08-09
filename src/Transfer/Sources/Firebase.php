@@ -125,7 +125,7 @@ class Firebase extends Source
     public function report(array $resources = []): array
     {
         // Check our service account is valid
-        if (!isset($this->serviceAccount['project_id'])) {
+        if (! isset($this->serviceAccount['project_id'])) {
             throw new \Exception('Invalid Firebase Service Account');
         }
 
@@ -133,21 +133,17 @@ class Firebase extends Source
 
         $scopes = $this->call('GET', 'https://www.googleapis.com/oauth2/v1/tokeninfo?access_token='.$this->currentToken)['scope'];
 
-        if (empty($scopes)) {
-            throw new \Exception('Failed to fetch scopes');
-        }
-
         $scopes = explode(' ', $scopes);
 
-        if (!in_array('https://www.googleapis.com/auth/firebase', $scopes)) {
+        if (! in_array('https://www.googleapis.com/auth/firebase', $scopes)) {
             throw new \Exception('Firebase Scope Missing');
         }
 
-        if (!in_array('https://www.googleapis.com/auth/cloud-platform', $scopes)) {
+        if (! in_array('https://www.googleapis.com/auth/cloud-platform', $scopes)) {
             throw new \Exception('Cloud Platform Scope Missing');
         }
 
-        if (!in_array('https://www.googleapis.com/auth/datastore', $scopes)) {
+        if (! in_array('https://www.googleapis.com/auth/datastore', $scopes)) {
             throw new \Exception('Datastore Scope Missing');
         }
 

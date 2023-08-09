@@ -73,24 +73,26 @@ $transfer = new Transfer(
     $destinationLocal
 );
 
-$sourceSupabase->report();
+$sourceFirebase->report();
 
-/**
- * Run Transfer
- */
-$transfer->run($sourceAppwrite->getSupportedResources(),
-    function (array $resources) {
-    }
-);
+// $sourceSupabase->report();
 
-$report = [];
+// /**
+//  * Run Transfer
+//  */
+// $transfer->run($sourceAppwrite->getSupportedResources(),
+//     function (array $resources) {
+//     }
+// );
 
-$cache = $transfer->getCache()->getAll();
+// $report = [];
 
-foreach ($cache as $type => $resources) {
-    foreach ($resources as $resource) {
-        if ($resource->getStatus() !== Resource::STATUS_ERROR) {
-            continue;
-        }
-    }
-}
+// $cache = $transfer->getCache()->getAll();
+
+// foreach ($cache as $type => $resources) {
+//     foreach ($resources as $resource) {
+//         if ($resource->getStatus() !== Resource::STATUS_ERROR) {
+//             continue;
+//         }
+//     }
+// }
