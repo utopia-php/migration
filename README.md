@@ -19,9 +19,9 @@ Init in your application:
 ```php
 <?php
 
-use Utopia\Transfer\Transfer;
-use Utopia\Transfer\Sources\NHost;
-use Utopia\Transfer\Destinations\Appwrite;
+use Utopia\Migration\Transfer;
+use Utopia\Migration\Sources\NHost;
+use Utopia\Migration\Destinations\Appwrite;
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 

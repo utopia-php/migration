@@ -34,7 +34,7 @@ services:
     networks:
       - tests
     volumes:
-      - ./tests/Transfer/resources/nhost:/mockoon
+      - ./tests/Migration/resources/nhost:/mockoon
 
   supabase-api:
     build:
@@ -43,7 +43,7 @@ services:
     networks:
       - tests
     volumes:
-      - ./tests/Transfer/resources/supabase:/mockoon
+      - ./tests/Migration/resources/supabase:/mockoon
 
   tests:
     build:
