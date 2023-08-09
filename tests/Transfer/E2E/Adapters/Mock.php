@@ -2,8 +2,8 @@
 
 namespace Utopia\Tests\E2E\Adapters;
 
-use Utopia\Transfer\Destination;
-use Utopia\Transfer\Resource;
+use Utopia\Migration\Destination;
+use Utopia\Migration\Resource;
 
 class Mock extends Destination
 {

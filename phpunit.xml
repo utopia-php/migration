@@ -10,7 +10,7 @@
         >
     <testsuites>
         <testsuite name="E2E">
-            <directory>./tests/Transfer/E2E</directory>
+            <directory>./tests/Migration/E2E</directory>
         </testsuite>
     </testsuites>
 </phpunit>

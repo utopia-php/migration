@@ -2,12 +2,12 @@
 
 namespace Utopia\Tests\E2E\Sources;
 
+use Utopia\Migration\Destination;
+use Utopia\Migration\Resource;
+use Utopia\Migration\Source;
+use Utopia\Migration\Sources\NHost;
+use Utopia\Migration\Transfer;
 use Utopia\Tests\E2E\Adapters\Mock;
-use Utopia\Transfer\Destination;
-use Utopia\Transfer\Resource;
-use Utopia\Transfer\Source;
-use Utopia\Transfer\Sources\NHost;
-use Utopia\Transfer\Transfer;
 
 class NHostTest extends Base
 {
@@ -139,7 +139,7 @@ class NHostTest extends Base
         $foundUser = null;
 
         foreach ($users as $user) {
-            /** @var \Utopia\Transfer\Resources\Auth\User $user */
+            /** @var \Utopia\Migration\Resources\Auth\User $user */
             if ($user->getEmail() === 'test@test.com') {
                 $foundUser = $user;
             }
@@ -170,7 +170,7 @@ class NHostTest extends Base
         $foundDatabase = null;
 
         foreach ($databases as $database) {
-            /** @var \Utopia\Transfer\Resources\Database $database */
+            /** @var \Utopia\Migration\Resources\Database $database */
             if ($database->getDBName() === 'public') {
                 $foundDatabase = $database;
             }
@@ -193,7 +193,7 @@ class NHostTest extends Base
         $foundCollection = null;
 
         foreach ($collections as $collection) {
-            /** @var \Utopia\Transfer\Resources\Database\Collection $collection */
+            /** @var \Utopia\Migration\Resources\Database\Collection $collection */
             if ($collection->getCollectionName() === 'TestTable') {
                 $foundCollection = $collection;
             }
@@ -223,7 +223,7 @@ class NHostTest extends Base
         $foundBucket = null;
 
         foreach ($buckets as $bucket) {
-            /** @var \Utopia\Transfer\Resources\Bucket $bucket */
+            /** @var \Utopia\Migration\Resources\Bucket $bucket */
             if ($bucket->getId() === 'default') {
                 $foundBucket = $bucket;
             }
@@ -245,7 +245,7 @@ class NHostTest extends Base
         $foundFile = null;
 
         foreach ($files as $file) {
-            /** @var \Utopia\Transfer\Resources\File $file */
+            /** @var \Utopia\Migration\Resources\File $file */
             if ($file->getFileName() === 'tulips.png') {
                 $foundFile = $file;
             }
@@ -258,7 +258,7 @@ class NHostTest extends Base
 
             return;
         }
-        /** @var \Utopia\Transfer\Resources\Storage\File $foundFile */
+        /** @var \Utopia\Migration\Resources\Storage\File $foundFile */
         $this->assertEquals('success', $foundFile->getStatus());
         $this->assertEquals('tulips.png', $foundFile->getFileName());
         $this->assertEquals('default', $foundFile->getBucket()->getId());

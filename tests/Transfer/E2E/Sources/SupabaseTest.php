@@ -2,12 +2,12 @@
 
 namespace Utopia\Tests\E2E\Sources;
 
+use Utopia\Migration\Destination;
+use Utopia\Migration\Resource;
+use Utopia\Migration\Source;
+use Utopia\Migration\Sources\Supabase;
+use Utopia\Migration\Transfer;
 use Utopia\Tests\E2E\Adapters\Mock;
-use Utopia\Transfer\Destination;
-use Utopia\Transfer\Resource;
-use Utopia\Transfer\Source;
-use Utopia\Transfer\Sources\Supabase;
-use Utopia\Transfer\Transfer;
 
 class SupabaseTest extends Base
 {
@@ -119,7 +119,7 @@ class SupabaseTest extends Base
         $foundUser = null;
 
         foreach ($users as $user) {
-            /** @var \Utopia\Transfer\Resources\Auth\User $user */
+            /** @var \Utopia\Migration\Resources\Auth\User $user */
             if ($user->getEmail() == 'albert.kihn95@yahoo.com') {
                 $foundUser = $user;
 
@@ -150,7 +150,7 @@ class SupabaseTest extends Base
         $foundDatabase = null;
 
         foreach ($databases as $database) {
-            /** @var \Utopia\Transfer\Resources\Database $database */
+            /** @var \Utopia\Migration\Resources\Database $database */
             if ($database->getDBName() === 'public') {
                 $foundDatabase = $database;
             }
@@ -175,7 +175,7 @@ class SupabaseTest extends Base
         $foundCollection = null;
 
         foreach ($collections as $collection) {
-            /** @var \Utopia\Transfer\Resources\Database\Collection $collection */
+            /** @var \Utopia\Migration\Resources\Database\Collection $collection */
             if ($collection->getDatabase()->getDBName() === 'public' && $collection->getCollectionName() === 'test') {
                 $foundCollection = $collection;
 
@@ -201,7 +201,7 @@ class SupabaseTest extends Base
         $foundDocument = null;
 
         foreach ($documents as $document) {
-            /** @var \Utopia\Transfer\Resources\Database\Document $document */
+            /** @var \Utopia\Migration\Resources\Database\Document $document */
             if ($document->getCollection()->getDatabase()->getDBName() === 'public' && $document->getCollection()->getCollectionName() === 'test') {
                 $foundDocument = $document;
             }
@@ -230,7 +230,7 @@ class SupabaseTest extends Base
         $foundBucket = null;
 
         foreach ($buckets as $bucket) {
-            /** @var \Utopia\Transfer\Resources\Storage\Bucket $bucket */
+            /** @var \Utopia\Migration\Resources\Storage\Bucket $bucket */
             if ($bucket->getBucketName() === 'Test Bucket 1') {
                 $foundBucket = $bucket;
             }
@@ -253,7 +253,7 @@ class SupabaseTest extends Base
         $foundFile = null;
 
         foreach ($files as $file) {
-            /** @var \Utopia\Transfer\Resources\File $file */
+            /** @var \Utopia\Migration\Resources\File $file */
             if ($file->getFileName() === 'tulips.png') {
                 $foundFile = $file;
             }
@@ -266,7 +266,7 @@ class SupabaseTest extends Base
 
             return;
         }
-        /** @var \Utopia\Transfer\Resources\Storage\File $foundFile */
+        /** @var \Utopia\Migration\Resources\Storage\File $foundFile */
         $this->assertEquals('success', $foundFile->getStatus());
         $this->assertEquals('tulips.png', $foundFile->getFileName());
         $this->assertEquals('image/png', $foundFile->getMimeType());

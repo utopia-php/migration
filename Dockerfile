@@ -1,11 +1,11 @@
 FROM supabase/postgres:15.1.0.96 as supabase-db
-COPY ./tests/Transfer/resources/supabase/1_globals.sql /docker-entrypoint-initdb.d/1_globals.sql
-COPY ./tests/Transfer/resources/supabase/2_main.sql /docker-entrypoint-initdb.d/2_main.sql
+COPY ./tests/Migration/resources/supabase/1_globals.sql /docker-entrypoint-initdb.d/1_globals.sql
+COPY ./tests/Migration/resources/supabase/2_main.sql /docker-entrypoint-initdb.d/2_main.sql
 RUN rm -rf /docker-entrypoint-initdb.d/migrate.sh
 
 FROM postgres:alpine3.18 as nhost-db
-COPY ./tests/Transfer/resources/nhost/1_globals.sql /docker-entrypoint-initdb.d/1_globals.sql
-COPY ./tests/Transfer/resources/nhost/2_main.sql /docker-entrypoint-initdb.d/2_main.sql
+COPY ./tests/Migration/resources/nhost/1_globals.sql /docker-entrypoint-initdb.d/1_globals.sql
+COPY ./tests/Migration/resources/nhost/2_main.sql /docker-entrypoint-initdb.d/2_main.sql
 
 # Use my fork of mockoon while waiting for range headers to be merged
 FROM node:20.4-alpine3.17 as mock-api

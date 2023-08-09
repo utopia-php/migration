@@ -1,21 +1,21 @@
 <?php
 
 /**
- * Playground for Transfer Library Tests
+ * Playground for Migration Library Tests
  *
- * A place to test and debug the Transfer Library stuff
+ * A place to test and debug the Migration Library stuff
  */
 require_once __DIR__.'/vendor/autoload.php';
 
 use Dotenv\Dotenv;
-use Utopia\Transfer\Destinations\Appwrite as AppwriteDestination;
-use Utopia\Transfer\Destinations\Local;
-use Utopia\Transfer\Resource;
-use Utopia\Transfer\Sources\Appwrite;
-use Utopia\Transfer\Sources\Firebase;
-use Utopia\Transfer\Sources\NHost;
-use Utopia\Transfer\Sources\Supabase;
-use Utopia\Transfer\Transfer;
+use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
+use Utopia\Migration\Destinations\Local;
+use Utopia\Migration\Resource;
+use Utopia\Migration\Sources\Appwrite;
+use Utopia\Migration\Sources\Firebase;
+use Utopia\Migration\Sources\NHost;
+use Utopia\Migration\Sources\Supabase;
+use Utopia\Migration\Transfer;
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();

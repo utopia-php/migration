@@ -1,53 +1,65 @@
 <?php
 
-namespace Utopia\Tests\E2E\Sources;
+namespace Utopia\Migration;
 
-use PHPUnit\Framework\TestCase;
-use Utopia\Migration\Destination;
-use Utopia\Migration\Resource;
-use Utopia\Migration\Source;
-use Utopia\Migration\Transfer;
-use Utopia\Tests\E2E\Adapters\Mock;
-
-abstract class Base extends TestCase
+abstract class Target
 {
-    protected ?Transfer $transfer = null;
+    /**
+     * Global Headers
+     *
+     * @var array
+     */
+    protected $headers = [
+        'Content-Type' => '',
+    ];
 
-    protected ?Source $source = null;
+    /**
+     * Cache
+     *
+     * @var Cache
+     */
+    public $cache;
 
-    protected ?Destination $destination = null;
+    /**
+     * Endpoint
+     *
+     * @var string
+     */
+    protected $endpoint = '';
 
-    protected function setUp(): void
+    /**
+     * Gets the name of the adapter.
+     */
+    abstract public static function getName(): string;
+
+    /**
+     * Get Supported Resources
+     */
+    abstract public static function getSupportedResources(): array;
+
+    /**
+     * Register Cache
+     */
+    public function registerCache(Cache &$cache): void
     {
-        if (! $this->source) {
-            throw new \Exception('Source not set');
-        }
-
-        $this->destination = new Mock();
-        $this->transfer = new Transfer($this->source, $this->destination);
+        $this->cache = &$cache;
     }
 
-    public function testGetName(): void
-    {
-        $this->assertNotEmpty($this->source::getName());
-    }
+    /**
+     * Run Transfer
+     */
+    abstract public function run(array $resources, callable $callback): void;
 
-    public function testGetSupportedResources(): void
-    {
-        $this->assertNotEmpty($this->source->getSupportedResources());
-
-        foreach ($this->source->getSupportedResources() as $resource) {
-            $this->assertContains($resource, Resource::ALL_RESOURCES);
-        }
-    }
-
-    public function testCache(): void
-    {
-        $cache = $this->createMock(\Utopia\Migration\Cache::class);
-        $this->source->registerCache($cache);
-
-        $this->assertNotNull($this->source->cache);
-    }
+    /**
+     * Report Resources
+     *
+     * This function performs a count of all resources that are available for transfer.
+     * It also serves a secondary purpose of checking if the API is available for the given adapter.
+     *
+     * On Destinations, this function should just return nothing but still check if the API is available.
+     * If any issues are found then an exception should be thrown with an error message.
+     */
+    abstract public function report(array $resources = []): array;
 
     /**
      * Call
@@ -58,15 +70,8 @@ abstract class Base extends TestCase
      */
     protected function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
     {
-        $queryString = '';
-        if ($method == 'GET' && ! empty($params)) {
-            $queryString = '?'.http_build_query($params);
-        }
-
-        $url = $path.$queryString;
-
-        $ch = curl_init($url);
-
+        $headers = array_merge($this->headers, $headers);
+        $ch = curl_init((str_contains($path, 'http') ? $path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '') : $this->endpoint.$path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '')));
         $responseHeaders = [];
         $responseStatus = -1;
         $responseType = '';
@@ -75,6 +80,10 @@ abstract class Base extends TestCase
         switch ($headers['Content-Type']) {
             case 'application/json':
                 $query = json_encode($params);
+                break;
+
+            case 'multipart/form-data':
+                $query = $this->flatten($params);
                 break;
 
             default:
@@ -135,5 +144,25 @@ abstract class Base extends TestCase
         }
 
         return $responseBody;
+    }
+
+    /**
+     * Flatten params array to PHP multiple format
+     */
+    protected function flatten(array $data, string $prefix = ''): array
+    {
+        $output = [];
+
+        foreach ($data as $key => $value) {
+            $finalKey = $prefix ? "{$prefix}[{$key}]" : $key;
+
+            if (is_array($value)) {
+                $output += $this->flatten($value, $finalKey);
+            } else {
+                $output[$finalKey] = $value;
+            }
+        }
+
+        return $output;
     }
 }

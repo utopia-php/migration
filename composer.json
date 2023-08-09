@@ -1,8 +1,8 @@
 {
-    "name": "utopia-php/transfer",
-    "description": "A simple library to transfer resources between services.",
+    "name": "utopia-php/migration",
+    "description": "A simple library to migrate resources between services.",
     "type": "library",
-    "keywords": ["php", "framework", "upf", "utopia", "transfer"],
+    "keywords": ["php", "framework", "upf", "utopia", "migration"],
     "license": "MIT",
     "minimum-stability": "stable",
     "authors": [{
@@ -16,11 +16,11 @@
     ],
     "autoload": {
         "psr-4": {
-            "Utopia\\Transfer\\": "src/Transfer"
+            "Utopia\\Migration\\": "src/Migration"
         }
     },
     "autoload-dev": {
-        "psr-4": {"Utopia\\Tests\\": "tests/Transfer"}
+        "psr-4": {"Utopia\\Tests\\": "tests/Migration"}
     },
     "scripts": {
         "lint": "./vendor/bin/pint --test",
