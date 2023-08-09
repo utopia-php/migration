@@ -124,7 +124,30 @@ class Firebase extends Source
 
     public function report(array $resources = []): array
     {
-        throw new \Exception('Not implemented');
+        // Check our service account is valid
+        if (! isset($this->serviceAccount['project_id'])) {
+            throw new \Exception('Invalid Firebase Service Account');
+        }
+
+        $this->authenticate();
+
+        $scopes = $this->call('GET', 'https://www.googleapis.com/oauth2/v1/tokeninfo?access_token='.$this->currentToken)['scope'];
+
+        $scopes = explode(' ', $scopes);
+
+        if (! in_array('https://www.googleapis.com/auth/firebase', $scopes)) {
+            throw new \Exception('Firebase Scope Missing');
+        }
+
+        if (! in_array('https://www.googleapis.com/auth/cloud-platform', $scopes)) {
+            throw new \Exception('Cloud Platform Scope Missing');
+        }
+
+        if (! in_array('https://www.googleapis.com/auth/datastore', $scopes)) {
+            throw new \Exception('Datastore Scope Missing');
+        }
+
+        return [];
     }
 
     protected function exportGroupAuth(int $batchSize, array $resources)
@@ -212,7 +235,8 @@ class Firebase extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
-            $database = new Database('default', '(default)');
+            $database = new Database('default', 'default');
+            $database->setOriginalId('(default)');
             $this->callback([$database]);
         }
 
@@ -264,31 +288,30 @@ class Firebase extends Source
 
     private function convertAttribute(Collection $collection, string $key, array $field): Attribute
     {
-        switch (true) {
-            case array_key_exists('booleanValue', $field):
-                return new Boolean($key, $collection, false, false, null);
-            case array_key_exists('bytesValue', $field):
-                return new Text($key, $collection, false, false, null, 1000000);
-            case array_key_exists('doubleValue', $field):
-                return new Decimal($key, $collection, false, false, null);
-            case array_key_exists('integerValue', $field):
-                return new Integer($key, $collection, false, false, null);
-            case array_key_exists('mapValue', $field):
-                return new Text($key, $collection, false, false, null, 1000000);
-            case array_key_exists('nullValue', $field):
-                return new Text($key, $collection, false, false, null, 1000000);
-            case array_key_exists('referenceValue', $field):
-                return new Text($key, $collection, false, false, null, 1000000); //TODO: This should be a reference attribute
-            case array_key_exists('stringValue', $field):
-                return new Text($key, $collection, false, false, null, 1000000);
-            case array_key_exists('timestampValue', $field):
-                return new DateTime($key, $collection, false, false, null);
-            case array_key_exists('geoPointValue', $field):
-                return new Text($key, $collection, false, false, null, 1000000);
-            case array_key_exists('arrayValue', $field):
-                return $this->calculateArrayType($collection, $key, $field['arrayValue']);
-            default:
-                throw new \Exception('Unknown field type');
+        if (array_key_exists('booleanValue', $field)) {
+            return new Boolean($key, $collection, false, false, null);
+        } elseif (array_key_exists('bytesValue', $field)) {
+            return new Text($key, $collection, false, false, null, 1000000);
+        } elseif (array_key_exists('doubleValue', $field)) {
+            return new Decimal($key, $collection, false, false, null);
+        } elseif (array_key_exists('integerValue', $field)) {
+            return new Integer($key, $collection, false, false, null);
+        } elseif (array_key_exists('mapValue', $field)) {
+            return new Text($key, $collection, false, false, null, 1000000);
+        } elseif (array_key_exists('nullValue', $field)) {
+            return new Text($key, $collection, false, false, null, 1000000);
+        } elseif (array_key_exists('referenceValue', $field)) {
+            return new Text($key, $collection, false, false, null, 1000000); //TODO: This should be a reference attribute
+        } elseif (array_key_exists('stringValue', $field)) {
+            return new Text($key, $collection, false, false, null, 1000000);
+        } elseif (array_key_exists('timestampValue', $field)) {
+            return new DateTime($key, $collection, false, false, null);
+        } elseif (array_key_exists('geoPointValue', $field)) {
+            return new Text($key, $collection, false, false, null, 1000000);
+        } elseif (array_key_exists('arrayValue', $field)) {
+            return $this->calculateArrayType($collection, $key, $field['arrayValue']);
+        } else {
+            throw new \Exception('Unknown field type');
         }
     }
 
@@ -317,7 +340,7 @@ class Firebase extends Source
 
     private function exportCollection(Collection $collection, int $batchSize, bool $transferDocuments)
     {
-        $resourceURL = 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases/'.$collection->getDatabase()->getId().'/documents/'.$collection->getId();
+        $resourceURL = 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases/'.$collection->getDatabase()->getOriginalId().'/documents/'.$collection->getId();
 
         $nextPageToken = null;
 
@@ -356,6 +379,7 @@ class Firebase extends Source
 
             // Transfer Documents
             if ($transferDocuments) {
+                $this->callback(array_values($documentSchema));
                 $this->callback($documents);
             }
 
@@ -378,7 +402,7 @@ class Firebase extends Source
         } elseif (array_key_exists('integerValue', $field)) {
             return $field['integerValue'];
         } elseif (array_key_exists('mapValue', $field)) {
-            return $field['mapValue'];
+            return json_encode($field['mapValue']);
         } elseif (array_key_exists('nullValue', $field)) {
             return $field['nullValue'];
         } elseif (array_key_exists('referenceValue', $field)) {
@@ -388,8 +412,10 @@ class Firebase extends Source
         } elseif (array_key_exists('timestampValue', $field)) {
             return $field['timestampValue'];
         } elseif (array_key_exists('geoPointValue', $field)) {
-            return $field['geoPointValue'];
+            return [$field['geoPointValue']['latitude'], $field['geoPointValue']['longitude']];
         } elseif (array_key_exists('arrayValue', $field)) {
+            //TODO:
+        } elseif (array_key_exists('referenceValue', $field)) {
             //TODO:
         } else {
             throw new \Exception('Unknown field type');
@@ -403,7 +429,10 @@ class Firebase extends Source
             $data[$key] = $this->calculateValue($field);
         }
 
-        return new Document($document['name'], $collection->getDatabase(), $collection, $data, []);
+        $documentId = explode('/', $document['name']);
+        $documentId = end($documentId);
+
+        return new Document($documentId, $collection->getDatabase(), $collection, $data, []);
     }
 
     protected function exportGroupStorage(int $batchSize, array $resources)
@@ -436,7 +465,7 @@ class Firebase extends Source
             }
 
             foreach ($result['items'] as $bucket) {
-                $this->callback([new Bucket($bucket['id'], [], false, $bucket['name'])]);
+                $this->callback([new Bucket($bucket['id'], $bucket['name'], [], false)]);
             }
 
             if (! isset($result['nextPageToken'])) {

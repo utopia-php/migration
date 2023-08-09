@@ -138,7 +138,7 @@ class Appwrite extends Source
                 $report[Resource::TYPE_MEMBERSHIP] = 0;
                 $teams = $teamsClient->list()['teams'];
                 foreach ($teams as $team) {
-                    $report[Resource::TYPE_MEMBERSHIP] += $teamsClient->listMemberships($team['$id'])['total'];
+                    $report[Resource::TYPE_MEMBERSHIP] += $teamsClient->listMemberships($team['$id'], [Query::limit(1)])['total'];
                 }
             }
 
@@ -153,7 +153,7 @@ class Appwrite extends Source
                 $report[Resource::TYPE_COLLECTION] = 0;
                 $databases = $databaseClient->list()['databases'];
                 foreach ($databases as $database) {
-                    $report[Resource::TYPE_COLLECTION] += $databaseClient->listCollections($database['$id'])['total'];
+                    $report[Resource::TYPE_COLLECTION] += $databaseClient->listCollections($database['$id'], [Query::limit(1)])['total'];
                 }
             }
 
@@ -164,7 +164,7 @@ class Appwrite extends Source
                 foreach ($databases as $database) {
                     $collections = $databaseClient->listCollections($database['$id'])['collections'];
                     foreach ($collections as $collection) {
-                        $report[Resource::TYPE_DOCUMENT] += $databaseClient->listDocuments($database['$id'], $collection['$id'])['total'];
+                        $report[Resource::TYPE_DOCUMENT] += $databaseClient->listDocuments($database['$id'], $collection['$id'], [Query::limit(1)])['total'];
                     }
                 }
             }
@@ -202,10 +202,16 @@ class Appwrite extends Source
             $currentPermission = 'files.read';
             if (in_array(Resource::TYPE_FILE, $resources)) {
                 $report[Resource::TYPE_FILE] = 0;
+                $report['size'] = 0;
                 $buckets = $storageClient->listBuckets()['buckets'];
                 foreach ($buckets as $bucket) {
-                    $report[Resource::TYPE_FILE] += $storageClient->listFiles($bucket['$id'])['total'];
+                    $files = $storageClient->listFiles($bucket['$id']);
+                    $report[Resource::TYPE_FILE] += $files['total'];
+                    foreach ($files['files'] as $file) {
+                        $report['size'] += $storageClient->getFile($bucket['$id'], $file['$id'])['sizeOriginal'];
+                    }
                 }
+                $report['size'] = $report['size'] / 1024 / 1024; // MB
             }
 
             // Functions
@@ -218,7 +224,7 @@ class Appwrite extends Source
                 $report[Resource::TYPE_DEPLOYMENT] = 0;
                 $functions = $functionsClient->list()['functions'];
                 foreach ($functions as $function) {
-                    $report[Resource::TYPE_DEPLOYMENT] += $functionsClient->listDeployments($function['$id'])['total'];
+                    $report[Resource::TYPE_DEPLOYMENT] += $functionsClient->listDeployments($function['$id'], [Query::limit(1)])['total'];
                 }
             }
 
@@ -229,6 +235,10 @@ class Appwrite extends Source
                     $report[Resource::TYPE_ENVVAR] += $functionsClient->listVariables($function['$id'])['total'];
                 }
             }
+
+            $report['version'] = $this->call('GET', '/health/version', ['X-Appwrite-Key' => '', 'X-Appwrite-Project' => ''])['version'];
+
+            $this->previousReport = $report;
 
             return $report;
         } catch (\Exception $e) {
@@ -355,6 +365,7 @@ class Appwrite extends Source
 
         // Export Memberships
         $cacheTeams = $this->cache->get(Team::getName());
+        $cacheUsers = $this->cache->get(User::getName());
 
         foreach ($cacheTeams as $team) {
             /** @var Team $team */
@@ -373,10 +384,23 @@ class Appwrite extends Source
                     break;
                 }
 
+                $user = null;
+                foreach ($cacheUsers as $cacheUser) {
+                    /** @var User $cacheUser */
+                    if ($cacheUser->getId() === $response['memberships'][0]['userId']) {
+                        $user = $cacheUser;
+                        break;
+                    }
+                }
+
+                if (! $user) {
+                    throw new \Exception('User not found');
+                }
+
                 foreach ($response['memberships'] as $membership) {
                     $memberships[] = new Membership(
                         $team,
-                        $membership['userId'],
+                        $user,
                         $membership['roles'],
                         $membership['confirm']
                     );
@@ -416,6 +440,27 @@ class Appwrite extends Source
         }
     }
 
+    public function stripMetadata(array $document, bool $root = true)
+    {
+        if ($root) {
+            unset($document['$id']);
+        }
+
+        unset($document['$permissions']);
+        unset($document['$collectionId']);
+        unset($document['$updatedAt']);
+        unset($document['$createdAt']);
+        unset($document['$databaseId']);
+
+        foreach ($document as $key => $value) {
+            if (is_array($value)) {
+                $document[$key] = $this->stripMetadata($value, false);
+            }
+        }
+
+        return $document;
+    }
+
     private function exportDocuments(int $batchSize)
     {
         $databaseClient = new Databases($this->client);
@@ -443,18 +488,49 @@ class Appwrite extends Source
                 foreach ($response['documents'] as $document) {
                     $id = $document['$id'];
                     $permissions = $document['$permissions'];
-                    unset($document['$id']);
-                    unset($document['$permissions']);
-                    unset($document['$collectionId']);
-                    unset($document['$updatedAt']);
-                    unset($document['$createdAt']);
-                    unset($document['$databaseId']);
+
+                    $document = $this->stripMetadata($document);
+
+                    // Certain Appwrite versions allowed for data to be required but null
+                    // This isn't allowed in modern versions so we need to remove it by comparing their attributes and replacing it with default value.
+                    $attributes = $this->cache->get(Attribute::getName());
+                    foreach ($attributes as $attribute) {
+                        /** @var Attribute $attribute */
+                        if ($attribute->getCollection()->getId() !== $collection->getId()) {
+                            continue;
+                        }
+
+                        if ($attribute->getRequired() && ! isset($document[$attribute->getKey()])) {
+                            switch ($attribute->getTypeName()) {
+                                case Attribute::TYPE_BOOLEAN:
+                                    $document[$attribute->getKey()] = false;
+                                    break;
+                                case Attribute::TYPE_STRING:
+                                    $document[$attribute->getKey()] = '';
+                                    break;
+                                case Attribute::TYPE_INTEGER:
+                                    $document[$attribute->getKey()] = 0;
+                                    break;
+                                case Attribute::TYPE_FLOAT:
+                                    $document[$attribute->getKey()] = 0.0;
+                                    break;
+                                case Attribute::TYPE_DATETIME:
+                                    $document[$attribute->getKey()] = 0;
+                                    break;
+                                case Attribute::TYPE_URL:
+                                    $document[$attribute->getKey()] = 'http://null';
+                                    break;
+                            }
+                        }
+                    }
+
+                    $cleanData = $this->stripMetadata($document);
 
                     $documents[] = new Document(
                         $id,
                         $collection->getDatabase(),
                         $collection,
-                        $document,
+                        $cleanData,
                         $permissions
                     );
                     $lastDocument = $id;
@@ -683,7 +759,27 @@ class Appwrite extends Source
                     $queries
                 );
 
+                // Remove two way relationship attributes
+                $this->cache->get(Resource::TYPE_ATTRIBUTE);
+
+                $knownTwoways = [];
+
+                foreach ($this->cache->get(Resource::TYPE_ATTRIBUTE) as $attribute) {
+                    /** @var Attribute|Relationship $attribute */
+                    if ($attribute->getTypeName() == Attribute::TYPE_RELATIONSHIP && $attribute->getTwoWay()) {
+                        $knownTwoways[] = $attribute->getTwoWayKey();
+                    }
+                }
+
                 foreach ($response['attributes'] as $attribute) {
+                    if (in_array($attribute['key'], $knownTwoways)) {
+                        continue;
+                    }
+
+                    if ($attribute['type'] === 'relationship') {
+                        $knownTwoways[] = $attribute['twoWayKey'];
+                    }
+
                     $attributes[] = $this->convertAttribute($attribute, $collection);
                 }
 
@@ -762,17 +858,20 @@ class Appwrite extends Source
     protected function exportGroupStorage(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
-            $this->exportBuckets($batchSize);
+            $this->exportBuckets($batchSize, false);
         }
 
         if (in_array(Resource::TYPE_FILE, $resources)) {
             $this->exportFiles($batchSize);
         }
+
+        if (in_array(Resource::TYPE_BUCKET, $resources)) {
+            $this->exportBuckets($batchSize, true);
+        }
     }
 
-    private function exportBuckets(int $batchSize)
+    private function exportBuckets(int $batchSize, bool $updateLimits)
     {
-        //TODO: Impl batching
         $storageClient = new Storage($this->client);
 
         $buckets = $storageClient->listBuckets();
@@ -780,18 +879,22 @@ class Appwrite extends Source
         $convertedBuckets = [];
 
         foreach ($buckets['buckets'] as $bucket) {
-            $convertedBuckets[] = new Bucket(
+            $bucket = new Bucket(
                 $bucket['$id'],
+                $bucket['name'],
                 $bucket['$permissions'],
                 $bucket['fileSecurity'],
-                $bucket['name'],
                 $bucket['enabled'],
                 $bucket['maximumFileSize'],
                 $bucket['allowedFileExtensions'],
                 $bucket['compression'],
                 $bucket['encryption'],
                 $bucket['antivirus'],
+                $updateLimits
             );
+
+            $bucket->setUpdateLimits($updateLimits);
+            $convertedBuckets[] = $bucket;
         }
 
         if (empty($convertedBuckets)) {
@@ -894,7 +997,6 @@ class Appwrite extends Source
 
     private function exportFunctions(int $batchSize)
     {
-        //TODO: Implement batching
         $functionsClient = new Functions($this->client);
 
         $functions = $functionsClient->list();
@@ -934,8 +1036,14 @@ class Appwrite extends Source
     private function exportDeployments(int $batchSize)
     {
         $functionsClient = new Functions($this->client);
-
         $functions = $this->cache->get(Func::getName());
+
+        // exportDeploymentData doesn't exist on Appwrite versions prior to 1.4
+        $appwriteVersion = $this->call('GET', '/health/version', ['X-Appwrite-Key' => '', 'X-Appwrite-Project' => ''])['version'];
+
+        if (version_compare($appwriteVersion, '1.4.0', '<')) {
+            return;
+        }
 
         foreach ($functions as $func) {
             /** @var Func $func */

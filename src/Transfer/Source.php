@@ -6,6 +6,11 @@ abstract class Source extends Target
 {
     protected $transferCallback;
 
+    /**
+     * @var array<string, int>
+     */
+    public array $previousReport = [];
+
     public function callback(array $resources): void
     {
         ($this->transferCallback)($resources);
@@ -27,8 +32,8 @@ abstract class Source extends Target
                 }
             }
 
-            $this->cache->addAll($returnedResources);
-            $callback($prunedResurces);
+            $callback($returnedResources);
+            $this->cache->addAll($prunedResurces);
         };
 
         $this->exportResources($resources, 100);

@@ -9,8 +9,6 @@ class Func extends Resource
 {
     protected string $name;
 
-    protected string $id;
-
     protected array $execute;
 
     protected bool $enabled;
@@ -48,18 +46,6 @@ class Func extends Resource
     public function getFunctionName(): string
     {
         return $this->name;
-    }
-
-    public function getId(): string
-    {
-        return $this->id;
-    }
-
-    public function setId(string $id): self
-    {
-        $this->id = $id;
-
-        return $this;
     }
 
     public function getExecute(): array

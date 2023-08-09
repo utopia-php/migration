@@ -22,8 +22,6 @@ class Database extends Resource
 
     protected string $name;
 
-    protected string $id;
-
     public function __construct(string $name = '', string $id = '')
     {
         $this->name = $name;
@@ -43,18 +41,6 @@ class Database extends Resource
     public function getDBName(): string
     {
         return $this->name;
-    }
-
-    public function getId(): string
-    {
-        return $this->id;
-    }
-
-    public function setId(string $id): self
-    {
-        $this->id = $id;
-
-        return $this;
     }
 
     /**

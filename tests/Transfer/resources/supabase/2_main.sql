@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 15.1
--- Dumped by pg_dump version 15.2
+-- Dumped from database version 15.1 (Ubuntu 15.1-1.pgdg20.04+1)
+-- Dumped by pg_dump version 15.3
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -15,10 +15,6 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
-
---
--- Name: auth; Type: SCHEMA; Schema: -; Owner: supabase_admin
---
 
 CREATE SCHEMA auth;
 
@@ -51,15 +47,6 @@ CREATE SCHEMA graphql_public;
 
 
 ALTER SCHEMA graphql_public OWNER TO supabase_admin;
-
---
--- Name: pgbouncer; Type: SCHEMA; Schema: -; Owner: pgbouncer
---
-
-CREATE SCHEMA pgbouncer;
-
-
-ALTER SCHEMA pgbouncer OWNER TO pgbouncer;
 
 --
 -- Name: pgsodium; Type: SCHEMA; Schema: -; Owner: postgres
@@ -659,26 +646,6 @@ ALTER FUNCTION extensions.set_graphql_placeholder() OWNER TO supabase_admin;
 
 COMMENT ON FUNCTION extensions.set_graphql_placeholder() IS 'Reintroduces placeholder function for graphql_public.graphql';
 
-
---
--- Name: get_auth(text); Type: FUNCTION; Schema: pgbouncer; Owner: postgres
---
-
-CREATE FUNCTION pgbouncer.get_auth(p_usename text) RETURNS TABLE(username text, password text)
-    LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-BEGIN
-    RAISE WARNING 'PgBouncer auth request: %', p_usename;
-
-    RETURN QUERY
-    SELECT usename::TEXT, passwd::TEXT FROM pg_catalog.pg_shadow
-    WHERE usename = p_usename;
-END;
-$$;
-
-
-ALTER FUNCTION pgbouncer.get_auth(p_usename text) OWNER TO postgres;
-
 --
 -- Name: can_insert_object(text, text, uuid, jsonb); Type: FUNCTION; Schema: storage; Owner: supabase_storage_admin
 --
@@ -863,24 +830,6 @@ ALTER FUNCTION storage.update_updated_at_column() OWNER TO supabase_storage_admi
 --
 -- Name: secrets_encrypt_secret_secret(); Type: FUNCTION; Schema: vault; Owner: supabase_admin
 --
-
-CREATE FUNCTION vault.secrets_encrypt_secret_secret() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-		BEGIN
-		        new.secret = CASE WHEN new.secret IS NULL THEN NULL ELSE
-			CASE WHEN new.key_id IS NULL THEN NULL ELSE pg_catalog.encode(
-			  pgsodium.crypto_aead_det_encrypt(
-				pg_catalog.convert_to(new.secret, 'utf8'),
-				pg_catalog.convert_to((new.id::text || new.description::text || new.created_at::text || new.updated_at::text)::text, 'utf8'),
-				new.key_id::uuid,
-				new.nonce
-			  ),
-				'base64') END END;
-		RETURN new;
-		END;
-		$$;
-
 
 ALTER FUNCTION vault.secrets_encrypt_secret_secret() OWNER TO supabase_admin;
 
@@ -1467,30 +1416,6 @@ CREATE TABLE storage.objects (
 
 ALTER TABLE storage.objects OWNER TO supabase_storage_admin;
 
---
--- Name: decrypted_secrets; Type: VIEW; Schema: vault; Owner: supabase_admin
---
-
-CREATE VIEW vault.decrypted_secrets AS
- SELECT secrets.id,
-    secrets.name,
-    secrets.description,
-    secrets.secret,
-        CASE
-            WHEN (secrets.secret IS NULL) THEN NULL::text
-            ELSE
-            CASE
-                WHEN (secrets.key_id IS NULL) THEN NULL::text
-                ELSE convert_from(pgsodium.crypto_aead_det_decrypt(decode(secrets.secret, 'base64'::text), convert_to(((((secrets.id)::text || secrets.description) || (secrets.created_at)::text) || (secrets.updated_at)::text), 'utf8'::name), secrets.key_id, secrets.nonce), 'utf8'::name)
-            END
-        END AS decrypted_secret,
-    secrets.key_id,
-    secrets.nonce,
-    secrets.created_at,
-    secrets.updated_at
-   FROM vault.secrets;
-
-
 ALTER TABLE vault.decrypted_secrets OWNER TO supabase_admin;
 
 --
@@ -1768,6 +1693,8 @@ COPY auth.schema_migrations (version) FROM stdin;
 20230322519590
 20230402418590
 20230411005111
+20230508135423
+20230523124323
 \.
 
 
@@ -1935,9 +1862,7 @@ COPY storage.migrations (id, name, hash, executed_at) FROM stdin;
 --
 
 COPY storage.objects (id, bucket_id, name, owner, created_at, updated_at, last_accessed_at, metadata, version) FROM stdin;
-2693082f-39c6-4750-8ed4-47e11269ae25	Test Bucket 1	25MiB.bin	\N	2023-04-26 05:36:24.101743+00	2023-04-26 05:36:26.52988+00	2023-04-26 05:36:24.101743+00	{"eTag": "\\"eeb74bf4aa3e578d69f97e8053b34ede-6\\"", "size": 26214400, "mimetype": "application/macbinary", "cacheControl": "max-age=3600", "lastModified": "2023-04-26T05:36:26.000Z", "contentLength": 26214400, "httpStatusCode": 200}	\N
 808135d7-ee5b-4b7b-a5be-cfd007ae157d	Test Bucket 1	tulips.png	\N	2023-05-22 05:33:26.676802+00	2023-05-22 05:33:27.307468+00	2023-05-22 05:33:26.676802+00	{"eTag": "\\"2e57bf7a8a9bc49b3eacca90c921a4ae\\"", "size": 679233, "mimetype": "image/png", "cacheControl": "max-age=3600", "lastModified": "2023-05-22T05:33:28.000Z", "contentLength": 679233, "httpStatusCode": 200}	\N
-6684d39c-723f-446e-b8f2-195defc2b132	Test Bucket 1	pictures/tulips.png	\N	2023-05-22 05:33:41.44723+00	2023-05-22 05:33:41.619794+00	2023-05-22 05:33:41.44723+00	{"eTag": "\\"2e57bf7a8a9bc49b3eacca90c921a4ae\\"", "size": 679233, "mimetype": "image/png", "cacheControl": "max-age=3600", "lastModified": "2023-05-22T05:33:42.000Z", "contentLength": 679233, "httpStatusCode": 200}	\N
 \.
 
 
@@ -2213,6 +2138,13 @@ CREATE INDEX factor_id_created_at_idx ON auth.mfa_factors USING btree (user_id, 
 
 
 --
+-- Name: flow_state_created_at_idx; Type: INDEX; Schema: auth; Owner: supabase_auth_admin
+--
+
+CREATE INDEX flow_state_created_at_idx ON auth.flow_state USING btree (created_at DESC);
+
+
+--
 -- Name: identities_email_idx; Type: INDEX; Schema: auth; Owner: supabase_auth_admin
 --
 
@@ -2245,6 +2177,13 @@ CREATE INDEX idx_auth_code ON auth.flow_state USING btree (auth_code);
 --
 
 CREATE INDEX idx_user_id_auth_method ON auth.flow_state USING btree (user_id, authentication_method);
+
+
+--
+-- Name: mfa_challenge_created_at_idx; Type: INDEX; Schema: auth; Owner: supabase_auth_admin
+--
+
+CREATE INDEX mfa_challenge_created_at_idx ON auth.mfa_challenges USING btree (created_at DESC);
 
 
 --
@@ -2297,10 +2236,24 @@ CREATE INDEX refresh_tokens_session_id_revoked_idx ON auth.refresh_tokens USING 
 
 
 --
+-- Name: refresh_tokens_updated_at_idx; Type: INDEX; Schema: auth; Owner: supabase_auth_admin
+--
+
+CREATE INDEX refresh_tokens_updated_at_idx ON auth.refresh_tokens USING btree (updated_at DESC);
+
+
+--
 -- Name: saml_providers_sso_provider_id_idx; Type: INDEX; Schema: auth; Owner: supabase_auth_admin
 --
 
 CREATE INDEX saml_providers_sso_provider_id_idx ON auth.saml_providers USING btree (sso_provider_id);
+
+
+--
+-- Name: saml_relay_states_created_at_idx; Type: INDEX; Schema: auth; Owner: supabase_auth_admin
+--
+
+CREATE INDEX saml_relay_states_created_at_idx ON auth.saml_relay_states USING btree (created_at DESC);
 
 
 --
@@ -2315,6 +2268,13 @@ CREATE INDEX saml_relay_states_for_email_idx ON auth.saml_relay_states USING btr
 --
 
 CREATE INDEX saml_relay_states_sso_provider_id_idx ON auth.saml_relay_states USING btree (sso_provider_id);
+
+
+--
+-- Name: sessions_not_after_idx; Type: INDEX; Schema: auth; Owner: supabase_auth_admin
+--
+
+CREATE INDEX sessions_not_after_idx ON auth.sessions USING btree (not_after DESC);
 
 
 --
@@ -3168,26 +3128,6 @@ GRANT ALL ON FUNCTION graphql.increment_schema_version() TO postgres;
 GRANT ALL ON FUNCTION graphql.increment_schema_version() TO anon;
 GRANT ALL ON FUNCTION graphql.increment_schema_version() TO authenticated;
 GRANT ALL ON FUNCTION graphql.increment_schema_version() TO service_role;
-
-
---
--- Name: FUNCTION graphql("operationName" text, query text, variables jsonb, extensions jsonb); Type: ACL; Schema: graphql_public; Owner: supabase_admin
---
-
-GRANT ALL ON FUNCTION graphql_public.graphql("operationName" text, query text, variables jsonb, extensions jsonb) TO postgres;
-GRANT ALL ON FUNCTION graphql_public.graphql("operationName" text, query text, variables jsonb, extensions jsonb) TO anon;
-GRANT ALL ON FUNCTION graphql_public.graphql("operationName" text, query text, variables jsonb, extensions jsonb) TO authenticated;
-GRANT ALL ON FUNCTION graphql_public.graphql("operationName" text, query text, variables jsonb, extensions jsonb) TO service_role;
-
-
---
--- Name: FUNCTION get_auth(p_usename text); Type: ACL; Schema: pgbouncer; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION pgbouncer.get_auth(p_usename text) FROM PUBLIC;
-GRANT ALL ON FUNCTION pgbouncer.get_auth(p_usename text) TO pgbouncer;
-
-
 --
 -- Name: TABLE key; Type: ACL; Schema: pgsodium; Owner: supabase_admin
 --

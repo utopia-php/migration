@@ -2,6 +2,9 @@
 
 namespace Utopia\Transfer;
 
+use Utopia\Transfer\Resources\Functions\Func;
+use Utopia\Transfer\Resources\Storage\File;
+
 /**
  * Cache stores a local version of all data copied over from the source, This can be used as reference point for
  * previous transfers and also help the destination to determine what needs to be updated, modified,
@@ -33,6 +36,12 @@ class Cache
             }
             $resource->setInternalId(uniqid());
         }
+
+        if ($resource->getName() == Resource::TYPE_FILE || $resource->getName() == Resource::TYPE_FUNCTION) {
+            /** @var File|Func $resource */
+            $resource->setData(''); // Prevent Memory Leak
+        }
+
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
     }
 
@@ -54,8 +63,8 @@ class Cache
      */
     public function update($resource)
     {
-        if (! in_array($resource, $this->cache[$resource->getName()])) {
-            throw new \Exception('Resource does not exist in cache');
+        if (! in_array($resource->getName(), $this->cache)) {
+            $this->add($resource);
         }
 
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;

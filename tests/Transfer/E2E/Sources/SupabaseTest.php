@@ -6,10 +6,10 @@ use Utopia\Tests\E2E\Adapters\Mock;
 use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Source;
-use Utopia\Transfer\Sources\NHost;
+use Utopia\Transfer\Sources\Supabase;
 use Utopia\Transfer\Transfer;
 
-class NHostTest extends Base
+class SupabaseTest extends Base
 {
     protected ?Source $source = null;
 
@@ -25,7 +25,7 @@ class NHostTest extends Base
 
         while ($tries > 0) {
             try {
-                $pdo = new \PDO('pgsql:host=nhost-db'.';port=5432;dbname=postgres', 'postgres', 'postgres');
+                $pdo = new \PDO('pgsql:host=supabase-db'.';port=5432;dbname=postgres', 'postgres', 'postgres');
                 $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
                 if ($pdo && $pdo->query('SELECT 1')->fetchColumn() === 1) {
@@ -44,34 +44,14 @@ class NHostTest extends Base
             throw new \Exception('DB was offline after 5 tries');
         }
 
-        // Check Storage is online and ready
-        $tries = 5;
-        while ($tries > 0) {
-            try {
-                $this->call('GET', 'http://nhost-storage/', ['Content-Type' => 'text/plain']);
-
-                break;
-            } catch (\Exception $e) {
-            }
-
-            sleep(5);
-            $tries--;
-        }
-
-        if ($tries === 0) {
-            throw new \Exception('Storage was offline after 5 tries');
-        }
-
-        $this->source = new NHost(
-            'xxxxxxxxxxxx',
-            'eu-central-1',
-            'hasuraSecret',
+        $this->source = new Supabase(
+            'http://supabase-api',
+            'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+            'supabase-db',
             'postgres',
             'postgres',
-            'password'
+            'postgres'
         );
-        $this->source->pdo = new \PDO('pgsql:host=nhost-db'.';port=5432;dbname=postgres', 'postgres', 'postgres');
-        $this->source->storageURL = 'http://nhost-storage';
 
         $this->destination = new Mock();
         $this->transfer = new Transfer($this->source, $this->destination);
@@ -94,8 +74,7 @@ class NHostTest extends Base
      */
     public function testRunTransfer($state)
     {
-        $this->transfer->run(
-            $this->source->getSupportedResources(),
+        $this->transfer->run($this->source->getSupportedResources(),
             function () {
             }
         );
@@ -136,27 +115,27 @@ class NHostTest extends Base
     {
         // Find known user
         $users = $state['source']->cache->get(Resource::TYPE_USER);
+        $this->assertGreaterThan(0, count($users));
         $foundUser = null;
 
         foreach ($users as $user) {
             /** @var \Utopia\Transfer\Resources\Auth\User $user */
-            if ($user->getEmail() === 'test@test.com') {
+            if ($user->getEmail() == 'albert.kihn95@yahoo.com') {
                 $foundUser = $user;
-            }
 
-            break;
+                break;
+            }
         }
 
         if (! $foundUser) {
-            $this->fail('User "test@test.com" not found');
+            $this->fail('User "albert.kihn95@yahoo.com" not found');
 
             return;
         }
 
         $this->assertEquals('success', $foundUser->getStatus());
-        $this->assertEquals('$2a$10$ARQ/f.K6OmCjZ8XF0U.6fezPMlxDqsmcl0Rs6xQVkvj62u7gcSzOW', $foundUser->getPasswordHash()->getHash());
+        $this->assertEquals('$2a$10$NGZAAOfXeheUoH9V3dnRoeR.r3J5ynnSZ6KjvHxOUlV8XUrulJzQa', $foundUser->getPasswordHash()->getHash());
         $this->assertEquals('bcrypt', $foundUser->getPasswordHash()->getAlgorithm());
-        $this->assertEquals('test@test.com', $foundUser->getUsername());
         $this->assertEquals(['email'], $foundUser->getTypes());
     }
 
@@ -167,6 +146,7 @@ class NHostTest extends Base
     {
         // Find known database
         $databases = $state['source']->cache->get(Resource::TYPE_DATABASE);
+        $this->assertGreaterThan(0, count($databases));
         $foundDatabase = null;
 
         foreach ($databases as $database) {
@@ -188,29 +168,54 @@ class NHostTest extends Base
         $this->assertEquals('public', $foundDatabase->getDBName());
         $this->assertEquals('public', $foundDatabase->getId());
 
-        // Find known collection
+        // Find Known Collections
         $collections = $state['source']->cache->get(Resource::TYPE_COLLECTION);
+        $this->assertGreaterThan(0, count($collections));
+
         $foundCollection = null;
 
         foreach ($collections as $collection) {
             /** @var \Utopia\Transfer\Resources\Database\Collection $collection */
-            if ($collection->getCollectionName() === 'TestTable') {
+            if ($collection->getDatabase()->getDBName() === 'public' && $collection->getCollectionName() === 'test') {
                 $foundCollection = $collection;
-            }
 
-            break;
+                break;
+            }
         }
 
         if (! $foundCollection) {
-            $this->fail('Collection "TestTable" not found');
+            $this->fail('Collection "test" not found');
 
             return;
         }
 
         $this->assertEquals('success', $foundCollection->getStatus());
-        $this->assertEquals('TestTable', $foundCollection->getCollectionName());
-        $this->assertEquals('TestTable', $foundCollection->getId());
+        $this->assertEquals('test', $foundCollection->getCollectionName());
+        $this->assertEquals('public', $foundCollection->getDatabase()->getDBName());
         $this->assertEquals('public', $foundCollection->getDatabase()->getId());
+
+        // Find Known Documents
+        $documents = $state['source']->cache->get(Resource::TYPE_DOCUMENT);
+        $this->assertGreaterThan(0, count($documents));
+
+        $foundDocument = null;
+
+        foreach ($documents as $document) {
+            /** @var \Utopia\Transfer\Resources\Database\Document $document */
+            if ($document->getCollection()->getDatabase()->getDBName() === 'public' && $document->getCollection()->getCollectionName() === 'test') {
+                $foundDocument = $document;
+            }
+
+            break;
+        }
+
+        if (! $foundDocument) {
+            $this->fail('Document "1" not found');
+
+            return;
+        }
+
+        $this->assertEquals('success', $foundDocument->getStatus());
     }
 
     /**
@@ -220,11 +225,13 @@ class NHostTest extends Base
     {
         // Find known bucket
         $buckets = $state['source']->cache->get(Resource::TYPE_BUCKET);
+        $this->assertGreaterThan(0, count($buckets));
+
         $foundBucket = null;
 
         foreach ($buckets as $bucket) {
-            /** @var \Utopia\Transfer\Resources\Bucket $bucket */
-            if ($bucket->getId() === 'default') {
+            /** @var \Utopia\Transfer\Resources\Storage\Bucket $bucket */
+            if ($bucket->getBucketName() === 'Test Bucket 1') {
                 $foundBucket = $bucket;
             }
 
@@ -232,16 +239,17 @@ class NHostTest extends Base
         }
 
         if (! $foundBucket) {
-            $this->fail('Bucket "default" not found');
+            $this->fail('Bucket "Test Bucket 1" not found');
 
             return;
         }
 
         $this->assertEquals('success', $foundBucket->getStatus());
-        $this->assertEquals('default', $foundBucket->getId());
 
         // Find known file
         $files = $state['source']->cache->get(Resource::TYPE_FILE);
+        $this->assertGreaterThan(0, count($files));
+
         $foundFile = null;
 
         foreach ($files as $file) {
@@ -261,7 +269,6 @@ class NHostTest extends Base
         /** @var \Utopia\Transfer\Resources\Storage\File $foundFile */
         $this->assertEquals('success', $foundFile->getStatus());
         $this->assertEquals('tulips.png', $foundFile->getFileName());
-        $this->assertEquals('default', $foundFile->getBucket()->getId());
         $this->assertEquals('image/png', $foundFile->getMimeType());
         $this->assertEquals(679233, $foundFile->getSize());
         $this->assertEquals('', $foundFile->getData()); // Memory Leak Check

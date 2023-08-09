@@ -7,8 +7,6 @@ use Utopia\Transfer\Transfer;
 
 class File extends Resource
 {
-    protected string $id;
-
     protected Bucket $bucket;
 
     protected string $name;
@@ -16,8 +14,6 @@ class File extends Resource
     protected string $signature;
 
     protected string $mimeType;
-
-    protected array $permissions;
 
     protected int $size;
 
@@ -49,18 +45,6 @@ class File extends Resource
     public function getGroup(): string
     {
         return Transfer::GROUP_STORAGE;
-    }
-
-    public function getId(): string
-    {
-        return $this->id;
-    }
-
-    public function setId(string $id): self
-    {
-        $this->id = $id;
-
-        return $this;
     }
 
     public function getBucket(): Bucket
@@ -112,18 +96,6 @@ class File extends Resource
     public function setMimeType(string $mimeType): self
     {
         $this->mimeType = $mimeType;
-
-        return $this;
-    }
-
-    public function getPermissions(): array
-    {
-        return $this->permissions;
-    }
-
-    public function setPermissions(array $permissions): self
-    {
-        $this->permissions = $permissions;
 
         return $this;
     }

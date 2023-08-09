@@ -19,13 +19,9 @@ class Collection extends Resource
 
     private Database $database;
 
-    protected array $permissions = [];
-
     protected bool $documentSecurity = false;
 
     protected string $name;
-
-    protected string $id;
 
     public function __construct(Database $database, string $name, string $id, bool $documentSecurity = false, array $permissions = [])
     {
@@ -70,18 +66,6 @@ class Collection extends Resource
         return $this;
     }
 
-    public function getId(): string
-    {
-        return $this->id;
-    }
-
-    public function setId(string $id): self
-    {
-        $this->id = $id;
-
-        return $this;
-    }
-
     public function getDocumentSecurity(): bool
     {
         return $this->documentSecurity;
@@ -90,18 +74,6 @@ class Collection extends Resource
     public function setDocumentSecurity(bool $documentSecurity): self
     {
         $this->documentSecurity = $documentSecurity;
-
-        return $this;
-    }
-
-    public function getPermissions(): array
-    {
-        return $this->permissions;
-    }
-
-    public function setPermissions(array $permissions): self
-    {
-        $this->permissions = $permissions;
 
         return $this;
     }

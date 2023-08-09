@@ -8,8 +8,6 @@ use Utopia\Transfer\Transfer;
 
 class Team extends Resource
 {
-    protected string $id;
-
     protected string $name;
 
     protected array $preferences = [];
@@ -42,18 +40,6 @@ class Team extends Resource
     public function setTeamName(string $name): self
     {
         $this->name = $name;
-
-        return $this;
-    }
-
-    public function getId(): string
-    {
-        return $this->id;
-    }
-
-    public function setId(string $id): self
-    {
-        $this->id = $id;
 
         return $this;
     }

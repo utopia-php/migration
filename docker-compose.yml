@@ -26,6 +26,24 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
+  
+  nhost-storage:
+    build:
+      context: .
+      target: mock-api
+    networks:
+      - tests
+    volumes:
+      - ./tests/Transfer/resources/nhost:/mockoon
+
+  supabase-api:
+    build:
+      context: .
+      target: mock-api
+    networks:
+      - tests
+    volumes:
+      - ./tests/Transfer/resources/supabase:/mockoon
 
   tests:
     build:
@@ -34,11 +52,14 @@ services:
     networks:
       - tests
     volumes:
-      - ./:/app
+      - ./tests:/app/tests
+      - ./src:/app/src
+      - ./phpunit.xml:/app/phpunit.xml
     working_dir: /app
     depends_on:
       - supabase-db
       - nhost-db
+      - nhost-storage
     environment:
       - NHOST_DB_URL=postgres://postgres:postgres@nhost-db:5432/postgres
       - SUPABASE_DB_URL=postgres://postgres:postgres@supabase-db:5432/postgres

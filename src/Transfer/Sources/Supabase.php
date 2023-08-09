@@ -224,6 +224,7 @@ class Supabase extends NHost
         $this->port = $port;
 
         $this->headers['Authorization'] = 'Bearer '.$this->key;
+        $this->headers['apiKey'] = $this->key;
 
         try {
             $this->pdo = new \PDO('pgsql:host='.$this->host.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
@@ -332,7 +333,19 @@ class Supabase extends NHost
             }
 
             $report[Resource::TYPE_FILE] = $statement->fetchColumn();
+
+            $statementFileSize = $this->pdo->prepare('SELECT objects.metadata FROM storage.objects;');
+            $statementFileSize->execute();
+
+            $report['size'] = 0;
+            foreach ($statementFileSize->fetchAll(\PDO::FETCH_ASSOC) as $file) {
+                $metadata = json_decode($file['metadata'], true);
+
+                $report['size'] += ($metadata['size'] / 1024 / 1024); // MB
+            }
         }
+
+        $this->previousReport = $report;
 
         return $report;
     }
@@ -433,15 +446,17 @@ class Supabase extends NHost
         $transferBuckets = [];
 
         foreach ($buckets as $bucket) {
-            $transferBuckets[] = new Bucket(
-                '',
+            $convertedBucket = new Bucket(
+                'unique()',
+                $bucket['name'],
                 [],
                 false,
-                $bucket['name'],
                 true,
-                $bucket['file_size_limit'] ?? 0,
+                $bucket['file_size_limit'] ?? null,
                 $bucket['allowed_mime_types'] ? $this->convertMimes($bucket['allowed_mime_types']) : [],
             );
+            $convertedBucket->setOriginalId($bucket['id']);
+            $transferBuckets[] = $convertedBucket;
         }
 
         $this->callback($transferBuckets);
@@ -458,14 +473,14 @@ class Supabase extends NHost
         foreach ($buckets as $bucket) {
             /** @var Bucket $bucket */
             $totalStatement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.objects WHERE bucket_id=:bucketId');
-            $totalStatement->execute([':bucketId' => $bucket->getId()]);
+            $totalStatement->execute([':bucketId' => $bucket->getOriginalId()]);
             $total = $totalStatement->fetchColumn();
 
             $offset = 0;
             while ($offset < $total) {
                 $statement = $this->pdo->prepare('SELECT * FROM storage.objects WHERE bucket_id=:bucketId ORDER BY created_at LIMIT :limit OFFSET :offset');
                 $statement->execute([
-                    ':bucketId' => $bucket->getId(),
+                    ':bucketId' => $bucket->getOriginalId(),
                     ':limit' => $batchSize,
                     ':offset' => $offset,
                 ]);
@@ -507,7 +522,7 @@ class Supabase extends NHost
             $chunkData = $this->call(
                 'GET',
                 '/storage/v1/object/'.
-                    rawurlencode($file->getBucket()->getId()).'/'.rawurlencode($file->getFileName()),
+                    rawurlencode($file->getBucket()->getOriginalId()).'/'.rawurlencode($file->getFileName()),
                 ['range' => "bytes=$start-$end"]
             );
 

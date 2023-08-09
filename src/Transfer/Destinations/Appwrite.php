@@ -13,6 +13,7 @@ use Utopia\Transfer\Destination;
 use Utopia\Transfer\Resource;
 use Utopia\Transfer\Resources\Auth\Hash;
 use Utopia\Transfer\Resources\Auth\Membership;
+use Utopia\Transfer\Resources\Auth\Team;
 use Utopia\Transfer\Resources\Auth\User;
 use Utopia\Transfer\Resources\Database\Attribute;
 use Utopia\Transfer\Resources\Database\Attributes\DateTime;
@@ -277,13 +278,26 @@ class Appwrite extends Destination
                     break;
                 case Resource::TYPE_DOCUMENT:
                     /** @var Document $resource */
-                    $databaseService->createDocument(
-                        $resource->getDatabase()->getId(),
-                        $resource->getCollection()->getId(),
-                        $resource->getId(),
-                        $resource->getData(),
-                        $resource->getPermissions()
-                    );
+                    // Check if document has already been created by subcollection
+                    $docExists = array_key_exists($resource->getId(), $this->cache->get(Resource::TYPE_DOCUMENT));
+
+                    if ($docExists) {
+                        $resource->setStatus(Resource::STATUS_SKIPPED, 'Document has been already created by relationship');
+
+                        return $resource;
+                    }
+
+                    try {
+                        $databaseService->createDocument(
+                            $resource->getDatabase()->getId(),
+                            $resource->getCollection()->getId(),
+                            $resource->getId(),
+                            $resource->getData(),
+                            $resource->getPermissions()
+                        );
+                    } catch (\Exception $e) {
+                        $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                    }
                     break;
             }
 
@@ -338,7 +352,16 @@ class Appwrite extends Destination
                 break;
             case Attribute::TYPE_RELATIONSHIP:
                 /** @var Relationship $attribute */
-                $databaseService->createRelationshipAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getRelatedCollection(), $attribute->getRelationType(), $attribute->getTwoWay(), $attribute->getKey(), $attribute->getTwoWayKey(), $attribute->getOnDelete());
+                $databaseService->createRelationshipAttribute(
+                    $attribute->getCollection()->getDatabase()->getId(),
+                    $attribute->getCollection()->getId(),
+                    $attribute->getRelatedCollection(),
+                    $attribute->getRelationType(),
+                    $attribute->getTwoWay(),
+                    $attribute->getKey(),
+                    $attribute->getTwoWayKey(),
+                    $attribute->getOnDelete()
+                );
                 break;
             default:
                 throw new \Exception('Invalid attribute type');
@@ -370,7 +393,7 @@ class Appwrite extends Destination
         throw new \Exception('Attribute creation timeout');
     }
 
-    public function importFileResource(Resource $resource): Resource
+    public function importFileResource(File|Bucket $resource): Resource
     {
         $storageService = new Storage($this->client);
 
@@ -384,18 +407,33 @@ class Appwrite extends Destination
                     break;
                 case Resource::TYPE_BUCKET:
                     /** @var Bucket $resource */
-                    $response = $storageService->createBucket(
-                        $resource->getId(),
-                        $resource->getBucketName(),
-                        $resource->getPermissions(),
-                        $resource->getFileSecurity(),
-                        true, // Set to true for now, we'll come back later.
-                        $resource->getMaxFileSize(),
-                        $resource->getAllowedFileExtensions(),
-                        $resource->getCompression(),
-                        $resource->getEncryption(),
-                        $resource->getAntiVirus()
-                    );
+                    if (! $resource->getUpdateLimits()) {
+                        $response = $storageService->createBucket(
+                            $resource->getId() ?? 'unique()',
+                            $resource->getBucketName(),
+                            $resource->getPermissions(),
+                            $resource->getFileSecurity(),
+                            true, // Set to true for now, we'll come back later.
+                            null,
+                            null,
+                            $resource->getCompression() ?? 'none',
+                            $resource->getEncryption() ?? null,
+                            $resource->getAntiVirus() ?? null
+                        );
+                    } else {
+                        $response = $storageService->updateBucket(
+                            $resource->getId(),
+                            $resource->getBucketName(),
+                            $resource->getPermissions(),
+                            $resource->getFileSecurity(),
+                            $resource->getEnabled(),
+                            $resource->getMaxFileSize() ?? null,
+                            $resource->getAllowedFileExtensions() ?? null,
+                            $resource->getCompression() ?? 'none',
+                            $resource->getEncryption() ?? null,
+                            $resource->getAntiVirus() ?? null
+                        );
+                    }
                     $resource->setId($response['$id']);
             }
 
@@ -422,9 +460,11 @@ class Appwrite extends Destination
         if ($file->getSize() <= Transfer::STORAGE_MAX_CHUNK_SIZE) {
             $response = $this->client->call(
                 'POST',
-                "/v1/storage/buckets/{$bucketId}/files",
+                "/storage/buckets/{$bucketId}/files",
                 [
                     'content-type' => 'multipart/form-data',
+                    'X-Appwrite-Project' => $this->project,
+                    'X-Appwrite-Key' => $this->key,
                 ],
                 [
                     'bucketId' => $bucketId,
@@ -435,16 +475,19 @@ class Appwrite extends Destination
             );
 
             $file->setStatus(Resource::STATUS_SUCCESS);
+            $file->setData('');
 
             return $file;
         }
 
         $response = $this->client->call(
             'POST',
-            "/v1/storage/buckets/{$bucketId}/files",
+            "/storage/buckets/{$bucketId}/files",
             [
                 'content-type' => 'multipart/form-data',
                 'content-range' => 'bytes '.($file->getStart()).'-'.($file->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $file->getEnd()).'/'.$file->getSize(),
+                'X-Appwrite-Project' => $this->project,
+                'x-Appwrite-Key' => $this->key,
             ],
             [
                 'bucketId' => $bucketId,
@@ -477,8 +520,18 @@ class Appwrite extends Destination
                     /** @var User $resource */
                     if (in_array(User::TYPE_EMAIL, $resource->getTypes())) {
                         $this->importPasswordUser($resource);
+                    } elseif (in_array(User::TYPE_ANONYMOUS, $resource->getTypes()) || in_array(User::TYPE_OAUTH, $resource->getTypes())) {
+                        $resource->setStatus(Resource::STATUS_WARNING, 'Anonymous and OAuth users cannot be imported.');
+
+                        return $resource;
                     } else {
-                        $userService->create($resource->getId(), $resource->getEmail(), $resource->getPhone(), null, $resource->getName());
+                        $userService->create(
+                            $resource->getId(),
+                            null,
+                            in_array(User::TYPE_PHONE, $resource->getTypes()) ? $resource->getPhone() : null,
+                            null,
+                            $resource->getName()
+                        );
                     }
 
                     if ($resource->getUsername()) {
@@ -504,18 +557,26 @@ class Appwrite extends Destination
                     break;
                 case Resource::TYPE_TEAM:
                     /** @var Team $resource */
-                    $teamService->create($resource->getId(), $resource->getName());
-                    $teamService->updatePrefs($resource->getId(), $resource->getPrefs());
+                    $teamService->create($resource->getId(), $resource->getTeamName());
+                    $teamService->updatePrefs($resource->getId(), $resource->getPreferences());
                     break;
                 case Resource::TYPE_MEMBERSHIP:
                     /** @var Membership $resource */
-                    //TODO: Discuss in meeting.
-                    // $teamService->createMembership($resource->getTeam()->getId(), $resource->getRoles(), )
-                    // break;
+                    $user = $resource->getUser();
+                    $teamService->createMembership(
+                        $resource->getTeam()->getId(),
+                        $resource->getRoles(),
+                        '',
+                        $user->getEmail(),
+                        $user->getId(),
+                        $user->getPhone(),
+                        $user->getName()
+                    );
+                    break;
             }
 
             $resource->setStatus(Resource::STATUS_SUCCESS);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
         } finally {
             return $resource;
@@ -528,8 +589,8 @@ class Appwrite extends Destination
         $hash = $user->getPasswordHash();
         $result = null;
 
-        if (empty($hash->getHash())) {
-            throw new \Exception('User password hash is empty');
+        if (! $hash) {
+            throw new \Exception('Password hash is missing');
         }
 
         switch ($hash->getAlgorithm()) {
@@ -655,7 +716,7 @@ class Appwrite extends Destination
         if ($deployment->getSize() <= Transfer::STORAGE_MAX_CHUNK_SIZE) {
             $response = $this->client->call(
                 'POST',
-                "/v1/functions/{$functionId}/deployments",
+                "/functions/{$functionId}/deployments",
                 [
                     'content-type' => 'multipart/form-data',
                 ],

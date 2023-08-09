@@ -42,6 +42,8 @@ abstract class Resource
 
     public const TYPE_FUNCTION = 'function';
 
+    public const TYPE_INDEX = 'index';
+
     // Children (Resources that are created by other resources)
 
     public const TYPE_ATTRIBUTE = 'attribute';
@@ -49,8 +51,6 @@ abstract class Resource
     public const TYPE_DEPLOYMENT = 'deployment';
 
     public const TYPE_HASH = 'hash';
-
-    public const TYPE_INDEX = 'index';
 
     public const TYPE_ENVVAR = 'envvar';
 
@@ -77,6 +77,11 @@ abstract class Resource
     protected string $id = '';
 
     /**
+     * Original ID of the resource
+     */
+    protected string $originalId = '';
+
+    /**
      * Internal ID
      */
     protected string $internalId = '';
@@ -90,6 +95,11 @@ abstract class Resource
      * message for the status
      */
     protected string $message = '';
+
+    /**
+     * Permissions
+     */
+    protected array $permissions = [];
 
     /**
      * Gets the name of the adapter.
@@ -115,6 +125,24 @@ abstract class Resource
     public function setId(string $id): self
     {
         $this->id = $id;
+
+        return $this;
+    }
+
+    /**
+     * Get Original ID
+     */
+    public function getOriginalId(): string
+    {
+        return $this->originalId;
+    }
+
+    /**
+     * Set Original ID
+     */
+    public function setOriginalId(string $originalId): self
+    {
+        $this->originalId = $originalId;
 
         return $this;
     }
@@ -170,6 +198,28 @@ abstract class Resource
     public function setMessage(string $message): self
     {
         $this->message = $message;
+
+        return $this;
+    }
+
+    /**
+     * Get Permissions
+     *
+     * @return array<string>
+     */
+    public function getPermissions(): array
+    {
+        return $this->permissions;
+    }
+
+    /**
+     * Set Permissions
+     *
+     * @param  array<string>  $permissions
+     */
+    public function setPermissions(array $permissions): self
+    {
+        $this->permissions = $permissions;
 
         return $this;
     }

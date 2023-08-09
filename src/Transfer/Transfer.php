@@ -71,25 +71,36 @@ class Transfer
 
     protected array $events = [];
 
+    protected array $resources = [];
+
     public function getStatusCounters()
     {
         $status = [];
 
+        foreach ($this->resources as $resource) {
+            $status[$resource] = [
+                Resource::STATUS_PENDING => 0,
+                Resource::STATUS_SUCCESS => 0,
+                Resource::STATUS_ERROR => 0,
+                Resource::STATUS_SKIPPED => 0,
+                Resource::STATUS_PROCESSING => 0,
+                Resource::STATUS_WARNING => 0,
+            ];
+        }
+
+        if ($this->source->previousReport) {
+            foreach ($this->source->previousReport as $resource => $data) {
+                if ($resource != 'size' && $resource != 'version') {
+                    $status[$resource]['pending'] = $data;
+                }
+            }
+        }
+
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
                 /** @var resource $resource */
-                if (! array_key_exists($resource->getName(), $status)) {
-                    $status[$resource->getName()] = [
-                        Resource::STATUS_PENDING => 0,
-                        Resource::STATUS_SUCCESS => 0,
-                        Resource::STATUS_ERROR => 0,
-                        Resource::STATUS_SKIPPED => 0,
-                        Resource::STATUS_PROCESSING => 0,
-                        Resource::STATUS_WARNING => 0,
-                    ];
-                }
-
                 $status[$resource->getName()][$resource->getStatus()]++;
+                $status[$resource->getName()]['pending']--;
             }
         }
 
@@ -113,6 +124,9 @@ class Transfer
             }
         }
 
+        $computedResources = array_map('strtolower', $computedResources);
+
+        $this->resources = $computedResources;
         $this->destination->run($computedResources, $callback, $this->source);
     }
 
@@ -155,7 +169,7 @@ class Transfer
                     'resource' => $type,
                     'id' => $resource->getId(),
                     'status' => $resource->getStatus(),
-                    'message' => $resource->getReason(),
+                    'message' => $resource->getMessage(),
                 ];
             }
         }

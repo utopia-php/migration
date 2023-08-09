@@ -7,32 +7,30 @@ use Utopia\Transfer\Transfer;
 
 class Bucket extends Resource
 {
-    protected string $id;
-
-    protected array $permissions;
-
-    protected bool $fileSecurity;
+    protected ?bool $fileSecurity;
 
     protected string $name;
 
-    protected bool $enabled;
+    protected ?bool $enabled;
 
-    protected int $maxFileSize;
+    protected ?int $maxFileSize;
 
-    protected array $allowedFileExtensions;
+    protected ?array $allowedFileExtensions;
 
-    protected string $compression;
+    protected ?string $compression;
 
-    protected bool $encryption;
+    protected ?bool $encryption;
 
-    protected bool $antiVirus;
+    protected ?bool $antiVirus;
 
-    public function __construct(string $id = '', array $permissions = [], bool $fileSecurity = false, string $name = '', bool $enabled = false, int $maxFileSize = 0, array $allowedFileExtensions = [], string $compression = '', bool $encryption = false, bool $antiVirus = false)
+    protected bool $updateLimits = false;
+
+    public function __construct(string $id = '', string $name = '', array $permissions = [], bool $fileSecurity = false, bool $enabled = false, int $maxFileSize = null, array $allowedFileExtensions = [], string $compression = 'none', bool $encryption = false, bool $antiVirus = false, bool $updateLimits = false)
     {
         $this->id = $id;
+        $this->name = $name;
         $this->permissions = $permissions;
         $this->fileSecurity = $fileSecurity;
-        $this->name = $name;
         $this->enabled = $enabled;
         $this->maxFileSize = $maxFileSize;
         $this->allowedFileExtensions = $allowedFileExtensions;
@@ -49,30 +47,6 @@ class Bucket extends Resource
     public function getGroup(): string
     {
         return Transfer::GROUP_STORAGE;
-    }
-
-    public function getId(): string
-    {
-        return $this->id;
-    }
-
-    public function setId(string $id): self
-    {
-        $this->id = $id;
-
-        return $this;
-    }
-
-    public function getPermissions(): array
-    {
-        return $this->permissions;
-    }
-
-    public function setPermissions(array $permissions): self
-    {
-        $this->permissions = $permissions;
-
-        return $this;
     }
 
     public function getFileSecurity(): bool
@@ -111,12 +85,12 @@ class Bucket extends Resource
         return $this;
     }
 
-    public function getMaxFileSize(): int
+    public function getMaxFileSize(): ?int
     {
         return $this->maxFileSize;
     }
 
-    public function setMaxFileSize(int $maxFileSize): self
+    public function setMaxFileSize(?int $maxFileSize): self
     {
         $this->maxFileSize = $maxFileSize;
 
@@ -167,6 +141,18 @@ class Bucket extends Resource
     public function setAntiVirus(bool $antiVirus): self
     {
         $this->antiVirus = $antiVirus;
+
+        return $this;
+    }
+
+    public function getUpdateLimits(): bool
+    {
+        return $this->updateLimits;
+    }
+
+    public function setUpdateLimits(bool $updateLimits): self
+    {
+        $this->updateLimits = $updateLimits;
 
         return $this;
     }
