@@ -181,6 +181,10 @@ class Firebase extends Source
                 'Content-Type' => 'application/json',
             ], $request);
 
+            if (! isset($response['users'])) {
+                break;
+            }
+
             $result = $response['users'];
             $nextPageToken = $response['nextPageToken'] ?? null;
 
@@ -260,6 +264,10 @@ class Firebase extends Source
                 'pageSize' => $batchSize,
                 'pageToken' => $nextPageToken,
             ]);
+
+            if (! isset($result['collectionIds'])) {
+                break;
+            }
 
             // Transfer Collections
             foreach ($result['collectionIds'] as $collection) {
@@ -461,6 +469,10 @@ class Firebase extends Source
             ]);
 
             if (empty($result)) {
+                break;
+            }
+
+            if (! isset($result['items'])) {
                 break;
             }
 
