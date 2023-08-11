@@ -147,6 +147,8 @@ class Firebase extends Source
             throw new \Exception('Datastore Scope Missing');
         }
 
+        $this->exportGroupDatabases(1000, [Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, Resource::TYPE_ATTRIBUTE, Resource::TYPE_DOCUMENT]);
+
         return [];
     }
 
@@ -258,14 +260,27 @@ class Firebase extends Source
         while (true) {
             $collections = [];
 
-            $result = $this->call('POST', $baseURL.':listCollectionIds', [
-                'Content-Type' => 'application/json',
-            ], [
-                'pageSize' => $batchSize,
-                'pageToken' => $nextPageToken,
-            ]);
+            try {
+                $result = $this->call('POST', $baseURL.':listCollectionIds', [
+                    'Content-Type' => 'application/json',
+                ], [
+                    'pageSize' => $batchSize,
+                    'pageToken' => $nextPageToken,
+                ]);
+    
+                if (! isset($result['collectionIds'])) {
+                    break;
+                }
+            } catch (\Exception $e) {
+                if ($e->getCode() == 403) {
+                    $errorMessage = new Collection($database, 'firestore', 'firestore');
 
-            if (! isset($result['collectionIds'])) {
+                    $errorMessage->setStatus(Resource::STATUS_ERROR);
+                    $errorMessage->setMessage($e->getMessage());
+
+                    $this->cache->add($errorMessage);
+                }
+
                 break;
             }
 
