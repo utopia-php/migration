@@ -147,8 +147,6 @@ class Firebase extends Source
             throw new \Exception('Datastore Scope Missing');
         }
 
-        $this->exportGroupDatabases(1000, [Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, Resource::TYPE_ATTRIBUTE, Resource::TYPE_DOCUMENT]);
-
         return [];
     }
 
