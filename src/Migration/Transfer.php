@@ -88,19 +88,18 @@ class Transfer
             ];
         }
 
-        if ($this->source->previousReport) {
-            foreach ($this->source->previousReport as $resource => $data) {
-                if ($resource != 'size' && $resource != 'version') {
-                    $status[$resource]['pending'] = $data;
-                }
-            }
-        }
-
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
                 /** @var resource $resource */
                 $status[$resource->getName()][$resource->getStatus()]++;
-                $status[$resource->getName()]['pending']--;
+            }
+        }
+
+        if ($this->source->previousReport) {
+            foreach ($this->source->previousReport as $resource => $data) {
+                if ($resource != 'size' && $resource != 'version' && isset($status[$resource])) {
+                    $status[$resource]['pending'] = $data;
+                }
             }
         }
 

@@ -69,25 +69,23 @@ $destinationLocal = new Local(__DIR__.'/localBackup/');
  * Initialise Transfer Class
  */
 $transfer = new Transfer(
-    $sourceSupabase,
+    $sourceFirebase,
     $destinationLocal
 );
 
 $sourceFirebase->report();
 
-// $sourceSupabase->report();
-
 // /**
 //  * Run Transfer
 //  */
-// $transfer->run($sourceAppwrite->getSupportedResources(),
-//     function (array $resources) {
-//     }
-// );
+$transfer->run($sourceFirebase->getSupportedResources(),
+    function (array $resources) {
+    }
+);
 
-// $report = [];
+$report = [];
 
-// $cache = $transfer->getCache()->getAll();
+$cache = $transfer->getCache()->getAll();
 
 // foreach ($cache as $type => $resources) {
 //     foreach ($resources as $resource) {
