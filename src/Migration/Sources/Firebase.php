@@ -535,9 +535,15 @@ class Firebase extends Source
                 break;
             }
 
+            $buckets = [];
             foreach ($result['items'] as $bucket) {
-                $this->callback([new Bucket($bucket['id'], $bucket['name'], [], false)]);
+                $curBucket = new Bucket($this->sanitizeBucketId($bucket['id']), $bucket['name'], [], false);
+                $curBucket->setOriginalId($bucket['id']);
+
+                $buckets[] = $curBucket;
             }
+
+            $this->callback($buckets);
 
             if (! isset($result['nextPageToken'])) {
                 break;
@@ -547,13 +553,38 @@ class Firebase extends Source
         }
     }
 
+    private function sanitizeBucketId($id)
+    {
+        // Step 1: Check if the ID looks like a URL (contains ".")
+        if (strpos($id, '.') !== false) {
+            // If it looks like a URL, try to extract the subdomain
+            $parts = explode('.', $id);
+            if (count($parts) > 0) {
+                $id = $parts[0];
+            }
+        }
+
+        // Step 2: Ensure the ID contains at most 36 characters
+        $id = substr($id, 0, 36);
+
+        // Step 3: Remove invalid characters using a regular expression
+        $id = preg_replace('/[^a-zA-Z0-9\._-]/', '', $id);
+
+        // Step 4: Ensure the ID doesn't start with a special character
+        if (preg_match('/^[._-]/', $id)) {
+            $id = 'a'.substr($id, 1);
+        }
+
+        return $id;
+    }
+
     private function exportFiles(int $batchsize)
     {
         $buckets = $this->cache->get(Bucket::getName());
 
         foreach ($buckets as $bucket) {
             /** @var Bucket $bucket */
-            $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$bucket->getId().'/o';
+            $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$bucket->getOriginalId().'/o';
 
             $nextPageToken = null;
 
@@ -588,7 +619,7 @@ class Firebase extends Source
 
     private function exportFile(File $file)
     {
-        $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$file->getBucket()->getId().'/o/'.$file->getId().'?alt=media';
+        $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$file->getBucket()->getOriginalId().'/o/'.$file->getId().'?alt=media';
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 

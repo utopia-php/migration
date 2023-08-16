@@ -103,6 +103,21 @@ class Transfer
             }
         }
 
+        // Remove all empty resources
+        foreach ($status as $resource => $data) {
+            $allEmpty = true;
+
+            foreach ($data as $count) {
+                if ($count > 0) {
+                    $allEmpty = false;
+                }
+            }
+
+            if ($allEmpty) {
+                unset($status[$resource]);
+            }
+        }
+
         return $status;
     }
 
