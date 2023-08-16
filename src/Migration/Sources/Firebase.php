@@ -553,7 +553,7 @@ class Firebase extends Source
         }
     }
 
-    function sanitizeBucketId($id) {
+    private function sanitizeBucketId($id) {
         // Step 1: Check if the ID looks like a URL (contains ".")
         if (strpos($id, '.') !== false) {
             // If it looks like a URL, try to extract the subdomain
