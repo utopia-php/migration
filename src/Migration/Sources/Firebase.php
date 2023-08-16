@@ -152,6 +152,20 @@ class Firebase extends Source
 
     protected function exportGroupAuth(int $batchSize, array $resources)
     {
+        // Check if Auth is enabled
+        try {
+            $this->call('GET', 'https://identitytoolkit.googleapis.com/v1/projects');
+        } catch (\Exception $e) {
+            $message = json_decode($e->getMessage(), true);
+
+            if (isset($message['error']['details']) && $message['error']['details'][1]['reason'] == 'SERVICE_DISABLED') {
+                // IdentityKit is disabled
+                return;
+            }
+
+            throw $e;
+        }
+
         if (in_array(Resource::TYPE_USER, $resources)) {
             $this->exportUsers($batchSize);
         }
@@ -180,6 +194,10 @@ class Firebase extends Source
             $response = $this->call('POST', 'https://identitytoolkit.googleapis.com/identitytoolkit/v3/relyingparty/downloadAccount', [
                 'Content-Type' => 'application/json',
             ], $request);
+
+            if (! isset($response['users'])) {
+                break;
+            }
 
             $result = $response['users'];
             $nextPageToken = $response['nextPageToken'] ?? null;
@@ -234,6 +252,20 @@ class Firebase extends Source
 
     protected function exportGroupDatabases(int $batchSize, array $resources)
     {
+        // Check if Firestore is enabled
+        try {
+            $this->call('GET', 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases');
+        } catch (\Exception $e) {
+            $message = json_decode($e->getMessage(), true);
+
+            if (isset($message['error']['details']) && $message['error']['details'][1]['reason'] == 'SERVICE_DISABLED') {
+                // Firestore is disabled
+                return;
+            }
+
+            throw $e;
+        }
+
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $database = new Database('default', 'default');
             $database->setOriginalId('(default)');
@@ -254,12 +286,29 @@ class Firebase extends Source
         while (true) {
             $collections = [];
 
-            $result = $this->call('POST', $baseURL.':listCollectionIds', [
-                'Content-Type' => 'application/json',
-            ], [
-                'pageSize' => $batchSize,
-                'pageToken' => $nextPageToken,
-            ]);
+            try {
+                $result = $this->call('POST', $baseURL.':listCollectionIds', [
+                    'Content-Type' => 'application/json',
+                ], [
+                    'pageSize' => $batchSize,
+                    'pageToken' => $nextPageToken,
+                ]);
+
+                if (! isset($result['collectionIds'])) {
+                    break;
+                }
+            } catch (\Exception $e) {
+                if ($e->getCode() == 403) {
+                    $errorMessage = new Collection($database, 'firestore', 'firestore');
+
+                    $errorMessage->setStatus(Resource::STATUS_ERROR);
+                    $errorMessage->setMessage($e->getMessage());
+
+                    $this->cache->add($errorMessage);
+                }
+
+                break;
+            }
 
             // Transfer Collections
             foreach ($result['collectionIds'] as $collection) {
@@ -437,6 +486,24 @@ class Firebase extends Source
 
     protected function exportGroupStorage(int $batchSize, array $resources)
     {
+        // Check if storage is enabled
+        try {
+            $this->call('GET', 'https://storage.googleapis.com/storage/v1/b', [], [
+                'project' => $this->projectID,
+                'maxResults' => 1,
+                'alt' => 'json',
+            ]);
+        } catch (\Exception $e) {
+            $message = json_decode($e->getMessage(), true);
+
+            if (isset($message['error']['details']) && $message['error']['details'][1]['reason'] == 'SERVICE_DISABLED') {
+                // Storage is disabled
+                return;
+            }
+
+            throw $e;
+        }
+
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
         }
@@ -461,6 +528,10 @@ class Firebase extends Source
             ]);
 
             if (empty($result)) {
+                break;
+            }
+
+            if (! isset($result['items'])) {
                 break;
             }
 
