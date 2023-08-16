@@ -553,7 +553,8 @@ class Firebase extends Source
         }
     }
 
-    private function sanitizeBucketId($id) {
+    private function sanitizeBucketId($id)
+    {
         // Step 1: Check if the ID looks like a URL (contains ".")
         if (strpos($id, '.') !== false) {
             // If it looks like a URL, try to extract the subdomain
@@ -562,18 +563,18 @@ class Firebase extends Source
                 $id = $parts[0];
             }
         }
-        
+
         // Step 2: Ensure the ID contains at most 36 characters
         $id = substr($id, 0, 36);
-        
+
         // Step 3: Remove invalid characters using a regular expression
         $id = preg_replace('/[^a-zA-Z0-9\._-]/', '', $id);
-        
+
         // Step 4: Ensure the ID doesn't start with a special character
         if (preg_match('/^[._-]/', $id)) {
-            $id = 'a' . substr($id, 1);
+            $id = 'a'.substr($id, 1);
         }
-        
+
         return $id;
     }
 
