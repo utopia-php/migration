@@ -991,7 +991,7 @@ class Appwrite extends Source
         }
 
         if (in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
-            $this->exportDeployments($batchSize);
+            $this->exportDeployments($batchSize, in_array(Resource::TYPE_INACTIVE_DEPLOYMENTS, $resources));
         }
     }
 
@@ -1016,7 +1016,8 @@ class Appwrite extends Source
                 $function['enabled'],
                 $function['events'],
                 $function['schedule'],
-                $function['timeout']
+                $function['timeout'],
+                $function['deployment']
             );
 
             $convertedResources[] = $convertedFunc;
@@ -1033,7 +1034,7 @@ class Appwrite extends Source
         $this->callback($convertedResources);
     }
 
-    private function exportDeployments(int $batchSize)
+    private function exportDeployments(int $batchSize, bool $includeInactive = false)
     {
         $functionsClient = new Functions($this->client);
         $functions = $this->cache->get(Func::getName());
@@ -1061,6 +1062,10 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['deployments'] as $deployment) {
+                    if (!$includeInactive && ($deployment['$id'] != $func->getDeployment())) {
+                        continue;
+                    }
+
                     $this->exportDeploymentData($func, $deployment);
 
                     $lastDocument = $deployment['$id'];
@@ -1097,13 +1102,13 @@ class Appwrite extends Source
             $deployment['activate']
         );
 
-        $deployment->setInternalId($deployment->getId());
+        $deployment->setOriginalId($deployment->getId());
 
         // Loop until the entire file is downloaded
         while ($start < $fileSize) {
             $chunkData = $this->call(
                 'GET',
-                "/functions/{$func->getId()}/deployments/{$deployment->getInternalId()}/download",
+                "/functions/{$func->getId()}/deployments/{$deployment->getOriginalId()}/download",
                 ['range' => "bytes=$start-$end"]
             );
 

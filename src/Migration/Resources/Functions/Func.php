@@ -21,7 +21,9 @@ class Func extends Resource
 
     protected int $timeout;
 
-    public function __construct(string $name, string $id, string $runtime, array $execute = [], bool $enabled = true, array $events = [], string $schedule = '', int $timeout = 0)
+    protected string $deployment;
+
+    public function __construct(string $name, string $id, string $runtime, array $execute = [], bool $enabled = true, array $events = [], string $schedule = '', int $timeout = 0, string $deployment = '')
     {
         $this->name = $name;
         $this->id = $id;
@@ -31,6 +33,7 @@ class Func extends Resource
         $this->events = $events;
         $this->schedule = $schedule;
         $this->timeout = $timeout;
+        $this->deployment = $deployment;
     }
 
     public static function getName(): string
@@ -120,6 +123,18 @@ class Func extends Resource
         return $this;
     }
 
+    public function getDeployment(): string
+    {
+        return $this->deployment;
+    }
+
+    public function setDeployment(string $deployment): self
+    {
+        $this->deployment = $deployment;
+
+        return $this;
+    }
+
     public function asArray(): array
     {
         return [
@@ -131,6 +146,7 @@ class Func extends Resource
             'events' => $this->events,
             'schedule' => $this->schedule,
             'timeout' => $this->timeout,
+            'deployment' => $this->deployment
         ];
     }
 }

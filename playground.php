@@ -45,14 +45,14 @@ $sourceNHost = new NHost(
     $_ENV['NHOST_TEST_PASSWORD'] ?? '',
 );
 
-$sourceSupabase = new Supabase(
-    $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
-    $_ENV['SUPABASE_TEST_KEY'] ?? '',
-    $_ENV['SUPABASE_TEST_HOST'] ?? '',
-    $_ENV['SUPABASE_TEST_DATABASE'] ?? '',
-    $_ENV['SUPABASE_TEST_USERNAME'] ?? '',
-    $_ENV['SUPABASE_TEST_PASSWORD'] ?? '',
-);
+// $sourceSupabase = new Supabase(
+//     $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
+//     $_ENV['SUPABASE_TEST_KEY'] ?? '',
+//     $_ENV['SUPABASE_TEST_HOST'] ?? '',
+//     $_ENV['SUPABASE_TEST_DATABASE'] ?? '',
+//     $_ENV['SUPABASE_TEST_USERNAME'] ?? '',
+//     $_ENV['SUPABASE_TEST_PASSWORD'] ?? '',
+// );
 
 /**
  * Initialise All Destination Adapters
@@ -69,16 +69,16 @@ $destinationLocal = new Local(__DIR__.'/localBackup/');
  * Initialise Transfer Class
  */
 $transfer = new Transfer(
-    $sourceFirebase,
+    $sourceAppwrite,
     $destinationLocal
 );
 
-$sourceFirebase->report();
+$sourceAppwrite->report();
 
 // /**
 //  * Run Transfer
 //  */
-$transfer->run($sourceFirebase->getSupportedResources(),
+$transfer->run(Appwrite::getSupportedResources(),
     function (array $resources) {
     }
 );

@@ -37,8 +37,8 @@ class Cache
             $resource->setInternalId(uniqid());
         }
 
-        if ($resource->getName() == Resource::TYPE_FILE || $resource->getName() == Resource::TYPE_FUNCTION) {
-            /** @var File|Func $resource */
+        if ($resource->getName() == Resource::TYPE_FILE || $resource->getName() == Resource::TYPE_DEPLOYMENT) {
+            /** @var File|Deployment $resource */
             $resource->setData(''); // Prevent Memory Leak
         }
 

@@ -104,7 +104,7 @@ class Local extends Destination
                 case Resource::TYPE_DEPLOYMENT:
                     /** @var Deployment $resource */
                     if ($resource->getStart() === 0) {
-                        $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
+                        $this->data[$resource->getGroup()][$resource->getName()][] = $resource->asArray();
                     }
 
                     file_put_contents($this->path.'deployments/'.$resource->getId().'.tar.gz', $resource->getData(), FILE_APPEND);
@@ -135,7 +135,7 @@ class Local extends Destination
                     $resource->setData('');
                     break;
                 default:
-                    $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
+                    $this->data[$resource->getGroup()][$resource->getName()][]= $resource->asArray();
                     break;
             }
 

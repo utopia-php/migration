@@ -44,15 +44,17 @@ abstract class Resource
 
     public const TYPE_INDEX = 'index';
 
+    public const TYPE_INACTIVE_DEPLOYMENTS = 'inactive-deployments';
+
+    public const TYPE_DEPLOYMENT = 'deployment';
+
+    public const TYPE_ENVVAR = 'envvar';
+
     // Children (Resources that are created by other resources)
 
     public const TYPE_ATTRIBUTE = 'attribute';
 
-    public const TYPE_DEPLOYMENT = 'deployment';
-
     public const TYPE_HASH = 'hash';
-
-    public const TYPE_ENVVAR = 'envvar';
 
     public const ALL_RESOURCES = [
         self::TYPE_ATTRIBUTE,
