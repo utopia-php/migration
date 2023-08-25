@@ -101,6 +101,7 @@ class Appwrite extends Source
             // Functions
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
+            Resource::TYPE_INACTIVE_DEPLOYMENTS,
             Resource::TYPE_ENVVAR,
 
             // Settings
