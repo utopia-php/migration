@@ -987,7 +987,7 @@ class Appwrite extends Source
     protected function exportGroupFunctions(int $batchSize, array $resources)
     {
         if (in_array(Resource::TYPE_FUNCTION, $resources)) {
-            $this->exportFunctions($batchSize);
+            $this->exportFunctions($batchSize, $resources);
         }
 
         if (in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
@@ -995,7 +995,7 @@ class Appwrite extends Source
         }
     }
 
-    private function exportFunctions(int $batchSize)
+    private function exportFunctions(int $batchSize, array $resources)
     {
         $functionsClient = new Functions($this->client);
 
@@ -1022,12 +1022,14 @@ class Appwrite extends Source
 
             $convertedResources[] = $convertedFunc;
 
-            foreach ($function['vars'] as $var) {
-                $convertedResources[] = new EnvVar(
-                    $convertedFunc,
-                    $var['key'],
-                    $var['value'],
-                );
+            if (in_array(Resource::TYPE_ENVVAR, $resources)) {
+                foreach ($function['vars'] as $var) {
+                    $convertedResources[] = new EnvVar(
+                        $convertedFunc,
+                        $var['key'],
+                        $var['value'],
+                    );
+                }
             }
         }
 
