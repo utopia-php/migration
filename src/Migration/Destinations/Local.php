@@ -135,7 +135,7 @@ class Local extends Destination
                     $resource->setData('');
                     break;
                 default:
-                    $this->data[$resource->getGroup()][$resource->getName()][]= $resource->asArray();
+                    $this->data[$resource->getGroup()][$resource->getName()][] = $resource->asArray();
                     break;
             }
 

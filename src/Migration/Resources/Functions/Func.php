@@ -146,7 +146,7 @@ class Func extends Resource
             'events' => $this->events,
             'schedule' => $this->schedule,
             'timeout' => $this->timeout,
-            'deployment' => $this->deployment
+            'deployment' => $this->deployment,
         ];
     }
 }

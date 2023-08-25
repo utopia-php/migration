@@ -1065,7 +1065,7 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['deployments'] as $deployment) {
-                    if (!$includeInactive && ($deployment['$id'] != $func->getDeployment())) {
+                    if (! $includeInactive && ($deployment['$id'] != $func->getDeployment())) {
                         continue;
                     }
 

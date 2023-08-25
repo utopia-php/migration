@@ -2,7 +2,6 @@
 
 namespace Utopia\Migration;
 
-use Utopia\Migration\Resources\Functions\Func;
 use Utopia\Migration\Resources\Storage\File;
 
 /**
