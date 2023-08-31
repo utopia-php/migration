@@ -478,6 +478,7 @@ class Firebase extends Source
 
         $documentId = explode('/', $document['name']);
         $documentId = end($documentId);
+        // Strip non-alphanumeric except underscore and hyphen
         $documentId = preg_replace("/[^A-Za-z0-9\_\-]/", '', $documentId);
         $documentId = strtolower($documentId);
 
