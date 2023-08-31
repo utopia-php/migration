@@ -478,6 +478,8 @@ class Firebase extends Source
 
         $documentId = explode('/', $document['name']);
         $documentId = end($documentId);
+        $documentId = preg_replace("/[^A-Za-z0-9\_\-]/", '', $documentId);
+        $documentId = strtolower($documentId);
 
         return new Document($documentId, $collection->getDatabase(), $collection, $data, []);
     }
