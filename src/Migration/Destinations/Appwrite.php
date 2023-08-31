@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Destinations;
 
+use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\InputFile;
 use Appwrite\Services\Databases;
@@ -274,7 +275,15 @@ class Appwrite extends Destination
                     break;
                 case Resource::TYPE_ATTRIBUTE:
                     /** @var Attribute $resource */
-                    $this->createAttribute($resource);
+                    try {
+                        $this->createAttribute($resource);
+                    } catch (AppwriteException $e) {
+                        if ($e->getType() === 'attribute_already_exists') {
+                            $resource->setStatus(Resource::STATUS_SKIPPED, 'Attribute has been already created');
+                        } else {
+                            throw $e;
+                        }
+                    }
                     break;
                 case Resource::TYPE_DOCUMENT:
                     /** @var Document $resource */
