@@ -393,7 +393,7 @@ class Firebase extends Source
 
         $nextPageToken = null;
 
-        $knownSchema = [];
+        $documentSchema = [];
 
         // Transfer Documents and Calculate Schemas
         while (true) {
@@ -410,8 +410,6 @@ class Firebase extends Source
                 break;
             }
 
-            // Calculate Schema and handle subcollections
-            $documentSchema = [];
             foreach ($result['documents'] as $document) {
                 if (! isset($document['fields'])) {
                     continue; //TODO: Transfer Empty Documents
