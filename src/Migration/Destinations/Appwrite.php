@@ -283,7 +283,6 @@ class Appwrite extends Destination
                         } else {
                             throw $e;
                         }
-                        $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                     }
                     break;
                 case Resource::TYPE_DOCUMENT:
