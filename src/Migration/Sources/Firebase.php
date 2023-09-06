@@ -207,7 +207,7 @@ class Firebase extends Source
                     $user['localId'] ?? '',
                     $user['email'] ?? '',
                     $user['displayName'] ?? $user['email'] ?? '',
-                    new Hash($user['passwordHash'] ?? '', $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'], $hashConfig['signerKey']),
+                    new Hash($user['passwordHash'] ?? '', $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'] ?? '', $hashConfig['signerKey'] ?? ''),
                     $user['phoneNumber'] ?? '',
                     $this->calculateUserType($user['providerUserInfo'] ?? []),
                     '',
@@ -394,6 +394,7 @@ class Firebase extends Source
         $nextPageToken = null;
 
         $documentSchema = [];
+        $createdSchema = [];
 
         // Transfer Documents and Calculate Schemas
         while (true) {
@@ -426,7 +427,23 @@ class Firebase extends Source
 
             // Transfer Documents
             if ($transferDocuments) {
-                $this->callback(array_values($documentSchema));
+                $cachedAtrributes = $this->cache->get(Attribute::getName());
+
+                $attributesToCreate = $documentSchema;
+
+                foreach ($documentSchema as $key => $attribute) {
+                    foreach ($cachedAtrributes as $cachedAttribute) {
+                        /** @var Attribute $cachedAttribute */
+                        if ($cachedAttribute->getKey() == $attribute->getKey() && $cachedAttribute->getCollection()->getId() == $attribute->getCollection()->getId()) {
+                            unset($attributesToCreate[$key]);
+                        }
+                    }
+                }
+
+                if (count($attributesToCreate) > 0) {
+                    $this->callback(array_values($attributesToCreate));
+                }
+
                 $this->callback($documents);
             }
 
