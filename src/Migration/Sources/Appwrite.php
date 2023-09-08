@@ -365,7 +365,12 @@ class Appwrite extends Source
 
         // Export Memberships
         $cacheTeams = $this->cache->get(Team::getName());
-        $cacheUsers = $this->cache->get(User::getName());
+        /** @var array<string, User> - array where key is user ID */
+        $cacheUsers = [];
+        foreach ($this->cache->get(User::getName()) as $cacheUser) {
+            /** @var User $cacheUser */
+            $cacheUsers[$cacheUser->getId()] = $cacheUser;
+        }
 
         foreach ($cacheTeams as $team) {
             /** @var Team $team */
@@ -384,20 +389,12 @@ class Appwrite extends Source
                     break;
                 }
 
-                $user = null;
-                foreach ($cacheUsers as $cacheUser) {
-                    /** @var User $cacheUser */
-                    if ($cacheUser->getId() === $response['memberships'][0]['userId']) {
-                        $user = $cacheUser;
-                        break;
-                    }
-                }
-
-                if (! $user) {
-                    throw new \Exception('User not found');
-                }
-
                 foreach ($response['memberships'] as $membership) {
+                    $user = $cacheUsers[$membership['userId']] ?? null;
+                    if ($user === null) {
+                        throw new \Exception('User not found');
+                    }
+
                     $memberships[] = new Membership(
                         $team,
                         $user,
