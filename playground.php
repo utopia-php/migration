@@ -29,34 +29,34 @@ $sourceAppwrite = new Appwrite(
     $_ENV['SOURCE_APPWRITE_TEST_KEY']
 );
 
-$firebase = json_decode($_ENV['FIREBASE_TEST_ACCOUNT'], true);
+// $firebase = json_decode($_ENV['FIREBASE_TEST_ACCOUNT'], true);
 
-$sourceFirebase = new Firebase(
-    $firebase,
-    $firebase['project_id'] ?? '',
-);
+// $sourceFirebase = new Firebase(
+//     $firebase,
+//     $firebase['project_id'] ?? '',
+// );
 
-$sourceNHost = new NHost(
-    $_ENV['NHOST_TEST_SUBDOMAIN'] ?? '',
-    $_ENV['NHOST_TEST_REGION'] ?? '',
-    $_ENV['NHOST_TEST_SECRET'] ?? '',
-    $_ENV['NHOST_TEST_DATABASE'] ?? '',
-    $_ENV['NHOST_TEST_USERNAME'] ?? '',
-    $_ENV['NHOST_TEST_PASSWORD'] ?? '',
-);
+// $sourceNHost = new NHost(
+//     $_ENV['NHOST_TEST_SUBDOMAIN'] ?? '',
+//     $_ENV['NHOST_TEST_REGION'] ?? '',
+//     $_ENV['NHOST_TEST_SECRET'] ?? '',
+//     $_ENV['NHOST_TEST_DATABASE'] ?? '',
+//     $_ENV['NHOST_TEST_USERNAME'] ?? '',
+//     $_ENV['NHOST_TEST_PASSWORD'] ?? '',
+// );
 
-$sourceSupabase = new Supabase(
-    $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
-    $_ENV['SUPABASE_TEST_KEY'] ?? '',
-    $_ENV['SUPABASE_TEST_HOST'] ?? '',
-    $_ENV['SUPABASE_TEST_DATABASE'] ?? '',
-    $_ENV['SUPABASE_TEST_USERNAME'] ?? '',
-    $_ENV['SUPABASE_TEST_PASSWORD'] ?? '',
-);
+// $sourceSupabase = new Supabase(
+//     $_ENV['SUPABASE_TEST_ENDPOINT'] ?? '',
+//     $_ENV['SUPABASE_TEST_KEY'] ?? '',
+//     $_ENV['SUPABASE_TEST_HOST'] ?? '',
+//     $_ENV['SUPABASE_TEST_DATABASE'] ?? '',
+//     $_ENV['SUPABASE_TEST_USERNAME'] ?? '',
+//     $_ENV['SUPABASE_TEST_PASSWORD'] ?? '',
+// );
 
-/**
- * Initialise All Destination Adapters
- */
+// /**
+//  * Initialise All Destination Adapters
+//  */
 $destinationAppwrite = new AppwriteDestination(
     $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
     $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
@@ -65,27 +65,29 @@ $destinationAppwrite = new AppwriteDestination(
 
 $destinationLocal = new Local(__DIR__.'/localBackup/');
 
+var_dump($sourceAppwrite->report());
+
 /**
  * Initialise Transfer Class
  */
-$transfer = new Transfer(
-    $sourceFirebase,
-    $destinationLocal
-);
+// $transfer = new Transfer(
+//     $sourceAppwrite,
+//     $destinationAppwrite
+// );
 
-$sourceFirebase->report();
+// $sourceAppwrite->report();
 
-// /**
-//  * Run Transfer
-//  */
-$transfer->run($sourceFirebase->getSupportedResources(),
-    function (array $resources) {
-    }
-);
+// // /**
+// //  * Run Transfer
+// //  */
+// $transfer->run($sourceAppwrite->getSupportedResources(),
+//     function (array $resources) {
+//     }
+// );
 
-$report = [];
+// $report = [];
 
-$cache = $transfer->getCache()->getAll();
+// $cache = $transfer->getCache()->getAll();
 
 // foreach ($cache as $type => $resources) {
 //     foreach ($resources as $resource) {
