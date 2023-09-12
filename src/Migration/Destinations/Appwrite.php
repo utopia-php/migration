@@ -575,11 +575,7 @@ class Appwrite extends Destination
                     $teamService->createMembership(
                         $resource->getTeam()->getId(),
                         $resource->getRoles(),
-                        '',
-                        $user->getEmail(),
-                        $user->getId(),
-                        $user->getPhone(),
-                        $user->getName()
+                        userId: $user->getId(),
                     );
                     break;
             }
