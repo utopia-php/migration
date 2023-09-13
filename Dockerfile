@@ -29,8 +29,11 @@ COPY composer.json /usr/local/src/
 RUN composer install --ignore-platform-reqs
 
 FROM php:8.1.21-fpm-alpine3.18 as tests
-RUN set -ex && apk --no-cache add postgresql-dev
-RUN docker-php-ext-install pdo pdo_pgsql
+# Postgres
+RUN set -ex \
+    && apk --no-cache add postgresql-libs postgresql-dev \
+    && docker-php-ext-install pdo pdo_pgsql \
+    && apk del postgresql-dev
 COPY ./src /app/src
 COPY ./tests /app/src/tests
 COPY --from=composer /usr/local/src/vendor /app/vendor
