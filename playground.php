@@ -88,11 +88,11 @@ $cache = $transfer->getCache()->getAll();
 
 foreach ($cache as $type => $resources) {
     foreach ($resources as $resource) {
-        /** @var Resource $resource */
+        /** @var resource $resource */
         if ($resource->getStatus() !== Resource::STATUS_ERROR) {
             continue;
         }
-        
+
         Console::error($resource->getName().' '.$resource->getInternalId().' '.$resource->getMessage());
     }
 }
