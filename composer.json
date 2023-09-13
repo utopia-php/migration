@@ -26,10 +26,16 @@
         "lint": "./vendor/bin/pint --test",
         "format": "./vendor/bin/pint"
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "/Users/bradleyschofield/Documents/GitHub/appwrite/app/sdks/server-php"
+        }
+    ],
     "require": {
         "php": "8.*",
         "utopia-php/cli": "0.*",
-        "appwrite/appwrite": "10.0.*"
+        "appwrite/appwrite": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "9.*",

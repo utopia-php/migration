@@ -300,6 +300,7 @@ class Appwrite extends Source
                     $user['password'] ? new Hash($user['password'], $user['hash']) : null,
                     $user['phone'],
                     $this->calculateTypes($user),
+                    $user['labels'] ?? [],
                     '',
                     $user['emailVerification'],
                     $user['phoneVerification'],
@@ -649,6 +650,14 @@ class Appwrite extends Source
                     $value['twoWayKey'],
                     $value['onDelete'],
                     $value['side']
+                );
+            case 'datetime':
+                return new DateTime(
+                    $value['key'],
+                    $collection,
+                    $value['required'],
+                    $value['array'],
+                    $value['default']
                 );
         }
 
