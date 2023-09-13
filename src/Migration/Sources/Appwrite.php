@@ -203,15 +203,39 @@ class Appwrite extends Source
             if (in_array(Resource::TYPE_FILE, $resources)) {
                 $report[Resource::TYPE_FILE] = 0;
                 $report['size'] = 0;
-                $buckets = $storageClient->listBuckets()['buckets'];
+                $buckets = [];
+                $lastBucket = null;
+
+                while (true) {
+                    $currentBuckets = $storageClient->listBuckets($lastBucket ? [Query::cursorAfter($lastBucket)] : [Query::limit(20)])['buckets'];
+                    $buckets = array_merge($buckets, $currentBuckets);
+                    $lastBucket = $buckets[count($buckets) - 1]['$id'];
+
+                    if (count($currentBuckets) < 20) {
+                        break;
+                    }
+                }
+
                 foreach ($buckets as $bucket) {
-                    $files = $storageClient->listFiles($bucket['$id']);
-                    $report[Resource::TYPE_FILE] += $files['total'];
-                    foreach ($files['files'] as $file) {
+                    $files = [];
+                    $lastFile = null;
+
+                    while (true) {
+                        $currentFiles = $storageClient->listFiles($bucket['$id'], $lastFile ? [Query::cursorAfter($lastFile)] : [Query::limit(20)])['files'];
+                        $files = array_merge($files, $currentFiles);
+                        $lastFile = $files[count($files) - 1]['$id'];
+    
+                        if (count($currentFiles) < 20) {
+                            break;
+                        }
+                    }
+
+                    $report[Resource::TYPE_FILE] += count($files);
+                    foreach ($files as $file) {
                         $report['size'] += $storageClient->getFile($bucket['$id'], $file['$id'])['sizeOriginal'];
                     }
                 }
-                $report['size'] = $report['size'] / 1024 / 1024; // MB
+                $report['size'] = $report['size'] / 1000 / 1000; // MB
             }
 
             // Functions
@@ -1086,11 +1110,42 @@ class Appwrite extends Source
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 
         // Get the file size
-        $fileSize = $deployment['size'];
+        $responseHeaders = [];
 
-        if ($end > $fileSize) {
-            $end = $fileSize - 1;
+        $this->call(
+            'HEAD',
+            "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
+            [],
+            [],
+            $responseHeaders
+        );
+
+        // Content-Length header was missing, file is less than max buffer size.
+        if (!key_exists('Content-Length', $responseHeaders)) {
+            $file = $this->call(
+                'GET',
+                "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
+                [],
+                [],
+                $responseHeaders
+            );
+
+            $deployment = new Deployment(
+                $deployment['$id'],
+                $func,
+                strlen($file),
+                $deployment['entrypoint'],
+                $start,
+                $end,
+                $file,
+                $deployment['activate']
+            );
+            $deployment->setInternalId($deployment->getId());
+
+            return $this->callback([$deployment]);
         }
+
+        $fileSize = $responseHeaders['Content-Length'];
 
         $deployment = new Deployment(
             $deployment['$id'],
