@@ -529,8 +529,8 @@ class Appwrite extends Destination
                     /** @var User $resource */
                     if (in_array(User::TYPE_EMAIL, $resource->getTypes())) {
                         $this->importPasswordUser($resource);
-                    } elseif (in_array(User::TYPE_ANONYMOUS, $resource->getTypes()) || in_array(User::TYPE_OAUTH, $resource->getTypes())) {
-                        $resource->setStatus(Resource::STATUS_WARNING, 'Anonymous and OAuth users cannot be imported.');
+                    } elseif (in_array(User::TYPE_OAUTH, $resource->getTypes())) {
+                        $resource->setStatus(Resource::STATUS_WARNING, 'OAuth users cannot be imported.');
 
                         return $resource;
                     } else {
@@ -561,6 +561,14 @@ class Appwrite extends Destination
 
                     if ($resource->getDisabled()) {
                         $userService->updateStatus($resource->getId(), ! $resource->getDisabled());
+                    }
+
+                    if ($resource->getPreferences()) {
+                        $userService->updatePrefs($resource->getId(), $resource->getPreferences());
+                    }
+
+                    if ($resource->getLabels()) {
+                        $userService->updateLabels($resource->getId(), $resource->getLabels());
                     }
 
                     break;

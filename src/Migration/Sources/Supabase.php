@@ -383,6 +383,7 @@ class Supabase extends NHost
                     new Hash($user['encrypted_password'], '', Hash::ALGORITHM_BCRYPT),
                     $user['phone'] ?? '',
                     $this->calculateAuthTypes($user),
+                    [],
                     '',
                     ! empty($user['email_confirmed_at']),
                     ! empty($user['phone_confirmed_at']),

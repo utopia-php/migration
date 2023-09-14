@@ -27,6 +27,8 @@ class User extends Resource
 
     protected array $types = [self::TYPE_ANONYMOUS];
 
+    protected array $labels = [];
+
     protected string $oauthProvider = '';
 
     protected bool $emailVerified = false;
@@ -44,6 +46,7 @@ class User extends Resource
         Hash $passwordHash = null,
         string $phone = '',
         array $types = [self::TYPE_ANONYMOUS],
+        array $labels = [],
         string $oauthProvider = '',
         bool $emailVerified = false,
         bool $phoneVerified = false,
@@ -56,6 +59,7 @@ class User extends Resource
         $this->passwordHash = $passwordHash;
         $this->phone = $phone;
         $this->types = $types;
+        $this->labels = $labels;
         $this->oauthProvider = $oauthProvider;
         $this->emailVerified = $emailVerified;
         $this->phoneVerified = $phoneVerified;
@@ -157,6 +161,24 @@ class User extends Resource
     public function setTypes(string $types): self
     {
         $this->types = $types;
+
+        return $this;
+    }
+
+    /**
+     * Get Labels
+     */
+    public function getLabels(): array
+    {
+        return $this->labels;
+    }
+
+    /**
+     * Set Labels
+     */
+    public function setLabels(array $labels): self
+    {
+        $this->labels = $labels;
 
         return $this;
     }

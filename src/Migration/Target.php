@@ -68,11 +68,10 @@ abstract class Target
      *
      * @throws \Exception
      */
-    protected function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
+    protected function call(string $method, string $path = '', array $headers = [], array $params = [], &$responseHeaders = []): array|string
     {
         $headers = array_merge($this->headers, $headers);
         $ch = curl_init((str_contains($path, 'http') ? $path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '') : $this->endpoint.$path.(($method == 'GET' && ! empty($params)) ? '?'.http_build_query($params) : '')));
-        $responseHeaders = [];
         $responseStatus = -1;
         $responseType = '';
         $responseBody = '';
@@ -96,7 +95,11 @@ abstract class Target
             unset($headers[$i]);
         }
 
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        if ($method === 'HEAD') {
+            curl_setopt($ch, CURLOPT_NOBODY, true);
+        } else {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        }
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_USERAGENT, php_uname('s').'-'.php_uname('r').':php-'.phpversion());
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
