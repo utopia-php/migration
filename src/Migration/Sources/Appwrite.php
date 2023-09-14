@@ -224,7 +224,7 @@ class Appwrite extends Source
                         $currentFiles = $storageClient->listFiles($bucket['$id'], $lastFile ? [Query::cursorAfter($lastFile)] : [Query::limit(20)])['files'];
                         $files = array_merge($files, $currentFiles);
                         $lastFile = $files[count($files) - 1]['$id'];
-    
+
                         if (count($currentFiles) < 20) {
                             break;
                         }
@@ -1121,7 +1121,7 @@ class Appwrite extends Source
         );
 
         // Content-Length header was missing, file is less than max buffer size.
-        if (!key_exists('Content-Length', $responseHeaders)) {
+        if (! array_key_exists('Content-Length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",

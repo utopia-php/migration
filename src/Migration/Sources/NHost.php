@@ -247,6 +247,7 @@ class NHost extends Source
                     new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT),
                     $user['phone_number'] ?? '',
                     $this->calculateUserTypes($user),
+                    [],
                     '',
                     $user['email_verified'],
                     $user['phone_number_verified'],

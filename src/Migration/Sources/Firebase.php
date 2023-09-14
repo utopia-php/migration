@@ -94,11 +94,11 @@ class Firebase extends Source
         }
     }
 
-    protected function call(string $method, string $path = '', array $headers = [], array $params = []): array|string
+    protected function call(string $method, string $path = '', array $headers = [], array $params = [], &$responseHeaders = []): array|string
     {
         $this->authenticate();
 
-        return parent::call($method, $path, $headers, $params);
+        return parent::call($method, $path, $headers, $params, $responseHeaders);
     }
 
     /**
@@ -210,6 +210,7 @@ class Firebase extends Source
                     new Hash($user['passwordHash'] ?? '', $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'] ?? '', $hashConfig['signerKey'] ?? ''),
                     $user['phoneNumber'] ?? '',
                     $this->calculateUserType($user['providerUserInfo'] ?? []),
+                    [],
                     '',
                     $user['emailVerified'],
                     false, // Can't get phone number status on firebase :/
