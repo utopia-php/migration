@@ -94,6 +94,7 @@ class NHostTest extends Base
 
     /**
      * @depends testSourceReport
+     *
      * @group NHost
      */
     public function testRunTransfer($state)
@@ -114,6 +115,7 @@ class NHostTest extends Base
 
     /**
      * @depends testRunTransfer
+     *
      * @group NHost
      */
     public function testValidateTransfer($state)
@@ -137,6 +139,7 @@ class NHostTest extends Base
 
     /**
      * @depends testValidateTransfer
+     *
      * @group NHost
      */
     public function testValidateUserTransfer($state): void
@@ -169,6 +172,7 @@ class NHostTest extends Base
 
     /**
      * @depends testValidateTransfer
+     *
      * @group NHost
      */
     public function testValidateDatabaseTransfer($state): void
@@ -223,6 +227,7 @@ class NHostTest extends Base
 
     /**
      * @depends testValidateTransfer
+     *
      * @group NHost
      */
     public function testValidateStorageTransfer($state): void

@@ -74,6 +74,7 @@ class SupabaseTest extends Base
 
     /**
      * @depends testSourceReport
+     *
      * @group Supabase
      */
     public function testRunTransfer($state)
@@ -93,6 +94,7 @@ class SupabaseTest extends Base
 
     /**
      * @depends testRunTransfer
+     *
      * @group Supabase
      */
     public function testValidateTransfer($state)
@@ -115,6 +117,7 @@ class SupabaseTest extends Base
 
     /**
      * @depends testValidateTransfer
+     *
      * @group Supabase
      */
     public function testValidateUserTransfer($state): void
@@ -147,6 +150,7 @@ class SupabaseTest extends Base
 
     /**
      * @depends testValidateTransfer
+     *
      * @group Supabase
      */
     public function testValidateDatabaseTransfer($state): void
@@ -227,6 +231,7 @@ class SupabaseTest extends Base
 
     /**
      * @depends testValidateTransfer
+     *
      * @group Supabase
      */
     public function testValidateStorageTransfer($state): void
