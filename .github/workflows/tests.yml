@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Bring up services
-        run: docker-compose up -d --build && sleep 5
+        run: docker-compose up -d --build --detach --wait --wait-timeout 180 && sleep 5
 
       - name: Run Supabase Test Suite
         run: |
@@ -38,7 +38,6 @@ jobs:
         run: |
           git clone https://github.com/appwrite/appwrite.git
           cd appwrite
-          cp .env.example .env
           docker-compose up -d --build
 
       - name: Run Appwrite Test Suite
