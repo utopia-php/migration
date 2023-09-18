@@ -4,8 +4,8 @@ on:
   push: { branches: [main] }
 
 jobs:
-  tests:
-    name: Run Test Suite
+  mockapi:
+    name: Run Mock API Test Suite
     runs-on: ubuntu-latest
     env:
       COMPOSE_FILE: docker-compose.yml
@@ -24,3 +24,22 @@ jobs:
       - name: Run NHost Test Suite
         run: |
           docker compose exec tests php ./vendor/bin/phpunit --group NHost
+  appwrite:
+    name: Run Appwrite Test Suite
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_FILE: docker-compose.yml
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Appwrite
+        run: |
+          git clone https://github.com/appwrite/appwrite.git &&
+          cd appwrite
+          docker-compose up -d --build
+
+      - name: Run Appwrite Test Suite
+        run: |
+          docker compose exec tests php ./vendor/bin/phpunit --group Appwrite
