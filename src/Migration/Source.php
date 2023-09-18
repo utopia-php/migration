@@ -82,6 +82,9 @@ abstract class Source extends Target
                     $this->exportGroupFunctions($batchSize, $resources);
                     break;
             }
+
+            // Clear the cache after each group
+            $this->cache->clear();
         }
     }
 

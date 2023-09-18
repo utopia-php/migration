@@ -77,6 +77,9 @@ class NHostTest extends Base
         $this->transfer = new Transfer($this->source, $this->destination);
     }
 
+    /**
+     * @group NHost
+     */
     public function testSourceReport()
     {
         // Test report all
@@ -91,6 +94,7 @@ class NHostTest extends Base
 
     /**
      * @depends testSourceReport
+     * @group NHost
      */
     public function testRunTransfer($state)
     {
@@ -110,10 +114,12 @@ class NHostTest extends Base
 
     /**
      * @depends testRunTransfer
+     * @group NHost
      */
     public function testValidateTransfer($state)
     {
         $statusCounters = $state['transfer']->getStatusCounters();
+
         $this->assertNotEmpty($statusCounters);
 
         foreach ($statusCounters as $resource => $counters) {
@@ -131,6 +137,7 @@ class NHostTest extends Base
 
     /**
      * @depends testValidateTransfer
+     * @group NHost
      */
     public function testValidateUserTransfer($state): void
     {
@@ -162,6 +169,7 @@ class NHostTest extends Base
 
     /**
      * @depends testValidateTransfer
+     * @group NHost
      */
     public function testValidateDatabaseTransfer($state): void
     {
@@ -215,6 +223,7 @@ class NHostTest extends Base
 
     /**
      * @depends testValidateTransfer
+     * @group NHost
      */
     public function testValidateStorageTransfer($state): void
     {

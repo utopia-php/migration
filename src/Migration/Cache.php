@@ -119,13 +119,13 @@ class Cache
     }
 
     /**
-     * Wipe Cache
+     * Clear Cache
      *
      * Removes all resources from the cache.
      *
      * @return void
      */
-    public function wipe()
+    public function clear()
     {
         $this->cache = [];
     }
