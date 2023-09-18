@@ -36,8 +36,9 @@ jobs:
 
       - name: Install Appwrite
         run: |
-          git clone https://github.com/appwrite/appwrite.git &&
+          git clone https://github.com/appwrite/appwrite.git
           cd appwrite
+          cp .env.example .env
           docker-compose up -d --build
 
       - name: Run Appwrite Test Suite
