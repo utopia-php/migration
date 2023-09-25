@@ -321,7 +321,7 @@ class Appwrite extends Source
                     $user['$id'],
                     $user['email'],
                     $user['name'],
-                    $user['password'] ? new Hash($user['password'], $user['hash']) : null,
+                    $user['password'] ? new Hash($user['password'], algorithm: $user['hash']) : null,
                     $user['phone'],
                     $this->calculateTypes($user),
                     $user['labels'] ?? [],
