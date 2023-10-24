@@ -212,9 +212,9 @@ class Firebase extends Source
                     $this->calculateUserType($user['providerUserInfo'] ?? []),
                     [],
                     '',
-                    $user['emailVerified'],
+                    $user['emailVerified'] ?? false,
                     false, // Can't get phone number status on firebase :/
-                    $user['disabled']
+                    $user['disabled'] ?? false
                 );
             }
 
