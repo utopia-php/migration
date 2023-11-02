@@ -249,9 +249,9 @@ class NHost extends Source
                     $this->calculateUserTypes($user),
                     [],
                     '',
-                    $user['email_verified'],
-                    $user['phone_number_verified'],
-                    $user['disabled'],
+                    $user['email_verified'] ?? false,
+                    $user['phone_number_verified'] ?? false,
+                    $user['disabled'] ?? false,
                     []
                 );
             }

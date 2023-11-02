@@ -326,10 +326,10 @@ class Appwrite extends Source
                     $this->calculateTypes($user),
                     $user['labels'] ?? [],
                     '',
-                    $user['emailVerification'],
-                    $user['phoneVerification'],
+                    $user['emailVerification'] ?? false,
+                    $user['phoneVerification'] ?? false,
                     ! $user['status'],
-                    $user['prefs']
+                    $user['prefs'] ?? [],
                 );
 
                 $lastDocument = $user['$id'];
