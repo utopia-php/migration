@@ -9,8 +9,11 @@
          stopOnFailure="false"
         >
     <testsuites>
-        <testsuite name="E2E">
-            <directory>./tests/Migration/E2E</directory>
+        <testsuite name="Default">
+            <directory>./tests/Migration/E2E/Sources/Mocks</directory>
+        </testsuite>
+        <testsuite name="Live">
+            <directory>./tests/Migration/E2E/Sources/Live</directory>
         </testsuite>
     </testsuites>
 </phpunit>

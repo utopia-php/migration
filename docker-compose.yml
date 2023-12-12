@@ -28,22 +28,20 @@ services:
       POSTGRES_DB: postgres
   
   nhost-storage:
-    build:
-      context: .
-      target: mock-api
+    image: mockoon/cli:latest
     networks:
       - tests
     volumes:
       - ./tests/Migration/resources/nhost:/mockoon
+    command: ["--data", "/mockoon/api.json", "--port", "80"]
 
   supabase-api:
-    build:
-      context: .
-      target: mock-api
+    image: mockoon/cli:latest
     networks:
       - tests
     volumes:
       - ./tests/Migration/resources/supabase:/mockoon
+    command: ["--data", "/mockoon/api.json", "--port", "80"]
 
   tests:
     build:

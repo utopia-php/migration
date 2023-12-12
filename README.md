@@ -69,6 +69,27 @@ Destinations:
 
 Utopia Migration requires PHP 8.0 or later. We recommend using the latest PHP version whenever possible.
 
+## Tests
+To run tests using mock API's you want to first bring up the mock API's using docker-compose:
+```bash
+docker-compose up -d
+```
+
+Then you can run the tests using:
+```bash
+phpunit --testsuite "Default"
+```
+This will only run the Mock API Tests
+
+
+### Live API Tests
+Before you run the live API tests you first need to propagate the environment variables in the `.env` file with the examples provided in `.env.example` making sure to update them with your own credentials.
+
+Then you can run the tests using:
+```bash
+phpunit --testsuite "Live"
+```
+
 ## Copyright and license
 
 The MIT License (MIT) [http://www.opensource.org/licenses/mit-license.php](http://www.opensource.org/licenses/mit-license.php)
