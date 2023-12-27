@@ -389,10 +389,10 @@ class Appwrite extends Source
         $lastDocument = null;
 
         // Export Memberships
-        $cacheTeams = $this->cache->get(Team::getName());
+        $cacheTeams = $this->cache->load(Team::getName(), 10);
         /** @var array<string, User> - array where key is user ID */
         $cacheUsers = [];
-        foreach ($this->cache->get(User::getName()) as $cacheUser) {
+        foreach ($this->cache->load(User::getName(), 10) as $cacheUser) {
             /** @var User $cacheUser */
             $cacheUsers[$cacheUser->getId()] = $cacheUser;
         }
@@ -486,7 +486,7 @@ class Appwrite extends Source
     private function exportDocuments(int $batchSize)
     {
         $databaseClient = new Databases($this->client);
-        $collections = $this->cache->get(Collection::getName());
+        $collections = $this->cache->load(Collection::getName(), 20);
 
         foreach ($collections as $collection) {
             /** @var Collection $collection */
@@ -515,7 +515,7 @@ class Appwrite extends Source
 
                     // Certain Appwrite versions allowed for data to be required but null
                     // This isn't allowed in modern versions so we need to remove it by comparing their attributes and replacing it with default value.
-                    $attributes = $this->cache->get(Attribute::getName());
+                    $attributes = $this->cache->load(Attribute::getName(), 20);
                     foreach ($attributes as $attribute) {
                         /** @var Attribute $attribute */
                         if ($attribute->getCollection()->getId() !== $collection->getId()) {
@@ -729,7 +729,7 @@ class Appwrite extends Source
         // Transfer Collections
         $lastDocument = null;
 
-        $databases = $this->cache->get(Database::getName());
+        $databases = $this->cache->load(Database::getName(), 20);
         foreach ($databases as $database) {
             /** @var Database $database */
             while (true) {
@@ -772,7 +772,7 @@ class Appwrite extends Source
 
         // Transfer Attributes
         $lastDocument = null;
-        $collections = $this->cache->get(Collection::getName());
+        $collections = $this->cache->load(Collection::getName(), 20);
         /** @var Collection[] $collections */
         foreach ($collections as $collection) {
             while (true) {
@@ -790,11 +790,11 @@ class Appwrite extends Source
                 );
 
                 // Remove two way relationship attributes
-                $this->cache->get(Resource::TYPE_ATTRIBUTE);
+                $this->cache->load(Resource::TYPE_ATTRIBUTE, 20);
 
                 $knownTwoways = [];
 
-                foreach ($this->cache->get(Resource::TYPE_ATTRIBUTE) as $attribute) {
+                foreach ($this->cache->load(Resource::TYPE_ATTRIBUTE, 20) as $attribute) {
                     /** @var Attribute|Relationship $attribute */
                     if ($attribute->getTypeName() == Attribute::TYPE_RELATIONSHIP && $attribute->getTwoWay()) {
                         $knownTwoways[] = $attribute->getTwoWayKey();
@@ -826,7 +826,7 @@ class Appwrite extends Source
     {
         $databaseClient = new Databases($this->client);
 
-        $collections = $this->cache->get(Resource::TYPE_COLLECTION);
+        $collections = $this->cache->load(Resource::TYPE_COLLECTION, 20);
 
         // Transfer Indexes
         $lastDocument = null;
@@ -938,7 +938,7 @@ class Appwrite extends Source
     {
         $storageClient = new Storage($this->client);
 
-        $buckets = $this->cache->get(Bucket::getName());
+        $buckets = $this->cache->load(Bucket::getName(), 20);
         foreach ($buckets as $bucket) {
             /** @var Bucket $bucket */
             $lastDocument = null;
@@ -1066,7 +1066,7 @@ class Appwrite extends Source
     private function exportDeployments(int $batchSize)
     {
         $functionsClient = new Functions($this->client);
-        $functions = $this->cache->get(Func::getName());
+        $functions = $this->cache->load(Func::getName(), 20);
 
         // exportDeploymentData doesn't exist on Appwrite versions prior to 1.4
         $appwriteVersion = $this->call('GET', '/health/version', ['X-Appwrite-Key' => '', 'X-Appwrite-Project' => ''])['version'];

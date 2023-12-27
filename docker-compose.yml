@@ -32,7 +32,7 @@ services:
     networks:
       - tests
     volumes:
-      - ./tests/Migration/resources/nhost:/mockoon
+      - ./tests/Migration/Resources/Mocks/NHost:/mockoon
     command: ["--data", "/mockoon/api.json", "--port", "80"]
 
   supabase-api:
@@ -40,7 +40,7 @@ services:
     networks:
       - tests
     volumes:
-      - ./tests/Migration/resources/supabase:/mockoon
+      - ./tests/Migration/Resources/Mocks/Supabase:/mockoon
     command: ["--data", "/mockoon/api.json", "--port", "80"]
 
   tests:

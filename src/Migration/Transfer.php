@@ -2,6 +2,10 @@
 
 namespace Utopia\Migration;
 
+use Utopia\Cache\Adapter\Memory;
+use Utopia\CLI\Console;
+use Utopia\Migration\Extends\Cache;
+
 class Transfer
 {
     public const GROUP_GENERAL = 'general';
@@ -38,14 +42,23 @@ class Transfer
 
     public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 
+    private string $id;
+
     /**
      * @return Transfer
      */
-    public function __construct(Source $source, Destination $destination)
+    public function __construct(Source $source, Destination $destination, \Utopia\Cache\Adapter $adapter = null)
     {
+        $this->id = uniqid();
+
+        if (!$adapter) {
+            Console::warning('No cache adapter provided. Using Memory adapter, this can cause issues with large transfers.');
+            $adapter = new Memory();
+        }
+
         $this->source = $source;
         $this->destination = $destination;
-        $this->cache = new Cache();
+        $this->cache = new Cache($this->id, $adapter);
 
         $this->source->registerCache($this->cache);
         $this->destination->registerCache($this->cache);
@@ -77,47 +90,13 @@ class Transfer
     {
         $status = [];
 
-        foreach ($this->resources as $resource) {
-            $status[$resource] = [
-                Resource::STATUS_PENDING => 0,
-                Resource::STATUS_SUCCESS => 0,
-                Resource::STATUS_ERROR => 0,
-                Resource::STATUS_SKIPPED => 0,
-                Resource::STATUS_PROCESSING => 0,
-                Resource::STATUS_WARNING => 0,
-            ];
-        }
+        $this->cache->load('status', 1);
 
         if ($this->source->previousReport) {
             foreach ($this->source->previousReport as $resource => $data) {
                 if ($resource != 'size' && $resource != 'version' && isset($status[$resource])) {
                     $status[$resource]['pending'] = $data;
                 }
-            }
-        }
-
-        foreach ($this->cache->getAll() as $resources) {
-            foreach ($resources as $resource) {
-                /** @var resource $resource */
-                $status[$resource->getName()][$resource->getStatus()]++;
-                if ($status[$resource->getName()]['pending'] > 0) {
-                    $status[$resource->getName()]['pending']--;
-                }
-            }
-        }
-
-        // Remove all empty resources
-        foreach ($status as $resource => $data) {
-            $allEmpty = true;
-
-            foreach ($data as $count) {
-                if ($count > 0) {
-                    $allEmpty = false;
-                }
-            }
-
-            if ($allEmpty) {
-                unset($status[$resource]);
             }
         }
 
@@ -174,22 +153,22 @@ class Transfer
     {
         $report = [];
 
-        $cache = $this->cache->getAll();
+        // $cache = $this->cache->getAll();
 
-        foreach ($cache as $type => $resources) {
-            foreach ($resources as $resource) {
-                if ($statusLevel && $resource->getStatus() !== $statusLevel) {
-                    continue;
-                }
+        // foreach ($cache as $type => $resources) {
+        //     foreach ($resources as $resource) {
+        //         if ($statusLevel && $resource->getStatus() !== $statusLevel) {
+        //             continue;
+        //         }
 
-                $report[] = [
-                    'resource' => $type,
-                    'id' => $resource->getId(),
-                    'status' => $resource->getStatus(),
-                    'message' => $resource->getMessage(),
-                ];
-            }
-        }
+        //         $report[] = [
+        //             'resource' => $type,
+        //             'id' => $resource->getId(),
+        //             'status' => $resource->getStatus(),
+        //             'message' => $resource->getMessage(),
+        //         ];
+        //     }
+        // }
 
         return $report;
     }

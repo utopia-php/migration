@@ -2,6 +2,8 @@
 
 namespace Utopia\Migration;
 
+use Utopia\Cache\Cache;
+
 abstract class Target
 {
     /**
@@ -60,6 +62,14 @@ abstract class Target
      * If any issues are found then an exception should be thrown with an error message.
      */
     abstract public function report(array $resources = []): array;
+
+    /**
+     * Get Errors
+     */
+    public function getErrors(): array
+    {
+        return $this->cache->load('errors', 0) ?? [];
+    }
 
     /**
      * Call

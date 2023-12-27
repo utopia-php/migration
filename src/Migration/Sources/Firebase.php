@@ -60,13 +60,13 @@ class Firebase extends Source
             'typ' => 'JWT',
         ];
 
-        $jwtPayload = $this->base64UrlEncode(json_encode($jwtHeader)).'.'.$this->base64UrlEncode(json_encode($jwtClaim));
+        $jwtPayload = $this->base64UrlEncode(json_encode($jwtHeader)) . '.' . $this->base64UrlEncode(json_encode($jwtClaim));
 
         $jwtSignature = '';
         openssl_sign($jwtPayload, $jwtSignature, $this->serviceAccount['private_key'], 'sha256');
         $jwtSignature = $this->base64UrlEncode($jwtSignature);
 
-        return $jwtPayload.'.'.$jwtSignature;
+        return $jwtPayload . '.' . $jwtSignature;
     }
 
     /**
@@ -88,9 +88,9 @@ class Firebase extends Source
 
             $this->currentToken = $response['access_token'];
             $this->tokenExpires = time() + $response['expires_in'];
-            $this->headers['Authorization'] = 'Bearer '.$this->currentToken;
+            $this->headers['Authorization'] = 'Bearer ' . $this->currentToken;
         } catch (\Exception $e) {
-            throw new \Exception('Failed to authenticate with Firebase: '.$e->getMessage());
+            throw new \Exception('Failed to authenticate with Firebase: ' . $e->getMessage());
         }
     }
 
@@ -99,6 +99,32 @@ class Firebase extends Source
         $this->authenticate();
 
         return parent::call($method, $path, $headers, $params, $responseHeaders);
+    }
+
+    protected function paginate(string $method, callable $callback, string $key, int $batchSize = 100, string $path = '', array $headers = [], array $params = [], &$responseHeaders = [])
+    {
+        $nextPageToken = null;
+
+        while (true) {
+            $params['maxResults'] = $batchSize;
+            if ($nextPageToken) {
+                $params['pageToken'] = $nextPageToken;
+            }
+
+            $result = $this->call($method, $path, $headers, $params, $responseHeaders);
+
+            if (empty($result)) {
+                break;
+            }
+
+            $callback($result[$key]);
+
+            if (count($result[$key]) < $batchSize) {
+                break;
+            }
+
+            $nextPageToken = $result['nextPageToken'] ?? null;
+        }
     }
 
     /**
@@ -125,25 +151,25 @@ class Firebase extends Source
     public function report(array $resources = []): array
     {
         // Check our service account is valid
-        if (! isset($this->serviceAccount['project_id'])) {
+        if (!isset($this->serviceAccount['project_id'])) {
             throw new \Exception('Invalid Firebase Service Account');
         }
 
         $this->authenticate();
 
-        $scopes = $this->call('GET', 'https://www.googleapis.com/oauth2/v1/tokeninfo?access_token='.$this->currentToken)['scope'];
+        $scopes = $this->call('GET', 'https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' . $this->currentToken)['scope'];
 
         $scopes = explode(' ', $scopes);
 
-        if (! in_array('https://www.googleapis.com/auth/firebase', $scopes)) {
+        if (!in_array('https://www.googleapis.com/auth/firebase', $scopes)) {
             throw new \Exception('Firebase Scope Missing');
         }
 
-        if (! in_array('https://www.googleapis.com/auth/cloud-platform', $scopes)) {
+        if (!in_array('https://www.googleapis.com/auth/cloud-platform', $scopes)) {
             throw new \Exception('Cloud Platform Scope Missing');
         }
 
-        if (! in_array('https://www.googleapis.com/auth/datastore', $scopes)) {
+        if (!in_array('https://www.googleapis.com/auth/datastore', $scopes)) {
             throw new \Exception('Datastore Scope Missing');
         }
 
@@ -174,35 +200,12 @@ class Firebase extends Source
     private function exportUsers(int $batchSize)
     {
         // Fetch our Hash Config
-        $hashConfig = ($this->call('GET', 'https://identitytoolkit.googleapis.com/admin/v2/projects/'.$this->projectID.'/config'))['signIn']['hashConfig'];
+        $hashConfig = ($this->call('GET', 'https://identitytoolkit.googleapis.com/admin/v2/projects/' . $this->projectID . '/config'))['signIn']['hashConfig'];
 
-        $nextPageToken = null;
+        $this->paginate('POST', function ($data) use ($hashConfig) {
+            foreach ($data as $user) {
+                //TODO: Schema Validation
 
-        // Transfer Users
-        while (true) {
-            $users = [];
-
-            $request = [
-                'targetProjectId' => $this->projectID,
-                'maxResults' => $batchSize,
-            ];
-
-            if ($nextPageToken) {
-                $request['nextPageToken'] = $nextPageToken;
-            }
-
-            $response = $this->call('POST', 'https://identitytoolkit.googleapis.com/identitytoolkit/v3/relyingparty/downloadAccount', [
-                'Content-Type' => 'application/json',
-            ], $request);
-
-            if (! isset($response['users'])) {
-                break;
-            }
-
-            $result = $response['users'];
-            $nextPageToken = $response['nextPageToken'] ?? null;
-
-            foreach ($result as $user) {
                 $users[] = new User(
                     $user['localId'] ?? '',
                     $user['email'] ?? '',
@@ -219,11 +222,9 @@ class Firebase extends Source
             }
 
             $this->callback($users);
-
-            if (count($result) < $batchSize) {
-                break;
-            }
-        }
+        }, 'key', $batchSize, 'https://identitytoolkit.googleapis.com/admin/v2/projects/' . $this->projectID . '/accounts:batchGet', [
+            'Content-Type' => 'application/json',
+        ]);
     }
 
     private function calculateUserType(array $providerData): array
@@ -255,7 +256,7 @@ class Firebase extends Source
     {
         // Check if Firestore is enabled
         try {
-            $this->call('GET', 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases');
+            $this->call('GET', 'https://firestore.googleapis.com/v1/projects/' . $this->projectID . '/databases');
         } catch (\Exception $e) {
             $message = json_decode($e->getMessage(), true);
 
@@ -288,14 +289,14 @@ class Firebase extends Source
             $collections = [];
 
             try {
-                $result = $this->call('POST', $baseURL.':listCollectionIds', [
+                $result = $this->call('POST', $baseURL . ':listCollectionIds', [
                     'Content-Type' => 'application/json',
                 ], [
                     'pageSize' => $batchSize,
                     'pageToken' => $nextPageToken,
                 ]);
 
-                if (! isset($result['collectionIds'])) {
+                if (!isset($result['collectionIds'])) {
                     break;
                 }
             } catch (\Exception $e) {
@@ -305,7 +306,7 @@ class Firebase extends Source
                     $errorMessage->setStatus(Resource::STATUS_ERROR);
                     $errorMessage->setMessage($e->getMessage());
 
-                    $this->cache->add($errorMessage);
+                    // $this->cache->add($errorMessage); //TODO: Use new error handler when done
                 }
 
                 break;
@@ -371,7 +372,7 @@ class Firebase extends Source
         $previousType = null;
 
         foreach ($data['values'] as $field) {
-            if (! $previousType) {
+            if (!$previousType) {
                 $previousType = $this->convertAttribute($collection, $key, $field);
             } elseif ($previousType->getName() != ($this->convertAttribute($collection, $key, $field))->getName()) {
                 $isSameType = false;
@@ -390,70 +391,23 @@ class Firebase extends Source
 
     private function exportCollection(Collection $collection, int $batchSize, bool $transferDocuments)
     {
-        $resourceURL = 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases/'.$collection->getDatabase()->getOriginalId().'/documents/'.$collection->getId();
+        $resourceURL = 'https://firestore.googleapis.com/v1/projects/' . $this->projectID . '/databases/' . $collection->getDatabase()->getOriginalId() . '/documents/' . $collection->getId();
 
-        $nextPageToken = null;
-
-        $documentSchema = [];
-        $createdSchema = [];
-
-        // Transfer Documents and Calculate Schemas
-        while (true) {
-            $documents = [];
-
-            $result = $this->call('GET', $resourceURL, [
-                'Content-Type' => 'application/json',
-            ], [
-                'pageSize' => $batchSize,
-                'pageToken' => $nextPageToken,
-            ]);
-
-            if (empty($result)) {
-                break;
-            }
-
-            foreach ($result['documents'] as $document) {
-                if (! isset($document['fields'])) {
+        $this->paginate('GET', function ($data) use ($collection, $transferDocuments) {
+            foreach ($data as $document) {
+                if (!isset($document['fields'])) {
                     continue; //TODO: Transfer Empty Documents
                 }
 
                 foreach ($document['fields'] as $key => $field) {
-                    if (! isset($documentSchema[$key])) {
+                    if (!isset($documentSchema[$key])) {
                         $documentSchema[$key] = $this->convertAttribute($collection, $key, $field);
                     }
                 }
 
                 $documents[] = $this->convertDocument($collection, $document);
             }
-
-            // Transfer Documents
-            if ($transferDocuments) {
-                $cachedAtrributes = $this->cache->get(Attribute::getName());
-
-                $attributesToCreate = $documentSchema;
-
-                foreach ($documentSchema as $key => $attribute) {
-                    foreach ($cachedAtrributes as $cachedAttribute) {
-                        /** @var Attribute $cachedAttribute */
-                        if ($cachedAttribute->getKey() == $attribute->getKey() && $cachedAttribute->getCollection()->getId() == $attribute->getCollection()->getId()) {
-                            unset($attributesToCreate[$key]);
-                        }
-                    }
-                }
-
-                if (count($attributesToCreate) > 0) {
-                    $this->callback(array_values($attributesToCreate));
-                }
-
-                $this->callback($documents);
-            }
-
-            if (count($result['documents']) < $batchSize) {
-                break;
-            }
-
-            $nextPageToken = $result['nextPageToken'] ?? null;
-        }
+        }, 'documents', $batchSize, $resourceURL);
     }
 
     private function calculateValue(array $field)
@@ -538,24 +492,9 @@ class Firebase extends Source
 
         $nextPageToken = null;
 
-        while (true) {
-            $result = $this->call('GET', $endpoint, [], [
-                'project' => $this->projectID,
-                'maxResults' => $batchsize,
-                'pageToken' => $nextPageToken,
-                'alt' => 'json',
-            ]);
-
-            if (empty($result)) {
-                break;
-            }
-
-            if (! isset($result['items'])) {
-                break;
-            }
-
+        $this->paginate('GET', function ($result) {
             $buckets = [];
-            foreach ($result['items'] as $bucket) {
+            foreach ($result as $bucket) {
                 $curBucket = new Bucket($this->sanitizeBucketId($bucket['id']), $bucket['name'], [], false);
                 $curBucket->setOriginalId($bucket['id']);
 
@@ -563,13 +502,10 @@ class Firebase extends Source
             }
 
             $this->callback($buckets);
-
-            if (! isset($result['nextPageToken'])) {
-                break;
-            }
-
-            $nextPageToken = $result['nextPageToken'] ?? null;
-        }
+        }, 'items', $batchsize, $endpoint, [], [
+            'project' => $this->projectID,
+            'alt' => 'json',
+        ]);
     }
 
     private function sanitizeBucketId($id)
@@ -591,7 +527,7 @@ class Firebase extends Source
 
         // Step 4: Ensure the ID doesn't start with a special character
         if (preg_match('/^[._-]/', $id)) {
-            $id = 'a'.substr($id, 1);
+            $id = 'a' . substr($id, 1);
         }
 
         return $id;
@@ -599,52 +535,35 @@ class Firebase extends Source
 
     private function exportFiles(int $batchsize)
     {
-        $buckets = $this->cache->get(Bucket::getName());
+        $buckets = $this->cache->load(Bucket::getName(), 10);
 
         foreach ($buckets as $bucket) {
             /** @var Bucket $bucket */
-            $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$bucket->getOriginalId().'/o';
+            $endpoint = 'https://storage.googleapis.com/storage/v1/b/' . $bucket->getOriginalId() . '/o';
 
-            $nextPageToken = null;
-
-            while (true) {
-                $result = $this->call('GET', $endpoint, [
-                    'Content-Type' => 'application/json',
-                ], [
-                    'pageSize' => $batchsize,
-                    'pageToken' => $nextPageToken,
-                ]);
-
-                if (empty($result)) {
-                    break;
+            $this->paginate('GET', function ($result) use ($bucket) {
+                $files = [];
+                foreach ($result as $file) {
+                    $this->exportFile(new File($file['name'], $bucket, $file['name']));
                 }
 
-                if (! isset($result['items'])) {
-                    break;
-                }
-
-                foreach ($result['items'] as $item) {
-                    $this->exportFile(new File($item['name'], $bucket, $item['name']));
-                }
-
-                if (count($result['items']) < $batchsize) {
-                    break;
-                }
-
-                $nextPageToken = $result['nextPageToken'] ?? null;
-            }
+                $this->callback($files);
+            }, 'items', $batchsize, $endpoint, [], [
+                'project' => $this->projectID,
+                'alt' => 'json',
+            ]);
         }
     }
 
     private function exportFile(File $file)
     {
-        $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$file->getBucket()->getOriginalId().'/o/'.$file->getId().'?alt=media';
+        $endpoint = 'https://storage.googleapis.com/storage/v1/b/' . $file->getBucket()->getOriginalId() . '/o/' . $file->getId() . '?alt=media';
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
 
         while (true) {
             $result = $this->call('GET', $endpoint, [
-                'Range' => 'bytes='.$start.'-'.$end,
+                'Range' => 'bytes=' . $start . '-' . $end,
             ]);
 
             if (empty($result)) {
