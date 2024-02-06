@@ -217,19 +217,31 @@ class Appwrite extends Destination
     {
         foreach ($resources as $resource) {
             /** @var resource $resource */
-            switch ($resource->getGroup()) {
-                case Transfer::GROUP_DATABASES:
-                    $responseResource = $this->importDatabaseResource($resource);
-                    break;
-                case Transfer::GROUP_STORAGE:
-                    $responseResource = $this->importFileResource($resource);
-                    break;
-                case Transfer::GROUP_AUTH:
-                    $responseResource = $this->importAuthResource($resource);
-                    break;
-                case Transfer::GROUP_FUNCTIONS:
-                    $responseResource = $this->importFunctionResource($resource);
-                    break;
+            $resource->setStatus(Resource::STATUS_PROCESSING);
+
+            try {
+                switch ($resource->getGroup()) {
+                    case Transfer::GROUP_DATABASES:
+                        $responseResource = $this->importDatabaseResource($resource);
+                        break;
+                    case Transfer::GROUP_STORAGE:
+                        $responseResource = $this->importFileResource($resource);
+                        break;
+                    case Transfer::GROUP_AUTH:
+                        $responseResource = $this->importAuthResource($resource);
+                        break;
+                    case Transfer::GROUP_FUNCTIONS:
+                        $responseResource = $this->importFunctionResource($resource);
+                        break;
+                }
+            } catch (\Exception $e) {
+                if ($e->getCode() === 409) {
+                    $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
+                } else {
+                    $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                }
+
+                $responseResource = $resource;
             }
 
             $this->cache->update($responseResource);
@@ -242,80 +254,69 @@ class Appwrite extends Destination
     {
         $databaseService = new Databases($this->client);
 
-        $response = null;
-        $resource->setStatus(Resource::STATUS_PROCESSING);
-
-        try {
-            switch ($resource->getName()) {
-                case Resource::TYPE_DATABASE:
-                    /** @var Database $resource */
-                    $response = $databaseService->create($resource->getId(), $resource->getDBName());
-                    break;
-                case Resource::TYPE_COLLECTION:
-                    /** @var Collection $resource */
-                    $response = $newCollection = $databaseService->createCollection(
-                        $resource->getDatabase()->getId(),
-                        $resource->getId(),
-                        $resource->getCollectionName(),
-                        $resource->getPermissions(),
-                        $resource->getDocumentSecurity()
-                    );
-                    $resource->setId($newCollection['$id']);
-                    break;
-                case Resource::TYPE_INDEX:
-                    /** @var Index $resource */
-                    $response = $databaseService->createIndex(
-                        $resource->getCollection()->getDatabase()->getId(),
-                        $resource->getCollection()->getId(),
-                        $resource->getKey(),
-                        $resource->getType(),
-                        $resource->getAttributes(),
-                        $resource->getOrders()
-                    );
-                    break;
-                case Resource::TYPE_ATTRIBUTE:
-                    /** @var Attribute $resource */
-                    try {
-                        $this->createAttribute($resource);
-                    } catch (AppwriteException $e) {
-                        if ($e->getType() === 'attribute_already_exists') {
-                            $resource->setStatus(Resource::STATUS_SKIPPED, 'Attribute has been already created');
-                        } else {
-                            throw $e;
-                        }
+        switch ($resource->getName()) {
+            case Resource::TYPE_DATABASE:
+                /** @var Database $resource */
+                $databaseService->create($resource->getId(), $resource->getDBName());
+                break;
+            case Resource::TYPE_COLLECTION:
+                /** @var Collection $resource */
+                $newCollection = $databaseService->createCollection(
+                    $resource->getDatabase()->getId(),
+                    $resource->getId(),
+                    $resource->getCollectionName(),
+                    $resource->getPermissions(),
+                    $resource->getDocumentSecurity()
+                );
+                $resource->setId($newCollection['$id']);
+                break;
+            case Resource::TYPE_INDEX:
+                /** @var Index $resource */
+                $databaseService->createIndex(
+                    $resource->getCollection()->getDatabase()->getId(),
+                    $resource->getCollection()->getId(),
+                    $resource->getKey(),
+                    $resource->getType(),
+                    $resource->getAttributes(),
+                    $resource->getOrders()
+                );
+                break;
+            case Resource::TYPE_ATTRIBUTE:
+                /** @var Attribute $resource */
+                try {
+                    $this->createAttribute($resource);
+                } catch (AppwriteException $e) {
+                    if ($e->getType() === 'attribute_already_exists') {
+                        $resource->setStatus(Resource::STATUS_SKIPPED, 'Attribute has been already created');
+                    } else {
+                        throw $e;
                     }
-                    break;
-                case Resource::TYPE_DOCUMENT:
-                    /** @var Document $resource */
-                    // Check if document has already been created by subcollection
-                    $docExists = array_key_exists($resource->getId(), $this->cache->get(Resource::TYPE_DOCUMENT));
+                }
+                break;
+            case Resource::TYPE_DOCUMENT:
+                /** @var Document $resource */
+                // Check if document has already been created by subcollection
+                $docExists = array_key_exists($resource->getId(), $this->cache->get(Resource::TYPE_DOCUMENT));
 
-                    if ($docExists) {
-                        $resource->setStatus(Resource::STATUS_SKIPPED, 'Document has been already created by relationship');
+                if ($docExists) {
+                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Document has been already created by relationship');
 
-                        return $resource;
-                    }
+                    return $resource;
+                }
 
-                    try {
-                        $databaseService->createDocument(
-                            $resource->getDatabase()->getId(),
-                            $resource->getCollection()->getId(),
-                            $resource->getId(),
-                            $resource->getData(),
-                            $resource->getPermissions()
-                        );
-                    } catch (\Exception $e) {
-                        $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
-                    }
-                    break;
-            }
-
-            $resource->setStatus(Resource::STATUS_SUCCESS);
-        } catch (\Exception $e) {
-            $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
-        } finally {
-            return $resource;
+                $databaseService->createDocument(
+                    $resource->getDatabase()->getId(),
+                    $resource->getCollection()->getId(),
+                    $resource->getId(),
+                    $resource->getData(),
+                    $resource->getPermissions()
+                );
+                break;
         }
+
+        $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
     }
 
     public function createAttribute(Attribute $attribute): void
@@ -408,50 +409,46 @@ class Appwrite extends Destination
 
         $response = null;
 
-        try {
-            switch ($resource->getName()) {
-                case Resource::TYPE_FILE:
-                    /** @var File $resource */
-                    return $this->importFile($resource);
-                    break;
-                case Resource::TYPE_BUCKET:
-                    /** @var Bucket $resource */
-                    if (! $resource->getUpdateLimits()) {
-                        $response = $storageService->createBucket(
-                            $resource->getId() ?? 'unique()',
-                            $resource->getBucketName(),
-                            $resource->getPermissions(),
-                            $resource->getFileSecurity(),
-                            true, // Set to true for now, we'll come back later.
-                            null,
-                            null,
-                            $resource->getCompression() ?? 'none',
-                            $resource->getEncryption() ?? null,
-                            $resource->getAntiVirus() ?? null
-                        );
-                    } else {
-                        $response = $storageService->updateBucket(
-                            $resource->getId(),
-                            $resource->getBucketName(),
-                            $resource->getPermissions(),
-                            $resource->getFileSecurity(),
-                            $resource->getEnabled(),
-                            $resource->getMaxFileSize() ?? null,
-                            $resource->getAllowedFileExtensions() ?? null,
-                            $resource->getCompression() ?? 'none',
-                            $resource->getEncryption() ?? null,
-                            $resource->getAntiVirus() ?? null
-                        );
-                    }
-                    $resource->setId($response['$id']);
-            }
-
-            $resource->setStatus(Resource::STATUS_SUCCESS);
-        } catch (\Exception $e) {
-            $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
-        } finally {
-            return $resource;
+        switch ($resource->getName()) {
+            case Resource::TYPE_FILE:
+                /** @var File $resource */
+                return $this->importFile($resource);
+                break;
+            case Resource::TYPE_BUCKET:
+                /** @var Bucket $resource */
+                if (! $resource->getUpdateLimits()) {
+                    $response = $storageService->createBucket(
+                        $resource->getId() ?? 'unique()',
+                        $resource->getBucketName(),
+                        $resource->getPermissions(),
+                        $resource->getFileSecurity(),
+                        true, // Set to true for now, we'll come back later.
+                        null,
+                        null,
+                        $resource->getCompression() ?? 'none',
+                        $resource->getEncryption() ?? null,
+                        $resource->getAntiVirus() ?? null
+                    );
+                } else {
+                    $response = $storageService->updateBucket(
+                        $resource->getId(),
+                        $resource->getBucketName(),
+                        $resource->getPermissions(),
+                        $resource->getFileSecurity(),
+                        $resource->getEnabled(),
+                        $resource->getMaxFileSize() ?? null,
+                        $resource->getAllowedFileExtensions() ?? null,
+                        $resource->getCompression() ?? 'none',
+                        $resource->getEncryption() ?? null,
+                        $resource->getAntiVirus() ?? null
+                    );
+                }
+                $resource->setId($response['$id']);
         }
+
+        $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
     }
 
     /**
@@ -523,77 +520,73 @@ class Appwrite extends Destination
         $userService = new Users($this->client);
         $teamService = new Teams($this->client);
 
-        try {
-            switch ($resource->getName()) {
-                case Resource::TYPE_USER:
-                    /** @var User $resource */
-                    if (in_array(User::TYPE_EMAIL, $resource->getTypes())) {
-                        $this->importPasswordUser($resource);
-                    } elseif (in_array(User::TYPE_OAUTH, $resource->getTypes())) {
-                        $resource->setStatus(Resource::STATUS_WARNING, 'OAuth users cannot be imported.');
+        switch ($resource->getName()) {
+            case Resource::TYPE_USER:
+                /** @var User $resource */
+                if (in_array(User::TYPE_PASSWORD, $resource->getTypes())) {
+                    $this->importPasswordUser($resource);
+                } elseif (in_array(User::TYPE_OAUTH, $resource->getTypes())) {
+                    $resource->setStatus(Resource::STATUS_WARNING, 'OAuth users cannot be imported.');
 
-                        return $resource;
-                    } else {
-                        $userService->create(
-                            $resource->getId(),
-                            null,
-                            in_array(User::TYPE_PHONE, $resource->getTypes()) ? $resource->getPhone() : null,
-                            null,
-                            $resource->getName()
-                        );
-                    }
-
-                    if ($resource->getUsername()) {
-                        $userService->updateName($resource->getId(), $resource->getUsername());
-                    }
-
-                    if ($resource->getPhone()) {
-                        $userService->updatePhone($resource->getId(), $resource->getPhone());
-                    }
-
-                    if ($resource->getEmailVerified()) {
-                        $userService->updateEmailVerification($resource->getId(), $resource->getEmailVerified());
-                    }
-
-                    if ($resource->getPhoneVerified()) {
-                        $userService->updatePhoneVerification($resource->getId(), $resource->getPhoneVerified());
-                    }
-
-                    if ($resource->getDisabled()) {
-                        $userService->updateStatus($resource->getId(), ! $resource->getDisabled());
-                    }
-
-                    if ($resource->getPreferences()) {
-                        $userService->updatePrefs($resource->getId(), $resource->getPreferences());
-                    }
-
-                    if ($resource->getLabels()) {
-                        $userService->updateLabels($resource->getId(), $resource->getLabels());
-                    }
-
-                    break;
-                case Resource::TYPE_TEAM:
-                    /** @var Team $resource */
-                    $teamService->create($resource->getId(), $resource->getTeamName());
-                    $teamService->updatePrefs($resource->getId(), $resource->getPreferences());
-                    break;
-                case Resource::TYPE_MEMBERSHIP:
-                    /** @var Membership $resource */
-                    $user = $resource->getUser();
-                    $teamService->createMembership(
-                        $resource->getTeam()->getId(),
-                        $resource->getRoles(),
-                        userId: $user->getId(),
+                    return $resource;
+                } else {
+                    $userService->create(
+                        $resource->getId(),
+                        null,
+                        in_array(User::TYPE_PHONE, $resource->getTypes()) ? $resource->getPhone() : null,
+                        null,
+                        $resource->getName()
                     );
-                    break;
-            }
+                }
 
-            $resource->setStatus(Resource::STATUS_SUCCESS);
-        } catch (\Throwable $e) {
-            $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
-        } finally {
-            return $resource;
+                if ($resource->getUsername()) {
+                    $userService->updateName($resource->getId(), $resource->getUsername());
+                }
+
+                if ($resource->getPhone()) {
+                    $userService->updatePhone($resource->getId(), $resource->getPhone());
+                }
+
+                if ($resource->getEmailVerified()) {
+                    $userService->updateEmailVerification($resource->getId(), $resource->getEmailVerified());
+                }
+
+                if ($resource->getPhoneVerified()) {
+                    $userService->updatePhoneVerification($resource->getId(), $resource->getPhoneVerified());
+                }
+
+                if ($resource->getDisabled()) {
+                    $userService->updateStatus($resource->getId(), ! $resource->getDisabled());
+                }
+
+                if ($resource->getPreferences()) {
+                    $userService->updatePrefs($resource->getId(), $resource->getPreferences());
+                }
+
+                if ($resource->getLabels()) {
+                    $userService->updateLabels($resource->getId(), $resource->getLabels());
+                }
+
+                break;
+            case Resource::TYPE_TEAM:
+                /** @var Team $resource */
+                $teamService->create($resource->getId(), $resource->getTeamName());
+                $teamService->updatePrefs($resource->getId(), $resource->getPreferences());
+                break;
+            case Resource::TYPE_MEMBERSHIP:
+                /** @var Membership $resource */
+                $user = $resource->getUser();
+                $teamService->createMembership(
+                    $resource->getTeam()->getId(),
+                    $resource->getRoles(),
+                    userId: $user->getId(),
+                );
+                break;
         }
+
+        $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
     }
 
     public function importPasswordUser(User $user): ?array
@@ -682,42 +675,36 @@ class Appwrite extends Destination
     {
         $functions = new Functions($this->client);
 
-        try {
-            switch ($resource->getName()) {
-                case Resource::TYPE_FUNCTION:
-                    /** @var Func $resource */
-                    $functions->create(
-                        $resource->getId(),
-                        $resource->getFunctionName(),
-                        $resource->getRuntime(),
-                        $resource->getExecute(),
-                        $resource->getEvents(),
-                        $resource->getSchedule(),
-                        $resource->getTimeout(),
-                        $resource->getEnabled()
-                    );
-                    break;
-                case Resource::TYPE_ENVVAR:
-                    /** @var EnvVar $resource */
-                    $functions->createVariable(
-                        $resource->getFunc()->getId(),
-                        $resource->getKey(),
-                        $resource->getValue()
-                    );
-                    break;
-                case Resource::TYPE_DEPLOYMENT:
-                    return $this->importDeployment($resource);
-                    break;
-            }
-
-            $resource->setStatus(Resource::STATUS_SUCCESS);
-
-            return $resource;
-        } catch (\Exception $e) {
-            $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
-        } finally {
-            return $resource;
+        switch ($resource->getName()) {
+            case Resource::TYPE_FUNCTION:
+                /** @var Func $resource */
+                $functions->create(
+                    $resource->getId(),
+                    $resource->getFunctionName(),
+                    $resource->getRuntime(),
+                    $resource->getExecute(),
+                    $resource->getEvents(),
+                    $resource->getSchedule(),
+                    $resource->getTimeout(),
+                    $resource->getEnabled()
+                );
+                break;
+            case Resource::TYPE_ENVVAR:
+                /** @var EnvVar $resource */
+                $functions->createVariable(
+                    $resource->getFunc()->getId(),
+                    $resource->getKey(),
+                    $resource->getValue()
+                );
+                break;
+            case Resource::TYPE_DEPLOYMENT:
+                return $this->importDeployment($resource);
+                break;
         }
+
+        $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
     }
 
     private function importDeployment(Deployment $deployment): Resource

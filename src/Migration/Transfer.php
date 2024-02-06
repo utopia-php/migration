@@ -127,7 +127,7 @@ class Transfer
     /**
      * Transfer Resources between adapters
      *
-     * @param  callable  $callback (array $resources)
+     * @param  callable  $callback  (array $resources)
      */
     public function run(array $resources, callable $callback): void
     {
@@ -168,7 +168,7 @@ class Transfer
      * Get Transfer Report
      *
      * @param  string  $statusLevel
-     * If no status level is provided, all status types will be returned.
+     *                               If no status level is provided, all status types will be returned.
      */
     public function getReport(string $statusLevel = ''): array
     {

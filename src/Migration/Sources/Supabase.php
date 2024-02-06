@@ -416,7 +416,7 @@ class Supabase extends NHost
         $types = [];
 
         if (! empty($user['encrypted_password'])) {
-            $types[] = User::TYPE_EMAIL;
+            $types[] = User::TYPE_PASSWORD;
         }
 
         if (! empty($user['phone'])) {

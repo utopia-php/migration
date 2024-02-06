@@ -40,7 +40,7 @@ abstract class Destination extends Target
     /**
      * Import Resources
      *
-     * @param  callable  $callback (array $resources)
+     * @param  callable  $callback  (array $resources)
      */
     abstract protected function import(array $resources, callable $callback): void;
 }

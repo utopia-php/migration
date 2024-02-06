@@ -549,7 +549,7 @@ class NHost extends Source
         $types = [];
 
         if (! empty($user['password_hash'])) {
-            $types[] = User::TYPE_EMAIL;
+            $types[] = User::TYPE_PASSWORD;
         }
 
         if (! empty($user['phone_number'])) {

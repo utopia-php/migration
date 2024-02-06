@@ -277,7 +277,7 @@ class Appwrite extends Source
     /**
      * Export Auth Resources
      *
-     * @param  int  $batchSize Max 100
+     * @param  int  $batchSize  Max 100
      * @return void
      */
     protected function exportGroupAuth(int $batchSize, array $resources)
@@ -874,8 +874,8 @@ class Appwrite extends Source
 
         $types = [];
 
-        if (! empty($user['email'])) {
-            $types[] = User::TYPE_EMAIL;
+        if (! empty($user['email']) && ! empty($user['password'])) {
+            $types[] = User::TYPE_PASSWORD;
         }
 
         if (! empty($user['phone'])) {
@@ -1021,7 +1021,7 @@ class Appwrite extends Source
         }
 
         if (in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
-            $this->exportDeployments($batchSize);
+            $this->exportDeployments($batchSize, true);
         }
     }
 
@@ -1046,7 +1046,8 @@ class Appwrite extends Source
                 $function['enabled'],
                 $function['events'],
                 $function['schedule'],
-                $function['timeout']
+                $function['timeout'],
+                $function['deployment']
             );
 
             $convertedResources[] = $convertedFunc;
@@ -1063,7 +1064,7 @@ class Appwrite extends Source
         $this->callback($convertedResources);
     }
 
-    private function exportDeployments(int $batchSize)
+    private function exportDeployments(int $batchSize, bool $exportOnlyActive = false)
     {
         $functionsClient = new Functions($this->client);
         $functions = $this->cache->get(Func::getName());
@@ -1078,6 +1079,19 @@ class Appwrite extends Source
         foreach ($functions as $func) {
             /** @var Func $func */
             $lastDocument = null;
+
+            if ($exportOnlyActive && $func->getActiveDeployment()) {
+                $deployment = $functionsClient->getDeployment($func->getId(), $func->getActiveDeployment());
+
+                try {
+                    $this->exportDeploymentData($func, $deployment);
+                } catch (\Exception $e) {
+                    $func->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                }
+
+                continue;
+            }
+
             while (true) {
                 $queries = [Query::limit($batchSize)];
 
@@ -1091,7 +1105,11 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['deployments'] as $deployment) {
-                    $this->exportDeploymentData($func, $deployment);
+                    try {
+                        $this->exportDeploymentData($func, $deployment);
+                    } catch (\Exception $e) {
+                        $func->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                    }
 
                     $lastDocument = $deployment['$id'];
                 }
@@ -1112,6 +1130,8 @@ class Appwrite extends Source
         // Get the file size
         $responseHeaders = [];
 
+        var_dump($func->getId());
+        var_dump($deployment['$id']);
         $this->call(
             'HEAD',
             "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",

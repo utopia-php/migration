@@ -237,7 +237,7 @@ class Firebase extends Source
         foreach ($providerData as $provider) {
             switch ($provider['providerId']) {
                 case 'password':
-                    $types[] = User::TYPE_EMAIL;
+                    $types[] = User::TYPE_PASSWORD;
                     break;
                 case 'phone':
                     $types[] = User::TYPE_PHONE;
