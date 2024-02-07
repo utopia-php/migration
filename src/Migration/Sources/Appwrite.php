@@ -1130,8 +1130,6 @@ class Appwrite extends Source
         // Get the file size
         $responseHeaders = [];
 
-        var_dump($func->getId());
-        var_dump($deployment['$id']);
         $this->call(
             'HEAD',
             "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
