@@ -277,7 +277,7 @@ class Appwrite extends Source
     /**
      * Export Auth Resources
      *
-     * @param  int  $batchSize Max 100
+     * @param  int  $batchSize  Max 100
      * @return void
      */
     protected function exportGroupAuth(int $batchSize, array $resources)

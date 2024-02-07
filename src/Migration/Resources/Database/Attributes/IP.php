@@ -9,7 +9,7 @@ class IP extends Attribute
 {
     protected ?string $default;
 
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, string $default = null)
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?string $default = null)
     {
         parent::__construct($key, $collection, $required, $array);
         $this->default = $default;
