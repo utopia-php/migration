@@ -714,8 +714,13 @@ class Appwrite extends Source
                 $databases[] = $newDatabase;
             }
 
+            if (count($databases) === 0) {
+                break;
+            }
+
             $this->callback($databases);
 
+            $lastDocument = $response['databases'][count($response['databases']) - 1]['$id'];
             if (count($databases) < $batchSize) {
                 break;
             }
@@ -727,17 +732,18 @@ class Appwrite extends Source
         $databaseClient = new Databases($this->client);
 
         // Transfer Collections
-        $lastDocument = null;
 
         $databases = $this->cache->get(Database::getName());
         foreach ($databases as $database) {
+            $lastCollection = null;
+
             /** @var Database $database */
             while (true) {
                 $queries = [Query::limit($batchSize)];
                 $collections = [];
 
-                if ($lastDocument) {
-                    $queries[] = Query::cursorAfter($lastDocument);
+                if ($lastCollection) {
+                    $queries[] = Query::cursorAfter($lastCollection);
                 }
 
                 $response = $databaseClient->listCollections(
@@ -757,6 +763,11 @@ class Appwrite extends Source
                     $collections[] = $newCollection;
                 }
 
+                if (count($collections) === 0) {
+                    break;
+                }
+
+                $lastCollection = $response['collections'][count($response['collections']) - 1]['$id'];
                 $this->callback($collections);
 
                 if (count($collections) < $batchSize) {
@@ -771,10 +782,10 @@ class Appwrite extends Source
         $databaseClient = new Databases($this->client);
 
         // Transfer Attributes
-        $lastDocument = null;
         $collections = $this->cache->get(Collection::getName());
         /** @var Collection[] $collections */
         foreach ($collections as $collection) {
+            $lastDocument = null;
             while (true) {
                 $queries = [Query::limit($batchSize)];
                 $attributes = [];
@@ -813,8 +824,13 @@ class Appwrite extends Source
                     $attributes[] = $this->convertAttribute($attribute, $collection);
                 }
 
+                if (count($attributes) === 0) {
+                    break;
+                }
+
                 $this->callback($attributes);
 
+                $lastDocument = $response['attributes'][count($response['attributes']) - 1]['key'];
                 if (count($attributes) < $batchSize) {
                     break;
                 }
@@ -829,8 +845,8 @@ class Appwrite extends Source
         $collections = $this->cache->get(Resource::TYPE_COLLECTION);
 
         // Transfer Indexes
-        $lastDocument = null;
         foreach ($collections as $collection) {
+            $lastDocument = null;
             /** @var Collection $collection */
             while (true) {
                 $queries = [Query::limit($batchSize)];
@@ -857,8 +873,13 @@ class Appwrite extends Source
                     );
                 }
 
+                if (count($indexes) === 0) {
+                    break;
+                }
+
                 $this->callback($indexes);
 
+                $lastDocument = $response['indexes'][count($response['indexes']) - 1]['key'];
                 if (count($indexes) < $batchSize) {
                     break;
                 }
