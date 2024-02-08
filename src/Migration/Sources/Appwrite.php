@@ -692,15 +692,15 @@ class Appwrite extends Source
     {
         $databaseClient = new Databases($this->client);
 
-        $lastDocument = null;
+        $lastDatabase = null;
 
         // Transfer Databases
         while (true) {
             $queries = [Query::limit($batchSize)];
             $databases = [];
 
-            if ($lastDocument) {
-                $queries[] = Query::cursorAfter($lastDocument);
+            if ($lastDatabase) {
+                $queries[] = Query::cursorAfter($lastDatabase);
             }
 
             $response = $databaseClient->list($queries);
@@ -714,13 +714,14 @@ class Appwrite extends Source
                 $databases[] = $newDatabase;
             }
 
-            if (count($databases) === 0) {
+            if (empty($databases)) {
                 break;
             }
 
+            $lastDatabase = $databases[count($databases) - 1]->getId();
+
             $this->callback($databases);
 
-            $lastDocument = $response['databases'][count($response['databases']) - 1]['$id'];
             if (count($databases) < $batchSize) {
                 break;
             }
@@ -763,11 +764,8 @@ class Appwrite extends Source
                     $collections[] = $newCollection;
                 }
 
-                if (count($collections) === 0) {
-                    break;
-                }
+                $lastCollection = $collections[count($collections) - 1]->getId();
 
-                $lastCollection = $response['collections'][count($response['collections']) - 1]['$id'];
                 $this->callback($collections);
 
                 if (count($collections) < $batchSize) {
@@ -785,13 +783,14 @@ class Appwrite extends Source
         $collections = $this->cache->get(Collection::getName());
         /** @var Collection[] $collections */
         foreach ($collections as $collection) {
-            $lastDocument = null;
+            $lastAttribute = null;
+
             while (true) {
                 $queries = [Query::limit($batchSize)];
                 $attributes = [];
 
-                if ($lastDocument) {
-                    $queries[] = Query::cursorAfter($lastDocument);
+                if ($lastAttribute) {
+                    $queries[] = Query::cursorAfter($lastAttribute);
                 }
 
                 $response = $databaseClient->listAttributes(
@@ -824,13 +823,13 @@ class Appwrite extends Source
                     $attributes[] = $this->convertAttribute($attribute, $collection);
                 }
 
-                if (count($attributes) === 0) {
+                if (empty($attributes)) {
                     break;
                 }
 
                 $this->callback($attributes);
 
-                $lastDocument = $response['attributes'][count($response['attributes']) - 1]['key'];
+                $lastAttribute = $attributes[count($attributes) - 1]->getId();
                 if (count($attributes) < $batchSize) {
                     break;
                 }
@@ -846,14 +845,15 @@ class Appwrite extends Source
 
         // Transfer Indexes
         foreach ($collections as $collection) {
-            $lastDocument = null;
             /** @var Collection $collection */
+            $lastIndex = null;
+
             while (true) {
                 $queries = [Query::limit($batchSize)];
                 $indexes = [];
 
-                if ($lastDocument) {
-                    $queries[] = Query::cursorAfter($lastDocument);
+                if ($lastIndex) {
+                    $queries[] = Query::cursorAfter($lastIndex);
                 }
 
                 $response = $databaseClient->listIndexes(
@@ -873,13 +873,13 @@ class Appwrite extends Source
                     );
                 }
 
-                if (count($indexes) === 0) {
+                if (empty($indexes)) {
                     break;
                 }
 
                 $this->callback($indexes);
+                $lastIndex = $indexes[count($indexes) - 1]->getId();
 
-                $lastDocument = $response['indexes'][count($response['indexes']) - 1]['key'];
                 if (count($indexes) < $batchSize) {
                     break;
                 }

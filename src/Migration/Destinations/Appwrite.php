@@ -215,6 +215,10 @@ class Appwrite extends Destination
 
     protected function import(array $resources, callable $callback): void
     {
+        if (empty($resources)) {
+            return;
+        }
+
         foreach ($resources as $resource) {
             /** @var resource $resource */
             $resource->setStatus(Resource::STATUS_PROCESSING);
@@ -532,7 +536,7 @@ class Appwrite extends Destination
                 } else {
                     $userService->create(
                         $resource->getId(),
-                        null,
+                        $resource->getEmail(),
                         in_array(User::TYPE_PHONE, $resource->getTypes()) ? $resource->getPhone() : null,
                         null,
                         $resource->getName()

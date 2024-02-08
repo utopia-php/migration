@@ -74,11 +74,13 @@ $transfer = new Transfer(
     $destinationAppwrite
 );
 
-// /**
-//  * Run Transfer
-//  */
-$transfer->run($sourceAppwrite->getSupportedResources(),
-    function (array $resources) {
+/**
+ * Run Transfer
+ */
+$transfer->run(
+    $sourceAppwrite->getSupportedResources(),
+    function (array $resources) use ($transfer) {
+        var_dump($transfer->getStatusCounters());
     }
 );
 
