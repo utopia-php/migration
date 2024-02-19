@@ -21,6 +21,13 @@ abstract class Target
     public $cache;
 
     /**
+     * Errors
+     *
+     * @var array
+     */
+    public $errors = [];
+
+    /**
      * Endpoint
      *
      * @var string
@@ -167,5 +174,33 @@ abstract class Target
         }
 
         return $output;
+    }
+
+    /**
+     * Get Errors
+     *
+     * @returns Error[]
+     */
+    public function getErrors(): array
+    {
+        return $this->errors;
+    }
+
+    /**
+     * Set Errors
+     *
+     * @param  Error[]  $errors
+     */
+    public function setErrors(array $errors): void
+    {
+        $this->errors = $errors;
+    }
+
+    /**
+     * Push Error
+     */
+    public function pushError(Error $error): void
+    {
+        $this->errors[] = $error;
     }
 }

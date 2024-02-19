@@ -106,6 +106,20 @@ class Transfer
             }
         }
 
+        // Process Destination Errors
+        foreach ($this->destination->getErrors() as $error) {
+            if (isset($status[$error->getResourceType()])) {
+                $status[$error->getResourceType()][Resource::STATUS_ERROR]++;
+            }
+        }
+
+        // Process Source Errprs
+        foreach ($this->source->getErrors() as $error) {
+            if (isset($status[$error->getResourceType()])) {
+                $status[$error->getResourceType()][Resource::STATUS_ERROR]++;
+            }
+        }
+
         // Remove all empty resources
         foreach ($status as $resource => $data) {
             $allEmpty = true;

@@ -9,6 +9,7 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
+use Utopia\Migration\Error;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
@@ -977,15 +978,24 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['files'] as $file) {
-                    $this->exportFileData(new File(
-                        $file['$id'],
-                        $bucket,
-                        $file['name'],
-                        $file['signature'],
-                        $file['mimeType'],
-                        $file['$permissions'],
-                        $file['sizeOriginal'],
-                    ));
+                    try {
+                        $this->exportFileData(new File(
+                            $file['$id'],
+                            $bucket,
+                            $file['name'],
+                            $file['signature'],
+                            $file['mimeType'],
+                            $file['$permissions'],
+                            $file['sizeOriginal'],
+                        ));
+                    } catch (\Exception $e) {
+                        $this->pushError(new Error(
+                            resourceType: Resource::TYPE_FILE,
+                            message: $e->getMessage(),
+                            code: $e->getCode(),
+                            resourceId: $file['$id']
+                        ));
+                    }
 
                     $lastDocument = $file['$id'];
                 }

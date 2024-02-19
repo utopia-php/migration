@@ -11,6 +11,7 @@ use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Migration\Destination;
+use Utopia\Migration\Error;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
@@ -243,6 +244,12 @@ class Appwrite extends Destination
                     $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
                 } else {
                     $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                    $this->pushError(new Error(
+                        resourceType: $resource->getGroup(),
+                        resourceId: $resource->getId(),
+                        message: $e->getMessage(),
+                        code: $e->getCode()
+                    ));
                 }
 
                 $responseResource = $resource;
