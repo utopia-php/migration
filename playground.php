@@ -89,14 +89,14 @@ $cache = $transfer->getCache()->getAll();
 
 if (count($sourceAppwrite->getErrors()) > 0) {
     foreach ($sourceAppwrite->getErrors() as $error) {
-        /* @var \Utopia\Migration\Error $error */
+        /* @var \Utopia\Migration\Exception $error */
         Console::error('[Source] ['.$error->getResourceType().'] '.$error->getMessage());
     }
 }
 
 if (count($destinationAppwrite->getErrors()) > 0) {
     foreach ($destinationAppwrite->getErrors() as $error) {
-        /* @var \Utopia\Migration\Error $error */
+        /* @var \Utopia\Migration\Exception $error */
         Console::error('[Destination] ['.$error->getResourceType().'] '.$error->getMessage());
     }
 }

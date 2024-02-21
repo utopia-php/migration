@@ -2,7 +2,7 @@
 
 namespace Utopia\Migration;
 
-class Error extends \Exception
+class Exception extends \Exception
 {
     public string $resourceType;
 

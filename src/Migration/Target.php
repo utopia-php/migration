@@ -199,7 +199,7 @@ abstract class Target
     /**
      * Push Error
      */
-    public function pushError(Error $error): void
+    public function pushError(Exception $error): void
     {
         $this->errors[] = $error;
     }

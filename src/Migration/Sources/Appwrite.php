@@ -9,7 +9,8 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
-use Utopia\Migration\Error;
+use Utopia\Migration\Exception;
+use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
@@ -266,7 +267,7 @@ class Appwrite extends Source
             $this->previousReport = $report;
 
             return $report;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if ($e->getCode() === 403) {
                 throw new \Exception("Missing Permission: {$currentPermission}.");
             } else {
@@ -988,8 +989,8 @@ class Appwrite extends Source
                             $file['$permissions'],
                             $file['sizeOriginal'],
                         ));
-                    } catch (\Exception $e) {
-                        $this->pushError(new Error(
+                    } catch (\Throwable $e) {
+                        $this->pushError(new Exception(
                             resourceType: Resource::TYPE_FILE,
                             message: $e->getMessage(),
                             code: $e->getCode(),
@@ -1116,7 +1117,7 @@ class Appwrite extends Source
 
                 try {
                     $this->exportDeploymentData($func, $deployment);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $func->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                 }
 
@@ -1138,7 +1139,7 @@ class Appwrite extends Source
                 foreach ($response['deployments'] as $deployment) {
                     try {
                         $this->exportDeploymentData($func, $deployment);
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         $func->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                     }
 
