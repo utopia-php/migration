@@ -244,7 +244,7 @@ class Appwrite extends Destination
                     $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
                 } else {
                     $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
-                    $this->pushError(new Exception(
+                    $this->addError(new Exception(
                         resourceType: $resource->getGroup(),
                         resourceId: $resource->getId(),
                         message: $e->getMessage(),

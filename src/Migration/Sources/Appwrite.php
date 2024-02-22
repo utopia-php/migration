@@ -990,7 +990,7 @@ class Appwrite extends Source
                             $file['sizeOriginal'],
                         ));
                     } catch (\Throwable $e) {
-                        $this->pushError(new Exception(
+                        $this->addError(new Exception(
                             resourceType: Resource::TYPE_FILE,
                             message: $e->getMessage(),
                             code: $e->getCode(),
