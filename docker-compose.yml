@@ -26,20 +26,18 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
-  
+
   nhost-storage:
-    build:
-      context: .
-      target: mock-api
+    image: mockoon/cli:latest
+    command: ["--data", "/mockoon/api.json", "--port", "80", "--disable-log-to-file"]
     networks:
       - tests
     volumes:
       - ./tests/Migration/resources/nhost:/mockoon
 
   supabase-api:
-    build:
-      context: .
-      target: mock-api
+    image: mockoon/cli:latest
+    command: ["--data", "/mockoon/api.json", "--port", "80", "--disable-log-to-file"]
     networks:
       - tests
     volumes:
