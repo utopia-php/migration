@@ -88,7 +88,7 @@ class Appwrite extends Destination
             // Functions
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
-            Resource::TYPE_ENVVAR,
+            Resource::TYPE_ENVIRONMENT_VARIABLE,
 
             // Settings
         ];
@@ -693,7 +693,7 @@ class Appwrite extends Destination
                     $resource->getEnabled()
                 );
                 break;
-            case Resource::TYPE_ENVVAR:
+            case Resource::TYPE_ENVIRONMENT_VARIABLE:
                 /** @var EnvVar $resource */
                 $functions->createVariable(
                     $resource->getFunc()->getId(),

@@ -51,7 +51,7 @@ class Local extends Destination
             Resource::TYPE_DATABASE,
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_DOCUMENT,
-            Resource::TYPE_ENVVAR,
+            Resource::TYPE_ENVIRONMENT_VARIABLE,
             Resource::TYPE_FILE,
             Resource::TYPE_FUNCTION,
             Resource::TYPE_HASH,

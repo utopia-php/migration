@@ -22,7 +22,7 @@ class EnvVar extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_ENVVAR;
+        return Resource::TYPE_ENVIRONMENT_VARIABLE;
     }
 
     public function getGroup(): string
