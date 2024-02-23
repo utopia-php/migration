@@ -52,7 +52,7 @@ abstract class Resource
 
     public const TYPE_HASH = 'hash';
 
-    public const TYPE_ENVVAR = 'environment variable';
+    public const TYPE_ENVIRONMENT_VARIABLE = 'environment variable';
 
     public const ALL_RESOURCES = [
         self::TYPE_ATTRIBUTE,
@@ -66,7 +66,7 @@ abstract class Resource
         self::TYPE_HASH,
         self::TYPE_INDEX,
         self::TYPE_USER,
-        self::TYPE_ENVVAR,
+        self::TYPE_ENVIRONMENT_VARIABLE,
         self::TYPE_TEAM,
         self::TYPE_MEMBERSHIP,
     ];

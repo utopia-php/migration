@@ -20,7 +20,7 @@ class Transfer
 
     public const GROUP_STORAGE_RESOURCES = [Resource::TYPE_FILE, Resource::TYPE_BUCKET];
 
-    public const GROUP_FUNCTIONS_RESOURCES = [Resource::TYPE_FUNCTION, Resource::TYPE_ENVVAR, Resource::TYPE_DEPLOYMENT];
+    public const GROUP_FUNCTIONS_RESOURCES = [Resource::TYPE_FUNCTION, Resource::TYPE_ENVIRONMENT_VARIABLE, Resource::TYPE_DEPLOYMENT];
 
     public const GROUP_DATABASES_RESOURCES = [Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE, Resource::TYPE_DOCUMENT];
 
@@ -30,7 +30,7 @@ class Transfer
         Resource::TYPE_USER, Resource::TYPE_TEAM,
         Resource::TYPE_MEMBERSHIP, Resource::TYPE_FILE,
         Resource::TYPE_BUCKET, Resource::TYPE_FUNCTION,
-        Resource::TYPE_ENVVAR, Resource::TYPE_DEPLOYMENT,
+        Resource::TYPE_ENVIRONMENT_VARIABLE, Resource::TYPE_DEPLOYMENT,
         Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION,
         Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE,
         Resource::TYPE_DOCUMENT,

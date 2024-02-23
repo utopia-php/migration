@@ -103,7 +103,7 @@ class Appwrite extends Source
             // Functions
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
-            Resource::TYPE_ENVVAR,
+            Resource::TYPE_ENVIRONMENT_VARIABLE,
 
             // Settings
         ];
@@ -254,11 +254,11 @@ class Appwrite extends Source
                 }
             }
 
-            if (in_array(Resource::TYPE_ENVVAR, $resources)) {
-                $report[Resource::TYPE_ENVVAR] = 0;
+            if (in_array(Resource::TYPE_ENVIRONMENT_VARIABLE, $resources)) {
+                $report[Resource::TYPE_ENVIRONMENT_VARIABLE] = 0;
                 $functions = $functionsClient->list()['functions'];
                 foreach ($functions as $function) {
-                    $report[Resource::TYPE_ENVVAR] += $functionsClient->listVariables($function['$id'])['total'];
+                    $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += $functionsClient->listVariables($function['$id'])['total'];
                 }
             }
 
