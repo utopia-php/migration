@@ -11,6 +11,7 @@ use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Migration\Destination;
+use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
@@ -204,7 +205,7 @@ class Appwrite extends Destination
             }
 
             return [];
-        } catch (\Exception $exception) {
+        } catch (\Throwable $exception) {
             if ($exception->getCode() === 403) {
                 throw new \Exception('Missing permission: '.$currentPermission);
             } else {
@@ -238,11 +239,17 @@ class Appwrite extends Destination
                         $responseResource = $this->importFunctionResource($resource);
                         break;
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 if ($e->getCode() === 409) {
                     $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
                 } else {
                     $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                    $this->addError(new Exception(
+                        resourceType: $resource->getGroup(),
+                        resourceId: $resource->getId(),
+                        message: $e->getMessage(),
+                        code: $e->getCode()
+                    ));
                 }
 
                 $responseResource = $resource;

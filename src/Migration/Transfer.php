@@ -99,10 +99,26 @@ class Transfer
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
                 /** @var resource $resource */
-                $status[$resource->getName()][$resource->getStatus()]++;
-                if ($status[$resource->getName()]['pending'] > 0) {
-                    $status[$resource->getName()]['pending']--;
+                if (isset($status[$resource->getName()])) {
+                    $status[$resource->getName()][$resource->getStatus()]++;
+                    if ($status[$resource->getName()]['pending'] > 0) {
+                        $status[$resource->getName()]['pending']--;
+                    }
                 }
+            }
+        }
+
+        // Process Destination Errors
+        foreach ($this->destination->getErrors() as $error) {
+            if (isset($status[$error->getResourceType()])) {
+                $status[$error->getResourceType()][Resource::STATUS_ERROR]++;
+            }
+        }
+
+        // Process Source Errprs
+        foreach ($this->source->getErrors() as $error) {
+            if (isset($status[$error->getResourceType()])) {
+                $status[$error->getResourceType()][Resource::STATUS_ERROR]++;
             }
         }
 

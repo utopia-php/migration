@@ -9,6 +9,8 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
+use Utopia\Migration\Exception;
+use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
@@ -265,7 +267,7 @@ class Appwrite extends Source
             $this->previousReport = $report;
 
             return $report;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if ($e->getCode() === 403) {
                 throw new \Exception("Missing Permission: {$currentPermission}.");
             } else {
@@ -977,15 +979,24 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['files'] as $file) {
-                    $this->exportFileData(new File(
-                        $file['$id'],
-                        $bucket,
-                        $file['name'],
-                        $file['signature'],
-                        $file['mimeType'],
-                        $file['$permissions'],
-                        $file['sizeOriginal'],
-                    ));
+                    try {
+                        $this->exportFileData(new File(
+                            $file['$id'],
+                            $bucket,
+                            $file['name'],
+                            $file['signature'],
+                            $file['mimeType'],
+                            $file['$permissions'],
+                            $file['sizeOriginal'],
+                        ));
+                    } catch (\Throwable $e) {
+                        $this->addError(new Exception(
+                            resourceType: Resource::TYPE_FILE,
+                            message: $e->getMessage(),
+                            code: $e->getCode(),
+                            resourceId: $file['$id']
+                        ));
+                    }
 
                     $lastDocument = $file['$id'];
                 }
@@ -1106,7 +1117,7 @@ class Appwrite extends Source
 
                 try {
                     $this->exportDeploymentData($func, $deployment);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $func->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                 }
 
@@ -1128,7 +1139,7 @@ class Appwrite extends Source
                 foreach ($response['deployments'] as $deployment) {
                     try {
                         $this->exportDeploymentData($func, $deployment);
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         $func->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                     }
 
