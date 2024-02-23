@@ -38,7 +38,7 @@ class Transfer
 
     public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 
-    public function __construct(Source $source, Destination $destination): Transfer
+    public function __construct(Source $source, Destination $destination)
     {
         $this->source = $source;
         $this->destination = $destination;
