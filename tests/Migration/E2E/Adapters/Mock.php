@@ -28,7 +28,7 @@ class Mock extends Destination
             Resource::TYPE_HASH,
             Resource::TYPE_INDEX,
             Resource::TYPE_USER,
-            Resource::TYPE_ENVVAR,
+            Resource::TYPE_ENVIRONMENT_VARIABLE,
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
         ];
