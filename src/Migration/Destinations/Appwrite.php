@@ -2,7 +2,6 @@
 
 namespace Utopia\Migration\Destinations;
 
-use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\InputFile;
 use Appwrite\Services\Databases;
@@ -297,6 +296,7 @@ class Appwrite extends Destination
 
                 if ($docExists) {
                     $resource->setStatus(Resource::STATUS_SKIPPED, 'Document has been already created by relationship');
+
                     return $resource;
                 }
 
