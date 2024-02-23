@@ -288,15 +288,7 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_ATTRIBUTE:
                 /** @var Attribute $resource */
-                try {
-                    $this->createAttribute($resource);
-                } catch (AppwriteException $e) {
-                    if ($e->getType() === 'attribute_already_exists') {
-                        $resource->setStatus(Resource::STATUS_SKIPPED, 'Attribute has been already created');
-                    } else {
-                        throw $e;
-                    }
-                }
+                $this->createAttribute($resource);
                 break;
             case Resource::TYPE_DOCUMENT:
                 /** @var Document $resource */
@@ -305,7 +297,6 @@ class Appwrite extends Destination
 
                 if ($docExists) {
                     $resource->setStatus(Resource::STATUS_SKIPPED, 'Document has been already created by relationship');
-
                     return $resource;
                 }
 

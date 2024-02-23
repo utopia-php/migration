@@ -380,8 +380,6 @@ class Appwrite extends Source
     {
         $teamsClient = new Teams($this->client);
 
-        $lastDocument = null;
-
         // Export Memberships
         $cacheTeams = $this->cache->get(Team::getName());
         /** @var array<string, User> - array where key is user ID */
@@ -393,6 +391,8 @@ class Appwrite extends Source
 
         foreach ($cacheTeams as $team) {
             /** @var Team $team */
+            $lastDocument = null;
+
             while (true) {
                 $memberships = [];
 
