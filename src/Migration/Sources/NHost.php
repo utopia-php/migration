@@ -74,9 +74,6 @@ class NHost extends Source
         return 'NHost';
     }
 
-    /**
-     * Get Supported Resources
-     */
     public static function getSupportedResources(): array
     {
         return [

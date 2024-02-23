@@ -101,9 +101,6 @@ class Firebase extends Source
         return parent::call($method, $path, $headers, $params, $responseHeaders);
     }
 
-    /**
-     * Get Supported Resources
-     */
     public static function getSupportedResources(): array
     {
         return [

@@ -38,10 +38,7 @@ class Transfer
 
     public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 
-    /**
-     * @return Transfer
-     */
-    public function __construct(Source $source, Destination $destination)
+    public function __construct(Source $source, Destination $destination): Transfer
     {
         $this->source = $source;
         $this->destination = $destination;
@@ -142,8 +139,6 @@ class Transfer
 
     /**
      * Transfer Resources between adapters
-     *
-     * @param  callable  $callback  (array $resources)
      */
     public function run(array $resources, callable $callback): void
     {
@@ -183,8 +178,7 @@ class Transfer
     /**
      * Get Transfer Report
      *
-     * @param  string  $statusLevel
-     *                               If no status level is provided, all status types will be returned.
+     * @param  string  $statusLevel  If no status level is provided, all status types will be returned.
      */
     public function getReport(string $statusLevel = ''): array
     {

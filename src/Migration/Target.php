@@ -13,40 +13,16 @@ abstract class Target
         'Content-Type' => '',
     ];
 
-    /**
-     * Cache
-     *
-     * @var Cache
-     */
     public $cache;
 
-    /**
-     * Errors
-     *
-     * @var array
-     */
     public $errors = [];
 
-    /**
-     * Endpoint
-     *
-     * @var string
-     */
     protected $endpoint = '';
 
-    /**
-     * Gets the name of the adapter.
-     */
     abstract public static function getName(): string;
 
-    /**
-     * Get Supported Resources
-     */
     abstract public static function getSupportedResources(): array;
 
-    /**
-     * Register Cache
-     */
     public function registerCache(Cache &$cache): void
     {
         $this->cache = &$cache;
@@ -196,9 +172,6 @@ abstract class Target
         $this->errors = $errors;
     }
 
-    /**
-     * Push Error
-     */
     public function addError(Exception $error): void
     {
         $this->errors[] = $error;

@@ -56,17 +56,11 @@ class Appwrite extends Destination
             ->setKey($key);
     }
 
-    /**
-     * Get Name
-     */
     public static function getName(): string
     {
         return 'Appwrite';
     }
 
-    /**
-     * Get Supported Resources
-     */
     public static function getSupportedResources(): array
     {
         return [
@@ -464,7 +458,6 @@ class Appwrite extends Destination
 
     /**
      * Import File Data
-     *
      *
      * @returns File
      */

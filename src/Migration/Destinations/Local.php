@@ -31,17 +31,11 @@ class Local extends Destination
         }
     }
 
-    /**
-     * Get Name
-     */
     public static function getName(): string
     {
         return 'Local';
     }
 
-    /**
-     * Get Supported Resources
-     */
     public static function getSupportedResources(): array
     {
         return [
@@ -82,9 +76,6 @@ class Local extends Destination
         return $report;
     }
 
-    /**
-     * Write all data to file
-     */
     private function sync(): void
     {
         $jsonEncodedData = \json_encode($this->data, JSON_PRETTY_PRINT);

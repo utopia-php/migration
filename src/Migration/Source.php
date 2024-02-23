@@ -39,12 +39,6 @@ abstract class Source extends Target
         $this->exportResources($resources, 100);
     }
 
-    /**
-     * Export Resources
-     *
-     * @param  string[]  $resources
-     * @return void
-     */
     public function exportResources(array $resources, int $batchSize)
     {
         // Convert Resources back into their relevant groups
@@ -89,7 +83,6 @@ abstract class Source extends Target
      * Export Auth Group
      *
      * @param  array  $resources  Resources to export
-     * @return void
      */
     abstract protected function exportGroupAuth(int $batchSize, array $resources);
 
@@ -98,7 +91,6 @@ abstract class Source extends Target
      *
      * @param  int  $batchSize  Max 100
      * @param  array  $resources  Resources to export
-     * @return void
      */
     abstract protected function exportGroupDatabases(int $batchSize, array $resources);
 
@@ -107,7 +99,6 @@ abstract class Source extends Target
      *
      * @param  int  $batchSize  Max 5
      * @param  array  $resources  Resources to export
-     * @return void
      */
     abstract protected function exportGroupStorage(int $batchSize, array $resources);
 
@@ -116,7 +107,6 @@ abstract class Source extends Target
      *
      * @param  int  $batchSize  Max 100
      * @param  array  $resources  Resources to export
-     * @return void
      */
     abstract protected function exportGroupFunctions(int $batchSize, array $resources);
 }

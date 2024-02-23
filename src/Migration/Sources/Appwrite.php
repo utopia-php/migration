@@ -52,7 +52,6 @@ class Appwrite extends Source
     /**
      * Constructor
      *
-     *
      * @return self
      */
     public function __construct(string $project, string $endpoint, string $key)
@@ -69,17 +68,11 @@ class Appwrite extends Source
         $this->headers['X-Appwrite-Key'] = $this->key;
     }
 
-    /**
-     * Get Name
-     */
     public static function getName(): string
     {
         return 'Appwrite';
     }
 
-    /**
-     * Get Supported Resources
-     */
     public static function getSupportedResources(): array
     {
         return [

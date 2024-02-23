@@ -207,12 +207,6 @@ class Supabase extends NHost
 
     protected string $host;
 
-    /**
-     * Constructor
-     *
-     *
-     * @return self
-     */
     public function __construct(string $endpoint, string $key, string $host, string $databaseName, string $username, string $password, string $port = '5432')
     {
         $this->endpoint = $endpoint;
