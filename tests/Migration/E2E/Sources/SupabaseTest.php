@@ -136,7 +136,7 @@ class SupabaseTest extends Base
         $this->assertEquals('success', $foundUser->getStatus());
         $this->assertEquals('$2a$10$NGZAAOfXeheUoH9V3dnRoeR.r3J5ynnSZ6KjvHxOUlV8XUrulJzQa', $foundUser->getPasswordHash()->getHash());
         $this->assertEquals('bcrypt', $foundUser->getPasswordHash()->getAlgorithm());
-        $this->assertEquals(['email'], $foundUser->getTypes());
+        $this->assertEquals(['password'], $foundUser->getTypes());
     }
 
     /**

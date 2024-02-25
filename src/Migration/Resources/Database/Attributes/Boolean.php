@@ -18,7 +18,7 @@ class Boolean extends Attribute
     /**
      * @param  ?bool  $default
      */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, bool $default = null)
+    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?bool $default = null)
     {
         parent::__construct($key, $collection, $required, $array);
         $this->default = $default;

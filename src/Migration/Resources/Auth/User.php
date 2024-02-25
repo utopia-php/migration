@@ -7,7 +7,7 @@ use Utopia\Migration\Transfer;
 
 class User extends Resource
 {
-    public const TYPE_EMAIL = 'email';
+    public const TYPE_PASSWORD = 'password';
 
     public const TYPE_PHONE = 'phone';
 
@@ -43,7 +43,7 @@ class User extends Resource
         string $id,
         string $email = '',
         string $username = '',
-        Hash $passwordHash = null,
+        ?Hash $passwordHash = null,
         string $phone = '',
         array $types = [self::TYPE_ANONYMOUS],
         array $labels = [],

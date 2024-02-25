@@ -20,7 +20,7 @@ class Transfer
 
     public const GROUP_STORAGE_RESOURCES = [Resource::TYPE_FILE, Resource::TYPE_BUCKET];
 
-    public const GROUP_FUNCTIONS_RESOURCES = [Resource::TYPE_FUNCTION, Resource::TYPE_ENVVAR, Resource::TYPE_DEPLOYMENT];
+    public const GROUP_FUNCTIONS_RESOURCES = [Resource::TYPE_FUNCTION, Resource::TYPE_ENVIRONMENT_VARIABLE, Resource::TYPE_DEPLOYMENT];
 
     public const GROUP_DATABASES_RESOURCES = [Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE, Resource::TYPE_DOCUMENT];
 
@@ -30,7 +30,7 @@ class Transfer
         Resource::TYPE_USER, Resource::TYPE_TEAM,
         Resource::TYPE_MEMBERSHIP, Resource::TYPE_FILE,
         Resource::TYPE_BUCKET, Resource::TYPE_FUNCTION,
-        Resource::TYPE_ENVVAR, Resource::TYPE_DEPLOYMENT,
+        Resource::TYPE_ENVIRONMENT_VARIABLE, Resource::TYPE_DEPLOYMENT,
         Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION,
         Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE,
         Resource::TYPE_DOCUMENT,
@@ -38,9 +38,6 @@ class Transfer
 
     public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 
-    /**
-     * @return Transfer
-     */
     public function __construct(Source $source, Destination $destination)
     {
         $this->source = $source;
@@ -99,10 +96,26 @@ class Transfer
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
                 /** @var resource $resource */
-                $status[$resource->getName()][$resource->getStatus()]++;
-                if ($status[$resource->getName()]['pending'] > 0) {
-                    $status[$resource->getName()]['pending']--;
+                if (isset($status[$resource->getName()])) {
+                    $status[$resource->getName()][$resource->getStatus()]++;
+                    if ($status[$resource->getName()]['pending'] > 0) {
+                        $status[$resource->getName()]['pending']--;
+                    }
                 }
+            }
+        }
+
+        // Process Destination Errors
+        foreach ($this->destination->getErrors() as $error) {
+            if (isset($status[$error->getResourceType()])) {
+                $status[$error->getResourceType()][Resource::STATUS_ERROR]++;
+            }
+        }
+
+        // Process Source Errprs
+        foreach ($this->source->getErrors() as $error) {
+            if (isset($status[$error->getResourceType()])) {
+                $status[$error->getResourceType()][Resource::STATUS_ERROR]++;
             }
         }
 
@@ -126,8 +139,6 @@ class Transfer
 
     /**
      * Transfer Resources between adapters
-     *
-     * @param  callable  $callback (array $resources)
      */
     public function run(array $resources, callable $callback): void
     {
@@ -167,8 +178,7 @@ class Transfer
     /**
      * Get Transfer Report
      *
-     * @param  string  $statusLevel
-     * If no status level is provided, all status types will be returned.
+     * @param  string  $statusLevel  If no status level is provided, all status types will be returned.
      */
     public function getReport(string $statusLevel = ''): array
     {

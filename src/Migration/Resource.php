@@ -52,7 +52,7 @@ abstract class Resource
 
     public const TYPE_HASH = 'hash';
 
-    public const TYPE_ENVVAR = 'envvar';
+    public const TYPE_ENVIRONMENT_VARIABLE = 'environment variable';
 
     public const ALL_RESOURCES = [
         self::TYPE_ATTRIBUTE,
@@ -66,62 +66,32 @@ abstract class Resource
         self::TYPE_HASH,
         self::TYPE_INDEX,
         self::TYPE_USER,
-        self::TYPE_ENVVAR,
+        self::TYPE_ENVIRONMENT_VARIABLE,
         self::TYPE_TEAM,
         self::TYPE_MEMBERSHIP,
     ];
 
-    /**
-     * ID of the resource
-     */
     protected string $id = '';
 
-    /**
-     * Original ID of the resource
-     */
     protected string $originalId = '';
 
-    /**
-     * Internal ID
-     */
     protected string $internalId = '';
 
-    /**
-     * Status of the resource
-     */
     protected string $status = self::STATUS_PENDING;
 
-    /**
-     * message for the status
-     */
     protected string $message = '';
 
-    /**
-     * Permissions
-     */
     protected array $permissions = [];
 
-    /**
-     * Gets the name of the adapter.
-     */
     abstract public static function getName(): string;
 
-    /**
-     * Get Parent Group
-     */
     abstract public function getGroup(): string;
 
-    /**
-     * Get ID
-     */
     public function getId(): string
     {
         return $this->id;
     }
 
-    /**
-     * Set ID
-     */
     public function setId(string $id): self
     {
         $this->id = $id;
@@ -129,17 +99,11 @@ abstract class Resource
         return $this;
     }
 
-    /**
-     * Get Original ID
-     */
     public function getOriginalId(): string
     {
         return $this->originalId;
     }
 
-    /**
-     * Set Original ID
-     */
     public function setOriginalId(string $originalId): self
     {
         $this->originalId = $originalId;
@@ -147,17 +111,11 @@ abstract class Resource
         return $this;
     }
 
-    /**
-     * Get Internal ID
-     */
     public function getInternalId(): string
     {
         return $this->internalId;
     }
 
-    /**
-     * Set Internal ID
-     */
     public function setInternalId(string $internalId): self
     {
         $this->internalId = $internalId;
@@ -165,17 +123,11 @@ abstract class Resource
         return $this;
     }
 
-    /**
-     * Get Status
-     */
     public function getStatus(): string
     {
         return $this->status;
     }
 
-    /**
-     * Set Status
-     */
     public function setStatus(string $status, string $message = ''): self
     {
         $this->status = $status;
@@ -184,17 +136,11 @@ abstract class Resource
         return $this;
     }
 
-    /**
-     * Get message
-     */
     public function getMessage(): string
     {
         return $this->message;
     }
 
-    /**
-     * Set message
-     */
     public function setMessage(string $message): self
     {
         $this->message = $message;
@@ -203,9 +149,7 @@ abstract class Resource
     }
 
     /**
-     * Get Permissions
-     *
-     * @return array<string>
+     * @returns string[]
      */
     public function getPermissions(): array
     {
@@ -213,9 +157,7 @@ abstract class Resource
     }
 
     /**
-     * Set Permissions
-     *
-     * @param  array<string>  $permissions
+     * @param  string[]  $permissions
      */
     public function setPermissions(array $permissions): self
     {
@@ -224,8 +166,5 @@ abstract class Resource
         return $this;
     }
 
-    /**
-     * As Array
-     */
     abstract public function asArray(): array;
 }

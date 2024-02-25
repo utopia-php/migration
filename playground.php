@@ -11,7 +11,6 @@ use Dotenv\Dotenv;
 use Utopia\CLI\Console;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Local;
-use Utopia\Migration\Resource;
 use Utopia\Migration\Sources\Appwrite;
 use Utopia\Migration\Sources\Firebase;
 use Utopia\Migration\Sources\NHost;
@@ -74,11 +73,13 @@ $transfer = new Transfer(
     $destinationAppwrite
 );
 
-// /**
-//  * Run Transfer
-//  */
-$transfer->run($sourceAppwrite->getSupportedResources(),
-    function (array $resources) {
+/**
+ * Run Transfer
+ */
+$transfer->run(
+    $sourceAppwrite->getSupportedResources(),
+    function (array $resources) use ($transfer) {
+        var_dump($transfer->getStatusCounters());
     }
 );
 
@@ -86,13 +87,16 @@ $report = [];
 
 $cache = $transfer->getCache()->getAll();
 
-foreach ($cache as $type => $resources) {
-    foreach ($resources as $resource) {
-        /** @var resource $resource */
-        if ($resource->getStatus() !== Resource::STATUS_ERROR) {
-            continue;
-        }
+if (count($sourceAppwrite->getErrors()) > 0) {
+    foreach ($sourceAppwrite->getErrors() as $error) {
+        /* @var \Utopia\Migration\Exception $error */
+        Console::error('[Source] ['.$error->getResourceType().'] '.$error->getMessage());
+    }
+}
 
-        Console::error($resource->getName().' '.$resource->getInternalId().' '.$resource->getMessage());
+if (count($destinationAppwrite->getErrors()) > 0) {
+    foreach ($destinationAppwrite->getErrors() as $error) {
+        /* @var \Utopia\Migration\Exception $error */
+        Console::error('[Destination] ['.$error->getResourceType().'] '.$error->getMessage());
     }
 }

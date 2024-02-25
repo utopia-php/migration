@@ -9,6 +9,7 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
+use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
@@ -48,12 +49,6 @@ class Appwrite extends Source
 
     protected string $key = '';
 
-    /**
-     * Constructor
-     *
-     *
-     * @return self
-     */
     public function __construct(string $project, string $endpoint, string $key)
     {
         $this->client = (new Client())
@@ -68,17 +63,11 @@ class Appwrite extends Source
         $this->headers['X-Appwrite-Key'] = $this->key;
     }
 
-    /**
-     * Get Name
-     */
     public static function getName(): string
     {
         return 'Appwrite';
     }
 
-    /**
-     * Get Supported Resources
-     */
     public static function getSupportedResources(): array
     {
         return [
@@ -101,7 +90,7 @@ class Appwrite extends Source
             // Functions
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
-            Resource::TYPE_ENVVAR,
+            Resource::TYPE_ENVIRONMENT_VARIABLE,
 
             // Settings
         ];
@@ -252,11 +241,11 @@ class Appwrite extends Source
                 }
             }
 
-            if (in_array(Resource::TYPE_ENVVAR, $resources)) {
-                $report[Resource::TYPE_ENVVAR] = 0;
+            if (in_array(Resource::TYPE_ENVIRONMENT_VARIABLE, $resources)) {
+                $report[Resource::TYPE_ENVIRONMENT_VARIABLE] = 0;
                 $functions = $functionsClient->list()['functions'];
                 foreach ($functions as $function) {
-                    $report[Resource::TYPE_ENVVAR] += $functionsClient->listVariables($function['$id'])['total'];
+                    $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += $functionsClient->listVariables($function['$id'])['total'];
                 }
             }
 
@@ -265,7 +254,7 @@ class Appwrite extends Source
             $this->previousReport = $report;
 
             return $report;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if ($e->getCode() === 403) {
                 throw new \Exception("Missing Permission: {$currentPermission}.");
             } else {
@@ -277,7 +266,8 @@ class Appwrite extends Source
     /**
      * Export Auth Resources
      *
-     * @param  int  $batchSize Max 100
+     * @param  int  $batchSize  Max 100
+     * @param  string[]  $resources
      * @return void
      */
     protected function exportGroupAuth(int $batchSize, array $resources)
@@ -386,8 +376,6 @@ class Appwrite extends Source
     {
         $teamsClient = new Teams($this->client);
 
-        $lastDocument = null;
-
         // Export Memberships
         $cacheTeams = $this->cache->get(Team::getName());
         /** @var array<string, User> - array where key is user ID */
@@ -399,6 +387,8 @@ class Appwrite extends Source
 
         foreach ($cacheTeams as $team) {
             /** @var Team $team */
+            $lastDocument = null;
+
             while (true) {
                 $memberships = [];
 
@@ -692,15 +682,15 @@ class Appwrite extends Source
     {
         $databaseClient = new Databases($this->client);
 
-        $lastDocument = null;
+        $lastDatabase = null;
 
         // Transfer Databases
         while (true) {
             $queries = [Query::limit($batchSize)];
             $databases = [];
 
-            if ($lastDocument) {
-                $queries[] = Query::cursorAfter($lastDocument);
+            if ($lastDatabase) {
+                $queries[] = Query::cursorAfter($lastDatabase);
             }
 
             $response = $databaseClient->list($queries);
@@ -713,6 +703,12 @@ class Appwrite extends Source
 
                 $databases[] = $newDatabase;
             }
+
+            if (empty($databases)) {
+                break;
+            }
+
+            $lastDatabase = $databases[count($databases) - 1]->getId();
 
             $this->callback($databases);
 
@@ -727,17 +723,18 @@ class Appwrite extends Source
         $databaseClient = new Databases($this->client);
 
         // Transfer Collections
-        $lastDocument = null;
 
         $databases = $this->cache->get(Database::getName());
         foreach ($databases as $database) {
+            $lastCollection = null;
+
             /** @var Database $database */
             while (true) {
                 $queries = [Query::limit($batchSize)];
                 $collections = [];
 
-                if ($lastDocument) {
-                    $queries[] = Query::cursorAfter($lastDocument);
+                if ($lastCollection) {
+                    $queries[] = Query::cursorAfter($lastCollection);
                 }
 
                 $response = $databaseClient->listCollections(
@@ -757,6 +754,8 @@ class Appwrite extends Source
                     $collections[] = $newCollection;
                 }
 
+                $lastCollection = $collections[count($collections) - 1]->getId();
+
                 $this->callback($collections);
 
                 if (count($collections) < $batchSize) {
@@ -771,16 +770,17 @@ class Appwrite extends Source
         $databaseClient = new Databases($this->client);
 
         // Transfer Attributes
-        $lastDocument = null;
         $collections = $this->cache->get(Collection::getName());
         /** @var Collection[] $collections */
         foreach ($collections as $collection) {
+            $lastAttribute = null;
+
             while (true) {
                 $queries = [Query::limit($batchSize)];
                 $attributes = [];
 
-                if ($lastDocument) {
-                    $queries[] = Query::cursorAfter($lastDocument);
+                if ($lastAttribute) {
+                    $queries[] = Query::cursorAfter($lastAttribute);
                 }
 
                 $response = $databaseClient->listAttributes(
@@ -813,8 +813,13 @@ class Appwrite extends Source
                     $attributes[] = $this->convertAttribute($attribute, $collection);
                 }
 
+                if (empty($attributes)) {
+                    break;
+                }
+
                 $this->callback($attributes);
 
+                $lastAttribute = $attributes[count($attributes) - 1]->getId();
                 if (count($attributes) < $batchSize) {
                     break;
                 }
@@ -829,15 +834,16 @@ class Appwrite extends Source
         $collections = $this->cache->get(Resource::TYPE_COLLECTION);
 
         // Transfer Indexes
-        $lastDocument = null;
         foreach ($collections as $collection) {
             /** @var Collection $collection */
+            $lastIndex = null;
+
             while (true) {
                 $queries = [Query::limit($batchSize)];
                 $indexes = [];
 
-                if ($lastDocument) {
-                    $queries[] = Query::cursorAfter($lastDocument);
+                if ($lastIndex) {
+                    $queries[] = Query::cursorAfter($lastIndex);
                 }
 
                 $response = $databaseClient->listIndexes(
@@ -857,7 +863,12 @@ class Appwrite extends Source
                     );
                 }
 
+                if (empty($indexes)) {
+                    break;
+                }
+
                 $this->callback($indexes);
+                $lastIndex = $indexes[count($indexes) - 1]->getId();
 
                 if (count($indexes) < $batchSize) {
                     break;
@@ -874,8 +885,8 @@ class Appwrite extends Source
 
         $types = [];
 
-        if (! empty($user['email'])) {
-            $types[] = User::TYPE_EMAIL;
+        if (! empty($user['email']) && ! empty($user['password'])) {
+            $types[] = User::TYPE_PASSWORD;
         }
 
         if (! empty($user['phone'])) {
@@ -956,15 +967,24 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['files'] as $file) {
-                    $this->exportFileData(new File(
-                        $file['$id'],
-                        $bucket,
-                        $file['name'],
-                        $file['signature'],
-                        $file['mimeType'],
-                        $file['$permissions'],
-                        $file['sizeOriginal'],
-                    ));
+                    try {
+                        $this->exportFileData(new File(
+                            $file['$id'],
+                            $bucket,
+                            $file['name'],
+                            $file['signature'],
+                            $file['mimeType'],
+                            $file['$permissions'],
+                            $file['sizeOriginal'],
+                        ));
+                    } catch (\Throwable $e) {
+                        $this->addError(new Exception(
+                            resourceType: Resource::TYPE_FILE,
+                            message: $e->getMessage(),
+                            code: $e->getCode(),
+                            resourceId: $file['$id']
+                        ));
+                    }
 
                     $lastDocument = $file['$id'];
                 }
@@ -1021,7 +1041,7 @@ class Appwrite extends Source
         }
 
         if (in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
-            $this->exportDeployments($batchSize);
+            $this->exportDeployments($batchSize, true);
         }
     }
 
@@ -1046,7 +1066,8 @@ class Appwrite extends Source
                 $function['enabled'],
                 $function['events'],
                 $function['schedule'],
-                $function['timeout']
+                $function['timeout'],
+                $function['deployment']
             );
 
             $convertedResources[] = $convertedFunc;
@@ -1063,7 +1084,7 @@ class Appwrite extends Source
         $this->callback($convertedResources);
     }
 
-    private function exportDeployments(int $batchSize)
+    private function exportDeployments(int $batchSize, bool $exportOnlyActive = false)
     {
         $functionsClient = new Functions($this->client);
         $functions = $this->cache->get(Func::getName());
@@ -1078,6 +1099,19 @@ class Appwrite extends Source
         foreach ($functions as $func) {
             /** @var Func $func */
             $lastDocument = null;
+
+            if ($exportOnlyActive && $func->getActiveDeployment()) {
+                $deployment = $functionsClient->getDeployment($func->getId(), $func->getActiveDeployment());
+
+                try {
+                    $this->exportDeploymentData($func, $deployment);
+                } catch (\Throwable $e) {
+                    $func->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                }
+
+                continue;
+            }
+
             while (true) {
                 $queries = [Query::limit($batchSize)];
 
@@ -1091,7 +1125,11 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['deployments'] as $deployment) {
-                    $this->exportDeploymentData($func, $deployment);
+                    try {
+                        $this->exportDeploymentData($func, $deployment);
+                    } catch (\Throwable $e) {
+                        $func->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                    }
 
                     $lastDocument = $deployment['$id'];
                 }

@@ -23,7 +23,7 @@ class File extends Resource
 
     protected int $end;
 
-    public function __construct(string $id = '', Bucket $bucket = null, string $name = '', string $signature = '', string $mimeType = '', array $permissions = [], int $size = 0, string $data = '', int $start = 0, int $end = 0)
+    public function __construct(string $id = '', ?Bucket $bucket = null, string $name = '', string $signature = '', string $mimeType = '', array $permissions = [], int $size = 0, string $data = '', int $start = 0, int $end = 0)
     {
         $this->id = $id;
         $this->bucket = $bucket;

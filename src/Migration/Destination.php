@@ -29,6 +29,9 @@ abstract class Destination extends Target
 
     /**
      * Transfer Resources to Destination from Source callback
+     *
+     * @param  string[]  $resources  Resources to transfer
+     * @param  callable  $callback  Callback to run after transfer
      */
     public function run(array $resources, callable $callback): void
     {
@@ -40,7 +43,8 @@ abstract class Destination extends Target
     /**
      * Import Resources
      *
-     * @param  callable  $callback (array $resources)
+     * @param  resource[]  $resources  Resources to import
+     * @param  callable  $callback  Callback to run after import
      */
     abstract protected function import(array $resources, callable $callback): void;
 }

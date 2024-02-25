@@ -31,17 +31,11 @@ class Local extends Destination
         }
     }
 
-    /**
-     * Get Name
-     */
     public static function getName(): string
     {
         return 'Local';
     }
 
-    /**
-     * Get Supported Resources
-     */
     public static function getSupportedResources(): array
     {
         return [
@@ -51,7 +45,7 @@ class Local extends Destination
             Resource::TYPE_DATABASE,
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_DOCUMENT,
-            Resource::TYPE_ENVVAR,
+            Resource::TYPE_ENVIRONMENT_VARIABLE,
             Resource::TYPE_FILE,
             Resource::TYPE_FUNCTION,
             Resource::TYPE_HASH,
@@ -62,9 +56,6 @@ class Local extends Destination
         ];
     }
 
-    /**
-     * Report checks if all resources are accessible and ready for writing.
-     */
     public function report(array $resources = []): array
     {
         $report = [];
@@ -82,9 +73,6 @@ class Local extends Destination
         return $report;
     }
 
-    /**
-     * Write all data to file
-     */
     private function sync(): void
     {
         $jsonEncodedData = \json_encode($this->data, JSON_PRETTY_PRINT);

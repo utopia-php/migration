@@ -7,39 +7,22 @@ abstract class Target
     /**
      * Global Headers
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $headers = [
         'Content-Type' => '',
     ];
 
-    /**
-     * Cache
-     *
-     * @var Cache
-     */
     public $cache;
 
-    /**
-     * Endpoint
-     *
-     * @var string
-     */
+    public $errors = [];
+
     protected $endpoint = '';
 
-    /**
-     * Gets the name of the adapter.
-     */
     abstract public static function getName(): string;
 
-    /**
-     * Get Supported Resources
-     */
     abstract public static function getSupportedResources(): array;
 
-    /**
-     * Register Cache
-     */
     public function registerCache(Cache &$cache): void
     {
         $this->cache = &$cache;
@@ -47,6 +30,9 @@ abstract class Target
 
     /**
      * Run Transfer
+     *
+     * @param  string[]  $resources  Resources to transfer
+     * @param  callable  $callback  Callback to run after transfer
      */
     abstract public function run(array $resources, callable $callback): void;
 
@@ -58,6 +44,8 @@ abstract class Target
      *
      * On Destinations, this function should just return nothing but still check if the API is available.
      * If any issues are found then an exception should be thrown with an error message.
+     *
+     * @param  string[]  $resources  Resources to report
      */
     abstract public function report(array $resources = []): array;
 
@@ -167,5 +155,30 @@ abstract class Target
         }
 
         return $output;
+    }
+
+    /**
+     * Get Errors
+     *
+     * @returns Error[]
+     */
+    public function getErrors(): array
+    {
+        return $this->errors;
+    }
+
+    /**
+     * Set Errors
+     *
+     * @param  Error[]  $errors
+     */
+    public function setErrors(array $errors): void
+    {
+        $this->errors = $errors;
+    }
+
+    public function addError(Exception $error): void
+    {
+        $this->errors[] = $error;
     }
 }

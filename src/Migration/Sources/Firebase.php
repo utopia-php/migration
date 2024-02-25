@@ -89,7 +89,7 @@ class Firebase extends Source
             $this->currentToken = $response['access_token'];
             $this->tokenExpires = time() + $response['expires_in'];
             $this->headers['Authorization'] = 'Bearer '.$this->currentToken;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             throw new \Exception('Failed to authenticate with Firebase: '.$e->getMessage());
         }
     }
@@ -101,9 +101,6 @@ class Firebase extends Source
         return parent::call($method, $path, $headers, $params, $responseHeaders);
     }
 
-    /**
-     * Get Supported Resources
-     */
     public static function getSupportedResources(): array
     {
         return [
@@ -155,7 +152,7 @@ class Firebase extends Source
         // Check if Auth is enabled
         try {
             $this->call('GET', 'https://identitytoolkit.googleapis.com/v1/projects');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $message = json_decode($e->getMessage(), true);
 
             if (isset($message['error']['details']) && $message['error']['details'][1]['reason'] == 'SERVICE_DISABLED') {
@@ -237,7 +234,7 @@ class Firebase extends Source
         foreach ($providerData as $provider) {
             switch ($provider['providerId']) {
                 case 'password':
-                    $types[] = User::TYPE_EMAIL;
+                    $types[] = User::TYPE_PASSWORD;
                     break;
                 case 'phone':
                     $types[] = User::TYPE_PHONE;
