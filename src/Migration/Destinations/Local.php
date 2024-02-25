@@ -56,9 +56,6 @@ class Local extends Destination
         ];
     }
 
-    /**
-     * Report checks if all resources are accessible and ready for writing.
-     */
     public function report(array $resources = []): array
     {
         $report = [];

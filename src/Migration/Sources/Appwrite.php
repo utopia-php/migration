@@ -49,11 +49,6 @@ class Appwrite extends Source
 
     protected string $key = '';
 
-    /**
-     * Constructor
-     *
-     * @return self
-     */
     public function __construct(string $project, string $endpoint, string $key)
     {
         $this->client = (new Client())
@@ -272,6 +267,7 @@ class Appwrite extends Source
      * Export Auth Resources
      *
      * @param  int  $batchSize  Max 100
+     * @param  string[]  $resources
      * @return void
      */
     protected function exportGroupAuth(int $batchSize, array $resources)

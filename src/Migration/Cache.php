@@ -44,6 +44,12 @@ class Cache
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
     }
 
+    /**
+     * Add All Resources
+     *
+     * @param  resource[]  $resources
+     * @return void
+     */
     public function addAll(array $resources)
     {
         foreach ($resources as $resource) {

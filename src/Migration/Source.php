@@ -18,6 +18,9 @@ abstract class Source extends Target
 
     /**
      * Transfer Resources into destination
+     *
+     * @param  string[]  $resources  Resources to transfer
+     * @param  callable  $callback  Callback to run after transfer
      */
     public function run(array $resources, callable $callback): void
     {
@@ -39,6 +42,12 @@ abstract class Source extends Target
         $this->exportResources($resources, 100);
     }
 
+    /**
+     * Export Resources
+     *
+     * @param  string[]  $resources  Resources to export
+     * @param  int  $batchSize  Max 100
+     */
     public function exportResources(array $resources, int $batchSize)
     {
         // Convert Resources back into their relevant groups
@@ -82,7 +91,8 @@ abstract class Source extends Target
     /**
      * Export Auth Group
      *
-     * @param  array  $resources  Resources to export
+     * @param  int  $batchSize  Max 100
+     * @param  string[]  $resources  Resources to export
      */
     abstract protected function exportGroupAuth(int $batchSize, array $resources);
 
@@ -90,7 +100,7 @@ abstract class Source extends Target
      * Export Databases Group
      *
      * @param  int  $batchSize  Max 100
-     * @param  array  $resources  Resources to export
+     * @param  string[]  $resources  Resources to export
      */
     abstract protected function exportGroupDatabases(int $batchSize, array $resources);
 
@@ -98,7 +108,7 @@ abstract class Source extends Target
      * Export Storage Group
      *
      * @param  int  $batchSize  Max 5
-     * @param  array  $resources  Resources to export
+     * @param  string[]  $resources  Resources to export
      */
     abstract protected function exportGroupStorage(int $batchSize, array $resources);
 
@@ -106,7 +116,7 @@ abstract class Source extends Target
      * Export Functions Group
      *
      * @param  int  $batchSize  Max 100
-     * @param  array  $resources  Resources to export
+     * @param  string[]  $resources  Resources to export
      */
     abstract protected function exportGroupFunctions(int $batchSize, array $resources);
 }

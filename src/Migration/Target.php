@@ -7,7 +7,7 @@ abstract class Target
     /**
      * Global Headers
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $headers = [
         'Content-Type' => '',
@@ -30,6 +30,9 @@ abstract class Target
 
     /**
      * Run Transfer
+     *
+     * @param  string[]  $resources  Resources to transfer
+     * @param  callable  $callback  Callback to run after transfer
      */
     abstract public function run(array $resources, callable $callback): void;
 
@@ -41,6 +44,8 @@ abstract class Target
      *
      * On Destinations, this function should just return nothing but still check if the API is available.
      * If any issues are found then an exception should be thrown with an error message.
+     *
+     * @param  string[]  $resources  Resources to report
      */
     abstract public function report(array $resources = []): array;
 

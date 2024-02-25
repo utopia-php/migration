@@ -149,7 +149,7 @@ abstract class Resource
     }
 
     /**
-     * @returns array<string>
+     * @returns string[]
      */
     public function getPermissions(): array
     {
@@ -157,7 +157,7 @@ abstract class Resource
     }
 
     /**
-     * @param  array<string>  $permissions
+     * @param  string[]  $permissions
      */
     public function setPermissions(array $permissions): self
     {
