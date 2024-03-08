@@ -38,29 +38,18 @@ use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
 
-class Appwrite extends Source
+class AppwriteInternal extends Source
 {
     /**
      * @var Client|null
      */
-    protected $client = null;
-
-    protected string $project = '';
+    protected $project = null;
 
     protected string $key = '';
 
-    public function __construct(string $project, string $endpoint, string $key)
+    public function __construct(Database $database, Document $project)
     {
-        $this->client = (new Client())
-            ->setEndpoint($endpoint)
-            ->setProject($project)
-            ->setKey($key);
-
-        $this->endpoint = $endpoint;
         $this->project = $project;
-        $this->key = $key;
-        $this->headers['X-Appwrite-Project'] = $this->project;
-        $this->headers['X-Appwrite-Key'] = $this->key;
     }
 
     public static function getName(): string

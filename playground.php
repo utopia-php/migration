@@ -70,7 +70,7 @@ $destinationLocal = new Local(__DIR__.'/localBackup/');
  */
 $transfer = new Transfer(
     $sourceAppwrite,
-    $destinationAppwrite
+    $destinationLocal
 );
 
 /**
