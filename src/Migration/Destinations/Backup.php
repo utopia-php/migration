@@ -42,6 +42,9 @@ class Backup extends Destination
             mkdir($this->path.'/files', 0777, true);
             mkdir($this->path.'/deployments', 0777, true);
         }
+
+        var_dump('__construct');
+        var_dump($this->backup);
     }
 
     public static function getName(): string
@@ -86,6 +89,9 @@ class Backup extends Destination
         return $report;
     }
 
+    /**
+     * @throws \Exception
+     */
     private function sync(): void
     {
         $jsonEncodedData = \json_encode($this->data, JSON_PRETTY_PRINT);
@@ -99,6 +105,9 @@ class Backup extends Destination
 
     protected function import(array $resources, callable $callback): void
     {
+
+        var_dump('import');
+        var_dump($this->backup);
         $this->backup
             ->setAttribute('startedAt', DateTime::now())
             ->setAttribute('status', 'started')
