@@ -47,8 +47,6 @@ class Backup extends Destination
             mkdir($this->path.'/deployments', 0777, true);
         }
 
-        var_dump('__construct');
-        var_dump($this->backup);
     }
 
     public static function getName(): string
