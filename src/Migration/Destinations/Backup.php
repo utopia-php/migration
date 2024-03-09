@@ -33,20 +33,11 @@ class Backup extends Destination
 
     protected Document $backup;
 
-    public function __construct(Document $backup, string $path, Database $database, Device $storage)
+    public function __construct(Document $backup, Database $database, Device $storage)
     {
-        $this->path = $path;
         $this->database = $database;
         $this->storage = $storage;
         $this->backup = $backup;
-        ;
-//
-//        if (! \file_exists($this->path)) {
-//            mkdir($this->path, 0777, true);
-//            mkdir($this->path.'/files', 0777, true);
-//            mkdir($this->path.'/deployments', 0777, true);
-//        }
-
     }
 
     public static function getName(): string
@@ -102,7 +93,7 @@ class Backup extends Destination
             throw new \Exception('Unable to encode data to JSON, Are you accidentally encoding binary data?');
         }
 
-        \file_put_contents($this->path.'/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
+        \file_put_contents(APP_STORAGE_BACKUPS. '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
 
         $this->backup
             ->setAttribute('finishedAt', DateTime::now())
