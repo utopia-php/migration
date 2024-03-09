@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Destinations;
 
+use Utopia\CLI\Console;
 use Utopia\Database\Database;
 use Utopia\Database\DateTime;
 use Utopia\Database\Document;
@@ -110,6 +111,19 @@ class Backup extends Destination
 
         $this->database->updateDocument('backups', $this->backup->getId() ,$this->backup);
 
+        if (file_exists($this->path)){
+            //  $file = $local->getPath('shmuel.tar.gz');
+            $file = realpath($this->path .'/..') . '/shmuel.tar.gz';
+            $cmd = 'cd '. $this->path .' && tar -zcf ' . $file . ' * && cd ' . getcwd();
+            Console::success($cmd);
+
+            $stdout = '';
+            $stderr = '';
+            Console::execute($cmd, '', $stdout, $stderr);
+            if (!empty($stderr)) {
+                throw new Exception($stderr);
+            }
+        }
     }
 
     /**
