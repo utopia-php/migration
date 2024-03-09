@@ -197,9 +197,9 @@ class Appwrite extends Source
 
                 while (true) {
                     $currentBuckets = $storageClient->listBuckets($lastBucket ? [Query::cursorAfter($lastBucket)] : [Query::limit(20)])['buckets'];
-                    var_dump($currentBuckets);
+
                     $buckets = array_merge($buckets, $currentBuckets);
-                    $lastBucket = $buckets[count($buckets) - 1]['$id'];
+                    $lastBucket = $buckets[count($buckets) - 1]['$id'] ?? null;
 
                     if (count($currentBuckets) < 20) {
                         break;
