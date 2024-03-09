@@ -2,7 +2,7 @@
 
 namespace Utopia\Migration\Sources;
 
-use Utopia\Migration\Resources\Database\Database;
+use Utopia\Database\Database;
 use Utopia\Migration\Source;
 use Utopia\Storage\Device;
 
