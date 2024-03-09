@@ -5,6 +5,10 @@ namespace Utopia\Migration\Destinations;
 use Utopia\Database\Database;
 use Utopia\Database\DateTime;
 use Utopia\Database\Document;
+use Utopia\Database\Exception;
+use Utopia\Database\Exception\Authorization;
+use Utopia\Database\Exception\Conflict;
+use Utopia\Database\Exception\Structure;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Functions\Deployment;
@@ -104,22 +108,28 @@ class Backup extends Destination
 
         var_dump('completed');
         var_dump($this->backup);
-        $this->backup
-            ->setAttribute('finishedAt', DateTime::now())
-            ->setAttribute('status', 'completed')
-        ;
+//        $this->backup
+//            ->setAttribute('finishedAt', DateTime::now())
+//            ->setAttribute('status', 'completed')
+//        ;
 
     }
 
+    /**
+     * @throws Authorization
+     * @throws Structure
+     * @throws Conflict
+     * @throws Exception
+     */
     protected function import(array $resources, callable $callback): void
     {
 
         var_dump('import');
         var_dump($this->backup);
-        $this->backup
-            ->setAttribute('startedAt', DateTime::now())
-            ->setAttribute('status', 'started')
-        ;
+//        $this->backup
+//            ->setAttribute('startedAt', DateTime::now())
+//            ->setAttribute('status', 'started')
+//        ;
 
         $this->database->updateDocument('backups', $this->backup->getId() ,$this->backup);
 
