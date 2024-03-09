@@ -731,6 +731,9 @@ class Appwrite extends Source
         // Transfer Collections
 
         $databases = $this->cache->get(Database::getName());
+        var_dump('databases');
+        var_dump($databases);
+
         foreach ($databases as $database) {
             $lastCollection = null;
 
