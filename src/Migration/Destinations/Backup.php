@@ -3,8 +3,12 @@
 namespace Utopia\Migration\Destinations;
 
 use Utopia\Database\Database;
+use Utopia\Database\DateTime;
+use Utopia\Database\Document;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
+use Utopia\Migration\Resources\Functions\Deployment;
+use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Transfer;
 use Utopia\Storage\Device;
 
@@ -24,11 +28,14 @@ class Backup extends Destination
 
     protected Device $storage;
 
-    public function __construct(string $path, Database $database, Device $storage)
+    protected Document $backup;
+
+    public function __construct(Document $backup, string $path, Database $database, Device $storage)
     {
         $this->path = $path;
         $this->database = $database;
         $this->storage = $storage;
+        $this->backup = $backup;
 
         if (! \file_exists($this->path)) {
             mkdir($this->path, 0777, true);
@@ -92,6 +99,13 @@ class Backup extends Destination
 
     protected function import(array $resources, callable $callback): void
     {
+        $this->backup
+            ->setAttribute('startedAt', DateTime::now())
+            ->setAttribute('status', 'started')
+        ;
+
+        $this->database->updateDocument('backups', $this->backup->getId() ,$this->backup);
+
         foreach ($resources as $resource) {
             /** @var resource $resource */
             switch ($resource->getName()) {

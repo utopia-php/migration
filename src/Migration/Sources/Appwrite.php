@@ -43,7 +43,7 @@ class Appwrite extends Source
     /**
      * @var Client|null
      */
-    protected $client = null;
+    protected ?Client $client = null;
 
     protected string $project = '';
 
