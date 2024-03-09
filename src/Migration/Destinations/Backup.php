@@ -3,11 +3,8 @@
 namespace Utopia\Migration\Destinations;
 
 use Utopia\Database\Database;
-//use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
-use Utopia\Migration\Resources\Functions\Deployment;
-use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Transfer;
 use Utopia\Storage\Device;
 
