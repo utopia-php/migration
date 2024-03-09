@@ -26,8 +26,6 @@ class Backup extends Destination
 {
     private array $data = [];
 
-    protected string $path;
-
     protected Database $database;
 
     protected Device $storage;
@@ -40,12 +38,13 @@ class Backup extends Destination
         $this->database = $database;
         $this->storage = $storage;
         $this->backup = $backup;
-
-        if (! \file_exists($this->path)) {
-            mkdir($this->path, 0777, true);
-            mkdir($this->path.'/files', 0777, true);
-            mkdir($this->path.'/deployments', 0777, true);
-        }
+        ;
+//
+//        if (! \file_exists($this->path)) {
+//            mkdir($this->path, 0777, true);
+//            mkdir($this->path.'/files', 0777, true);
+//            mkdir($this->path.'/deployments', 0777, true);
+//        }
 
     }
 
@@ -104,12 +103,12 @@ class Backup extends Destination
 
         \file_put_contents($this->path.'/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
 
-        var_dump('completed');
-        var_dump($this->backup);
-//        $this->backup
-//            ->setAttribute('finishedAt', DateTime::now())
-//            ->setAttribute('status', 'completed')
-//        ;
+        $this->backup
+            ->setAttribute('finishedAt', DateTime::now())
+            ->setAttribute('status', 'completed')
+        ;
+
+        $this->database->updateDocument('backups', $this->backup->getId() ,$this->backup);
 
     }
 
@@ -122,12 +121,10 @@ class Backup extends Destination
     protected function import(array $resources, callable $callback): void
     {
 
-        var_dump('import');
-        var_dump($this->backup);
-//        $this->backup
-//            ->setAttribute('startedAt', DateTime::now())
-//            ->setAttribute('status', 'started')
-//        ;
+        $this->backup
+            ->setAttribute('startedAt', DateTime::now())
+            ->setAttribute('status', 'started')
+        ;
 
         $this->database->updateDocument('backups', $this->backup->getId() ,$this->backup);
 
