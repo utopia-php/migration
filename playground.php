@@ -11,6 +11,7 @@ use Dotenv\Dotenv;
 use Utopia\CLI\Console;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Local;
+use Utopia\Migration\Destinations\Backup;
 use Utopia\Migration\Sources\Appwrite;
 use Utopia\Migration\Sources\Firebase;
 use Utopia\Migration\Sources\NHost;
@@ -63,14 +64,13 @@ $destinationAppwrite = new AppwriteDestination(
     $_ENV['DESTINATION_APPWRITE_TEST_KEY']
 );
 
-$destinationLocal = new Local(__DIR__.'/localBackup/');
 
-/**
+/**xx
  * Initialise Transfer Class
  */
 $transfer = new Transfer(
     $sourceAppwrite,
-    $destinationLocal
+    new Backup(__DIR__ . '/localBackup/')
 );
 
 /**
