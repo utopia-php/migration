@@ -760,7 +760,7 @@ class Appwrite extends Source
                     $collections[] = $newCollection;
                 }
 
-                $lastCollection = $collections[count($collections) - 1]->getId();
+                $lastCollection = $collections[count($collections) - 1]->getId() ?? null;
 
                 $this->callback($collections);
 
