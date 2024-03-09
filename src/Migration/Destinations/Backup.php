@@ -101,6 +101,14 @@ class Backup extends Destination
         }
 
         \file_put_contents($this->path.'/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
+
+        var_dump('completed');
+        var_dump($this->backup);
+        $this->backup
+            ->setAttribute('finishedAt', DateTime::now())
+            ->setAttribute('status', 'completed')
+        ;
+
     }
 
     protected function import(array $resources, callable $callback): void
