@@ -2,6 +2,8 @@
 
 namespace Utopia\Migration\Destinations;
 
+use Utopia\App;
+use Utopia\CLI\Console;
 use Utopia\Database\Database;
 use Utopia\Database\DateTime;
 use Utopia\Database\Document;
@@ -9,12 +11,15 @@ use Utopia\Database\Exception;
 use Utopia\Database\Exception\Authorization;
 use Utopia\Database\Exception\Conflict;
 use Utopia\Database\Exception\Structure;
+use Utopia\DSN\DSN;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Transfer;
 use Utopia\Storage\Device;
+use Utopia\Storage\Device\DOSpaces;
+use Utopia\Storage\Device\Local;
 
 /**
  * Local
@@ -37,9 +42,17 @@ class Backup extends Destination
     public function __construct(string $path, Document $backup, Database $database, Device $storage)
     {
         $this->path = $path;
-        $this->database  = $database;
-        $this->storage   = $storage;
-        $this->backup    = $backup;
+        $this->database = $database;
+        $this->storage = $storage;
+        $this->backup = $backup;
+        $this->path .= '/'. $backup->getId();
+
+        if (! \file_exists($this->path)) {
+            mkdir($this->path, 0777, true);
+            mkdir($this->path.'/files', 0777, true);
+            mkdir($this->path.'/deployments', 0777, true);
+        }
+
     }
 
     public static function getName(): string
@@ -104,6 +117,7 @@ class Backup extends Destination
 
         $this->database->updateDocument('backups', $this->backup->getId() ,$this->backup);
 
+        $this->upload();
     }
 
     /**
@@ -170,4 +184,50 @@ class Backup extends Destination
 
         $callback($resources);
     }
+
+    /**
+     * @throws Exception
+     */
+    public function upload(): void
+    {
+        if (!file_exists($this->path)){
+            Console::error('Nothing to upload');
+            return;
+        }
+
+        $time = date('Y_m_d_H_i_s');
+        $filename = $time . '.tar.gz';
+
+        $tarFolder = realpath($this->path . '/..');
+        $tarFile = $tarFolder . '/' . $filename;
+
+        $local = new Local($this->path);
+        $local->setTransferChunkSize(5 * 1024 * 1024);  // >= 5MB;
+
+        $cmd = 'cd '. $this->path .' && tar -zcf ' . $tarFile . ' * && cd ' . getcwd();
+        Console::success($cmd);
+
+        $stdout = '';
+        $stderr = '';
+        Console::execute($cmd, '', $stdout, $stderr);
+        if (!empty($stderr)) {
+            throw new Exception($stderr);
+        }
+
+        $destination = $this->storage->getRoot() . '/' . $filename;
+
+        if (!$local->transfer($tarFile, $destination, $this->storage)) {
+            throw new Exception('Error uploading to ' . $destination);
+        }
+
+        if (!$this->storage->exists($destination)) {
+            throw new Exception('File not found on cloud: ' . $destination);
+        }
+
+//        if (!unlink($tarFile)) {
+//            Console::error('Error deleting: ' . $tarFile);
+//        }
+
+    }
+
 }
