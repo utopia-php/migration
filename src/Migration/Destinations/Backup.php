@@ -94,22 +94,44 @@ class Backup extends Destination
      */
     private function sync(): void
     {
-        $jsonEncodedData = \json_encode($this->data, JSON_PRETTY_PRINT);
+        $files = [];
 
-        if ($jsonEncodedData === false) {
-            throw new \Exception('Unable to encode data to JSON, Are you accidentally encoding binary data?');
+        foreach ($this->data as $group => $v1){
+            foreach ($v1 as $k2 => $v2){
+                $name = $group . '::' . $k2;
+                $files[][] = $name;
+
+                $data = \json_encode($v2);
+                if ($data === false) {
+                    throw new \Exception('Unable to encode data to JSON, Are you accidentally encoding binary data?');
+                }
+
+                \file_put_contents(
+                    $this->path . '/'. $name .'.json',
+                    \json_encode($data)
+                );
+            }
         }
 
-        \file_put_contents($this->path. '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
+        \file_put_contents(
+            $this->path . '/index.json',
+            \json_encode($files, JSON_PRETTY_PRINT)
+        );
 
         $this->backup
+            ->setAttribute('status', 'uploading')
             ->setAttribute('finishedAt', DateTime::now())
-            ->setAttribute('status', 'completed')
         ;
 
         $this->database->updateDocument('backups', $this->backup->getId() ,$this->backup);
 
-        $this->upload();
+        $filesize = $this->upload();
+
+        $this->backup
+            ->setAttribute('status', 'completed')
+            ->setAttribute('finishedAt', DateTime::now())
+            ->setAttribute('size', $filesize)
+        ;
     }
 
     /**
@@ -178,48 +200,59 @@ class Backup extends Destination
     }
 
     /**
-     * @throws Exception
+     * @throws \Exception
      */
-    public function upload(): void
+    public function upload(): int
     {
         if (!file_exists($this->path)){
-            Console::error('Nothing to upload');
-            return;
+            throw new \Exception('Nothing to upload');
         }
 
-        $time = date('Y_m_d_H_i_s');
-        $filename = $time . '.tar.gz';
+        $id = $this->backup->getInternalId();
+        $filename = $id . '.tar.gz';
 
         $tarFolder = realpath($this->path . '/..');
         $tarFile = $tarFolder . '/' . $filename;
 
         $local = new Local($this->path);
+
+        Console::error($local->getRoot());
+
         $local->setTransferChunkSize(5 * 1024 * 1024);  // >= 5MB;
 
         $cmd = 'cd '. $this->path .' && tar -zcf ' . $tarFile . ' * && cd ' . getcwd();
-        Console::success($cmd);
+        Console::error($cmd);
 
         $stdout = '';
         $stderr = '';
         Console::execute($cmd, '', $stdout, $stderr);
         if (!empty($stderr)) {
-            throw new Exception($stderr);
+            throw new \Exception($stderr);
         }
 
         $destination = $this->storage->getRoot() . '/' . $filename;
+        var_dump($this->storage);
+        Console::error($destination);
 
-        if (!$local->transfer($tarFile, $destination, $this->storage)) {
-            throw new Exception('Error uploading to ' . $destination);
+        $result = $local->transfer($tarFile, $destination, $this->storage);
+        Console::error($result);
+
+        if ($result === false) {
+            throw new \Exception('Error uploading to ' . $destination);
         }
 
         if (!$this->storage->exists($destination)) {
-            throw new Exception('File not found on cloud: ' . $destination);
+            throw new \Exception('File not found on cloud: ' . $destination);
         }
 
-//        if (!unlink($tarFile)) {
-//            Console::error('Error deleting: ' . $tarFile);
-//        }
+        $filesize = filesize($tarFile);
 
+        if (!unlink($tarFile)) {
+            Console::error('Error deleting: ' . $tarFile);
+            throw new \Exception('Error deleting: ' . $tarFile);
+        }
+
+        return $filesize;
     }
 
 }
