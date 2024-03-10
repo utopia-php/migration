@@ -45,6 +45,14 @@ class Backup extends Destination
         $this->database = $database;
         $this->storage = $storage;
         $this->backup = $backup;
+        $this->path .= '/'. $backup->getId();
+
+        if (! \file_exists($this->path)) {
+            mkdir($this->path, 0777, true);
+            mkdir($this->path.'/files', 0777, true);
+            mkdir($this->path.'/deployments', 0777, true);
+        }
+
     }
 
     public static function getName(): string
