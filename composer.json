@@ -19,7 +19,7 @@
     },
     "require": {
         "php": "8.*",
-        "utopia-php/cli": "0.*",
+        "utopia-php/cli": "0.15.*",
         "appwrite/appwrite": "10.1.0",
         "utopia-php/database": "0.48.*",
         "utopia-php/storage": "0.18.*",
