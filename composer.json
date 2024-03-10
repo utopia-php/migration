@@ -23,7 +23,7 @@
         "appwrite/appwrite": "10.1.0",
         "utopia-php/database": "0.48.*",
         "utopia-php/storage": "0.18.*",
-        "utopia-php/dsn": "0.1.*",
+        "utopia-php/dsn": "0.2.*",
         "utopia-php/framework": "0.33.*"
     },
     "require-dev": {
