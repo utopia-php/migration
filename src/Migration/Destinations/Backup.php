@@ -2,7 +2,6 @@
 
 namespace Utopia\Migration\Destinations;
 
-use Utopia\CLI\Console;
 use Utopia\Database\Database;
 use Utopia\Database\DateTime;
 use Utopia\Database\Document;
@@ -27,17 +26,20 @@ class Backup extends Destination
 {
     private array $data = [];
 
+    protected string $path;
+
     protected Database $database;
 
     protected Device $storage;
 
     protected Document $backup;
 
-    public function __construct(Document $backup, Database $database, Device $storage)
+    public function __construct(string $path, Document $backup, Database $database, Device $storage)
     {
-        $this->database = $database;
-        $this->storage = $storage;
-        $this->backup = $backup;
+        $this->path = $path;
+        $this->database  = $database;
+        $this->storage   = $storage;
+        $this->backup    = $backup;
     }
 
     public static function getName(): string
@@ -74,9 +76,9 @@ class Backup extends Destination
         }
 
         // Check we can write to the file
-        if (! \is_writable(APP_STORAGE_BACKUPS. '/backup.json')) {
-            $report[Transfer::GROUP_DATABASES][] = 'Unable to write to file: '.APP_STORAGE_BACKUPS;
-            throw new \Exception('Unable to write to file: '. APP_STORAGE_BACKUPS);
+        if (! \is_writable($this->path. '/backup.json')) {
+            $report[Transfer::GROUP_DATABASES][] = 'Unable to write to file: '.$this->path;
+            throw new \Exception('Unable to write to file: '. $this->path);
         }
 
         return $report;
@@ -93,7 +95,7 @@ class Backup extends Destination
             throw new \Exception('Unable to encode data to JSON, Are you accidentally encoding binary data?');
         }
 
-        \file_put_contents(APP_STORAGE_BACKUPS. '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
+        \file_put_contents($this->path. '/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
 
         $this->backup
             ->setAttribute('finishedAt', DateTime::now())
@@ -102,19 +104,6 @@ class Backup extends Destination
 
         $this->database->updateDocument('backups', $this->backup->getId() ,$this->backup);
 
-        if (file_exists($this->path)){
-            //  $file = $local->getPath('shmuel.tar.gz');
-            $file = realpath($this->path .'/..') . '/shmuel.tar.gz';
-            $cmd = 'cd '. $this->path .' && tar -zcf ' . $file . ' * && cd ' . getcwd();
-            Console::success($cmd);
-
-            $stdout = '';
-            $stderr = '';
-            Console::execute($cmd, '', $stdout, $stderr);
-            if (!empty($stderr)) {
-                throw new Exception($stderr);
-            }
-        }
     }
 
     /**
@@ -142,7 +131,7 @@ class Backup extends Destination
                         $this->data[$resource->getGroup()][$resource->getName()][] = $resource->asArray();
                     }
 
-                    file_put_contents(APP_STORAGE_BACKUPS. '/deployments/'.$resource->getId().'.tar.gz', $resource->getData(), FILE_APPEND);
+                    file_put_contents($this->path. '/deployments/'.$resource->getId().'.tar.gz', $resource->getData(), FILE_APPEND);
                     $resource->setData('');
                     break;
                 case Resource::TYPE_FILE:
@@ -151,7 +140,7 @@ class Backup extends Destination
                     // Handle folders
                     if (str_contains($resource->getFileName(), '/')) {
                         $folders = explode('/', $resource->getFileName());
-                        $folderPath = APP_STORAGE_BACKUPS. '/files';
+                        $folderPath = $this->path. '/files';
 
                         foreach ($folders as $folder) {
                             $folderPath .= '/'.$folder;
@@ -162,11 +151,11 @@ class Backup extends Destination
                         }
                     }
 
-                    if ($resource->getStart() === 0 && \file_exists(APP_STORAGE_BACKUPS. '/files/'.$resource->getFileName())) {
-                        unlink(APP_STORAGE_BACKUPS. '/files/'.$resource->getFileName());
+                    if ($resource->getStart() === 0 && \file_exists($this->path. '/files/'.$resource->getFileName())) {
+                        unlink($this->path. '/files/'.$resource->getFileName());
                     }
 
-                    file_put_contents(APP_STORAGE_BACKUPS. '/files/'.$resource->getFileName(), $resource->getData(), FILE_APPEND);
+                    file_put_contents($this->path. '/files/'.$resource->getFileName(), $resource->getData(), FILE_APPEND);
                     $resource->setData('');
                     break;
                 default:
