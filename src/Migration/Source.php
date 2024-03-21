@@ -24,10 +24,8 @@ abstract class Source extends Target
      */
     public function run(array $resources, callable $callback): void
     {
-
         $this->transferCallback = function (array $returnedResources) use ($callback, $resources) {
             $prunedResurces = [];
-
             foreach ($returnedResources as $resource) {
                 /** @var resource $resource */
                 if (! in_array($resource->getName(), $resources)) {
@@ -73,7 +71,6 @@ abstract class Source extends Target
 
         // Send each group to the relevant export function
         foreach ($groups as $group => $resources) {
-
             switch ($group) {
                 case Transfer::GROUP_AUTH:
                     $this->exportGroupAuth($batchSize, $resources);

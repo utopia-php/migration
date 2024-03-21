@@ -40,7 +40,10 @@ use Utopia\Migration\Transfer;
 
 class Appwrite extends Source
 {
-    protected ?Client $client = null;
+    /**
+     * @var Client|null
+     */
+    protected $client = null;
 
     protected string $project = '';
 
@@ -194,7 +197,6 @@ class Appwrite extends Source
 
                 while (true) {
                     $currentBuckets = $storageClient->listBuckets($lastBucket ? [Query::cursorAfter($lastBucket)] : [Query::limit(20)])['buckets'];
-
                     $buckets = array_merge($buckets, $currentBuckets);
                     $lastBucket = $buckets[count($buckets) - 1]['$id'] ?? null;
 
@@ -270,15 +272,11 @@ class Appwrite extends Source
      */
     protected function exportGroupAuth(int $batchSize, array $resources)
     {
-
         if (in_array(Resource::TYPE_USER, $resources)) {
-
             $this->exportUsers($batchSize);
-
         }
 
         if (in_array(Resource::TYPE_TEAM, $resources)) {
-
             $this->exportTeams($batchSize);
         }
 
@@ -682,7 +680,6 @@ class Appwrite extends Source
 
     private function exportDatabases(int $batchSize)
     {
-
         $databaseClient = new Databases($this->client);
 
         $lastDatabase = null;
@@ -728,7 +725,6 @@ class Appwrite extends Source
         // Transfer Collections
 
         $databases = $this->cache->get(Database::getName());
-
         foreach ($databases as $database) {
             $lastCollection = null;
 
