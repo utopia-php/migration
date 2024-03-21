@@ -53,10 +53,14 @@ abstract class Destination extends Target
     /**
      * Init function
      */
-    public function init(): void {}
+    public function init(): void
+    {
+    }
 
     /**
      * shutDown function
      */
-    public function shutDown(): void {}
+    public function shutDown(): void
+    {
+    }
 }

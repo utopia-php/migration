@@ -40,9 +40,6 @@ use Utopia\Migration\Transfer;
 
 class Appwrite extends Source
 {
-    /**
-     * @var Client|null
-     */
     protected ?Client $client = null;
 
     protected string $project = '';
@@ -761,7 +758,7 @@ class Appwrite extends Source
                     $collections[] = $newCollection;
                 }
 
-                $lastCollection = !empty($collection)
+                $lastCollection = ! empty($collection)
                     ? $collections[count($collections) - 1]->getId()
                     : null;
 

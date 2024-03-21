@@ -25,7 +25,6 @@ abstract class Source extends Target
     public function run(array $resources, callable $callback): void
     {
 
-
         $this->transferCallback = function (array $returnedResources) use ($callback, $resources) {
             $prunedResurces = [];
 
