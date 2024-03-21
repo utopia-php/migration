@@ -142,6 +142,7 @@ class Transfer
      */
     public function run(array $resources, callable $callback): void
     {
+
         // Allows you to push entire groups if you want.
         $computedResources = [];
         foreach ($resources as $resource) {
@@ -155,6 +156,7 @@ class Transfer
         $computedResources = array_map('strtolower', $computedResources);
 
         $this->resources = $computedResources;
+
         $this->destination->run($computedResources, $callback, $this->source);
     }
 

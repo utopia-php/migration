@@ -40,9 +40,9 @@ use Utopia\Migration\Transfer;
 
 class Appwrite extends Source
 {
-    /**
-     * @var Client|null
-     */
+//    /**
+//     * @var Client|null
+//     */
     protected $client = null;
 
     protected string $project = '';
@@ -198,7 +198,7 @@ class Appwrite extends Source
                 while (true) {
                     $currentBuckets = $storageClient->listBuckets($lastBucket ? [Query::cursorAfter($lastBucket)] : [Query::limit(20)])['buckets'];
                     $buckets = array_merge($buckets, $currentBuckets);
-                    $lastBucket = $buckets[count($buckets) - 1]['$id'];
+                    $lastBucket = $buckets[count($buckets) - 1]['$id'] ?? null;
 
                     if (count($currentBuckets) < 20) {
                         break;
@@ -754,7 +754,9 @@ class Appwrite extends Source
                     $collections[] = $newCollection;
                 }
 
-                $lastCollection = $collections[count($collections) - 1]->getId();
+                $lastCollection = ! empty($collection)
+                    ? $collections[count($collections) - 1]->getId()
+                    : null;
 
                 $this->callback($collections);
 
