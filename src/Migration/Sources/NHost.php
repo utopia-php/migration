@@ -2,8 +2,8 @@
 
 namespace Utopia\Migration\Sources;
 
-use Utopia\Migration\Exception;
 use PDO;
+use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\User;
@@ -268,9 +268,10 @@ class NHost extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources)
     {
         try {
-        if (in_array(Resource::TYPE_DATABASE, $resources)) {
-            $this->exportDatabases($batchSize);
-        }} catch (\Throwable $e) {
+            if (in_array(Resource::TYPE_DATABASE, $resources)) {
+                $this->exportDatabases($batchSize);
+            }
+        } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
                     Resource::TYPE_DATABASE,
@@ -280,9 +281,10 @@ class NHost extends Source
         }
 
         try {
-        if (in_array(Resource::TYPE_COLLECTION, $resources)) {
-            $this->exportCollections($batchSize);
-        }} catch (\Throwable $e) {
+            if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+                $this->exportCollections($batchSize);
+            }
+        } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
                     Resource::TYPE_COLLECTION,
@@ -292,9 +294,10 @@ class NHost extends Source
         }
 
         try {
-        if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-            $this->exportAttributes($batchSize);
-        }} catch (\Throwable $e) {
+            if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+                $this->exportAttributes($batchSize);
+            }
+        } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
                     Resource::TYPE_ATTRIBUTE,
@@ -304,9 +307,10 @@ class NHost extends Source
         }
 
         try {
-        if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
-            $this->exportDocuments($batchSize);
-        }} catch (\Throwable $e) {
+            if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+                $this->exportDocuments($batchSize);
+            }
+        } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
                     Resource::TYPE_DOCUMENT,
@@ -316,9 +320,10 @@ class NHost extends Source
         }
 
         try {
-        if (in_array(Resource::TYPE_INDEX, $resources)) {
-            $this->exportIndexes($batchSize);
-        }} catch (\Throwable $e) {
+            if (in_array(Resource::TYPE_INDEX, $resources)) {
+                $this->exportIndexes($batchSize);
+            }
+        } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
                     Resource::TYPE_INDEX,
@@ -607,9 +612,10 @@ class NHost extends Source
     protected function exportGroupStorage(int $batchSize, array $resources)
     {
         try {
-        if (in_array(Resource::TYPE_BUCKET, $resources)) {
-            $this->exportBuckets($batchSize);
-        }} catch (\Throwable $e) {
+            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+                $this->exportBuckets($batchSize);
+            }
+        } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
                     Resource::TYPE_BUCKET,
@@ -619,9 +625,10 @@ class NHost extends Source
         }
 
         try {
-        if (in_array(Resource::TYPE_FILE, $resources)) {
-            $this->exportFiles($batchSize);
-        }} catch (\Throwable $e) {
+            if (in_array(Resource::TYPE_FILE, $resources)) {
+                $this->exportFiles($batchSize);
+            }
+        } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
                     Resource::TYPE_FILE,

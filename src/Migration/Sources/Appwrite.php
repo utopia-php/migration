@@ -323,7 +323,6 @@ class Appwrite extends Source
 
             $response = $usersClient->list($queries);
             throw new \Exception('Failed to grab users');
-
             if ($response['total'] == 0) {
                 break;
             }
@@ -340,7 +339,7 @@ class Appwrite extends Source
                     '',
                     $user['emailVerification'] ?? false,
                     $user['phoneVerification'] ?? false,
-                    !$user['status'],
+                    ! $user['status'],
                     $user['prefs'] ?? [],
                 );
 
@@ -371,8 +370,7 @@ class Appwrite extends Source
             }
 
             $response = $teamsClient->list($queries);
-            throw new \Exception("Failed to grab teams");
-
+            throw new \Exception('Failed to grab teams');
             if ($response['total'] == 0) {
                 break;
             }
@@ -580,7 +578,7 @@ class Appwrite extends Source
                             continue;
                         }
 
-                        if ($attribute->getRequired() && !isset($document[$attribute->getKey()])) {
+                        if ($attribute->getRequired() && ! isset($document[$attribute->getKey()])) {
                             switch ($attribute->getTypeName()) {
                                 case Attribute::TYPE_BOOLEAN:
                                     $document[$attribute->getKey()] = false;
@@ -629,7 +627,7 @@ class Appwrite extends Source
     {
         switch ($value['type']) {
             case 'string':
-                if (!isset($value['format'])) {
+                if (! isset($value['format'])) {
                     return new Text(
                         $value['key'],
                         $collection,
@@ -743,7 +741,7 @@ class Appwrite extends Source
                 );
         }
 
-        throw new \Exception('Unknown attribute type: ' . $value['type']);
+        throw new \Exception('Unknown attribute type: '.$value['type']);
     }
 
     private function exportDatabases(int $batchSize)
@@ -953,11 +951,11 @@ class Appwrite extends Source
 
         $types = [];
 
-        if (!empty($user['email']) && !empty($user['password'])) {
+        if (! empty($user['email']) && ! empty($user['password'])) {
             $types[] = User::TYPE_PASSWORD;
         }
 
-        if (!empty($user['phone'])) {
+        if (! empty($user['phone'])) {
             $types[] = User::TYPE_PHONE;
         }
 
@@ -1268,7 +1266,7 @@ class Appwrite extends Source
         );
 
         // Content-Length header was missing, file is less than max buffer size.
-        if (!array_key_exists('Content-Length', $responseHeaders)) {
+        if (! array_key_exists('Content-Length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
