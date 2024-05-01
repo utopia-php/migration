@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Sources;
 
+use Utopia\Migration\Exception;
 use PDO;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -211,8 +212,15 @@ class NHost extends Source
 
     protected function exportGroupAuth(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_USER, $resources)) {
-            $this->exportUsers($batchSize);
+        try {
+            if (in_array(Resource::TYPE_USER, $resources)) {
+                $this->exportUsers($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_USER,
+                $e->getMessage()
+            ));
         }
     }
 
@@ -259,24 +267,64 @@ class NHost extends Source
 
     protected function exportGroupDatabases(int $batchSize, array $resources)
     {
+        try {
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
             $this->exportDatabases($batchSize);
+        }} catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_DATABASE,
+                    $e->getMessage()
+                )
+            );
         }
 
+        try {
         if (in_array(Resource::TYPE_COLLECTION, $resources)) {
             $this->exportCollections($batchSize);
+        }} catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_COLLECTION,
+                    $e->getMessage()
+                )
+            );
         }
 
+        try {
         if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
             $this->exportAttributes($batchSize);
+        }} catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_ATTRIBUTE,
+                    $e->getMessage()
+                )
+            );
         }
 
+        try {
         if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
             $this->exportDocuments($batchSize);
+        }} catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_DOCUMENT,
+                    $e->getMessage()
+                )
+            );
         }
 
+        try {
         if (in_array(Resource::TYPE_INDEX, $resources)) {
             $this->exportIndexes($batchSize);
+        }} catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_INDEX,
+                    $e->getMessage()
+                )
+            );
         }
     }
 
@@ -558,12 +606,28 @@ class NHost extends Source
 
     protected function exportGroupStorage(int $batchSize, array $resources)
     {
+        try {
         if (in_array(Resource::TYPE_BUCKET, $resources)) {
             $this->exportBuckets($batchSize);
+        }} catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_BUCKET,
+                    $e->getMessage()
+                )
+            );
         }
 
+        try {
         if (in_array(Resource::TYPE_FILE, $resources)) {
             $this->exportFiles($batchSize);
+        }} catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_FILE,
+                    $e->getMessage()
+                )
+            );
         }
     }
 

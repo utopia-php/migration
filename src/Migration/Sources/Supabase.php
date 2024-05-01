@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Sources;
 
+use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\User;
@@ -9,7 +10,8 @@ use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Transfer;
 
-const MIME_MAP = ['video/3gpp2' => '3g2',
+const MIME_MAP = [
+    'video/3gpp2' => '3g2',
     'video/3gp' => '3gp',
     'video/3gpp' => '3gp',
     'application/x-compressed' => '7zip',
@@ -217,13 +219,13 @@ class Supabase extends NHost
         $this->password = $password;
         $this->port = $port;
 
-        $this->headers['Authorization'] = 'Bearer '.$this->key;
+        $this->headers['Authorization'] = 'Bearer ' . $this->key;
         $this->headers['apiKey'] = $this->key;
 
         try {
-            $this->pdo = new \PDO('pgsql:host='.$this->host.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
+            $this->pdo = new \PDO('pgsql:host=' . $this->host . ';port=' . $this->port . ';dbname=' . $this->databaseName, $this->username, $this->password);
         } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database: '.$e->getMessage());
+            throw new \Exception('Failed to connect to database: ' . $e->getMessage());
         }
     }
 
@@ -236,13 +238,13 @@ class Supabase extends NHost
         }
 
         try {
-            $this->pdo = new \PDO('pgsql:host='.$this->host.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
+            $this->pdo = new \PDO('pgsql:host=' . $this->host . ';port=' . $this->port . ';dbname=' . $this->databaseName, $this->username, $this->password);
         } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database. PDO Code: '.$e->getCode().' Error: '.$e->getMessage());
+            throw new \Exception('Failed to connect to database. PDO Code: ' . $e->getCode() . ' Error: ' . $e->getMessage());
         }
 
-        if (! empty($this->pdo->errorCode())) {
-            throw new \Exception('Failed to connect to database. PDO Code: '.$this->pdo->errorCode().(empty($this->pdo->errorInfo()[2]) ? '' : ' Error: '.$this->pdo->errorInfo()[2]));
+        if (!empty($this->pdo->errorCode())) {
+            throw new \Exception('Failed to connect to database. PDO Code: ' . $this->pdo->errorCode() . (empty($this->pdo->errorInfo()[2]) ? '' : ' Error: ' . $this->pdo->errorInfo()[2]));
         }
 
         // Auth
@@ -251,7 +253,7 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access users table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access users table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_USER] = $statement->fetchColumn();
@@ -267,7 +269,7 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_COLLECTION] = $statement->fetchColumn();
@@ -278,7 +280,7 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access columns table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access columns table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_ATTRIBUTE] = $statement->fetchColumn();
@@ -289,7 +291,7 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access indexes table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access indexes table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
@@ -300,7 +302,7 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access tables table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_DOCUMENT] = $statement->fetchColumn();
@@ -312,7 +314,7 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access buckets table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access buckets table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_BUCKET] = $statement->fetchColumn();
@@ -323,7 +325,7 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access files table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception('Failed to access files table. Error: ' . $statement->errorInfo()[2]);
             }
 
             $report[Resource::TYPE_FILE] = $statement->fetchColumn();
@@ -346,8 +348,15 @@ class Supabase extends NHost
 
     protected function exportGroupAuth(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_USER, $resources)) {
-            $this->exportUsers($batchSize);
+        try {
+            if (in_array(Resource::TYPE_USER, $resources)) {
+                $this->exportUsers($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_BUCKET,
+                $e->getMessage()
+            ));
         }
     }
 
@@ -379,8 +388,8 @@ class Supabase extends NHost
                     $this->calculateAuthTypes($user),
                     [],
                     '',
-                    ! empty($user['email_confirmed_at']),
-                    ! empty($user['phone_confirmed_at']),
+                    !empty($user['email_confirmed_at']),
+                    !empty($user['phone_confirmed_at']),
                     false,
                     []
                 );
@@ -409,11 +418,11 @@ class Supabase extends NHost
 
         $types = [];
 
-        if (! empty($user['encrypted_password'])) {
+        if (!empty($user['encrypted_password'])) {
             $types[] = User::TYPE_PASSWORD;
         }
 
-        if (! empty($user['phone'])) {
+        if (!empty($user['phone'])) {
             $types[] = User::TYPE_PHONE;
         }
 
@@ -422,12 +431,26 @@ class Supabase extends NHost
 
     protected function exportGroupStorage(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_BUCKET, $resources)) {
-            $this->exportBuckets($batchSize);
+        try {
+            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+                $this->exportBuckets($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_BUCKET,
+                $e->getMessage()
+            ));
         }
 
-        if (in_array(Resource::TYPE_FILE, $resources)) {
-            $this->exportFiles($batchSize);
+        try {
+            if (in_array(Resource::TYPE_FILE, $resources)) {
+                $this->exportFiles($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_BUCKET,
+                $e->getMessage()
+            ));
         }
     }
 
@@ -516,8 +539,8 @@ class Supabase extends NHost
         while ($start < $fileSize) {
             $chunkData = $this->call(
                 'GET',
-                '/storage/v1/object/'.
-                    rawurlencode($file->getBucket()->getOriginalId()).'/'.rawurlencode($file->getFileName()),
+                '/storage/v1/object/' .
+                    rawurlencode($file->getBucket()->getOriginalId()) . '/' . rawurlencode($file->getFileName()),
                 ['range' => "bytes=$start-$end"]
             );
 
