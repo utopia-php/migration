@@ -272,16 +272,37 @@ class Appwrite extends Source
      */
     protected function exportGroupAuth(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_USER, $resources)) {
-            $this->exportUsers($batchSize);
+        try {
+            if (in_array(Resource::TYPE_USER, $resources)) {
+                $this->exportUsers($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_USER,
+                $e->getMessage()
+            ));
         }
 
-        if (in_array(Resource::TYPE_TEAM, $resources)) {
-            $this->exportTeams($batchSize);
+        try {
+            if (in_array(Resource::TYPE_TEAM, $resources)) {
+                $this->exportTeams($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_TEAM,
+                $e->getMessage()
+            ));
         }
 
-        if (in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
-            $this->exportMemberships($batchSize);
+        try {
+            if (in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
+                $this->exportMemberships($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_MEMBERSHIP,
+                $e->getMessage()
+            ));
         }
     }
 
@@ -301,7 +322,6 @@ class Appwrite extends Source
             }
 
             $response = $usersClient->list($queries);
-
             if ($response['total'] == 0) {
                 break;
             }
@@ -349,7 +369,6 @@ class Appwrite extends Source
             }
 
             $response = $teamsClient->list($queries);
-
             if ($response['total'] == 0) {
                 break;
             }
@@ -431,24 +450,69 @@ class Appwrite extends Source
 
     protected function exportGroupDatabases(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_DATABASE, $resources)) {
-            $this->exportDatabases($batchSize);
+        try {
+            if (in_array(Resource::TYPE_DATABASE, $resources)) {
+                $this->exportDatabases($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_DATABASE,
+                    $e->getMessage()
+                )
+            );
         }
 
-        if (in_array(Resource::TYPE_COLLECTION, $resources)) {
-            $this->exportCollections($batchSize);
+        try {
+            if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+                $this->exportCollections($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_COLLECTION,
+                    $e->getMessage()
+                )
+            );
         }
 
-        if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-            $this->exportAttributes($batchSize);
+        try {
+            if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+                $this->exportAttributes($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_ATTRIBUTE,
+                    $e->getMessage()
+                )
+            );
         }
 
-        if (in_array(Resource::TYPE_INDEX, $resources)) {
-            $this->exportIndexes($batchSize);
+        try {
+            if (in_array(Resource::TYPE_INDEX, $resources)) {
+                $this->exportIndexes($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_INDEX,
+                    $e->getMessage()
+                )
+            );
         }
 
-        if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
-            $this->exportDocuments($batchSize);
+        try {
+            if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+                $this->exportDocuments($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_DOCUMENT,
+                    $e->getMessage()
+                )
+            );
         }
     }
 
@@ -898,16 +962,43 @@ class Appwrite extends Source
 
     protected function exportGroupStorage(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_BUCKET, $resources)) {
-            $this->exportBuckets($batchSize, false);
+        try {
+            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+                $this->exportBuckets($batchSize, false);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_BUCKET,
+                    $e->getMessage()
+                )
+            );
         }
 
-        if (in_array(Resource::TYPE_FILE, $resources)) {
-            $this->exportFiles($batchSize);
+        try {
+            if (in_array(Resource::TYPE_FILE, $resources)) {
+                $this->exportFiles($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_FILE,
+                    $e->getMessage()
+                )
+            );
         }
 
-        if (in_array(Resource::TYPE_BUCKET, $resources)) {
-            $this->exportBuckets($batchSize, true);
+        try {
+            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+                $this->exportBuckets($batchSize, true);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_BUCKET,
+                    $e->getMessage()
+                )
+            );
         }
     }
 
@@ -1036,12 +1127,26 @@ class Appwrite extends Source
 
     protected function exportGroupFunctions(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_FUNCTION, $resources)) {
-            $this->exportFunctions($batchSize);
+        try {
+            if (in_array(Resource::TYPE_FUNCTION, $resources)) {
+                $this->exportFunctions($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_FUNCTION,
+                $e->getMessage()
+            ));
         }
 
-        if (in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
-            $this->exportDeployments($batchSize, true);
+        try {
+            if (in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
+                $this->exportDeployments($batchSize, true);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_DEPLOYMENT,
+                $e->getMessage()
+            ));
         }
     }
 
