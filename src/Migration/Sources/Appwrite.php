@@ -322,7 +322,6 @@ class Appwrite extends Source
             }
 
             $response = $usersClient->list($queries);
-            throw new \Exception('Failed to grab users');
             if ($response['total'] == 0) {
                 break;
             }
@@ -370,7 +369,6 @@ class Appwrite extends Source
             }
 
             $response = $teamsClient->list($queries);
-            throw new \Exception('Failed to grab teams');
             if ($response['total'] == 0) {
                 break;
             }
