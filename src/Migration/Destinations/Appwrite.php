@@ -511,6 +511,7 @@ class Appwrite extends Destination
         }
 
         $file->setData('');
+
         return $file;
     }
 

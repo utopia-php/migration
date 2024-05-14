@@ -1,23 +1,22 @@
 <?php
+
 require_once './vendor/autoload.php';
 
 use Dotenv\Dotenv;
 use Utopia\Migration\Destinations\Appwrite as DestinationsAppwrite;
-use Utopia\Migration\Destinations\Local;
 use Utopia\Migration\Sources\Appwrite;
 use Utopia\Migration\Transfer;
 
 /**
  * Migrations CLI Tool
  */
-
 class MigrationCLI
 {
     protected Transfer $transfer;
 
-    function drawFrame()
+    public function drawFrame()
     {
-        echo chr(27) . chr(91) . 'H' . chr(27) . chr(91) . 'J';
+        echo chr(27).chr(91).'H'.chr(27).chr(91).'J';
 
         $statusCounters = $this->transfer->getStatusCounters();
 
@@ -29,7 +28,7 @@ class MigrationCLI
         }
     }
 
-    function start()
+    public function start()
     {
         $dotenv = Dotenv::createImmutable(__DIR__);
         $dotenv->load();
