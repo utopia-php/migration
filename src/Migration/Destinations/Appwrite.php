@@ -504,9 +504,13 @@ class Appwrite extends Destination
                 if ($response['signature'] !== $file->getSignature()) {
                     $file->setStatus(Resource::STATUS_WARNING, 'File signature mismatch, Possibly corrupted.');
                 }
+            } else {
+                $file->setStatus(Resource::STATUS_SUCCESS);
+                $file->setData('');
             }
         }
 
+        $file->setData('');
         return $file;
     }
 
