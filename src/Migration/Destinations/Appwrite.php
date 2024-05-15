@@ -506,12 +506,10 @@ class Appwrite extends Destination
                 }
             } else {
                 $file->setStatus(Resource::STATUS_SUCCESS);
-                $file->setData('');
             }
         }
 
         $file->setData('');
-
         return $file;
     }
 

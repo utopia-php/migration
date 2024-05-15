@@ -14,6 +14,9 @@ class MigrationCLI
 {
     protected Transfer $transfer;
 
+    /**
+     * Prints the current status of migrations as a table after wiping the screen
+     */
     public function drawFrame()
     {
         echo chr(27).chr(91).'H'.chr(27).chr(91).'J';
