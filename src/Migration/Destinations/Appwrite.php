@@ -499,13 +499,13 @@ class Appwrite extends Destination
         );
 
         if ($file->getEnd() == ($file->getSize() - 1)) {
+            $file->setStatus(Resource::STATUS_SUCCESS);
+
             // Signatures for Encrypted files are invalid, so we skip the check
             if ($file->getBucket()->getEncryption() == false || $file->getSize() > (20 * 1024 * 1024)) {
                 if ($response['signature'] !== $file->getSignature()) {
                     $file->setStatus(Resource::STATUS_WARNING, 'File signature mismatch, Possibly corrupted.');
                 }
-            } else {
-                $file->setStatus(Resource::STATUS_SUCCESS);
             }
         }
 
