@@ -237,7 +237,9 @@ class Appwrite extends Source
                 $report[Resource::TYPE_DEPLOYMENT] = 0;
                 $functions = $functionsClient->list()['functions'];
                 foreach ($functions as $function) {
-                    $report[Resource::TYPE_DEPLOYMENT] += $functionsClient->listDeployments($function['$id'], [Query::limit(1)])['total'];
+                    if (!empty($function['deployment'])) {
+                        $report[Resource::TYPE_DEPLOYMENT] += 1;
+                    }
                 }
             }
 
