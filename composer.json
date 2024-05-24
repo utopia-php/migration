@@ -19,6 +19,8 @@
     },
     "require": {
         "php": "8.3",
+        "ext-curl": "*",
+        "ext-openssl": "*",
         "appwrite/appwrite": "10.1.*",
         "utopia-php/cli": "0.15.*",
         "utopia-php/database": "0.49.*",
