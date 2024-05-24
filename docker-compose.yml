@@ -46,14 +46,12 @@ services:
   tests:
     build:
       context: .
-      target: tests
     networks:
       - tests
     volumes:
-      - ./tests:/app/tests
       - ./src:/app/src
+      - ./tests:/app/tests
       - ./phpunit.xml:/app/phpunit.xml
-    working_dir: /app
     depends_on:
       - supabase-db
       - nhost-db
