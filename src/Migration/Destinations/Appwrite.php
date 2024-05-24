@@ -499,6 +499,8 @@ class Appwrite extends Destination
         );
 
         if ($file->getEnd() == ($file->getSize() - 1)) {
+            $file->setStatus(Resource::STATUS_SUCCESS);
+
             // Signatures for Encrypted files are invalid, so we skip the check
             if ($file->getBucket()->getEncryption() == false || $file->getSize() > (20 * 1024 * 1024)) {
                 if ($response['signature'] !== $file->getSignature()) {
@@ -506,6 +508,8 @@ class Appwrite extends Destination
                 }
             }
         }
+
+        $file->setData('');
 
         return $file;
     }

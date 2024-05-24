@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Sources;
 
+use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\User;
@@ -163,8 +164,17 @@ class Firebase extends Source
             throw $e;
         }
 
-        if (in_array(Resource::TYPE_USER, $resources)) {
-            $this->exportUsers($batchSize);
+        try {
+            if (in_array(Resource::TYPE_USER, $resources)) {
+                $this->exportUsers($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_USER,
+                    $e->getMessage()
+                )
+            );
         }
     }
 
@@ -264,14 +274,32 @@ class Firebase extends Source
             throw $e;
         }
 
-        if (in_array(Resource::TYPE_DATABASE, $resources)) {
-            $database = new Database('default', 'default');
-            $database->setOriginalId('(default)');
-            $this->callback([$database]);
+        try {
+            if (in_array(Resource::TYPE_DATABASE, $resources)) {
+                $database = new Database('default', 'default');
+                $database->setOriginalId('(default)');
+                $this->callback([$database]);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_DATABASE,
+                    $e->getMessage()
+                )
+            );
         }
 
-        if (in_array(Resource::TYPE_COLLECTION, $resources)) {
-            $this->exportDB($batchSize, in_array(Resource::TYPE_DOCUMENT, $resources), $database);
+        try {
+            if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+                $this->exportDB($batchSize, in_array(Resource::TYPE_DOCUMENT, $resources), $database);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_COLLECTION,
+                    $e->getMessage()
+                )
+            );
         }
     }
 
@@ -520,13 +548,28 @@ class Firebase extends Source
             throw $e;
         }
 
-        if (in_array(Resource::TYPE_BUCKET, $resources)) {
-            $this->exportBuckets($batchSize);
+        try {
+            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+                $this->exportBuckets($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_BUCKET,
+                $e->getMessage()
+            ));
         }
 
-        if (in_array(Resource::TYPE_FILE, $resources)) {
-            $this->exportFiles($batchSize);
+        try {
+            if (in_array(Resource::TYPE_FILE, $resources)) {
+                $this->exportFiles($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_FILE,
+                $e->getMessage()
+            ));
         }
+
     }
 
     private function exportBuckets(int $batchsize)

@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Sources;
 
+use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\User;
@@ -9,7 +10,8 @@ use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Transfer;
 
-const MIME_MAP = ['video/3gpp2' => '3g2',
+const MIME_MAP = [
+    'video/3gpp2' => '3g2',
     'video/3gp' => '3gp',
     'video/3gpp' => '3gp',
     'application/x-compressed' => '7zip',
@@ -346,8 +348,15 @@ class Supabase extends NHost
 
     protected function exportGroupAuth(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_USER, $resources)) {
-            $this->exportUsers($batchSize);
+        try {
+            if (in_array(Resource::TYPE_USER, $resources)) {
+                $this->exportUsers($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_BUCKET,
+                $e->getMessage()
+            ));
         }
     }
 
@@ -422,12 +431,26 @@ class Supabase extends NHost
 
     protected function exportGroupStorage(int $batchSize, array $resources)
     {
-        if (in_array(Resource::TYPE_BUCKET, $resources)) {
-            $this->exportBuckets($batchSize);
+        try {
+            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+                $this->exportBuckets($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_BUCKET,
+                $e->getMessage()
+            ));
         }
 
-        if (in_array(Resource::TYPE_FILE, $resources)) {
-            $this->exportFiles($batchSize);
+        try {
+            if (in_array(Resource::TYPE_FILE, $resources)) {
+                $this->exportFiles($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_BUCKET,
+                $e->getMessage()
+            ));
         }
     }
 
