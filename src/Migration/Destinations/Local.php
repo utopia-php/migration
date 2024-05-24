@@ -6,7 +6,6 @@ use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Storage\File;
-use Utopia\Migration\Transfer;
 
 /**
  * Local
@@ -16,6 +15,9 @@ use Utopia\Migration\Transfer;
  */
 class Local extends Destination
 {
+    /**
+     * @var array<string, array<string, array<string>>>
+     */
     private array $data = [];
 
     protected string $path;
@@ -26,8 +28,8 @@ class Local extends Destination
 
         if (! \file_exists($this->path)) {
             mkdir($this->path, 0777, true);
-            mkdir($this->path.'/files', 0777, true);
-            mkdir($this->path.'/deployments', 0777, true);
+            mkdir($this->path . '/files', 0777, true);
+            mkdir($this->path . '/deployments', 0777, true);
         }
     }
 
@@ -36,72 +38,84 @@ class Local extends Destination
         return 'Local';
     }
 
+    /**
+     * @return array<string>
+     */
     public static function getSupportedResources(): array
     {
         return [
-            Resource::TYPE_ATTRIBUTE,
-            Resource::TYPE_BUCKET,
-            Resource::TYPE_COLLECTION,
-            Resource::TYPE_DATABASE,
-            Resource::TYPE_DEPLOYMENT,
-            Resource::TYPE_DOCUMENT,
-            Resource::TYPE_ENVIRONMENT_VARIABLE,
-            Resource::TYPE_FILE,
-            Resource::TYPE_FUNCTION,
-            Resource::TYPE_HASH,
-            Resource::TYPE_INDEX,
+            // Auth
+            Resource::TYPE_USER,
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
-            Resource::TYPE_USER,
+            Resource::TYPE_HASH,
+
+            // Database
+            Resource::TYPE_DATABASE,
+            Resource::TYPE_COLLECTION,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_INDEX,
+            Resource::TYPE_DOCUMENT,
+
+            // Storage
+            Resource::TYPE_BUCKET,
+            Resource::TYPE_FILE,
+
+            // Functions
+            Resource::TYPE_FUNCTION,
+            Resource::TYPE_DEPLOYMENT,
+            Resource::TYPE_ENVIRONMENT_VARIABLE,
         ];
     }
 
+    /**
+     * @throws \Exception
+     */
     public function report(array $resources = []): array
     {
         $report = [];
 
-        if (empty($resources)) {
-            $resources = $this->getSupportedResources();
-        }
-
-        // Check we can write to the file
-        if (! \is_writable($this->path.'/backup.json')) {
-            $report[Transfer::GROUP_DATABASES][] = 'Unable to write to file: '.$this->path;
-            throw new \Exception('Unable to write to file: '.$this->path);
+        if (!\is_writable($this->path . '/backup.json')) {
+            throw new \Exception('Unable to write to file: ' . $this->path);
         }
 
         return $report;
     }
 
+    /**
+     * @throws \Exception
+     */
     private function sync(): void
     {
-        $jsonEncodedData = \json_encode($this->data, JSON_PRETTY_PRINT);
+        $json = \json_encode($this->data, JSON_PRETTY_PRINT);
 
-        if ($jsonEncodedData === false) {
+        if ($json === false) {
             throw new \Exception('Unable to encode data to JSON, Are you accidentally encoding binary data?');
         }
 
-        \file_put_contents($this->path.'/backup.json', \json_encode($this->data, JSON_PRETTY_PRINT));
+        \file_put_contents($this->path . '/backup.json', $json);
     }
 
+    /**
+     * @param array<Resource> $resources
+     * @param callable $callback
+     * @throws \Exception
+     */
     protected function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var resource $resource */
             switch ($resource->getName()) {
                 case Resource::TYPE_DEPLOYMENT:
                     /** @var Deployment $resource */
                     if ($resource->getStart() === 0) {
-                        $this->data[$resource->getGroup()][$resource->getName()][] = $resource->asArray();
+                        $this->data[$resource->getGroup()][$resource->getName()][] = (string) \json_encode($resource);
                     }
 
-                    file_put_contents($this->path.'deployments/'.$resource->getId().'.tar.gz', $resource->getData(), FILE_APPEND);
+                    file_put_contents($this->path . 'deployments/' . $resource->getId() . '.tar.gz', $resource->getData(), FILE_APPEND);
                     $resource->setData('');
                     break;
                 case Resource::TYPE_FILE:
                     /** @var File $resource */
-
-                    // Handle folders
                     if (str_contains($resource->getFileName(), '/')) {
                         $folders = explode('/', $resource->getFileName());
                         $folderPath = $this->path.'/files';
@@ -123,12 +137,13 @@ class Local extends Destination
                     $resource->setData('');
                     break;
                 default:
-                    $this->data[$resource->getGroup()][$resource->getName()][] = $resource->asArray();
+                    $this->data[$resource->getGroup()][$resource->getName()][] = (string) \json_encode($resource);
                     break;
             }
 
             $resource->setStatus(Resource::STATUS_SUCCESS);
             $this->cache->update($resource);
+
             $this->sync();
         }
 

@@ -248,7 +248,7 @@ class Supabase extends NHost
         }
 
         // Auth
-        if (in_array(Resource::TYPE_USER, $resources)) {
+        if (\in_array(Resource::TYPE_USER, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM auth.users');
             $statement->execute();
 
@@ -260,11 +260,11 @@ class Supabase extends NHost
         }
 
         // Databases
-        if (in_array(Resource::TYPE_DATABASE, $resources)) {
+        if (\in_array(Resource::TYPE_DATABASE, $resources)) {
             $report[Resource::TYPE_DATABASE] = 1;
         }
 
-        if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+        if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -275,7 +275,7 @@ class Supabase extends NHost
             $report[Resource::TYPE_COLLECTION] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+        if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -286,7 +286,7 @@ class Supabase extends NHost
             $report[Resource::TYPE_ATTRIBUTE] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_INDEX, $resources)) {
+        if (\in_array(Resource::TYPE_INDEX, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM pg_indexes WHERE schemaname = \'public\'');
             $statement->execute();
 
@@ -297,7 +297,7 @@ class Supabase extends NHost
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+        if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -309,7 +309,7 @@ class Supabase extends NHost
         }
 
         // Storage
-        if (in_array(Resource::TYPE_BUCKET, $resources)) {
+        if (\in_array(Resource::TYPE_BUCKET, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.buckets');
             $statement->execute();
 
@@ -320,7 +320,7 @@ class Supabase extends NHost
             $report[Resource::TYPE_BUCKET] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_FILE, $resources)) {
+        if (\in_array(Resource::TYPE_FILE, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM storage.objects');
             $statement->execute();
 
@@ -346,10 +346,10 @@ class Supabase extends NHost
         return $report;
     }
 
-    protected function exportGroupAuth(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_USER, $resources)) {
+            if (\in_array(Resource::TYPE_USER, $resources)) {
                 $this->exportUsers($batchSize);
             }
         } catch (\Throwable $e) {
@@ -360,7 +360,7 @@ class Supabase extends NHost
         }
     }
 
-    private function exportUsers(int $batchSize)
+    private function exportUsers(int $batchSize): void
     {
         $total = $this->pdo->query('SELECT COUNT(*) FROM auth.users')->fetchColumn();
 
@@ -429,10 +429,10 @@ class Supabase extends NHost
         return $types;
     }
 
-    protected function exportGroupStorage(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+            if (\in_array(Resource::TYPE_BUCKET, $resources)) {
                 $this->exportBuckets($batchSize);
             }
         } catch (\Throwable $e) {
@@ -443,7 +443,7 @@ class Supabase extends NHost
         }
 
         try {
-            if (in_array(Resource::TYPE_FILE, $resources)) {
+            if (\in_array(Resource::TYPE_FILE, $resources)) {
                 $this->exportFiles($batchSize);
             }
         } catch (\Throwable $e) {
@@ -454,7 +454,7 @@ class Supabase extends NHost
         }
     }
 
-    protected function exportBuckets(int $batchSize)
+    protected function exportBuckets(int $batchSize): void
     {
         $statement = $this->pdo->prepare('SELECT * FROM storage.buckets order by created_at');
         $statement->execute();
@@ -480,7 +480,7 @@ class Supabase extends NHost
         $this->callback($transferBuckets);
     }
 
-    public function exportFiles(int $batchSize)
+    public function exportFiles(int $batchSize): void
     {
         /**
          * TODO: Supabase has folders, with enough folders within folders this could cause us to hit the max name length
@@ -524,7 +524,7 @@ class Supabase extends NHost
         }
     }
 
-    public function exportFile(File $file)
+    public function exportFile(File $file): void
     {
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;

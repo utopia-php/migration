@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Destinations;
 
+use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\InputFile;
 use Appwrite\Services\Databases;
@@ -9,6 +10,7 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
+use Override;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
@@ -17,6 +19,7 @@ use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
 use Utopia\Migration\Resources\Database\Attribute;
+use Utopia\Migration\Resources\Database\Attributes\Boolean;
 use Utopia\Migration\Resources\Database\Attributes\DateTime;
 use Utopia\Migration\Resources\Database\Attributes\Decimal;
 use Utopia\Migration\Resources\Database\Attributes\Email;
@@ -24,24 +27,31 @@ use Utopia\Migration\Resources\Database\Attributes\Enum;
 use Utopia\Migration\Resources\Database\Attributes\IP;
 use Utopia\Migration\Resources\Database\Attributes\Relationship;
 use Utopia\Migration\Resources\Database\Attributes\Text;
+use Utopia\Migration\Resources\Database\Attributes\URL;
 use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Document;
+use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
-use Utopia\Migration\Resources\Storage\Index;
 use Utopia\Migration\Transfer;
 
 class Appwrite extends Destination
 {
     protected Client $client;
-
     protected string $project;
 
     protected string $key;
+
+    private Databases $databases;
+    private Functions $functions;
+    private Storage $storage;
+    private Teams $teams;
+    private Users $users;
+
 
     public function __construct(string $project, string $endpoint, string $key)
     {
@@ -53,6 +63,12 @@ class Appwrite extends Destination
             ->setEndpoint($endpoint)
             ->setProject($project)
             ->setKey($key);
+
+        $this->databases = new Databases($this->client);
+        $this->functions = new Functions($this->client);
+        $this->storage = new Storage($this->client);
+        $this->teams = new Teams($this->client);
+        $this->users = new Users($this->client);
     }
 
     public static function getName(): string
@@ -60,6 +76,9 @@ class Appwrite extends Destination
         return 'Appwrite';
     }
 
+    /**
+     * @return array<string>
+     */
     public static function getSupportedResources(): array
     {
         return [
@@ -83,130 +102,134 @@ class Appwrite extends Destination
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_ENVIRONMENT_VARIABLE,
-
-            // Settings
         ];
     }
 
+    /**
+     * @param array<string> $resources
+     * @throws AppwriteException
+     * @throws \Exception
+     */
+    #[Override]
     public function report(array $resources = []): array
     {
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
         }
 
-        $databases = new Databases($this->client);
-        $functions = new Functions($this->client);
-        $storage = new Storage($this->client);
-        $teams = new Teams($this->client);
-        $users = new Users($this->client);
+        $scope = '';
 
-        $currentPermission = '';
         // Most of these API calls are purposely wrong. Appwrite will throw a 403 before a 400.
         // We want to make sure the API key has full read and write access to the project.
-
         try {
             // Auth
-            if (in_array(Resource::TYPE_USER, $resources)) {
-                $currentPermission = 'users.read';
-                $users->list();
+            if (\in_array(Resource::TYPE_USER, $resources)) {
+                $scope = 'users.read';
+                $this->users->list();
 
-                $currentPermission = 'users.write';
-                $users->create('', '', '');
+                $scope = 'users.write';
+                $this->users->create('');
             }
 
-            if (in_array(Resource::TYPE_TEAM, $resources)) {
-                $currentPermission = 'teams.read';
-                $teams->list();
+            if (\in_array(Resource::TYPE_TEAM, $resources)) {
+                $scope = 'teams.read';
+                $this->teams->list();
 
-                $currentPermission = 'teams.write';
-                $teams->create('', '');
+                $scope = 'teams.write';
+                $this->teams->create('', '');
             }
 
-            if (in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
-                $currentPermission = 'memberships.read';
-                $teams->listMemberships('');
+            if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
+                $scope = 'memberships.read';
+                $this->teams->listMemberships('');
 
-                $currentPermission = 'memberships.write';
-                $teams->createMembership('', [], '');
+                $scope = 'memberships.write';
+                $this->teams->createMembership('', [], '');
             }
 
             // Database
-            if (in_array(Resource::TYPE_DATABASE, $resources)) {
-                $currentPermission = 'database.read';
-                $databases->list();
+            if (\in_array(Resource::TYPE_DATABASE, $resources)) {
+                $scope = 'database.read';
+                $this->databases->list();
 
-                $currentPermission = 'database.write';
-                $databases->create('', '');
+                $scope = 'database.write';
+                $this->databases->create('', '');
             }
 
-            if (in_array(Resource::TYPE_COLLECTION, $resources)) {
-                $currentPermission = 'collections.read';
-                $databases->listCollections('');
+            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
+                $scope = 'collections.read';
+                $this->databases->listCollections('');
 
-                $currentPermission = 'collections.write';
-                $databases->createCollection('', '', '');
+                $scope = 'collections.write';
+                $this->databases->createCollection('', '', '');
             }
 
-            if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-                $currentPermission = 'attributes.read';
-                $databases->listAttributes('', '');
+            if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+                $scope = 'attributes.read';
+                $this->databases->listAttributes('', '');
 
-                $currentPermission = 'attributes.write';
-                $databases->createStringAttribute('', '', '', 0, false);
+                $scope = 'attributes.write';
+                $this->databases->createStringAttribute('', '', '', 0, false);
             }
 
-            if (in_array(Resource::TYPE_INDEX, $resources)) {
-                $currentPermission = 'indexes.read';
-                $databases->listIndexes('', '');
+            if (\in_array(Resource::TYPE_INDEX, $resources)) {
+                $scope = 'indexes.read';
+                $this->databases->listIndexes('', '');
 
-                $currentPermission = 'indexes.write';
-                $databases->createIndex('', '', '', '', []);
+                $scope = 'indexes.write';
+                $this->databases->createIndex('', '', '', '', []);
             }
 
-            if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
-                $currentPermission = 'documents.read';
-                $databases->listDocuments('', '');
+            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
+                $scope = 'documents.read';
+                $this->databases->listDocuments('', '');
 
-                $currentPermission = 'documents.write';
-                $databases->createDocument('', '', '', []);
+                $scope = 'documents.write';
+                $this->databases->createDocument('', '', '', []);
             }
 
             // Storage
-            if (in_array(Resource::TYPE_BUCKET, $resources)) {
-                $currentPermission = 'storage.read';
-                $storage->listBuckets();
+            if (\in_array(Resource::TYPE_BUCKET, $resources)) {
+                $scope = 'storage.read';
+                $this->storage->listBuckets();
 
-                $currentPermission = 'storage.write';
-                $storage->createBucket('', '');
+                $scope = 'storage.write';
+                $this->storage->createBucket('', '');
             }
 
-            if (in_array(Resource::TYPE_FILE, $resources)) {
-                $currentPermission = 'files.read';
-                $storage->listFiles('');
+            if (\in_array(Resource::TYPE_FILE, $resources)) {
+                $scope = 'files.read';
+                $this->storage->listFiles('');
 
-                $currentPermission = 'files.write';
-                $storage->createFile('', '', new InputFile());
+                $scope = 'files.write';
+                $this->storage->createFile('', '', new InputFile());
             }
 
             // Functions
-            if (in_array(Resource::TYPE_FUNCTION, $resources)) {
-                $currentPermission = 'functions.read';
-                $functions->list();
+            if (\in_array(Resource::TYPE_FUNCTION, $resources)) {
+                $scope = 'functions.read';
+                $this->functions->list();
 
-                $currentPermission = 'functions.write';
-                $functions->create('', '', '');
+                $scope = 'functions.write';
+                $this->functions->create('', '', '');
             }
 
-            return [];
-        } catch (\Throwable $exception) {
-            if ($exception->getCode() === 403) {
-                throw new \Exception('Missing permission: '.$currentPermission);
-            } else {
-                throw $exception;
+        } catch (AppwriteException $e) {
+            if ($e->getCode() === 403) {
+                throw new \Exception('Missing scope: ' . $scope, previous: $e);
             }
+            throw $e;
         }
+
+        return [];
     }
 
+    /**
+     * @param array<Resource> $resources
+     * @param callable $callback
+     * @return void
+     */
+    #[Override]
     protected function import(array $resources, callable $callback): void
     {
         if (empty($resources)) {
@@ -214,34 +237,27 @@ class Appwrite extends Destination
         }
 
         foreach ($resources as $resource) {
-            /** @var resource $resource */
             $resource->setStatus(Resource::STATUS_PROCESSING);
 
             try {
-                switch ($resource->getGroup()) {
-                    case Transfer::GROUP_DATABASES:
-                        $responseResource = $this->importDatabaseResource($resource);
-                        break;
-                    case Transfer::GROUP_STORAGE:
-                        $responseResource = $this->importFileResource($resource);
-                        break;
-                    case Transfer::GROUP_AUTH:
-                        $responseResource = $this->importAuthResource($resource);
-                        break;
-                    case Transfer::GROUP_FUNCTIONS:
-                        $responseResource = $this->importFunctionResource($resource);
-                        break;
-                }
+                $responseResource = match ($resource->getGroup()) {
+                    Transfer::GROUP_DATABASES => $this->importDatabaseResource($resource),
+                    Transfer::GROUP_STORAGE => $this->importFileResource($resource),
+                    Transfer::GROUP_AUTH => $this->importAuthResource($resource),
+                    Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
+                    default => throw new \Exception('Invalid resource group'),
+                };
             } catch (\Throwable $e) {
                 if ($e->getCode() === 409) {
                     $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
                 } else {
                     $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+
                     $this->addError(new Exception(
                         resourceType: $resource->getGroup(),
-                        resourceId: $resource->getId(),
                         message: $e->getMessage(),
-                        code: $e->getCode()
+                        code: $e->getCode(),
+                        resourceId: $resource->getId()
                     ));
                 }
 
@@ -254,18 +270,24 @@ class Appwrite extends Destination
         $callback($resources);
     }
 
+    /**
+     * @throws AppwriteException
+     */
     public function importDatabaseResource(Resource $resource): Resource
     {
-        $databaseService = new Databases($this->client);
+        $this->databases = new Databases($this->client);
 
         switch ($resource->getName()) {
             case Resource::TYPE_DATABASE:
                 /** @var Database $resource */
-                $databaseService->create($resource->getId(), $resource->getDBName());
+                $this->databases->create(
+                    $resource->getId(),
+                    $resource->getDBName()
+                );
                 break;
             case Resource::TYPE_COLLECTION:
                 /** @var Collection $resource */
-                $newCollection = $databaseService->createCollection(
+                $newCollection = $this->databases->createCollection(
                     $resource->getDatabase()->getId(),
                     $resource->getId(),
                     $resource->getCollectionName(),
@@ -276,7 +298,7 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_INDEX:
                 /** @var Index $resource */
-                $databaseService->createIndex(
+                $this->databases->createIndex(
                     $resource->getCollection()->getDatabase()->getId(),
                     $resource->getCollection()->getId(),
                     $resource->getKey(),
@@ -291,16 +313,22 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_DOCUMENT:
                 /** @var Document $resource */
-                // Check if document has already been created by subcollection
-                $docExists = array_key_exists($resource->getId(), $this->cache->get(Resource::TYPE_DOCUMENT));
+                // Check if document has already been created
+                $exists = \array_key_exists(
+                    $resource->getId(),
+                    $this->cache->get(Resource::TYPE_DOCUMENT)
+                );
 
-                if ($docExists) {
-                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Document has been already created by relationship');
+                if ($exists) {
+                    $resource->setStatus(
+                        Resource::STATUS_SKIPPED,
+                        'Document has been already created by relationship'
+                    );
 
                     return $resource;
                 }
 
-                $databaseService->createDocument(
+                $this->databases->createDocument(
                     $resource->getDatabase()->getId(),
                     $resource->getCollection()->getId(),
                     $resource->getId(),
@@ -315,50 +343,121 @@ class Appwrite extends Destination
         return $resource;
     }
 
+    /**
+     * @throws AppwriteException
+     * @throws \Exception
+     */
     public function createAttribute(Attribute $attribute): void
     {
-        $databaseService = new Databases($this->client);
-
         switch ($attribute->getTypeName()) {
             case Attribute::TYPE_STRING:
                 /** @var Text $attribute */
-                $databaseService->createStringAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getSize(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                $this->databases->createStringAttribute(
+                    $attribute->getCollection()->getDatabase()->getId(),
+                    $attribute->getCollection()->getId(),
+                    $attribute->getKey(),
+                    $attribute->getSize(),
+                    $attribute->getRequired(),
+                    $attribute->getDefault(),
+                    $attribute->getArray()
+                );
                 break;
             case Attribute::TYPE_INTEGER:
-                /** @var int $attribute */
-                $databaseService->createIntegerAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getMin(), $attribute->getMax() ?? null, $attribute->getDefault(), $attribute->getArray());
+                /** @var \Utopia\Migration\Resources\Database\Attributes\Integer $attribute */
+                $this->databases->createIntegerAttribute(
+                    $attribute->getCollection()->getDatabase()->getId(),
+                    $attribute->getCollection()->getId(),
+                    $attribute->getKey(),
+                    $attribute->getRequired(),
+                    $attribute->getMin(),
+                    $attribute->getMax(),
+                    $attribute->getDefault(),
+                    $attribute->getArray()
+                );
                 break;
             case Attribute::TYPE_FLOAT:
                 /** @var Decimal $attribute */
-                $databaseService->createFloatAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), null, null, $attribute->getDefault(), $attribute->getArray());
+                $this->databases->createFloatAttribute(
+                    $attribute->getCollection()->getDatabase()->getId(),
+                    $attribute->getCollection()->getId(),
+                    $attribute->getKey(),
+                    $attribute->getRequired(),
+                    $attribute->getMin(),
+                    $attribute->getMax(),
+                    $attribute->getDefault(),
+                    $attribute->getArray()
+                );
                 break;
             case Attribute::TYPE_BOOLEAN:
-                /** @var bool $attribute */
-                $databaseService->createBooleanAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                /** @var Boolean $attribute */
+                $this->databases->createBooleanAttribute(
+                    $attribute->getCollection()->getDatabase()->getId(),
+                    $attribute->getCollection()->getId(),
+                    $attribute->getKey(),
+                    $attribute->getRequired(),
+                    $attribute->getDefault(),
+                    $attribute->getArray()
+                );
                 break;
             case Attribute::TYPE_DATETIME:
                 /** @var DateTime $attribute */
-                $databaseService->createDatetimeAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                $this->databases->createDatetimeAttribute(
+                    $attribute->getCollection()->getDatabase()->getId(),
+                    $attribute->getCollection()->getId(),
+                    $attribute->getKey(),
+                    $attribute->getRequired(),
+                    $attribute->getDefault(),
+                    $attribute->getArray()
+                );
                 break;
             case Attribute::TYPE_EMAIL:
                 /** @var Email $attribute */
-                $databaseService->createEmailAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                $this->databases->createEmailAttribute(
+                    $attribute->getCollection()->getDatabase()->getId(),
+                    $attribute->getCollection()->getId(),
+                    $attribute->getKey(),
+                    $attribute->getRequired(),
+                    $attribute->getDefault(),
+                    $attribute->getArray()
+                );
                 break;
             case Attribute::TYPE_IP:
                 /** @var IP $attribute */
-                $databaseService->createIpAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                $this->databases->createIpAttribute(
+                    $attribute->getCollection()->getDatabase()->getId(),
+                    $attribute->getCollection()->getId(),
+                    $attribute->getKey(),
+                    $attribute->getRequired(),
+                    $attribute->getDefault(),
+                    $attribute->getArray()
+                );
                 break;
             case Attribute::TYPE_URL:
-                /** @var URLAttribute $attribute */
-                $databaseService->createUrlAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                /** @var URL $attribute */
+                $this->databases->createUrlAttribute(
+                    $attribute->getCollection()->getDatabase()->getId(),
+                    $attribute->getCollection()->getId(),
+                    $attribute->getKey(),
+                    $attribute->getRequired(),
+                    $attribute->getDefault(),
+                    $attribute->getArray()
+                );
                 break;
             case Attribute::TYPE_ENUM:
                 /** @var Enum $attribute */
-                $databaseService->createEnumAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey(), $attribute->getElements(), $attribute->getRequired(), $attribute->getDefault(), $attribute->getArray());
+                $this->databases->createEnumAttribute(
+                    $attribute->getCollection()->getDatabase()->getId(),
+                    $attribute->getCollection()->getId(),
+                    $attribute->getKey(),
+                    $attribute->getElements(),
+                    $attribute->getRequired(),
+                    $attribute->getDefault(),
+                    $attribute->getArray()
+                );
                 break;
             case Attribute::TYPE_RELATIONSHIP:
                 /** @var Relationship $attribute */
-                $databaseService->createRelationshipAttribute(
+                $this->databases->createRelationshipAttribute(
                     $attribute->getCollection()->getDatabase()->getId(),
                     $attribute->getCollection()->getId(),
                     $attribute->getRelatedCollection(),
@@ -379,15 +478,14 @@ class Appwrite extends Destination
 
     /**
      * Await Attribute Creation
+     * @throws \Exception
      */
     public function awaitAttributeCreation(Attribute $attribute, int $timeout): bool
     {
-        $databaseService = new Databases($this->client);
-
         $start = \time();
 
         while (\time() - $start < $timeout) {
-            $response = $databaseService->getAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey());
+            $response = $this->databases->getAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey());
 
             if ($response['status'] === 'available') {
                 return true;
@@ -399,46 +497,30 @@ class Appwrite extends Destination
         throw new \Exception('Attribute creation timeout');
     }
 
-    public function importFileResource(File|Bucket $resource): Resource
+    /**
+     * @throws AppwriteException
+     */
+    public function importFileResource(Resource $resource): Resource
     {
-        $storageService = new Storage($this->client);
-
-        $response = null;
-
         switch ($resource->getName()) {
             case Resource::TYPE_FILE:
                 /** @var File $resource */
                 return $this->importFile($resource);
-                break;
             case Resource::TYPE_BUCKET:
                 /** @var Bucket $resource */
-                if (! $resource->getUpdateLimits()) {
-                    $response = $storageService->createBucket(
-                        $resource->getId() ?? 'unique()',
-                        $resource->getBucketName(),
-                        $resource->getPermissions(),
-                        $resource->getFileSecurity(),
-                        true, // Set to true for now, we'll come back later.
-                        null,
-                        null,
-                        $resource->getCompression() ?? 'none',
-                        $resource->getEncryption() ?? null,
-                        $resource->getAntiVirus() ?? null
-                    );
-                } else {
-                    $response = $storageService->updateBucket(
-                        $resource->getId(),
-                        $resource->getBucketName(),
-                        $resource->getPermissions(),
-                        $resource->getFileSecurity(),
-                        $resource->getEnabled(),
-                        $resource->getMaxFileSize() ?? null,
-                        $resource->getAllowedFileExtensions() ?? null,
-                        $resource->getCompression() ?? 'none',
-                        $resource->getEncryption() ?? null,
-                        $resource->getAntiVirus() ?? null
-                    );
-                }
+                $response = $this->storage->createBucket(
+                    $resource->getId(),
+                    $resource->getBucketName(),
+                    $resource->getPermissions(),
+                    $resource->getFileSecurity(),
+                    $resource->getEnabled(),
+                    $resource->getMaxFileSize(),
+                    $resource->getAllowedFileExtensions(),
+                    $resource->getCompression(),
+                    $resource->getEncryption(),
+                    $resource->getAntiVirus()
+                );
+
                 $resource->setId($response['$id']);
         }
 
@@ -451,6 +533,7 @@ class Appwrite extends Destination
      * Import File Data
      *
      * @returns File
+     * @throws AppwriteException
      */
     public function importFile(File $file): File
     {
@@ -486,9 +569,9 @@ class Appwrite extends Destination
             "/storage/buckets/{$bucketId}/files",
             [
                 'content-type' => 'multipart/form-data',
-                'content-range' => 'bytes '.($file->getStart()).'-'.($file->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $file->getEnd()).'/'.$file->getSize(),
-                'X-Appwrite-Project' => $this->project,
-                'x-Appwrite-Key' => $this->key,
+                'content-range' => 'bytes '.($file->getStart()) . '-' . ($file->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $file->getEnd()) . '/' . $file->getSize(),
+                'x-appwrite-project' => $this->project,
+                'x-appwrite-key' => $this->key,
             ],
             [
                 'bucketId' => $bucketId,
@@ -501,9 +584,9 @@ class Appwrite extends Destination
         if ($file->getEnd() == ($file->getSize() - 1)) {
             $file->setStatus(Resource::STATUS_SUCCESS);
 
-            // Signatures for Encrypted files are invalid, so we skip the check
-            if ($file->getBucket()->getEncryption() == false || $file->getSize() > (20 * 1024 * 1024)) {
-                if ($response['signature'] !== $file->getSignature()) {
+            // Signatures for encrypted files are invalid, so we skip the check
+            if (!$file->getBucket()->getEncryption() || $file->getSize() > (20 * 1024 * 1024)) {
+                if (\is_array($response) && $response['signature'] !== $file->getSignature()) {
                     $file->setStatus(Resource::STATUS_WARNING, 'File signature mismatch, Possibly corrupted.');
                 }
             }
@@ -514,22 +597,25 @@ class Appwrite extends Destination
         return $file;
     }
 
+    /**
+     * @throws AppwriteException
+     */
     public function importAuthResource(Resource $resource): Resource
     {
-        $userService = new Users($this->client);
-        $teamService = new Teams($this->client);
-
         switch ($resource->getName()) {
             case Resource::TYPE_USER:
                 /** @var User $resource */
-                if (in_array(User::TYPE_PASSWORD, $resource->getTypes())) {
+                if (\in_array(User::TYPE_PASSWORD, $resource->getTypes())) {
                     $this->importPasswordUser($resource);
-                } elseif (in_array(User::TYPE_OAUTH, $resource->getTypes())) {
-                    $resource->setStatus(Resource::STATUS_WARNING, 'OAuth users cannot be imported.');
+                } elseif (\in_array(User::TYPE_OAUTH, $resource->getTypes())) {
+                    $resource->setStatus(
+                        Resource::STATUS_WARNING,
+                        'OAuth users cannot be imported.'
+                    );
 
                     return $resource;
                 } else {
-                    $userService->create(
+                    $this->users->create(
                         $resource->getId(),
                         $resource->getEmail(),
                         in_array(User::TYPE_PHONE, $resource->getTypes()) ? $resource->getPhone() : null,
@@ -538,44 +624,48 @@ class Appwrite extends Destination
                     );
                 }
 
-                if ($resource->getUsername()) {
-                    $userService->updateName($resource->getId(), $resource->getUsername());
+                if (!empty($resource->getUsername())) {
+                    $this->users->updateName($resource->getId(), $resource->getUsername());
                 }
 
-                if ($resource->getPhone()) {
-                    $userService->updatePhone($resource->getId(), $resource->getPhone());
+                if (!empty($resource->getPhone())) {
+                    $this->users->updatePhone($resource->getId(), $resource->getPhone());
                 }
 
                 if ($resource->getEmailVerified()) {
-                    $userService->updateEmailVerification($resource->getId(), $resource->getEmailVerified());
+                    $this->users->updateEmailVerification($resource->getId(), true);
                 }
 
                 if ($resource->getPhoneVerified()) {
-                    $userService->updatePhoneVerification($resource->getId(), $resource->getPhoneVerified());
+                    $this->users->updatePhoneVerification($resource->getId(), true);
                 }
 
                 if ($resource->getDisabled()) {
-                    $userService->updateStatus($resource->getId(), ! $resource->getDisabled());
+                    $this->users->updateStatus($resource->getId(), false);
                 }
 
-                if ($resource->getPreferences()) {
-                    $userService->updatePrefs($resource->getId(), $resource->getPreferences());
+                if (!empty($resource->getPreferences())) {
+                    $this->users->updatePrefs($resource->getId(), $resource->getPreferences());
                 }
 
-                if ($resource->getLabels()) {
-                    $userService->updateLabels($resource->getId(), $resource->getLabels());
+                if (!empty($resource->getLabels())) {
+                    $this->users->updateLabels($resource->getId(), $resource->getLabels());
                 }
 
                 break;
             case Resource::TYPE_TEAM:
                 /** @var Team $resource */
-                $teamService->create($resource->getId(), $resource->getTeamName());
-                $teamService->updatePrefs($resource->getId(), $resource->getPreferences());
+                $this->teams->create($resource->getId(), $resource->getTeamName());
+
+                if (!empty($resource->getPreferences())) {
+                    $this->teams->updatePrefs($resource->getId(), $resource->getPreferences());
+                }
                 break;
             case Resource::TYPE_MEMBERSHIP:
                 /** @var Membership $resource */
                 $user = $resource->getUser();
-                $teamService->createMembership(
+
+                $this->teams->createMembership(
                     $resource->getTeam()->getId(),
                     $resource->getRoles(),
                     userId: $user->getId(),
@@ -588,19 +678,24 @@ class Appwrite extends Destination
         return $resource;
     }
 
+    /**
+     * @param User $user
+     * @return array<string, mixed>|null
+     * @throws AppwriteException
+     * @throws \Exception
+     */
     public function importPasswordUser(User $user): ?array
     {
-        $auth = new Users($this->client);
         $hash = $user->getPasswordHash();
         $result = null;
 
-        if (! $hash) {
+        if (!$hash) {
             throw new \Exception('Password hash is missing');
         }
 
         switch ($hash->getAlgorithm()) {
             case Hash::ALGORITHM_SCRYPT_MODIFIED:
-                $result = $auth->createScryptModifiedUser(
+                $result = $this->users->createScryptModifiedUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
@@ -611,7 +706,7 @@ class Appwrite extends Destination
                 );
                 break;
             case Hash::ALGORITHM_BCRYPT:
-                $result = $auth->createBcryptUser(
+                $result = $this->users->createBcryptUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
@@ -619,7 +714,7 @@ class Appwrite extends Destination
                 );
                 break;
             case Hash::ALGORITHM_ARGON2:
-                $result = $auth->createArgon2User(
+                $result = $this->users->createArgon2User(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
@@ -627,7 +722,7 @@ class Appwrite extends Destination
                 );
                 break;
             case Hash::ALGORITHM_SHA256:
-                $result = $auth->createShaUser(
+                $result = $this->users->createShaUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
@@ -636,7 +731,7 @@ class Appwrite extends Destination
                 );
                 break;
             case Hash::ALGORITHM_PHPASS:
-                $result = $auth->createPHPassUser(
+                $result = $this->users->createPHPassUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
@@ -644,7 +739,7 @@ class Appwrite extends Destination
                 );
                 break;
             case Hash::ALGORITHM_SCRYPT:
-                $result = $auth->createScryptUser(
+                $result = $this->users->createScryptUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
@@ -657,7 +752,7 @@ class Appwrite extends Destination
                 );
                 break;
             case Hash::ALGORITHM_PLAINTEXT:
-                $result = $auth->create(
+                $result = $this->users->create(
                     $user->getId(),
                     $user->getEmail(),
                     $user->getPhone(),
@@ -670,14 +765,15 @@ class Appwrite extends Destination
         return $result;
     }
 
+    /**
+     * @throws AppwriteException
+     */
     public function importFunctionResource(Resource $resource): Resource
     {
-        $functions = new Functions($this->client);
-
         switch ($resource->getName()) {
             case Resource::TYPE_FUNCTION:
                 /** @var Func $resource */
-                $functions->create(
+                $this->functions->create(
                     $resource->getId(),
                     $resource->getFunctionName(),
                     $resource->getRuntime(),
@@ -690,15 +786,15 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
                 /** @var EnvVar $resource */
-                $functions->createVariable(
+                $this->functions->createVariable(
                     $resource->getFunc()->getId(),
                     $resource->getKey(),
                     $resource->getValue()
                 );
                 break;
             case Resource::TYPE_DEPLOYMENT:
+                /** @var Deployment $resource */
                 return $this->importDeployment($resource);
-                break;
         }
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
@@ -706,6 +802,10 @@ class Appwrite extends Destination
         return $resource;
     }
 
+    /**
+     * @throws AppwriteException
+     * @throws \Exception
+     */
     private function importDeployment(Deployment $deployment): Resource
     {
         $functionId = $deployment->getFunction()->getId();
@@ -747,6 +847,10 @@ class Appwrite extends Destination
                 'entrypoint' => $deployment->getEntrypoint(),
             ]
         );
+
+        if (!\is_array($response) || !isset($response['$id'])) {
+            throw new \Exception('Deployment creation failed');
+        }
 
         if ($deployment->getStart() === 0) {
             $deployment->setId($response['$id']);

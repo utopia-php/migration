@@ -17,7 +17,7 @@ class MigrationCLI
     /**
      * Prints the current status of migrations as a table after wiping the screen
      */
-    public function drawFrame()
+    public function drawFrame(): void
     {
         echo chr(27).chr(91).'H'.chr(27).chr(91).'J';
 
@@ -31,7 +31,7 @@ class MigrationCLI
         }
     }
 
-    public function start()
+    public function start(): void
     {
         $dotenv = Dotenv::createImmutable(__DIR__);
         $dotenv->load();

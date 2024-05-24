@@ -113,7 +113,7 @@ class NHost extends Source
         }
 
         // Auth
-        if (in_array(Resource::TYPE_USER, $resources)) {
+        if (\in_array(Resource::TYPE_USER, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM auth.users');
             $statement->execute();
 
@@ -125,11 +125,11 @@ class NHost extends Source
         }
 
         // Databases
-        if (in_array(Resource::TYPE_DATABASE, $resources)) {
+        if (\in_array(Resource::TYPE_DATABASE, $resources)) {
             $report[Resource::TYPE_DATABASE] = 1;
         }
 
-        if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+        if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -140,7 +140,7 @@ class NHost extends Source
             $report[Resource::TYPE_COLLECTION] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+        if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -151,7 +151,7 @@ class NHost extends Source
             $report[Resource::TYPE_ATTRIBUTE] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_INDEX, $resources)) {
+        if (\in_array(Resource::TYPE_INDEX, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM pg_indexes WHERE schemaname = \'public\'');
             $statement->execute();
 
@@ -162,7 +162,7 @@ class NHost extends Source
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+        if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -174,7 +174,7 @@ class NHost extends Source
         }
 
         // Storage
-        if (in_array(Resource::TYPE_BUCKET, $resources)) {
+        if (\in_array(Resource::TYPE_BUCKET, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM storage.buckets');
             $statement->execute();
 
@@ -185,7 +185,7 @@ class NHost extends Source
             $report[Resource::TYPE_BUCKET] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_FILE, $resources)) {
+        if (\in_array(Resource::TYPE_FILE, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM storage.files');
             $statement->execute();
 
@@ -210,10 +210,10 @@ class NHost extends Source
         return $report;
     }
 
-    protected function exportGroupAuth(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_USER, $resources)) {
+            if (\in_array(Resource::TYPE_USER, $resources)) {
                 $this->exportUsers($batchSize);
             }
         } catch (\Throwable $e) {
@@ -224,7 +224,7 @@ class NHost extends Source
         }
     }
 
-    private function exportUsers(int $batchSize)
+    private function exportUsers(int $batchSize): void
     {
         $db = $this->getDatabase();
 
@@ -265,10 +265,10 @@ class NHost extends Source
         }
     }
 
-    protected function exportGroupDatabases(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_DATABASE, $resources)) {
+            if (\in_array(Resource::TYPE_DATABASE, $resources)) {
                 $this->exportDatabases($batchSize);
             }
         } catch (\Throwable $e) {
@@ -281,7 +281,7 @@ class NHost extends Source
         }
 
         try {
-            if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
                 $this->exportCollections($batchSize);
             }
         } catch (\Throwable $e) {
@@ -294,7 +294,7 @@ class NHost extends Source
         }
 
         try {
-            if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+            if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
                 $this->exportAttributes($batchSize);
             }
         } catch (\Throwable $e) {
@@ -307,7 +307,7 @@ class NHost extends Source
         }
 
         try {
-            if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
                 $this->exportDocuments($batchSize);
             }
         } catch (\Throwable $e) {
@@ -320,7 +320,7 @@ class NHost extends Source
         }
 
         try {
-            if (in_array(Resource::TYPE_INDEX, $resources)) {
+            if (\in_array(Resource::TYPE_INDEX, $resources)) {
                 $this->exportIndexes($batchSize);
             }
         } catch (\Throwable $e) {
@@ -341,7 +341,7 @@ class NHost extends Source
         $this->callback([$transferDatabase]);
     }
 
-    private function exportCollections(int $batchSize)
+    private function exportCollections(int $batchSize): void
     {
         $databases = $this->cache->get(Database::getName());
         $db = $this->getDatabase();
@@ -373,7 +373,7 @@ class NHost extends Source
         }
     }
 
-    private function exportAttributes(int $batchSize)
+    private function exportAttributes(int $batchSize): void
     {
         $collections = $this->cache->get(Collection::getName());
         $db = $this->getDatabase();
@@ -395,7 +395,7 @@ class NHost extends Source
         }
     }
 
-    private function exportIndexes(int $batchSize)
+    private function exportIndexes(int $batchSize): void
     {
         $collections = $this->cache->get(Collection::getName());
         $db = $this->getDatabase();
@@ -420,7 +420,7 @@ class NHost extends Source
         }
     }
 
-    private function exportDocuments(int $batchSize)
+    private function exportDocuments(int $batchSize): void
     {
         $databases = $this->cache->get(Database::getName());
         $collections = $this->cache->get(Collection::getName());
@@ -609,10 +609,10 @@ class NHost extends Source
         return $types;
     }
 
-    protected function exportGroupStorage(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+            if (\in_array(Resource::TYPE_BUCKET, $resources)) {
                 $this->exportBuckets($batchSize);
             }
         } catch (\Throwable $e) {
@@ -625,7 +625,7 @@ class NHost extends Source
         }
 
         try {
-            if (in_array(Resource::TYPE_FILE, $resources)) {
+            if (\in_array(Resource::TYPE_FILE, $resources)) {
                 $this->exportFiles($batchSize);
             }
         } catch (\Throwable $e) {
@@ -638,7 +638,7 @@ class NHost extends Source
         }
     }
 
-    protected function exportBuckets(int $batchSize)
+    protected function exportBuckets(int $batchSize): void
     {
         $db = $this->getDatabase();
         $total = $db->query('SELECT COUNT(*) FROM storage.buckets')->fetchColumn();
@@ -668,7 +668,7 @@ class NHost extends Source
         }
     }
 
-    private function exportFiles(int $batchSize)
+    private function exportFiles(int $batchSize): void
     {
         $buckets = $this->cache->get(Bucket::getName());
         $db = $this->getDatabase();
@@ -706,7 +706,7 @@ class NHost extends Source
         }
     }
 
-    private function exportFile(File $file)
+    private function exportFile(File $file): void
     {
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
