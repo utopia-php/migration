@@ -15,17 +15,33 @@ const TYPE_NULL = 'null';
 
 class Database extends Resource
 {
-    /**
-     * @var list<Collection>
-     */
-    private array $collections = [];
-
-    protected string $name;
-
-    public function __construct(string $name = '', string $id = '')
-    {
-        $this->name = $name;
+    public function __construct(
+        string $id = '',
+        private readonly string $name = '',
+    ) {
         $this->id = $id;
+    }
+
+    /**
+     * @param array<string, mixed> $array
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['id'],
+            $array['name'],
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+        ];
     }
 
     public static function getName(): string
@@ -41,34 +57,5 @@ class Database extends Resource
     public function getDBName(): string
     {
         return $this->name;
-    }
-
-    /**
-     * @return list<Collection>
-     */
-    public function getCollections(): array
-    {
-        return $this->collections;
-    }
-
-    /**
-     * @param  list<Collection>  $collections
-     */
-    public function setCollections(array $collections): self
-    {
-        $this->collections = $collections;
-
-        return $this;
-    }
-
-    public function asArray(): array
-    {
-        return [
-            'name' => $this->name,
-            'id' => $this->id,
-            'collections' => array_map(function ($collection) {
-                return $collection->asArray();
-            }, $this->collections),
-        ];
     }
 }

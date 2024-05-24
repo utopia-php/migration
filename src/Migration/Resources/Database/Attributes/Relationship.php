@@ -19,8 +19,18 @@ class Relationship extends Attribute
 
     protected string $side;
 
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, string $relatedCollection = '', string $relationType = '', bool $twoWay = false, string $twoWayKey = '', string $onDelete = '', string $side = '')
-    {
+    public function __construct(
+        string $key,
+        Collection $collection,
+        bool $required = false,
+        bool $array = false,
+        string $relatedCollection = '',
+        string $relationType = '',
+        bool $twoWay = false,
+        string $twoWayKey = '',
+        string $onDelete = '',
+        string $side = ''
+    ) {
         parent::__construct($key, $collection, $required, $array);
         $this->relatedCollection = $relatedCollection;
         $this->relationType = $relationType;
@@ -28,6 +38,41 @@ class Relationship extends Attribute
         $this->twoWayKey = $twoWayKey;
         $this->onDelete = $onDelete;
         $this->side = $side;
+    }
+
+    /**
+     * @param array<string, mixed> $array
+     * @return self
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['key'],
+            Collection::fromArray($array['collection']),
+            $array['required'] ?? false,
+            $array['array'] ?? false,
+            $array['relatedCollection'] ?? '',
+            $array['relationType'] ?? '',
+            $array['twoWay'] ?? false,
+            $array['twoWayKey'] ?? '',
+            $array['onDelete'] ?? '',
+            $array['side'] ?? ''
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return array_merge(parent::jsonSerialize(), [
+            'relatedCollection' => $this->relatedCollection,
+            'relationType' => $this->relationType,
+            'twoWay' => $this->twoWay,
+            'twoWayKey' => $this->twoWayKey,
+            'onDelete' => $this->onDelete,
+            'side' => $this->side,
+        ]);
     }
 
     public function getTypeName(): string
@@ -40,19 +85,9 @@ class Relationship extends Attribute
         return $this->relatedCollection;
     }
 
-    public function setRelatedCollection(string $relatedCollection): void
-    {
-        $this->relatedCollection = $relatedCollection;
-    }
-
     public function getRelationType(): string
     {
         return $this->relationType;
-    }
-
-    public function setRelationType(string $relationType): void
-    {
-        $this->relationType = $relationType;
     }
 
     public function getTwoWay(): bool
@@ -60,19 +95,9 @@ class Relationship extends Attribute
         return $this->twoWay;
     }
 
-    public function setTwoWay(bool $twoWay): void
-    {
-        $this->twoWay = $twoWay;
-    }
-
     public function getTwoWayKey(): string
     {
         return $this->twoWayKey;
-    }
-
-    public function setTwoWayKey(string $twoWayKey): void
-    {
-        $this->twoWayKey = $twoWayKey;
     }
 
     public function getOnDelete(): string
@@ -80,18 +105,8 @@ class Relationship extends Attribute
         return $this->onDelete;
     }
 
-    public function setOnDelete(string $onDelete): void
-    {
-        $this->onDelete = $onDelete;
-    }
-
     public function getSide(): string
     {
         return $this->side;
-    }
-
-    public function setSide(string $side): void
-    {
-        $this->side = $side;
     }
 }

@@ -7,34 +7,70 @@ use Utopia\Migration\Transfer;
 
 class File extends Resource
 {
-    protected Bucket $bucket;
-
-    protected string $name;
-
-    protected string $signature;
-
-    protected string $mimeType;
-
-    protected int $size;
-
-    protected string $data;
-
-    protected int $start;
-
-    protected int $end;
-
-    public function __construct(string $id = '', ?Bucket $bucket = null, string $name = '', string $signature = '', string $mimeType = '', array $permissions = [], int $size = 0, string $data = '', int $start = 0, int $end = 0)
-    {
+    /**
+     * @param string $id
+     * @param Bucket|null $bucket
+     * @param string $name
+     * @param string $signature
+     * @param string $mimeType
+     * @param array<string> $permissions
+     * @param int $size
+     * @param string $data
+     * @param int $start
+     * @param int $end
+     */
+    public function __construct(
+        string $id,
+        private readonly ?Bucket $bucket = null,
+        private readonly string $name = '',
+        private readonly string $signature = '',
+        private readonly string $mimeType = '',
+        array $permissions = [],
+        private readonly int $size = 0,
+        private string $data = '',
+        private int $start = 0,
+        private int $end = 0
+    ) {
         $this->id = $id;
-        $this->bucket = $bucket;
-        $this->name = $name;
-        $this->signature = $signature;
-        $this->mimeType = $mimeType;
         $this->permissions = $permissions;
-        $this->size = $size;
-        $this->data = $data;
-        $this->start = $start;
-        $this->end = $end;
+    }
+
+    /**
+     * @param array<string, mixed> $array
+     * @return self
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['id'],
+            Bucket::fromArray($array['bucket']),
+            $array['name'] ?? '',
+            $array['signature'] ?? '',
+            $array['mimeType'] ?? '',
+            $array['permissions'] ?? [],
+            $array['size'] ?? 0,
+            $array['data'] ?? '',
+            $array['start'] ?? 0,
+            $array['end'] ?? 0
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'id' => $this->id,
+            'bucket' => $this->bucket,
+            'name' => $this->name,
+            'signature' => $this->signature,
+            'mimeType' => $this->mimeType,
+            'permissions' => $this->permissions,
+            'size' => $this->size,
+            'start' => $this->start,
+            'end' => $this->end,
+        ];
     }
 
     public static function getName(): string
@@ -52,23 +88,9 @@ class File extends Resource
         return $this->bucket;
     }
 
-    public function setBucket(Bucket $bucket): self
-    {
-        $this->bucket = $bucket;
-
-        return $this;
-    }
-
     public function getFileName(): string
     {
         return $this->name;
-    }
-
-    public function setName(string $name): self
-    {
-        $this->name = $name;
-
-        return $this;
     }
 
     public function getSize(): int
@@ -81,23 +103,9 @@ class File extends Resource
         return $this->signature;
     }
 
-    public function setSignature(string $signature): self
-    {
-        $this->signature = $signature;
-
-        return $this;
-    }
-
     public function getMimeType(): string
     {
         return $this->mimeType;
-    }
-
-    public function setMimeType(string $mimeType): self
-    {
-        $this->mimeType = $mimeType;
-
-        return $this;
     }
 
     public function getData(): string
@@ -144,20 +152,5 @@ class File extends Resource
     public function getChunkSize(): int
     {
         return $this->end - $this->start;
-    }
-
-    public function asArray(): array
-    {
-        return [
-            'id' => $this->id,
-            'bucket' => $this->bucket->getId(),
-            'name' => $this->name,
-            'signature' => $this->signature,
-            'mimeType' => $this->mimeType,
-            'permissions' => $this->permissions,
-            'size' => $this->size,
-            'start' => $this->start,
-            'end' => $this->end,
-        ];
     }
 }

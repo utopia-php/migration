@@ -10,51 +10,70 @@ use Utopia\Migration\Transfer;
  */
 class Hash extends Resource
 {
-    public const ALGORITHM_SCRYPT_MODIFIED = 'scryptModified';
+    public const string ALGORITHM_SCRYPT_MODIFIED = 'scryptModified';
 
-    public const ALGORITHM_BCRYPT = 'bcrypt';
+    public const string ALGORITHM_BCRYPT = 'bcrypt';
 
-    public const ALGORITHM_MD5 = 'md5';
+    public const string ALGORITHM_MD5 = 'md5';
 
-    public const ALGORITHM_ARGON2 = 'argon2';
+    public const string ALGORITHM_ARGON2 = 'argon2';
 
-    public const ALGORITHM_SHA256 = 'sha256';
+    public const string ALGORITHM_SHA256 = 'sha256';
 
-    public const ALGORITHM_PHPASS = 'phpass';
+    public const string ALGORITHM_PHPASS = 'phpass';
 
-    public const ALGORITHM_SCRYPT = 'scrypt';
+    public const string ALGORITHM_SCRYPT = 'scrypt';
 
-    public const ALGORITHM_PLAINTEXT = 'plainText';
+    public const string ALGORITHM_PLAINTEXT = 'plainText';
 
-    private string $hash;
+    public function __construct(
+        private readonly string $hash,
+        private readonly string $salt = '',
+        private readonly string $algorithm = self::ALGORITHM_SHA256,
+        private readonly string $separator = '',
+        private readonly string $signingKey = '',
+        private readonly int $passwordCpu = 0,
+        private readonly int $passwordMemory = 0,
+        private readonly int $passwordParallel = 0,
+        private readonly int $passwordLength = 0
+    ) {
+    }
 
-    private string $salt = '';
-
-    private string $algorithm = self::ALGORITHM_SHA256;
-
-    private string $separator = '';
-
-    private string $signingKey = '';
-
-    private int $passwordCpu = 0;
-
-    private int $passwordMemory = 0;
-
-    private int $passwordParallel = 0;
-
-    private int $passwordLength = 0;
-
-    public function __construct(string $hash, string $salt = '', string $algorithm = self::ALGORITHM_SHA256, string $separator = '', string $signingKey = '', int $passwordCpu = 0, int $passwordMemory = 0, int $passwordParallel = 0, int $passwordLength = 0)
+    /**
+     * @param array<string, mixed> $array
+     * @return self
+     */
+    public static function fromArray(array $array): self
     {
-        $this->hash = $hash;
-        $this->salt = $salt;
-        $this->algorithm = $algorithm;
-        $this->separator = $separator;
-        $this->signingKey = $signingKey;
-        $this->passwordCpu = $passwordCpu;
-        $this->passwordMemory = $passwordMemory;
-        $this->passwordParallel = $passwordParallel;
-        $this->passwordLength = $passwordLength;
+        return new self(
+            $array['hash'] ?? '',
+            $array['salt'] ?? '',
+            $array['algorithm'] ?? self::ALGORITHM_SHA256,
+            $array['separator'] ?? '',
+            $array['signingKey'] ?? '',
+            $array['passwordCpu'] ?? 0,
+            $array['passwordMemory'] ?? 0,
+            $array['passwordParallel'] ?? 0,
+            $array['passwordLength'] ?? 0
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'hash' => $this->hash,
+            'salt' => $this->salt,
+            'algorithm' => $this->algorithm,
+            'separator' => $this->separator,
+            'signingKey' => $this->signingKey,
+            'passwordCpu' => $this->passwordCpu,
+            'passwordMemory' => $this->passwordMemory,
+            'passwordParallel' => $this->passwordParallel,
+            'passwordLength' => $this->passwordLength,
+        ];
     }
 
     public static function getName(): string
@@ -76,31 +95,11 @@ class Hash extends Resource
     }
 
     /**
-     * Set Hash
-     */
-    public function setHash(string $hash): self
-    {
-        $this->hash = $hash;
-
-        return $this;
-    }
-
-    /**
      * Get Salt
      */
     public function getSalt(): string
     {
         return $this->salt;
-    }
-
-    /**
-     * Set Salt
-     */
-    public function setSalt(string $salt): self
-    {
-        $this->salt = $salt;
-
-        return $this;
     }
 
     /**
@@ -112,31 +111,11 @@ class Hash extends Resource
     }
 
     /**
-     * Set Algorithm
-     */
-    public function setAlgorithm(string $algorithm): self
-    {
-        $this->algorithm = $algorithm;
-
-        return $this;
-    }
-
-    /**
      * Get Separator
      */
     public function getSeparator(): string
     {
         return $this->separator;
-    }
-
-    /**
-     * Set Separator
-     */
-    public function setSeparator(string $separator): self
-    {
-        $this->separator = $separator;
-
-        return $this;
     }
 
     /**
@@ -148,31 +127,11 @@ class Hash extends Resource
     }
 
     /**
-     * Set Signing Key
-     */
-    public function setSigningKey(string $signingKey): self
-    {
-        $this->signingKey = $signingKey;
-
-        return $this;
-    }
-
-    /**
      * Get Password CPU
      */
     public function getPasswordCpu(): int
     {
         return $this->passwordCpu;
-    }
-
-    /**
-     * Set Password CPU
-     */
-    public function setPasswordCpu(int $passwordCpu): self
-    {
-        $this->passwordCpu = $passwordCpu;
-
-        return $this;
     }
 
     /**
@@ -184,16 +143,6 @@ class Hash extends Resource
     }
 
     /**
-     * Set Password Memory
-     */
-    public function setPasswordMemory(int $passwordMemory): self
-    {
-        $this->passwordMemory = $passwordMemory;
-
-        return $this;
-    }
-
-    /**
      * Get Password Parallel
      */
     public function getPasswordParallel(): int
@@ -202,48 +151,10 @@ class Hash extends Resource
     }
 
     /**
-     * Set Password Parallel
-     */
-    public function setPasswordParallel(int $passwordParallel): self
-    {
-        $this->passwordParallel = $passwordParallel;
-
-        return $this;
-    }
-
-    /**
      * Get Password Length
      */
     public function getPasswordLength(): int
     {
         return $this->passwordLength;
-    }
-
-    /**
-     * Set Password Length
-     */
-    public function setPasswordLength(int $passwordLength): self
-    {
-        $this->passwordLength = $passwordLength;
-
-        return $this;
-    }
-
-    /**
-     * As Array
-     */
-    public function asArray(): array
-    {
-        return [
-            'hash' => $this->hash,
-            'salt' => $this->salt,
-            'algorithm' => $this->algorithm,
-            'separator' => $this->separator,
-            'signingKey' => $this->signingKey,
-            'passwordCpu' => $this->passwordCpu,
-            'passwordMemory' => $this->passwordMemory,
-            'passwordParallel' => $this->passwordParallel,
-            'passwordLength' => $this->passwordLength,
-        ];
     }
 }
