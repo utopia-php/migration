@@ -4,57 +4,57 @@ namespace Utopia\Migration;
 
 abstract class Resource implements \JsonSerializable
 {
-    public const string STATUS_PENDING = 'pending';
+    public const STATUS_PENDING = 'pending';
 
-    public const string STATUS_SUCCESS = 'success';
+    public const STATUS_SUCCESS = 'success';
 
-    public const string STATUS_ERROR = 'error';
+    public const STATUS_ERROR = 'error';
 
-    public const string STATUS_SKIPPED = 'skip';
+    public const STATUS_SKIPPED = 'skip';
 
-    public const string STATUS_PROCESSING = 'processing';
+    public const STATUS_PROCESSING = 'processing';
 
-    public const string STATUS_WARNING = 'warning';
+    public const STATUS_WARNING = 'warning';
 
     /**
      * For some transfers (namely Firebase) we have to keep resources in cache that do not necessarily need to be Transferred
      * This status is used to mark resources that are not going to be transferred but are still needed for the transfer to work
      * e.g Documents are required for Database transfers because of schema tracing in firebase
      */
-    public const string STATUS_DISREGARDED = 'disregarded';
+    public const STATUS_DISREGARDED = 'disregarded';
 
     // Master Resources
-    public const string TYPE_BUCKET = 'bucket';
+    public const TYPE_BUCKET = 'bucket';
 
-    public const string TYPE_COLLECTION = 'collection';
+    public const TYPE_COLLECTION = 'collection';
 
-    public const string TYPE_DATABASE = 'database';
+    public const TYPE_DATABASE = 'database';
 
-    public const string TYPE_DOCUMENT = 'document';
+    public const TYPE_DOCUMENT = 'document';
 
-    public const string TYPE_FILE = 'file';
+    public const TYPE_FILE = 'file';
 
-    public const string TYPE_USER = 'user';
+    public const TYPE_USER = 'user';
 
-    public const string TYPE_TEAM = 'team';
+    public const TYPE_TEAM = 'team';
 
-    public const string TYPE_MEMBERSHIP = 'membership';
+    public const TYPE_MEMBERSHIP = 'membership';
 
-    public const string TYPE_FUNCTION = 'function';
+    public const TYPE_FUNCTION = 'function';
 
-    public const string TYPE_INDEX = 'index';
+    public const TYPE_INDEX = 'index';
 
     // Children (Resources that are created by other resources)
 
-    public const string TYPE_ATTRIBUTE = 'attribute';
+    public const TYPE_ATTRIBUTE = 'attribute';
 
-    public const string TYPE_DEPLOYMENT = 'deployment';
+    public const TYPE_DEPLOYMENT = 'deployment';
 
-    public const string TYPE_HASH = 'hash';
+    public const TYPE_HASH = 'hash';
 
-    public const string TYPE_ENVIRONMENT_VARIABLE = 'environment variable';
+    public const TYPE_ENVIRONMENT_VARIABLE = 'environment variable';
 
-    public const array ALL_RESOURCES = [
+    public const ALL_RESOURCES = [
         self::TYPE_ATTRIBUTE,
         self::TYPE_BUCKET,
         self::TYPE_COLLECTION,

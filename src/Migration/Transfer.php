@@ -4,29 +4,29 @@ namespace Utopia\Migration;
 
 class Transfer
 {
-    public const string GROUP_GENERAL = 'general';
+    public const GROUP_GENERAL = 'general';
 
-    public const string GROUP_AUTH = 'auth';
+    public const GROUP_AUTH = 'auth';
 
-    public const string GROUP_STORAGE = 'storage';
+    public const GROUP_STORAGE = 'storage';
 
-    public const string GROUP_FUNCTIONS = 'functions';
+    public const GROUP_FUNCTIONS = 'functions';
 
-    public const string GROUP_DATABASES = 'databases';
+    public const GROUP_DATABASES = 'databases';
 
-    public const string GROUP_SETTINGS = 'settings';
+    public const GROUP_SETTINGS = 'settings';
 
-    public const array GROUP_AUTH_RESOURCES = [Resource::TYPE_USER, Resource::TYPE_TEAM, Resource::TYPE_MEMBERSHIP, Resource::TYPE_HASH];
+    public const GROUP_AUTH_RESOURCES = [Resource::TYPE_USER, Resource::TYPE_TEAM, Resource::TYPE_MEMBERSHIP, Resource::TYPE_HASH];
 
-    public const array GROUP_STORAGE_RESOURCES = [Resource::TYPE_FILE, Resource::TYPE_BUCKET];
+    public const GROUP_STORAGE_RESOURCES = [Resource::TYPE_FILE, Resource::TYPE_BUCKET];
 
-    public const array GROUP_FUNCTIONS_RESOURCES = [Resource::TYPE_FUNCTION, Resource::TYPE_ENVIRONMENT_VARIABLE, Resource::TYPE_DEPLOYMENT];
+    public const GROUP_FUNCTIONS_RESOURCES = [Resource::TYPE_FUNCTION, Resource::TYPE_ENVIRONMENT_VARIABLE, Resource::TYPE_DEPLOYMENT];
 
-    public const array GROUP_DATABASES_RESOURCES = [Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE, Resource::TYPE_DOCUMENT];
+    public const GROUP_DATABASES_RESOURCES = [Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE, Resource::TYPE_DOCUMENT];
 
-    public const array GROUP_SETTINGS_RESOURCES = [];
+    public const GROUP_SETTINGS_RESOURCES = [];
 
-    public const array ALL_PUBLIC_RESOURCES = [
+    public const ALL_PUBLIC_RESOURCES = [
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
         Resource::TYPE_MEMBERSHIP,
@@ -42,7 +42,7 @@ class Transfer
         Resource::TYPE_DOCUMENT,
     ];
 
-    public const int|float STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
+    public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 
     protected Source $source;
 
