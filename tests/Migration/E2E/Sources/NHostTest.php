@@ -9,8 +9,6 @@ use Utopia\Tests\E2E\Adapters\MockDestination;
 
 class NHostTest extends Base
 {
-    protected ?NHost $source = null;
-
     protected function setUp(): void
     {
         // Check DB is online and ready
@@ -64,6 +62,7 @@ class NHostTest extends Base
             'postgres',
             'password'
         );
+
         $this->source->pdo = new \PDO('pgsql:host=nhost-db'.';port=5432;dbname=postgres', 'postgres', 'postgres');
         $this->source->storageURL = 'http://nhost-storage';
 

@@ -9,8 +9,6 @@ use Utopia\Tests\E2E\Adapters\MockDestination;
 
 class SupabaseTest extends Base
 {
-    protected ?Supabase $source = null;
-
     protected function setUp(): void
     {
         // Check DB is online and ready

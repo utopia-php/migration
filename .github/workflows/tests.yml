@@ -25,32 +25,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Debug Cache
-        run: |
-          if [ -f /tmp/${{ env.IMAGE }}.tar ]; then
-            echo "Cache hit"
-          else
-            echo "Cache miss"
-          fi
-
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ env.CACHE_KEY }}-docker
-          restore-keys: |
-            ${{ env.CACHE_KEY }}-docker
-
       - name: Build Migrations
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: false
           tags: ${{ env.IMAGE }}
-          load: true
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-          outputs: type=docker,dest=/tmp/${{ env.IMAGE }}.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Cache Docker Image
         uses: actions/cache@v3

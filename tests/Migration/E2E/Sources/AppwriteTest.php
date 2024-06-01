@@ -27,18 +27,31 @@ class AppwriteTest extends Base
         }
 
         // Bootstrap Appwrite
+        $stdout = '';
+        $stderr = '';
         Console::execute(
             'appwrite-toolkit --endpoint http://appwrite/v1 --auto bootstrap --amount 1',
             '',
-            ''
+            $stdout,
+            $stderr
         );
+
+        Console::info($stdout);
+        Console::error($stderr);
+
+        $stdout = '';
+        $stderr = '';
 
         // Run Faker
         Console::execute(
             'appwrite-toolkit --endpoint http://appwrite/v1 --auto faker',
             '',
-            ''
+            $stdout,
+            $stderr
         );
+
+        Console::info($stdout);
+        Console::error($stderr);
 
         // Parse Faker JSON
         $projects = json_decode(file_get_contents('projects.json'), true);
