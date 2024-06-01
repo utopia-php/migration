@@ -28,14 +28,14 @@ class AppwriteTest extends Base
 
         // Bootstrap Appwrite
         Console::execute(
-            "appwrite-toolkit --endpoint http://appwrite/v1 --auto bootstrap --amount 1",
+            'appwrite-toolkit --endpoint http://appwrite/v1 --auto bootstrap --amount 1',
             '',
             ''
         );
 
         // Run Faker
         Console::execute(
-            "appwrite-toolkit --endpoint http://appwrite/v1 --auto faker",
+            'appwrite-toolkit --endpoint http://appwrite/v1 --auto faker',
             '',
             ''
         );
@@ -94,7 +94,7 @@ class AppwriteTest extends Base
             $this->assertNotEmpty($counters);
 
             if ($counters[Resource::STATUS_ERROR] > 0) {
-                $this->fail('Resource ' . $resource . ' has ' . $counters[Resource::STATUS_ERROR] . ' errors');
+                $this->fail('Resource '.$resource.' has '.$counters[Resource::STATUS_ERROR].' errors');
 
                 return;
             }
