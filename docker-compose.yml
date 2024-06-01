@@ -1,6 +1,7 @@
 services:
   ## Tests
   tests:
+    image: migrations-dev
     build:
       context: .
       target: tests
