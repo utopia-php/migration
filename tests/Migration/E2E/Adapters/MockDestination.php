@@ -5,13 +5,13 @@ namespace Utopia\Tests\E2E\Adapters;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 
-class Mock extends Destination
+class MockDestination extends Destination
 {
     public array $data = [];
 
     public static function getName(): string
     {
-        return 'Mock';
+        return 'Mock Destination';
     }
 
     public static function getSupportedResources(): array
@@ -37,7 +37,7 @@ class Mock extends Destination
     public function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var resource $resource */
+            /** @var Resource $resource */
             switch ($resource->getName()) {
                 case 'Deployment':
                     /** @var Deployment $resource */

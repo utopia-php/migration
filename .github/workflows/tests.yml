@@ -4,16 +4,22 @@ on:
   push: { branches: [main] }
 
 jobs:
-  tests:
-    name: Run Test Suite
+  source_e2e_tests:
+    name: Run Source E2E Tests
     runs-on: ubuntu-latest
     env:
       COMPOSE_FILE: docker-compose.yml
-
+    strategy:
+      fail-fast: false
+      matrix:
+        adapter: [Appwrite, Supabase, NHost]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Run Tests
+      - name: Bring up services
+        run: docker-compose up -d --build
+
+      - name: Run ${{matrix.adapter}} Tests
         run: |
-          docker-compose up -d --build && sleep 5 && docker compose exec tests php ./vendor/bin/phpunit
+          docker compose exec tests php ./vendor/bin/phpunit /usr/src/code/tests/Migration/E2E/Sources/${{matrix.adapter}}Test.php

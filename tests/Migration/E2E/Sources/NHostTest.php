@@ -2,20 +2,14 @@
 
 namespace Utopia\Tests\E2E\Sources;
 
-use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
-use Utopia\Migration\Source;
 use Utopia\Migration\Sources\NHost;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\E2E\Adapters\Mock;
+use Utopia\Tests\E2E\Adapters\MockDestination;
 
 class NHostTest extends Base
 {
-    protected ?Source $source = null;
-
-    protected ?Transfer $transfer = null;
-
-    protected ?Destination $destination = null;
+    protected ?NHost $source = null;
 
     protected function setUp(): void
     {
@@ -73,7 +67,7 @@ class NHostTest extends Base
         $this->source->pdo = new \PDO('pgsql:host=nhost-db'.';port=5432;dbname=postgres', 'postgres', 'postgres');
         $this->source->storageURL = 'http://nhost-storage';
 
-        $this->destination = new Mock();
+        $this->destination = new MockDestination();
         $this->transfer = new Transfer($this->source, $this->destination);
     }
 

@@ -2,20 +2,14 @@
 
 namespace Utopia\Tests\E2E\Sources;
 
-use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
-use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Supabase;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\E2E\Adapters\Mock;
+use Utopia\Tests\E2E\Adapters\MockDestination;
 
 class SupabaseTest extends Base
 {
-    protected ?Source $source = null;
-
-    protected ?Transfer $transfer = null;
-
-    protected ?Destination $destination = null;
+    protected ?Supabase $source = null;
 
     protected function setUp(): void
     {
@@ -53,7 +47,7 @@ class SupabaseTest extends Base
             'postgres'
         );
 
-        $this->destination = new Mock();
+        $this->destination = new MockDestination();
         $this->transfer = new Transfer($this->source, $this->destination);
     }
 
