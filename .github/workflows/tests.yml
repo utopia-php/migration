@@ -1,4 +1,13 @@
 name: Tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: migrations-dev
+  CACHE_KEY: migrations-dev-${{ github.event.pull_request.head.sha }}
+
 on:
   pull_request:
   push: { branches: [main] }
@@ -36,6 +45,7 @@ jobs:
   source_e2e_tests:
     name: Run Source E2E Tests
     runs-on: ubuntu-latest
+    needs: setup
     env:
       COMPOSE_FILE: docker-compose.yml
     strategy:
@@ -54,8 +64,8 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Bring up services
-        run: docker-compose up -d --build
+        run: docker-compose up -d
 
       - name: Run ${{matrix.adapter}} Tests
         run: |
-          docker compose exec tests php ./vendor/bin/phpunit /usr/src/code/tests/Migration/E2E/Sources/${{matrix.adapter}}Test.php
+          docker compose exec tests php ./vendor/bin/phpunit /app/tests/Migration/E2E/Sources/${{matrix.adapter}}Test.php
