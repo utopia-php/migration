@@ -30,6 +30,7 @@ class Bucket extends Resource
         private readonly string $compression = 'none',
         private readonly bool $encryption = false,
         private readonly bool $antiVirus = false,
+        private readonly bool $updateLimits = false,
     ) {
         $this->id = $id;
         $this->permissions = $permissions;
