@@ -43,7 +43,7 @@ class File extends Resource
     {
         return new self(
             $array['id'],
-            Bucket::fromArray($array['bucket']),
+            Bucket::fromArray($array['bucket']), // Do we need here only the BucketId?
             $array['name'] ?? '',
             $array['signature'] ?? '',
             $array['mimeType'] ?? '',
