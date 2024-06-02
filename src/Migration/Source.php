@@ -11,6 +11,10 @@ abstract class Source extends Target
      */
     public array $previousReport = [];
 
+    /**
+     * @param array<Resource> $resources
+     * @return void
+     */
     public function callback(array $resources): void
     {
         ($this->transferCallback)($resources);
@@ -19,7 +23,7 @@ abstract class Source extends Target
     /**
      * Transfer Resources into destination
      *
-     * @param  string[]  $resources  Resources to transfer
+     * @param  array<string>  $resources  Resources to transfer
      * @param  callable  $callback  Callback to run after transfer
      */
     public function run(array $resources, callable $callback): void
@@ -45,22 +49,22 @@ abstract class Source extends Target
     /**
      * Export Resources
      *
-     * @param  string[]  $resources  Resources to export
+     * @param  array<string>  $resources  Resources to export
      * @param  int  $batchSize  Max 100
      */
-    public function exportResources(array $resources, int $batchSize)
+    public function exportResources(array $resources, int $batchSize): void
     {
         // Convert Resources back into their relevant groups
 
         $groups = [];
         foreach ($resources as $resource) {
-            if (in_array($resource, Transfer::GROUP_AUTH_RESOURCES)) {
+            if (\in_array($resource, Transfer::GROUP_AUTH_RESOURCES)) {
                 $groups[Transfer::GROUP_AUTH][] = $resource;
-            } elseif (in_array($resource, Transfer::GROUP_DATABASES_RESOURCES)) {
+            } elseif (\in_array($resource, Transfer::GROUP_DATABASES_RESOURCES)) {
                 $groups[Transfer::GROUP_DATABASES][] = $resource;
-            } elseif (in_array($resource, Transfer::GROUP_STORAGE_RESOURCES)) {
+            } elseif (\in_array($resource, Transfer::GROUP_STORAGE_RESOURCES)) {
                 $groups[Transfer::GROUP_STORAGE][] = $resource;
-            } elseif (in_array($resource, Transfer::GROUP_FUNCTIONS_RESOURCES)) {
+            } elseif (\in_array($resource, Transfer::GROUP_FUNCTIONS_RESOURCES)) {
                 $groups[Transfer::GROUP_FUNCTIONS][] = $resource;
             }
         }
@@ -92,7 +96,7 @@ abstract class Source extends Target
      * Export Auth Group
      *
      * @param  int  $batchSize  Max 100
-     * @param  string[]  $resources  Resources to export
+     * @param  array<string>  $resources  Resources to export
      */
     abstract protected function exportGroupAuth(int $batchSize, array $resources);
 
@@ -100,7 +104,7 @@ abstract class Source extends Target
      * Export Databases Group
      *
      * @param  int  $batchSize  Max 100
-     * @param  string[]  $resources  Resources to export
+     * @param  array<string>  $resources  Resources to export
      */
     abstract protected function exportGroupDatabases(int $batchSize, array $resources);
 
@@ -108,7 +112,7 @@ abstract class Source extends Target
      * Export Storage Group
      *
      * @param  int  $batchSize  Max 5
-     * @param  string[]  $resources  Resources to export
+     * @param  array<string>  $resources  Resources to export
      */
     abstract protected function exportGroupStorage(int $batchSize, array $resources);
 
@@ -116,7 +120,7 @@ abstract class Source extends Target
      * Export Functions Group
      *
      * @param  int  $batchSize  Max 100
-     * @param  string[]  $resources  Resources to export
+     * @param  array<string>  $resources  Resources to export
      */
     abstract protected function exportGroupFunctions(int $batchSize, array $resources);
 }

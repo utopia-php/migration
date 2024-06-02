@@ -7,33 +7,66 @@ use Utopia\Migration\Transfer;
 
 class Func extends Resource
 {
-    protected string $name;
-
-    protected array $execute;
-
-    protected bool $enabled;
-
-    protected string $runtime;
-
-    protected array $events;
-
-    protected string $schedule;
-
-    protected int $timeout;
-
-    protected string $activeDeployment;
-
-    public function __construct(string $name, string $id, string $runtime, array $execute = [], bool $enabled = true, array $events = [], string $schedule = '', int $timeout = 0, string $activeDeployment = '')
-    {
-        $this->name = $name;
+    /**
+     * @param string $name
+     * @param string $id
+     * @param string $runtime
+     * @param array<string> $execute
+     * @param bool $enabled
+     * @param array<string> $events
+     * @param string $schedule
+     * @param int $timeout
+     * @param string $activeDeployment
+     */
+    public function __construct(
+        string $id,
+        private readonly string $name,
+        private readonly string $runtime,
+        private readonly array $execute = [],
+        private readonly bool $enabled = true,
+        private readonly array $events = [],
+        private readonly string $schedule = '',
+        private readonly int $timeout = 0,
+        private readonly string $activeDeployment = ''
+    ) {
         $this->id = $id;
-        $this->execute = $execute;
-        $this->enabled = $enabled;
-        $this->runtime = $runtime;
-        $this->events = $events;
-        $this->schedule = $schedule;
-        $this->timeout = $timeout;
-        $this->activeDeployment = $activeDeployment;
+    }
+
+    /**
+     * @param array<string, mixed> $array
+     * @return self
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['id'],
+            $array['name'],
+            $array['runtime'],
+            $array['execute'] ?? [],
+            $array['enabled'] ?? true,
+            $array['events'] ?? [],
+            $array['schedule'] ?? '',
+            $array['timeout'] ?? 0,
+            $array['activeDeployment'] ?? ''
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'name' => $this->name,
+            'id' => $this->id,
+            'execute' => $this->execute,
+            'enabled' => $this->enabled,
+            'runtime' => $this->runtime,
+            'events' => $this->events,
+            'schedule' => $this->schedule,
+            'timeout' => $this->timeout,
+            'activeDeployment' => $this->activeDeployment,
+        ];
     }
 
     public static function getName(): string
@@ -56,23 +89,9 @@ class Func extends Resource
         return $this->execute;
     }
 
-    public function setExecute(array $execute): self
-    {
-        $this->execute = $execute;
-
-        return $this;
-    }
-
     public function getEnabled(): bool
     {
         return $this->enabled;
-    }
-
-    public function setEnabled(bool $enabled): self
-    {
-        $this->enabled = $enabled;
-
-        return $this;
     }
 
     public function getRuntime(): string
@@ -80,23 +99,9 @@ class Func extends Resource
         return $this->runtime;
     }
 
-    public function setRuntime(string $runtime): self
-    {
-        $this->runtime = $runtime;
-
-        return $this;
-    }
-
     public function getEvents(): array
     {
         return $this->events;
-    }
-
-    public function setEvents(array $events): self
-    {
-        $this->events = $events;
-
-        return $this;
     }
 
     public function getSchedule(): string
@@ -104,49 +109,13 @@ class Func extends Resource
         return $this->schedule;
     }
 
-    public function setSchedule(string $schedule): self
-    {
-        $this->schedule = $schedule;
-
-        return $this;
-    }
-
     public function getTimeout(): int
     {
         return $this->timeout;
     }
 
-    public function setTimeout(int $timeout): self
-    {
-        $this->timeout = $timeout;
-
-        return $this;
-    }
-
     public function getActiveDeployment(): string
     {
         return $this->activeDeployment;
-    }
-
-    public function setActiveDeployment(string $activeDeployment): self
-    {
-        $this->activeDeployment = $activeDeployment;
-
-        return $this;
-    }
-
-    public function asArray(): array
-    {
-        return [
-            'name' => $this->name,
-            'id' => $this->id,
-            'execute' => $this->execute,
-            'enabled' => $this->enabled,
-            'runtime' => $this->runtime,
-            'events' => $this->events,
-            'schedule' => $this->schedule,
-            'timeout' => $this->timeout,
-            'activeDeployment' => $this->activeDeployment,
-        ];
     }
 }

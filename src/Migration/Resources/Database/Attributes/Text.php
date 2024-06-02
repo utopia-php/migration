@@ -7,18 +7,42 @@ use Utopia\Migration\Resources\Database\Collection;
 
 class Text extends Attribute
 {
-    protected ?string $default;
-
-    protected int $size = 256;
+    public function __construct(
+        string $key,
+        Collection $collection,
+        bool $required = false,
+        bool $array = false,
+        private readonly ?string $default = null,
+        private readonly int $size = 256
+    ) {
+        parent::__construct($key, $collection, $required, $array);
+    }
 
     /**
-     * @param  ?string  $default
+     * @param array<string, mixed> $array
+     * @return self
      */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?string $default = null, int $size = 256)
+    public static function fromArray(array $array): self
     {
-        parent::__construct($key, $collection, $required, $array);
-        $this->default = $default;
-        $this->size = $size;
+        return new self(
+            $array['key'],
+            Collection::fromArray($array['collection']),
+            $array['required'] ?? false,
+            $array['array'] ?? false,
+            $array['default'] ?? null,
+            $array['size'] ?? 256
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return array_merge(parent::jsonSerialize(), [
+            'default' => $this->default,
+            'size' => $this->size,
+        ]);
     }
 
     public function getTypeName(): string
@@ -31,27 +55,8 @@ class Text extends Attribute
         return $this->size;
     }
 
-    public function setSize(int $size): self
-    {
-        $this->size = $size;
-
-        return $this;
-    }
-
     public function getDefault(): ?string
     {
         return $this->default;
-    }
-
-    public function setDefault(string $default): void
-    {
-        $this->default = $default;
-    }
-
-    public function asArray(): array
-    {
-        return array_merge(parent::asArray(), [
-            'size' => $this->size,
-        ]);
     }
 }

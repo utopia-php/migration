@@ -7,43 +7,47 @@ use Utopia\Migration\Transfer;
 
 abstract class Attribute extends Resource
 {
-    public const TYPE_STRING = 'string';
+    public const string TYPE_STRING = 'string';
 
-    public const TYPE_INTEGER = 'int';
+    public const string TYPE_INTEGER = 'int';
 
-    public const TYPE_FLOAT = 'float';
+    public const string TYPE_FLOAT = 'float';
 
-    public const TYPE_BOOLEAN = 'bool';
+    public const string TYPE_BOOLEAN = 'bool';
 
-    public const TYPE_DATETIME = 'dateTime';
+    public const string TYPE_DATETIME = 'dateTime';
 
-    public const TYPE_EMAIL = 'email';
+    public const string TYPE_EMAIL = 'email';
 
-    public const TYPE_ENUM = 'enum';
+    public const string TYPE_ENUM = 'enum';
 
-    public const TYPE_IP = 'IP';
+    public const string TYPE_IP = 'IP';
 
-    public const TYPE_URL = 'URL';
+    public const string TYPE_URL = 'URL';
 
-    public const TYPE_RELATIONSHIP = 'relationship';
+    public const string TYPE_RELATIONSHIP = 'relationship';
 
-    protected string $key;
 
-    protected bool $required;
-
-    protected bool $array;
-
-    protected Collection $collection;
+    public function __construct(
+        protected readonly string $key,
+        protected readonly Collection $collection,
+        protected readonly bool $required = false,
+        protected readonly bool $array = false
+    ) {
+    }
 
     /**
-     * @param  int  $size
+     * @return array<string, mixed>
      */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false)
+    public function jsonSerialize(): array
     {
-        $this->key = $key;
-        $this->required = $required;
-        $this->array = $array;
-        $this->collection = $collection;
+        return [
+            'key' => $this->key,
+            'type' => $this->getTypeName(),
+            'collection' => $this->collection,
+            'required' => $this->required,
+            'array' => $this->array,
+        ];
     }
 
     public static function getName(): string
@@ -63,23 +67,9 @@ abstract class Attribute extends Resource
         return $this->key;
     }
 
-    public function setKey(string $key): self
-    {
-        $this->key = $key;
-
-        return $this;
-    }
-
     public function getCollection(): Collection
     {
         return $this->collection;
-    }
-
-    public function setCollection(Collection $collection)
-    {
-        $this->collection = $collection;
-
-        return $this;
     }
 
     public function getRequired(): bool
@@ -87,32 +77,8 @@ abstract class Attribute extends Resource
         return $this->required;
     }
 
-    public function setRequired(bool $required): self
-    {
-        $this->required = $required;
-
-        return $this;
-    }
-
     public function getArray(): bool
     {
         return $this->array;
-    }
-
-    public function setArray(bool $array): self
-    {
-        $this->array = $array;
-
-        return $this;
-    }
-
-    public function asArray(): array
-    {
-        return [
-            'key' => $this->key,
-            'required' => $this->required,
-            'array' => $this->array,
-            'type' => $this->getName(),
-        ];
     }
 }

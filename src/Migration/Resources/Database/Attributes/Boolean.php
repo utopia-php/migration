@@ -7,21 +7,39 @@ use Utopia\Migration\Resources\Database\Collection;
 
 class Boolean extends Attribute
 {
-    protected string $key;
-
-    protected bool $required;
-
-    protected bool $array;
-
-    protected ?bool $default;
+    public function __construct(
+        string $key,
+        Collection $collection,
+        bool $required = false,
+        bool $array = false,
+        private readonly ?bool $default = null
+    ) {
+        parent::__construct($key, $collection, $required, $array);
+    }
 
     /**
-     * @param  ?bool  $default
+     * @param array<string, mixed> $array
+     * @return self
      */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?bool $default = null)
+    public static function fromArray(array $array): self
     {
-        parent::__construct($key, $collection, $required, $array);
-        $this->default = $default;
+        return new self(
+            $array['key'],
+            Collection::fromArray($array['collection']),
+            $array['required'] ?? false,
+            $array['array'] ?? false,
+            $array['default'] ?? null
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return array_merge(parent::jsonSerialize(), [
+            'default' => $this->default,
+        ]);
     }
 
     public function getTypeName(): string
@@ -32,17 +50,5 @@ class Boolean extends Attribute
     public function getDefault(): ?bool
     {
         return $this->default;
-    }
-
-    public function setDefault(bool $default): void
-    {
-        $this->default = $default;
-    }
-
-    public function asArray(): array
-    {
-        return array_merge(parent::asArray(), [
-            'default' => $this->default,
-        ]);
     }
 }

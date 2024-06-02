@@ -2,7 +2,7 @@
 
 namespace Utopia\Migration;
 
-abstract class Resource
+abstract class Resource implements \JsonSerializable
 {
     public const STATUS_PENDING = 'pending';
 
@@ -149,7 +149,7 @@ abstract class Resource
     }
 
     /**
-     * @returns string[]
+     * @returns array<string>
      */
     public function getPermissions(): array
     {
@@ -157,7 +157,7 @@ abstract class Resource
     }
 
     /**
-     * @param  string[]  $permissions
+     * @param  array<string>  $permissions
      */
     public function setPermissions(array $permissions): self
     {
@@ -165,6 +165,4 @@ abstract class Resource
 
         return $this;
     }
-
-    abstract public function asArray(): array;
 }

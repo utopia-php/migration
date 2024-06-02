@@ -8,28 +8,48 @@ use Utopia\Migration\Transfer;
 class Collection extends Resource
 {
     /**
-     * @var list<Attribute>
+     * @param Database $database
+     * @param string $name
+     * @param string $id
+     * @param bool $documentSecurity
+     * @param array<string> $permissions
      */
-    private array $columns = [];
+    public function __construct(
+        private readonly Database $database,
+        private readonly string $name,
+        string $id,
+        private readonly bool $documentSecurity = false,
+        array $permissions = []
+    ) {
+        $this->id = $id;
+        $this->permissions = $permissions;
+    }
 
     /**
-     * @var list<Index>
+     * @param array<string, mixed> $array
      */
-    private array $indexes = [];
-
-    private Database $database;
-
-    protected bool $documentSecurity = false;
-
-    protected string $name;
-
-    public function __construct(Database $database, string $name, string $id, bool $documentSecurity = false, array $permissions = [])
+    public static function fromArray(array $array): self
     {
-        $this->database = $database;
-        $this->name = $name;
-        $this->id = $id;
-        $this->documentSecurity = $documentSecurity;
-        $this->permissions = $permissions;
+        return new self(
+            Database::fromArray($array['database']),
+            $array['name'],
+            $array['id'],
+            $array['documentSecurity'] ?? false,
+            $array['permissions'] ?? []
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return array_merge([
+            'database' => $this->database,
+            'name' => $this->name,
+            'documentSecurity' => $this->documentSecurity,
+            'permissions' => $this->permissions,
+        ]);
     }
 
     public static function getName(): string
@@ -47,44 +67,13 @@ class Collection extends Resource
         return $this->database;
     }
 
-    public function setDatabase(Database $database): self
-    {
-        $this->database = $database;
-
-        return $this;
-    }
-
     public function getCollectionName(): string
     {
         return $this->name;
     }
 
-    public function setCollectionName(string $name): self
-    {
-        $this->name = $name;
-
-        return $this;
-    }
-
     public function getDocumentSecurity(): bool
     {
         return $this->documentSecurity;
-    }
-
-    public function setDocumentSecurity(bool $documentSecurity): self
-    {
-        $this->documentSecurity = $documentSecurity;
-
-        return $this;
-    }
-
-    public function asArray(): array
-    {
-        return [
-            'name' => $this->name,
-            'id' => $this->id,
-            'permissions' => $this->permissions,
-            'documentSecurity' => $this->documentSecurity,
-        ];
     }
 }

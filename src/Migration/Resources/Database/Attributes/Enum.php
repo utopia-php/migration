@@ -7,19 +7,45 @@ use Utopia\Migration\Resources\Database\Collection;
 
 class Enum extends Attribute
 {
-    protected ?string $default;
-
-    protected array $elements;
+    /**
+     * @param  array<string>  $elements
+     */
+    public function __construct(
+        string $key,
+        Collection $collection,
+        private readonly array $elements,
+        bool $required = false,
+        bool $array = false,
+        private readonly ?string $default = null
+    ) {
+        parent::__construct($key, $collection, $required, $array);
+    }
 
     /**
-     * @param  string[]  $elements
-     * @param  ?string  $default
+     * @param array<string, mixed> $array
+     * @return self
      */
-    public function __construct(string $key, Collection $collection, array $elements, bool $required, bool $array, ?string $default)
+    public static function fromArray(array $array): self
     {
-        parent::__construct($key, $collection, $required, $array);
-        $this->default = $default;
-        $this->elements = $elements;
+        return new self(
+            $array['key'],
+            Collection::fromArray($array['collection']),
+            $array['elements'],
+            $array['required'] ?? false,
+            $array['array'] ?? false,
+            $array['default'] ?? null
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return array_merge(parent::jsonSerialize(), [
+            'elements' => $this->elements,
+            'default' => $this->default,
+        ]);
     }
 
     public function getTypeName(): string
@@ -27,32 +53,16 @@ class Enum extends Attribute
         return Attribute::TYPE_ENUM;
     }
 
+    /**
+     * @return array<string>
+     */
     public function getElements(): array
     {
         return $this->elements;
     }
 
-    public function setElements(array $elements): self
-    {
-        $this->elements = $elements;
-
-        return $this;
-    }
-
     public function getDefault(): ?string
     {
         return $this->default;
-    }
-
-    public function setDefault(string $default): void
-    {
-        $this->default = $default;
-    }
-
-    public function asArray(): array
-    {
-        return array_merge(parent::asArray(), [
-            'elements' => $this->elements,
-        ]);
     }
 }

@@ -22,6 +22,9 @@ use Utopia\Migration\Transfer;
 
 class Firebase extends Source
 {
+    /**
+     * @var array<string, mixed>
+     */
     private array $serviceAccount;
 
     private string $projectID;
@@ -30,6 +33,9 @@ class Firebase extends Source
 
     private int $tokenExpires = 0;
 
+    /**
+     * @param array<string, mixed> $serviceAccount
+     */
     public function __construct(array $serviceAccount)
     {
         $this->serviceAccount = $serviceAccount;
@@ -41,7 +47,7 @@ class Firebase extends Source
         return 'Firebase';
     }
 
-    private function base64UrlEncode($data)
+    private function base64UrlEncode(string $data): string
     {
         return str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($data));
     }
@@ -51,8 +57,8 @@ class Firebase extends Source
         $jwtClaim = [
             'iss' => $this->serviceAccount['client_email'],
             'scope' => 'https://www.googleapis.com/auth/firebase https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/datastore',
-            'exp' => time() + 3600,
-            'iat' => time(),
+            'exp' => \time() + 3600,
+            'iat' => \time(),
             'aud' => 'https://oauth2.googleapis.com/token',
         ];
 
@@ -64,16 +70,23 @@ class Firebase extends Source
         $jwtPayload = $this->base64UrlEncode(json_encode($jwtHeader)).'.'.$this->base64UrlEncode(json_encode($jwtClaim));
 
         $jwtSignature = '';
-        openssl_sign($jwtPayload, $jwtSignature, $this->serviceAccount['private_key'], 'sha256');
+
+        \openssl_sign(
+            $jwtPayload,
+            $jwtSignature,
+            $this->serviceAccount['private_key'],
+            'sha256'
+        );
+
         $jwtSignature = $this->base64UrlEncode($jwtSignature);
 
-        return $jwtPayload.'.'.$jwtSignature;
+        return $jwtPayload . '.' . $jwtSignature;
     }
 
     /**
      * Computes the JWT then fetches an auth token from the Google OAuth2 API which is valid for an hour
      */
-    private function authenticate()
+    private function authenticate(): void
     {
         if (time() < $this->tokenExpires) {
             return;
@@ -95,7 +108,7 @@ class Firebase extends Source
         }
     }
 
-    protected function call(string $method, string $path = '', array $headers = [], array $params = [], &$responseHeaders = []): array|string
+    protected function call(string $method, string $path = '', array $headers = [], array $params = [], array &$responseHeaders = []): array|string
     {
         $this->authenticate();
 
@@ -148,7 +161,7 @@ class Firebase extends Source
         return [];
     }
 
-    protected function exportGroupAuth(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources): void
     {
         // Check if Auth is enabled
         try {
@@ -165,7 +178,7 @@ class Firebase extends Source
         }
 
         try {
-            if (in_array(Resource::TYPE_USER, $resources)) {
+            if (\in_array(Resource::TYPE_USER, $resources)) {
                 $this->exportUsers($batchSize);
             }
         } catch (\Throwable $e) {
@@ -178,7 +191,7 @@ class Firebase extends Source
         }
     }
 
-    private function exportUsers(int $batchSize)
+    private function exportUsers(int $batchSize): void
     {
         // Fetch our Hash Config
         $hashConfig = ($this->call('GET', 'https://identitytoolkit.googleapis.com/admin/v2/projects/'.$this->projectID.'/config'))['signIn']['hashConfig'];
@@ -258,7 +271,7 @@ class Firebase extends Source
         return $types;
     }
 
-    protected function exportGroupDatabases(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         // Check if Firestore is enabled
         try {
@@ -275,7 +288,7 @@ class Firebase extends Source
         }
 
         try {
-            if (in_array(Resource::TYPE_DATABASE, $resources)) {
+            if (\in_array(Resource::TYPE_DATABASE, $resources)) {
                 $database = new Database('default', 'default');
                 $database->setOriginalId('(default)');
                 $this->callback([$database]);
@@ -290,7 +303,7 @@ class Firebase extends Source
         }
 
         try {
-            if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
                 $this->exportDB($batchSize, in_array(Resource::TYPE_DOCUMENT, $resources), $database);
             }
         } catch (\Throwable $e) {
@@ -303,7 +316,7 @@ class Firebase extends Source
         }
     }
 
-    private function exportDB(int $batchSize, bool $pushDocuments, Database $database)
+    private function exportDB(int $batchSize, bool $pushDocuments, Database $database): void
     {
         $baseURL = "https://firestore.googleapis.com/v1/projects/{$this->projectID}/databases/(default)/documents";
 
@@ -413,7 +426,7 @@ class Firebase extends Source
         }
     }
 
-    private function exportCollection(Collection $collection, int $batchSize, bool $transferDocuments)
+    private function exportCollection(Collection $collection, int $batchSize, bool $transferDocuments): void
     {
         $resourceURL = 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases/'.$collection->getDatabase()->getOriginalId().'/documents/'.$collection->getId();
 
@@ -528,7 +541,7 @@ class Firebase extends Source
         return new Document($documentId, $collection->getDatabase(), $collection, $data, []);
     }
 
-    protected function exportGroupStorage(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources): void
     {
         // Check if storage is enabled
         try {
@@ -549,7 +562,7 @@ class Firebase extends Source
         }
 
         try {
-            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+            if (\in_array(Resource::TYPE_BUCKET, $resources)) {
                 $this->exportBuckets($batchSize);
             }
         } catch (\Throwable $e) {
@@ -560,7 +573,7 @@ class Firebase extends Source
         }
 
         try {
-            if (in_array(Resource::TYPE_FILE, $resources)) {
+            if (\in_array(Resource::TYPE_FILE, $resources)) {
                 $this->exportFiles($batchSize);
             }
         } catch (\Throwable $e) {
@@ -572,7 +585,7 @@ class Firebase extends Source
 
     }
 
-    private function exportBuckets(int $batchsize)
+    private function exportBuckets(int $batchsize): void
     {
         $endpoint = 'https://storage.googleapis.com/storage/v1/b';
 
@@ -612,7 +625,7 @@ class Firebase extends Source
         }
     }
 
-    private function sanitizeBucketId($id)
+    private function sanitizeBucketId($id): array|string|null
     {
         // Step 1: Check if the ID looks like a URL (contains ".")
         if (strpos($id, '.') !== false) {
@@ -637,7 +650,7 @@ class Firebase extends Source
         return $id;
     }
 
-    private function exportFiles(int $batchsize)
+    private function exportFiles(int $batchsize): void
     {
         $buckets = $this->cache->get(Bucket::getName());
 
@@ -676,7 +689,7 @@ class Firebase extends Source
         }
     }
 
-    private function exportFile(File $file)
+    private function exportFile(File $file): void
     {
         $endpoint = 'https://storage.googleapis.com/storage/v1/b/'.$file->getBucket()->getOriginalId().'/o/'.$file->getId().'?alt=media';
         $start = 0;

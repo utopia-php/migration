@@ -7,23 +7,45 @@ use Utopia\Migration\Resources\Database\Collection;
 
 class Decimal extends Attribute
 {
-    protected ?float $default;
-
-    protected ?float $min;
-
-    protected ?float $max;
+    public function __construct(
+        string $key,
+        Collection $collection,
+        bool $required = false,
+        bool $array = false,
+        private readonly ?float $default = null,
+        private readonly ?float $min = null,
+        private readonly ?float $max = null
+    ) {
+        parent::__construct($key, $collection, $required, $array);
+    }
 
     /**
-     * @param  ?float  $default
-     * @param  ?float  $min
-     * @param  ?float  $max
+     * @param array<string, mixed> $array
+     * @return self
      */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?float $default = null, ?float $min = null, ?float $max = null)
+    public static function fromArray(array $array): self
     {
-        parent::__construct($key, $collection, $required, $array);
-        $this->default = $default;
-        $this->min = $min;
-        $this->max = $max;
+        return new self(
+            $array['key'],
+            Collection::fromArray($array['collection']),
+            $array['required'] ?? false,
+            $array['array'] ?? false,
+            $array['default'] ?? null,
+            $array['min'] ?? null,
+            $array['max'] ?? null
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return array_merge(parent::jsonSerialize(), [
+            'default' => $this->default,
+            'min' => $this->min,
+            'max' => $this->max,
+        ]);
     }
 
     public function getTypeName(): string
@@ -41,38 +63,8 @@ class Decimal extends Attribute
         return $this->max;
     }
 
-    public function setMin(float $min): self
-    {
-        $this->min = $min;
-
-        return $this;
-    }
-
-    public function setMax(float $max): self
-    {
-        $this->max = $max;
-
-        return $this;
-    }
-
     public function getDefault(): ?float
     {
         return $this->default;
-    }
-
-    public function setDefault(float $default): self
-    {
-        $this->default = $default;
-
-        return $this;
-    }
-
-    public function asArray(): array
-    {
-        return array_merge(parent::asArray(), [
-            'min' => $this->getMin(),
-            'max' => $this->getMax(),
-            'default' => $this->getDefault(),
-        ]);
     }
 }
