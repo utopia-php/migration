@@ -18,6 +18,7 @@ class Bucket extends Resource
      * @param string $compression
      * @param bool $encryption
      * @param bool $antiVirus
+     * @param bool $updateLimits
      */
     public function __construct(
         string $id = '',
