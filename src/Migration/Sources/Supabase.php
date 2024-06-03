@@ -385,7 +385,6 @@ class Supabase extends NHost
                     '',
                     new Hash($user['encrypted_password'], '', Hash::ALGORITHM_BCRYPT),
                     $user['phone'] ?? '',
-                    $this->calculateAuthTypes($user),
                     [],
                     '',
                     ! empty($user['email_confirmed_at']),
@@ -408,25 +407,6 @@ class Supabase extends NHost
         }
 
         return $extensions;
-    }
-
-    private function calculateAuthTypes(array $user): array
-    {
-        if (empty($user['encrypted_password']) && empty($user['phone'])) {
-            return [User::TYPE_ANONYMOUS];
-        }
-
-        $types = [];
-
-        if (! empty($user['encrypted_password'])) {
-            $types[] = User::TYPE_PASSWORD;
-        }
-
-        if (! empty($user['phone'])) {
-            $types[] = User::TYPE_PHONE;
-        }
-
-        return $types;
     }
 
     protected function exportGroupStorage(int $batchSize, array $resources)

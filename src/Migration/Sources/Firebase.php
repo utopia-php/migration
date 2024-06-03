@@ -216,7 +216,6 @@ class Firebase extends Source
                     $user['displayName'] ?? $user['email'] ?? '',
                     new Hash($user['passwordHash'] ?? '', $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'] ?? '', $hashConfig['signerKey'] ?? ''),
                     $user['phoneNumber'] ?? '',
-                    $this->calculateUserType($user['providerUserInfo'] ?? []),
                     [],
                     '',
                     $user['emailVerified'] ?? false,
@@ -231,31 +230,6 @@ class Firebase extends Source
                 break;
             }
         }
-    }
-
-    private function calculateUserType(array $providerData): array
-    {
-        if (count($providerData) === 0) {
-            return [User::TYPE_ANONYMOUS];
-        }
-
-        $types = [];
-
-        foreach ($providerData as $provider) {
-            switch ($provider['providerId']) {
-                case 'password':
-                    $types[] = User::TYPE_PASSWORD;
-                    break;
-                case 'phone':
-                    $types[] = User::TYPE_PHONE;
-                    break;
-                default:
-                    $types[] = User::TYPE_OAUTH;
-                    break;
-            }
-        }
-
-        return $types;
     }
 
     protected function exportGroupDatabases(int $batchSize, array $resources)
