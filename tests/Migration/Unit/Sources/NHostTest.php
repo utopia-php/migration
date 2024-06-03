@@ -1,11 +1,11 @@
 <?php
 
-namespace Utopia\Tests\E2E\Sources;
+namespace Utopia\Tests\Unit\Sources;
 
 use Utopia\Migration\Resource;
 use Utopia\Migration\Sources\NHost;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\E2E\Adapters\MockDestination;
+use Utopia\Tests\Unit\Adapters\MockDestination;
 
 class NHostTest extends Base
 {

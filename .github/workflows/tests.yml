@@ -40,8 +40,8 @@ jobs:
           key: ${{ env.CACHE_KEY }}
           path: /tmp/${{ env.IMAGE }}.tar
 
-  source_e2e_tests:
-    name: Run Source E2E Tests
+  source_unit_tests:
+    name: Run Source Unit Tests
     runs-on: ubuntu-latest
     needs: setup
     env:
@@ -66,4 +66,4 @@ jobs:
 
       - name: Run ${{matrix.adapter}} Tests
         run: |
-          docker compose exec tests php ./vendor/bin/phpunit /app/tests/Migration/E2E/Sources/${{matrix.adapter}}Test.php
+          docker compose exec tests php ./vendor/bin/phpunit /app/tests/Migration/Unit/Sources/${{matrix.adapter}}Test.php

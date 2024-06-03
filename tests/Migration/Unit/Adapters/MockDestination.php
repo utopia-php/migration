@@ -1,6 +1,6 @@
 <?php
 
-namespace Utopia\Tests\E2E\Adapters;
+namespace Utopia\Tests\Unit\Adapters;
 
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
@@ -37,18 +37,21 @@ class MockDestination extends Destination
     public function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var resource $resource */
+            /** @var Resource $resource */
             switch ($resource->getName()) {
                 case 'Deployment':
                     /** @var Deployment $resource */
                     if ($resource->getStart() === 0) {
-                        $this->data[$resource->getGroup()][$resource->getName()][$resource->getInternalId()] = $resource->asArray();
+                        $this->data[$resource->getName()][$resource->getInternalId()] = $resource->asArray();
                     }
 
                     // file_put_contents($this->path . 'deployments/' . $resource->getId() . '.tar.gz', $resource->getData(), FILE_APPEND);
                     break;
                 case Resource::TYPE_FILE:
                     /** @var File $resource */
+                    break;
+                default:
+                    $this->data[$resource->getName()][$resource->getId()] = $resource->asArray();
                     break;
             }
 
@@ -62,5 +65,18 @@ class MockDestination extends Destination
     public function report(array $groups = []): array
     {
         return [];
+    }
+
+    public function get(string $resource, string $id): ?array
+    {
+        if (!key_exists($resource, $this->data)) {
+            return null;
+        }
+
+        if (!key_exists($id, $this->data[$resource])) {
+            return null;
+        }
+
+        return $this->data[$resource][$id];
     }
 }

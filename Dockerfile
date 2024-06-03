@@ -34,6 +34,18 @@ RUN set -ex \
     && docker-php-ext-install pdo pdo_pgsql \
     && apt-get remove -y libpq-dev
 
+## Install XDebug, Remove before commit.
+RUN \
+  git clone --depth 1 --branch 3.3.1 https://github.com/xdebug/xdebug && \
+  cd xdebug && \
+  phpize && \
+  ./configure && \
+  make && make install
+
+# Enable Extensions
+COPY dev/xdebug.ini /usr/src/code/dev/xdebug.ini
+RUN cp /usr/src/code/dev/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
+
 COPY ./src /app/src
 COPY ./tests /app/src/tests
 COPY --from=composer /usr/local/src/vendor /app/vendor

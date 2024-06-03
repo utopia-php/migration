@@ -9,8 +9,8 @@
          stopOnFailure="false"
         >
     <testsuites>
-        <testsuite name="E2E">
-            <directory>./tests/Migration/E2E</directory>
+        <testsuite name="Unit">
+            <directory>./tests/Migration/Unit</directory>
         </testsuite>
     </testsuites>
 </phpunit>

@@ -1,7 +1,7 @@
 services:
   ## Tests
   tests:
-    image: migrations-dev
+    image: migration-tests
     build:
       context: .
       target: tests
@@ -22,6 +22,7 @@ services:
 
   ## Supabase
   supabase-db:
+    image: migration-supabase
     build:
       context: .
       target: supabase-db
@@ -44,6 +45,7 @@ services:
 
   ## NHost
   nhost-db:
+    image: migration-nhost
     build:
       context: .
       target: nhost-db

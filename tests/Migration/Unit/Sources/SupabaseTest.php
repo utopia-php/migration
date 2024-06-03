@@ -1,11 +1,11 @@
 <?php
 
-namespace Utopia\Tests\E2E\Sources;
+namespace Utopia\Tests\Unit\Sources;
 
 use Utopia\Migration\Resource;
 use Utopia\Migration\Sources\Supabase;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\E2E\Adapters\MockDestination;
+use Utopia\Tests\Unit\Adapters\MockDestination;
 
 class SupabaseTest extends Base
 {

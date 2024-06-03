@@ -203,4 +203,20 @@ class Transfer
 
         return $report;
     }
+
+    /**
+     * Get Source
+     */
+    public function getSource(): Source
+    {
+        return $this->source;
+    }
+
+    /**
+     * Get Destination
+     */
+    public function getDestination(): Destination
+    {
+        return $this->destination;
+    }
 }
