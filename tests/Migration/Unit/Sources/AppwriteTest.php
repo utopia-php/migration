@@ -4,6 +4,7 @@ namespace Utopia\Tests\Unit\Sources;
 
 use Appwrite\Client;
 use Appwrite\Query;
+use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\CLI\Console;
 use Utopia\Migration\Resource;
@@ -17,7 +18,6 @@ class AppwriteTest extends Base
 
     public static function setUpBeforeClass(): void
     {
-        // If we've already bootstrapped Appwrite, skip
         if (file_exists('projects.json')) {
             Console::info('Appwrite already bootstrapped, skipping');
 
@@ -50,7 +50,6 @@ class AppwriteTest extends Base
 
         Console::info('Bootstrapping Appwrite...');
 
-        // Bootstrap Appwrite
         $stdout = '';
         Console::execute(
             'appwrite-toolkit --endpoint http://appwrite/v1 --auto bootstrap --amount 1',
@@ -61,7 +60,6 @@ class AppwriteTest extends Base
 
         Console::info('Running Faker...');
 
-        // Run Faker
         $stdout = '';
         Console::execute(
             'appwrite-toolkit --endpoint http://appwrite/v1 --auto faker',
@@ -139,7 +137,7 @@ class AppwriteTest extends Base
             $this->assertNotEmpty($counters);
 
             if ($counters[Resource::STATUS_ERROR] > 0) {
-                $this->fail('Resource '.$resource.' has '.$counters[Resource::STATUS_ERROR].' errors');
+                $this->fail('Resource ' . $resource . ' has ' . $counters[Resource::STATUS_ERROR] . ' errors');
 
                 return;
             }
@@ -153,8 +151,8 @@ class AppwriteTest extends Base
      */
     public function testValidateAuthTransfer($state): void
     {
-        // Process all users from Appwrite source and check if our copy is 1:1
         $userClient = new Users($this->client);
+        $teamClient = new Teams($this->client);
 
         /** @var Transfer $transfer */
         $transfer = $state['transfer'];
@@ -162,6 +160,7 @@ class AppwriteTest extends Base
         /** @var MockDestination $destination */
         $destination = $transfer->getDestination();
 
+        // Check Users
         $last = '';
         while (true) {
             $response = $userClient->list(
@@ -173,7 +172,7 @@ class AppwriteTest extends Base
                 $destinationUser = $destination->get('user', $user['$id']);
 
                 if (empty($destinationUser)) {
-                    $this->fail('User '.$user['$id'].' not found in destination');
+                    $this->fail('User ' . $user['$id'] . ' not found in destination');
                 }
 
                 // Compare data
@@ -183,8 +182,37 @@ class AppwriteTest extends Base
                 $this->assertEquals($user['password'], $destinationUser['passwordHash']);
                 $this->assertEquals($user['phone'], $destinationUser['phone']);
                 $this->assertEquals($user['emailVerification'], $destinationUser['emailVerified']);
+                $this->assertEquals($user['phoneVerification'], $destinationUser['phoneVerified']);
 
                 $last = $user['$id'];
+            }
+
+            if (empty($response['sum'])) {
+                break;
+            }
+        }
+
+        // Check Teams
+        $last = '';
+        while (true) {
+            $response = $teamClient->list(
+                empty($last) ? [] : [Query::cursorAfter($last)]
+            );
+
+            foreach ($response['teams'] as $team) {
+                // Check if exists
+                $destinationTeam = $destination->get('team', $team['$id']);
+
+                if (empty($destinationTeam)) {
+                    $this->fail('Team ' . $team['$id'] . ' not found in destination');
+                }
+
+                // Compare data
+                $this->assertEquals($team['$id'], $destinationTeam['id']);
+                $this->assertEquals($team['name'], $destinationTeam['name']);
+                $this->assertEquals($team['prefs'], $destinationTeam['preferences']);
+
+                $last = $team['$id'];
             }
 
             if (empty($response['sum'])) {
