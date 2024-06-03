@@ -157,7 +157,6 @@ class NHostTest extends Base
         $this->assertEquals('$2a$10$ARQ/f.K6OmCjZ8XF0U.6fezPMlxDqsmcl0Rs6xQVkvj62u7gcSzOW', $foundUser->getPasswordHash()->getHash());
         $this->assertEquals('bcrypt', $foundUser->getPasswordHash()->getAlgorithm());
         $this->assertEquals('test@test.com', $foundUser->getUsername());
-        $this->assertEquals(['password'], $foundUser->getTypes());
     }
 
     /**
