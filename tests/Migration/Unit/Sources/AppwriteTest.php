@@ -20,6 +20,7 @@ class AppwriteTest extends Base
         // If we've already bootstrapped Appwrite, skip
         if (file_exists('projects.json')) {
             Console::info('Appwrite already bootstrapped, skipping');
+
             return;
         }
 
@@ -138,7 +139,7 @@ class AppwriteTest extends Base
             $this->assertNotEmpty($counters);
 
             if ($counters[Resource::STATUS_ERROR] > 0) {
-                $this->fail('Resource ' . $resource . ' has ' . $counters[Resource::STATUS_ERROR] . ' errors');
+                $this->fail('Resource '.$resource.' has '.$counters[Resource::STATUS_ERROR].' errors');
 
                 return;
             }
@@ -154,7 +155,7 @@ class AppwriteTest extends Base
     {
         // Process all users from Appwrite source and check if our copy is 1:1
         $userClient = new Users($this->client);
-        
+
         /** @var Transfer $transfer */
         $transfer = $state['transfer'];
 
@@ -172,7 +173,7 @@ class AppwriteTest extends Base
                 $destinationUser = $destination->get('user', $user['$id']);
 
                 if (empty($destinationUser)) {
-                    $this->fail('User ' . $user['$id'] . ' not found in destination');
+                    $this->fail('User '.$user['$id'].' not found in destination');
                 }
 
                 // Compare data
@@ -224,11 +225,8 @@ class AppwriteTest extends Base
 
     /**
      * Compare data between original and copy ignoring any fields that are not relevant
-     * 
-     * @param array $original
-     * @param array $copy
-     * @param array $ignore
-     * 
+     *
+     *
      * @return bool
      */
     private function compareData(array $original, array $copy, array $ignore)

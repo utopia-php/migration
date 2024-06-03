@@ -37,7 +37,7 @@ class MockDestination extends Destination
     public function import(array $resources, callable $callback): void
     {
         foreach ($resources as $resource) {
-            /** @var Resource $resource */
+            /** @var resource $resource */
             switch ($resource->getName()) {
                 case 'Deployment':
                     /** @var Deployment $resource */
@@ -69,11 +69,11 @@ class MockDestination extends Destination
 
     public function get(string $resource, string $id): ?array
     {
-        if (!key_exists($resource, $this->data)) {
+        if (! array_key_exists($resource, $this->data)) {
             return null;
         }
 
-        if (!key_exists($id, $this->data[$resource])) {
+        if (! array_key_exists($id, $this->data[$resource])) {
             return null;
         }
 
