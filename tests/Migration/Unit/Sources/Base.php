@@ -1,13 +1,12 @@
 <?php
 
-namespace Utopia\Tests\E2E\Sources;
+namespace Utopia\Tests\Unit\Sources;
 
 use PHPUnit\Framework\TestCase;
-use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\E2E\Adapters\Mock;
+use Utopia\Tests\Unit\Adapters\MockDestination;
 
 abstract class Base extends TestCase
 {
@@ -15,7 +14,7 @@ abstract class Base extends TestCase
 
     protected ?Source $source = null;
 
-    protected ?Destination $destination = null;
+    protected ?MockDestination $destination = null;
 
     protected function setUp(): void
     {
@@ -23,7 +22,7 @@ abstract class Base extends TestCase
             throw new \Exception('Source not set');
         }
 
-        $this->destination = new Mock();
+        $this->destination = new MockDestination();
         $this->transfer = new Transfer($this->source, $this->destination);
     }
 
