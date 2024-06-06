@@ -219,6 +219,7 @@ class NHost extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_USER,
+                Transfer::GROUP_AUTH,
                 $e->getMessage()
             ));
         }
@@ -275,6 +276,7 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DATABASE,
+                    Transfer::GROUP_DATABASES,
                     $e->getMessage()
                 )
             );
@@ -288,6 +290,7 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_COLLECTION,
+                    Transfer::GROUP_DATABASES,
                     $e->getMessage()
                 )
             );
@@ -301,6 +304,7 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_ATTRIBUTE,
+                    Transfer::GROUP_DATABASES,
                     $e->getMessage()
                 )
             );
@@ -314,6 +318,7 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DOCUMENT,
+                    Transfer::GROUP_DATABASES,
                     $e->getMessage()
                 )
             );
@@ -327,6 +332,7 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_INDEX,
+                    Transfer::GROUP_DATABASES,
                     $e->getMessage()
                 )
             );
@@ -619,6 +625,7 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_BUCKET,
+                    Transfer::GROUP_STORAGE,
                     $e->getMessage()
                 )
             );
@@ -632,6 +639,7 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_FILE,
+                    Transfer::GROUP_STORAGE,
                     $e->getMessage()
                 )
             );

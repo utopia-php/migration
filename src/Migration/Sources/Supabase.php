@@ -355,6 +355,7 @@ class Supabase extends NHost
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
+                Transfer::GROUP_STORAGE,
                 $e->getMessage()
             ));
         }
@@ -438,6 +439,7 @@ class Supabase extends NHost
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
+                Transfer::GROUP_STORAGE,
                 $e->getMessage()
             ));
         }
@@ -449,6 +451,7 @@ class Supabase extends NHost
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
+                Transfer::GROUP_STORAGE,
                 $e->getMessage()
             ));
         }

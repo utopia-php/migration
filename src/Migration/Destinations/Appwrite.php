@@ -238,6 +238,7 @@ class Appwrite extends Destination
                 } else {
                     $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                     $this->addError(new Exception(
+                        resourceName: $resource->getName(),
                         resourceType: $resource->getGroup(),
                         resourceId: $resource->getId(),
                         message: $e->getMessage(),

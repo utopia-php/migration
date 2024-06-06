@@ -281,6 +281,7 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_USER,
+                Transfer::GROUP_AUTH,
                 $e->getMessage()
             ));
         }
@@ -292,6 +293,7 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_TEAM,
+                Transfer::GROUP_AUTH,
                 $e->getMessage()
             ));
         }
@@ -303,6 +305,7 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_MEMBERSHIP,
+                Transfer::GROUP_AUTH,
                 $e->getMessage()
             ));
         }
@@ -460,6 +463,7 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DATABASE,
+                    Transfer::GROUP_DATABASES,
                     $e->getMessage()
                 )
             );
@@ -473,6 +477,7 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_COLLECTION,
+                    Transfer::GROUP_DATABASES,
                     $e->getMessage()
                 )
             );
@@ -486,6 +491,7 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_ATTRIBUTE,
+                    Transfer::GROUP_DATABASES,
                     $e->getMessage()
                 )
             );
@@ -499,6 +505,7 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_INDEX,
+                    Transfer::GROUP_DATABASES,
                     $e->getMessage()
                 )
             );
@@ -512,6 +519,7 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DOCUMENT,
+                    Transfer::GROUP_DATABASES,
                     $e->getMessage()
                 )
             );
@@ -972,6 +980,7 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_BUCKET,
+                    Transfer::GROUP_STORAGE,
                     $e->getMessage()
                 )
             );
@@ -985,6 +994,7 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_FILE,
+                    Transfer::GROUP_STORAGE,
                     $e->getMessage()
                 )
             );
@@ -998,6 +1008,7 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_BUCKET,
+                    Transfer::GROUP_STORAGE,
                     $e->getMessage()
                 )
             );
@@ -1072,7 +1083,8 @@ class Appwrite extends Source
                         ));
                     } catch (\Throwable $e) {
                         $this->addError(new Exception(
-                            resourceType: Resource::TYPE_FILE,
+                            resourceName: Resource::TYPE_FILE,
+                            resourceType: Transfer::GROUP_STORAGE,
                             message: $e->getMessage(),
                             code: $e->getCode(),
                             resourceId: $file['$id']
@@ -1136,6 +1148,7 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_FUNCTION,
+                Transfer::GROUP_FUNCTIONS,
                 $e->getMessage()
             ));
         }
@@ -1147,6 +1160,7 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_DEPLOYMENT,
+                Transfer::GROUP_FUNCTIONS,
                 $e->getMessage()
             ));
         }
