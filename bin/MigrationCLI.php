@@ -15,6 +15,7 @@ class MigrationCLI
     protected Transfer $transfer;
 
     protected Appwrite $source;
+
     protected DestinationsAppwrite $destination;
 
     /**
@@ -35,20 +36,20 @@ class MigrationCLI
 
         // Render Errors
         $destErrors = $this->destination->getErrors();
-        if (!empty($destErrors)) {
+        if (! empty($destErrors)) {
             echo "\n\nDestination Errors:\n";
             foreach ($destErrors as $error) {
                 /** @var Utopia\Migration\Exception $error */
-                echo $error->getResourceName() . "[".$error->getResourceId()."] - ".$error->getMessage()."\n";
+                echo $error->getResourceName().'['.$error->getResourceId().'] - '.$error->getMessage()."\n";
             }
         }
 
         $sourceErrors = $this->source->getErrors();
-        if (!empty($sourceErrors)) {
+        if (! empty($sourceErrors)) {
             echo "\n\nSource Errors:\n";
             foreach ($sourceErrors as $error) {
                 /** @var Utopia\Migration\Exception $error */
-                echo $error->getResourceType() . "[".$error->getResourceId()."] - ".$error->getMessage()."\n";
+                echo $error->getResourceType().'['.$error->getResourceId().'] - '.$error->getMessage()."\n";
             }
         }
     }
