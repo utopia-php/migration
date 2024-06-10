@@ -7,25 +7,13 @@ use Utopia\Migration\Transfer;
 
 class User extends Resource
 {
-    public const TYPE_PASSWORD = 'password';
+    protected ?string $email = null;
 
-    public const TYPE_PHONE = 'phone';
-
-    public const TYPE_ANONYMOUS = 'anonymous';
-
-    public const TYPE_MAGIC = 'magic';
-
-    public const TYPE_OAUTH = 'oauth';
-
-    protected string $email = '';
-
-    protected string $username = '';
+    protected ?string $username = null;
 
     protected ?Hash $passwordHash = null;
 
-    protected string $phone = '';
-
-    protected array $types = [self::TYPE_ANONYMOUS];
+    protected ?string $phone = null;
 
     protected array $labels = [];
 
@@ -41,11 +29,10 @@ class User extends Resource
 
     public function __construct(
         string $id,
-        string $email = '',
-        string $username = '',
+        ?string $email = null,
+        ?string $username = null,
         ?Hash $passwordHash = null,
-        string $phone = '',
-        array $types = [self::TYPE_ANONYMOUS],
+        ?string $phone = null,
         array $labels = [],
         string $oauthProvider = '',
         bool $emailVerified = false,
@@ -58,7 +45,6 @@ class User extends Resource
         $this->username = $username;
         $this->passwordHash = $passwordHash;
         $this->phone = $phone;
-        $this->types = $types;
         $this->labels = $labels;
         $this->oauthProvider = $oauthProvider;
         $this->emailVerified = $emailVerified;
@@ -78,7 +64,7 @@ class User extends Resource
     /**
      * Get Email
      */
-    public function getEmail(): string
+    public function getEmail(): ?string
     {
         return $this->email;
     }
@@ -96,7 +82,7 @@ class User extends Resource
     /**
      * Get Username
      */
-    public function getUsername(): string
+    public function getUsername(): ?string
     {
         return $this->username;
     }
@@ -132,7 +118,7 @@ class User extends Resource
     /**
      * Get Phone
      */
-    public function getPhone(): string
+    public function getPhone(): ?string
     {
         return $this->phone;
     }
@@ -143,24 +129,6 @@ class User extends Resource
     public function setPhone(string $phone): self
     {
         $this->phone = $phone;
-
-        return $this;
-    }
-
-    /**
-     * Get Type
-     */
-    public function getTypes(): array
-    {
-        return $this->types;
-    }
-
-    /**
-     * Set Types
-     */
-    public function setTypes(string $types): self
-    {
-        $this->types = $types;
 
         return $this;
     }
@@ -289,7 +257,6 @@ class User extends Resource
             'username' => $this->username,
             'passwordHash' => $this->passwordHash ? $this->passwordHash->asArray() : null,
             'phone' => $this->phone,
-            'types' => $this->types,
             'oauthProvider' => $this->oauthProvider,
             'emailVerified' => $this->emailVerified,
             'phoneVerified' => $this->phoneVerified,

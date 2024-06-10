@@ -70,8 +70,6 @@ class MigrationCLI
                 $this->drawFrame();
             }
         );
-
-        var_dump('Complete');
     }
 }
 

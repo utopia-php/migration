@@ -522,19 +522,15 @@ class Appwrite extends Destination
         switch ($resource->getName()) {
             case Resource::TYPE_USER:
                 /** @var User $resource */
-                if (in_array(User::TYPE_PASSWORD, $resource->getTypes())) {
+                if (! empty($resource->getPasswordHash())) {
                     $this->importPasswordUser($resource);
-                } elseif (in_array(User::TYPE_OAUTH, $resource->getTypes())) {
-                    $resource->setStatus(Resource::STATUS_WARNING, 'OAuth users cannot be imported.');
-
-                    return $resource;
                 } else {
                     $userService->create(
                         $resource->getId(),
                         $resource->getEmail(),
-                        in_array(User::TYPE_PHONE, $resource->getTypes()) ? $resource->getPhone() : null,
+                        $resource->getPhone(),
                         null,
-                        $resource->getName()
+                        $resource->getUsername()
                     );
                 }
 

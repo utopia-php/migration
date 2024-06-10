@@ -251,7 +251,6 @@ class NHost extends Source
                     $user['display_name'] ?? '',
                     new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT),
                     $user['phone_number'] ?? '',
-                    $this->calculateUserTypes($user),
                     [],
                     '',
                     $user['email_verified'] ?? false,
@@ -588,25 +587,6 @@ class NHost extends Source
         } else {
             return false;
         }
-    }
-
-    private function calculateUserTypes(array $user): array
-    {
-        if (empty($user['password_hash']) && empty($user['phone_number'])) {
-            return [User::TYPE_ANONYMOUS];
-        }
-
-        $types = [];
-
-        if (! empty($user['password_hash'])) {
-            $types[] = User::TYPE_PASSWORD;
-        }
-
-        if (! empty($user['phone_number'])) {
-            $types[] = User::TYPE_PHONE;
-        }
-
-        return $types;
     }
 
     protected function exportGroupStorage(int $batchSize, array $resources)
