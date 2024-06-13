@@ -172,7 +172,10 @@ class Firebase extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_USER,
-                    $e->getMessage()
+                    Transfer::GROUP_AUTH,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -258,7 +261,10 @@ class Firebase extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DATABASE,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -271,7 +277,10 @@ class Firebase extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_COLLECTION,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -529,7 +538,10 @@ class Firebase extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
-                $e->getMessage()
+                Transfer::GROUP_STORAGE,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
 
@@ -540,7 +552,10 @@ class Firebase extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_FILE,
-                $e->getMessage()
+                Transfer::GROUP_STORAGE,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
 

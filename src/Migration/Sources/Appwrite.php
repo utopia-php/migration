@@ -281,7 +281,10 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_USER,
-                $e->getMessage()
+                Transfer::GROUP_AUTH,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
 
@@ -292,7 +295,10 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_TEAM,
-                $e->getMessage()
+                Transfer::GROUP_AUTH,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
 
@@ -303,7 +309,10 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_MEMBERSHIP,
-                $e->getMessage()
+                Transfer::GROUP_AUTH,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
     }
@@ -459,7 +468,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DATABASE,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -472,7 +484,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_COLLECTION,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -485,7 +500,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_ATTRIBUTE,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -498,7 +516,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_INDEX,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -511,7 +532,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DOCUMENT,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -952,7 +976,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_BUCKET,
-                    $e->getMessage()
+                    Transfer::GROUP_STORAGE,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -965,7 +992,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_FILE,
-                    $e->getMessage()
+                    Transfer::GROUP_STORAGE,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -978,7 +1008,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_BUCKET,
-                    $e->getMessage()
+                    Transfer::GROUP_STORAGE,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -1052,7 +1085,8 @@ class Appwrite extends Source
                         ));
                     } catch (\Throwable $e) {
                         $this->addError(new Exception(
-                            resourceType: Resource::TYPE_FILE,
+                            resourceName: Resource::TYPE_FILE,
+                            resourceGroup: Transfer::GROUP_STORAGE,
                             message: $e->getMessage(),
                             code: $e->getCode(),
                             resourceId: $file['$id']
@@ -1116,7 +1150,10 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_FUNCTION,
-                $e->getMessage()
+                Transfer::GROUP_FUNCTIONS,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
 
@@ -1127,7 +1164,10 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_DEPLOYMENT,
-                $e->getMessage()
+                Transfer::GROUP_FUNCTIONS,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
     }
