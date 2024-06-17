@@ -224,4 +224,26 @@ class Transfer
 
         return $report;
     }
+
+    /**
+     * @throws \Exception
+     */
+    public function extractServices(array $services):array
+    {
+        $resources = [];
+        foreach ($services as $service) {
+            var_dump("converting resource === " . $service);
+            $resources = match ($service) {
+                self::GROUP_FUNCTIONS => array_merge($resources, self::GROUP_FUNCTIONS_RESOURCES),
+                self::GROUP_STORAGE => array_merge($resources, self::GROUP_STORAGE_RESOURCES),
+                self::GROUP_GENERAL => array_merge($resources, []),
+                self::GROUP_AUTH => array_merge($resources, self::GROUP_AUTH_RESOURCES),
+                self::GROUP_DATABASES => array_merge($resources, self::GROUP_DATABASES_RESOURCES),
+                self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
+                default => throw new \Exception('No service group found'),
+            };
+        }
+
+        return $resources;
+    }
 }
