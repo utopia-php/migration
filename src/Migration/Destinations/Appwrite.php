@@ -232,6 +232,9 @@ class Appwrite extends Destination
     #[Override]
     protected function import(array $resources, callable $callback): void
     {
+        var_dump("Appwrite importing.......");
+        var_dump($resources);
+
         if (empty($resources)) {
             return;
         }
@@ -248,6 +251,9 @@ class Appwrite extends Destination
                     default => throw new \Exception('Invalid resource group'),
                 };
             } catch (\Throwable $e) {
+
+                var_dump("Appwrite import Throwable");
+
                 if ($e->getCode() === 409) {
                     $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
                 } else {
