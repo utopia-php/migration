@@ -29,18 +29,22 @@ abstract class Source extends Target
     public function run(array $resources, callable $callback): void
     {
         $this->transferCallback = function (array $returnedResources) use ($callback, $resources) {
-            $prunedResurces = [];
+            $prunedResources = [];
             foreach ($returnedResources as $resource) {
-                /** @var resource $resource */
+                /** @var Resource $resource */
+                var_dump($resource->getName());
+                var_dump('Source::run method');
+                var_dump($resources);
+
                 if (! in_array($resource->getName(), $resources)) {
                     $resource->setStatus(Resource::STATUS_SKIPPED);
                 } else {
-                    $prunedResurces[] = $resource;
+                    $prunedResources[] = $resource;
                 }
             }
 
             $callback($returnedResources);
-            $this->cache->addAll($prunedResurces);
+            $this->cache->addAll($prunedResources);
         };
 
         $this->exportResources($resources, 100);
