@@ -254,7 +254,7 @@ class Appwrite extends Destination
 
                 var_dump("Appwrite import Throwable");
 
-                if ($e->getCode() === 409) {
+                if ($e->getCode() ===  409) {
                     $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
                 } else {
                     $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
@@ -281,6 +281,9 @@ class Appwrite extends Destination
      */
     public function importDatabaseResource(Resource $resource): Resource
     {
+        var_dump("importDatabaseResource" . $resource->getName());
+        var_dump("importDatabaseResource - ");
+
         $this->databases = new Databases($this->client);
 
         switch ($resource->getName()) {
