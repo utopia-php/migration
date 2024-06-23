@@ -259,6 +259,7 @@ class Appwrite extends Destination
                 var_dump($e->getMessage());
 
                 if ($e->getCode() ===  409) {
+                    // DATABASE_ALREADY_EXISTS why SKIP? not termination
                     $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
                 } else {
                     $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
@@ -293,12 +294,10 @@ class Appwrite extends Destination
         switch ($resource->getName()) {
             case Resource::TYPE_DATABASE:
                 /** @var Database $resource */
-                $response = $this->databases->create(
+                $this->databases->create(
                     $resource->getId(),
                     $resource->getDBName()
                 );
-                //todo: Do we need to check API response codes?
-                var_dump($response);
                 break;
             case Resource::TYPE_COLLECTION:
                 /** @var Collection $resource */
