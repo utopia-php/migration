@@ -252,7 +252,11 @@ class Appwrite extends Destination
                 };
             } catch (\Throwable $e) {
 
-                var_dump("Appwrite import Throwable");
+                var_dump("Appwrite import Throwable ==== ");
+                var_dump("getCode ==== ");
+                var_dump($e->getCode());
+                var_dump("getMessage ==== ");
+                var_dump($e->getMessage());
 
                 if ($e->getCode() ===  409) {
                     $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
