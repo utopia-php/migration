@@ -297,7 +297,7 @@ class Appwrite extends Destination
                     $resource->getId(),
                     $resource->getDBName()
                 );
-                //todo: Do we need to check response codes?
+                //todo: Do we need to check API response codes?
                 var_dump($response);
                 break;
             case Resource::TYPE_COLLECTION:
