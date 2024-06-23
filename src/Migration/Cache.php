@@ -34,6 +34,7 @@ class Cache
             $resourceId = uniqid();
             if (isset($this->cache[$resource->getName()][$resourceId])) {
                 $resourceId = uniqid();
+                // todo: $resourceId is not used?
             }
             $resource->setInternalId(uniqid());
         }
