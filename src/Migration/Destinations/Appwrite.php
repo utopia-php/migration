@@ -286,10 +286,12 @@ class Appwrite extends Destination
         switch ($resource->getName()) {
             case Resource::TYPE_DATABASE:
                 /** @var Database $resource */
-                $this->databases->create(
+                $response = $this->databases->create(
                     $resource->getId(),
                     $resource->getDBName()
                 );
+                //todo: Do we need to check response codes?
+                var_dump($response);
                 break;
             case Resource::TYPE_COLLECTION:
                 /** @var Collection $resource */
