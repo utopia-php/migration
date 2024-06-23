@@ -20,6 +20,7 @@ class Database extends Resource
         private readonly string $name = '',
     ) {
         $this->id = $id;
+        // Do we need to $this->name = $name;
     }
 
     /**
