@@ -46,6 +46,7 @@ class Collection extends Resource
     {
         return array_merge([
             'database' => $this->database,
+            'id' => $this->id,
             'name' => $this->name,
             'documentSecurity' => $this->documentSecurity,
             'permissions' => $this->permissions,
