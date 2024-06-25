@@ -391,6 +391,8 @@ class Appwrite extends Destination
                 break;
             case Attribute::TYPE_FLOAT:
                 /** @var Decimal $attribute */
+                // todo: Change createFloatAttribute min/max to accept float!!!
+
                 $this->databases->createFloatAttribute(
                     $attribute->getCollection()->getDatabase()->getId(),
                     $attribute->getCollection()->getId(),
