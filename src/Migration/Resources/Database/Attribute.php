@@ -9,21 +9,22 @@ abstract class Attribute extends Resource
 {
     public const string TYPE_STRING = 'string';
 
+
     public const string TYPE_INTEGER = 'int';
 
     public const string TYPE_FLOAT = 'float';
 
     public const string TYPE_BOOLEAN = 'bool';
 
-    public const string TYPE_DATETIME = 'dateTime';
+    public const string TYPE_DATETIME = 'datetime';
 
     public const string TYPE_EMAIL = 'email';
 
     public const string TYPE_ENUM = 'enum';
 
-    public const string TYPE_IP = 'IP';
+    public const string TYPE_IP = 'ip';
 
-    public const string TYPE_URL = 'URL';
+    public const string TYPE_URL = 'url';
 
     public const string TYPE_RELATIONSHIP = 'relationship';
 
