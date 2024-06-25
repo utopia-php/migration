@@ -756,8 +756,8 @@ class Appwrite extends Source
                     $value['required'],
                     $value['array'],
                     $value['default'],
-                    $value['min'] ?? 0,
-                    $value['max'] ?? 0
+                    $value['min'] ?? null,
+                    $value['max'] ?? null
                 );
             case 'double':
                 return new Decimal(
@@ -766,8 +766,8 @@ class Appwrite extends Source
                     $value['required'],
                     $value['array'],
                     $value['default'],
-                    $value['min'] ?? 0,
-                    $value['max'] ?? 0
+                    $value['min'] ?? null,
+                    $value['max'] ?? null
                 );
             case 'relationship':
                 return new Relationship(
