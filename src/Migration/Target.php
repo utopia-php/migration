@@ -195,4 +195,11 @@ abstract class Target
     {
         $this->errors[] = $error;
     }
+
+    /**
+     * shutDown function
+     */
+    public function shutdown(): void
+    {
+    }
 }

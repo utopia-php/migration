@@ -41,18 +41,4 @@ abstract class Destination extends Target
      * @param  callable  $callback  Callback to run after import
      */
     abstract protected function import(array $resources, callable $callback): void;
-
-    /**
-     * Init function
-     */
-    public function init(): void
-    {
-    }
-
-    /**
-     * shutDown function
-     */
-    public function shutdown(): void
-    {
-    }
 }
