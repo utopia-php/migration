@@ -16,7 +16,7 @@ class Document extends Resource
      */
     public function __construct(
         string $id,
-        private readonly Database $database,
+        private readonly Database $database, // why do we need this while it is a part of collection?
         private readonly Collection $collection,
         private readonly array $data = [],
         array $permissions = []
