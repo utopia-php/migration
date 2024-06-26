@@ -45,7 +45,8 @@ class Collection extends Resource
     public function jsonSerialize(): array
     {
         return array_merge([
-            'database' => $this->database,
+            //'database' => $this->database,
+            'databaseId' => $this->database->getId(),
             'id' => $this->id,
             'name' => $this->name,
             'documentSecurity' => $this->documentSecurity,

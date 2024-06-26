@@ -46,8 +46,9 @@ class Document extends Resource
     {
         return [
             'id' => $this->id,
-            'database' => $this->database,
-            'collection' => $this->collection,
+            //'database' => $this->database,
+            //'collection' => $this->collection,
+            'collectionId' => $this->collection->getId(),
             'attributes' => $this->data,
             'permissions' => $this->permissions,
         ];

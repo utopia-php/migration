@@ -45,7 +45,8 @@ abstract class Attribute extends Resource
         return [
             'key' => $this->key,
             'type' => $this->getTypeName(),
-            'collection' => $this->collection,
+            //'collection' => $this->collection,
+            'collectionId' => $this->collection->getId(),
             'required' => $this->required,
             'array' => $this->array,
         ];
