@@ -57,6 +57,7 @@ class Index extends Resource
     public function jsonSerialize(): array
     {
         return [
+            'id' => $this->getId(),
             'key' => $this->key,
             'collection' => $this->collection,
             'type' => $this->type,
