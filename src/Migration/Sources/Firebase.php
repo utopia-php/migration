@@ -538,7 +538,7 @@ class Firebase extends Source
         $documentId = preg_replace("/[^A-Za-z0-9\_\-]/", '', $documentId);
         $documentId = strtolower($documentId);
 
-        return new Document($documentId, $collection->getDatabase(), $collection, $data, []);
+        return new Document($documentId, $collection, $data, []);
     }
 
     protected function exportGroupStorage(int $batchSize, array $resources): void

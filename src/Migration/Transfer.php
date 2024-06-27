@@ -228,7 +228,7 @@ class Transfer
     /**
      * @throws \Exception
      */
-    public static function extractServices(array $services):array
+    public static function extractServices(array $services): array
     {
         $resources = [];
         foreach ($services as $service) {

@@ -468,7 +468,7 @@ class NHost extends Source
                             }
                         }
 
-                        $transferDocuments[] = new Document('unique()', $database, $collection, $processedData);
+                        $transferDocuments[] = new Document('unique()', $collection, $processedData);
                     }
 
                     $this->callback($transferDocuments);

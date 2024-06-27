@@ -660,7 +660,6 @@ class Appwrite extends Source
 
                     $documents[] = new Document(
                         $id,
-                        $collection->getDatabase(),
                         $collection,
                         $cleanData,
                         $permissions

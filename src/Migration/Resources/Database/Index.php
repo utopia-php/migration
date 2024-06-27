@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Resources\Database;
 
+use Appwrite\Enums\IndexType;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
@@ -104,5 +105,18 @@ class Index extends Resource
     public function getOrders(): array
     {
         return $this->orders;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public static function getIndexType(string $type):IndexType
+    {
+        return match ($type) {
+            Index::TYPE_KEY => IndexType::KEY(),
+            Index::TYPE_UNIQUE => IndexType::UNIQUE(),
+            Index::TYPE_FULLTEXT => IndexType::FULLTEXT(),
+            default => throw new \Exception('Invalid IndexType: ' . $type),
+        };
     }
 }

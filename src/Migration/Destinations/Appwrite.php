@@ -283,11 +283,11 @@ class Appwrite extends Destination
 
     /**
      * @throws AppwriteException
+     * @throws \Exception
      */
     public function importDatabaseResource(Resource $resource): Resource
     {
-        var_dump("importDatabaseResource" . $resource->getName());
-        var_dump("importDatabaseResource - ");
+        var_dump("Destination Appwrite::importDatabaseResource === " . $resource->getName());
 
         $this->databases = new Databases($this->client);
 
@@ -316,7 +316,7 @@ class Appwrite extends Destination
                     $resource->getCollection()->getDatabase()->getId(),
                     $resource->getCollection()->getId(),
                     $resource->getKey(),
-                    $resource->getType(),
+                    Index::getIndexType($resource->getType()),
                     $resource->getAttributes(),
                     $resource->getOrders()
                 );

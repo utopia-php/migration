@@ -9,14 +9,12 @@ class Document extends Resource
 {
     /**
      * @param string $id
-     * @param Database $database
      * @param Collection $collection
      * @param array<string, mixed> $data
      * @param array<string> $permissions
      */
     public function __construct(
         string $id,
-        private readonly Database $database, // why do we need this while it is a part of collection?
         private readonly Collection $collection,
         private readonly array $data = [],
         array $permissions = []
@@ -32,7 +30,6 @@ class Document extends Resource
     {
         return new self(
             $array['id'],
-            Database::fromArray($array['database']),
             Collection::fromArray($array['collection']),
             $array['attributes'],
             $array['permissions'] ?? []
@@ -46,9 +43,8 @@ class Document extends Resource
     {
         return [
             'id' => $this->id,
-            //'database' => $this->database,
-            //'collection' => $this->collection,
-            'collectionId' => $this->collection->getId(),
+            'collection' => $this->collection,
+            //'collectionId' => $this->collection->getId(),
             'attributes' => $this->data,
             'permissions' => $this->permissions,
         ];
