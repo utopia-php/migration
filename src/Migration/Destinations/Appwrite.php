@@ -343,7 +343,7 @@ class Appwrite extends Destination
                 }
 
                 $this->databases->createDocument(
-                    $resource->getDatabase()->getId(),
+                    $resource->getCollection()->getDatabase()->getId(),
                     $resource->getCollection()->getId(),
                     $resource->getId(),
                     $resource->getData(),

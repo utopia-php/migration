@@ -44,7 +44,6 @@ class Document extends Resource
         return [
             'id' => $this->id,
             'collection' => $this->collection,
-            //'collectionId' => $this->collection->getId(),
             'attributes' => $this->data,
             'permissions' => $this->permissions,
         ];
@@ -58,11 +57,6 @@ class Document extends Resource
     public function getGroup(): string
     {
         return Transfer::GROUP_DATABASES;
-    }
-
-    public function getDatabase(): Database
-    {
-        return $this->database;
     }
 
     public function getCollection(): Collection
