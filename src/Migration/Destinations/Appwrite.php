@@ -4,6 +4,8 @@ namespace Utopia\Migration\Destinations;
 
 use Appwrite\AppwriteException;
 use Appwrite\Client;
+use Appwrite\Enums\Compression;
+use Appwrite\Enums\IndexType;
 use Appwrite\InputFile;
 use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
@@ -312,11 +314,19 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_INDEX:
                 /** @var Index $resource */
+
+                $type = match ($resource->getType()) {
+                    Index::TYPE_KEY => IndexType::KEY(),
+                    Index::TYPE_UNIQUE => IndexType::UNIQUE(),
+                    Index::TYPE_FULLTEXT => IndexType::FULLTEXT(),
+                    default => throw new \Exception('Invalid IndexType: ' . $resource->getType()),
+                };
+
                 $this->databases->createIndex(
                     $resource->getCollection()->getDatabase()->getId(),
                     $resource->getCollection()->getId(),
                     $resource->getKey(),
-                    Index::getIndexType($resource->getType()),
+                    $type,
                     $resource->getAttributes(),
                     $resource->getOrders()
                 );
@@ -524,6 +534,14 @@ class Appwrite extends Destination
                 return $this->importFile($resource);
             case Resource::TYPE_BUCKET:
                 /** @var Bucket $resource */
+
+                $compression = match ($resource->getCompression()) {
+                    'none' => Compression::NONE(),
+                    'gzip' => Compression::GZIP(),
+                    'zstd' => Compression::ZSTD(),
+                    default => throw new \Exception('Invalid Compression: ' . $resource->getCompression()),
+                };
+
                 $response = $this->storage->createBucket(
                     $resource->getId(),
                     $resource->getBucketName(),
@@ -532,7 +550,7 @@ class Appwrite extends Destination
                     $resource->getEnabled(),
                     $resource->getMaxFileSize(),
                     $resource->getAllowedFileExtensions(),
-                    $resource->getCompression(),
+                    $compression,
                     $resource->getEncryption(),
                     $resource->getAntiVirus()
                 );
