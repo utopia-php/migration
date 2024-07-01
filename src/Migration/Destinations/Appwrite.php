@@ -234,14 +234,15 @@ class Appwrite extends Destination
     #[Override]
     protected function import(array $resources, callable $callback): void
     {
-        var_dump("Appwrite importing.......");
-        var_dump($resources);
+        var_dump("Destinations/Appwrite import....");
 
         if (empty($resources)) {
             return;
         }
 
         foreach ($resources as $resource) {
+            var_dump("Importing......." . $resource->getGroup() . ' - ' . $resource->getName());
+
             $resource->setStatus(Resource::STATUS_PROCESSING);
 
             try {
