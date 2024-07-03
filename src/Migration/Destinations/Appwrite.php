@@ -6,6 +6,7 @@ use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\IndexType;
+use Appwrite\Enums\Runtime;
 use Appwrite\InputFile;
 use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
@@ -808,10 +809,63 @@ class Appwrite extends Destination
         switch ($resource->getName()) {
             case Resource::TYPE_FUNCTION:
                 /** @var Func $resource */
+
+                $runtype = match ($resource->getRuntime()) {
+                    'node-14.5' => Runtime::NODE145(),
+                    'node-16.0' => Runtime::NODE160(),
+                    'node-18.0' => Runtime::NODE180(),
+                    'node-19.0' => Runtime::NODE190(),
+                    'node-20.0' => Runtime::NODE200(),
+                    'node-21.0' => Runtime::NODE210(),
+                    'php-8.0' => Runtime::PHP80(),
+                    'php-8.1' => Runtime::PHP81(),
+                    'php-8.2' => Runtime::PHP82(),
+                    'php-8.3' => Runtime::PHP83(),
+                    'ruby-3.0' => Runtime::RUBY30(),
+                    'ruby-3.1' => Runtime::RUBY31(),
+                    'ruby-3.2' => Runtime::RUBY32(),
+                    'ruby-3.3' => Runtime::RUBY33(),
+                    'python-3.8' => Runtime::PYTHON38(),
+                    'python-3.9' => Runtime::PYTHON39(),
+                    'python-3.10' => Runtime::PYTHON310(),
+                    'python-3.11' => Runtime::PYTHON311(),
+                    'python-3.12' => Runtime::PYTHON312(),
+                    'python-ml-3.11' => Runtime::PYTHONML311(),
+                    'dart-3.0' => Runtime::DART30(),
+                    'dart-3.1' => Runtime::DART31(),
+                    'dart-3.3' => Runtime::DART33(),
+                    'dart-2.15' => Runtime::DART215(),
+                    'dart-2.16' => Runtime::DART216(),
+                    'dart-2.17' => Runtime::DART217(),
+                    'dart-2.18' => Runtime::DART218(),
+                    'deno-1.21' => Runtime::DENO121(),
+                    'deno-1.24' => Runtime::DENO124(),
+                    'deno-1.35' => Runtime::DENO135(),
+                    'deno-1.40' => Runtime::DENO140(),
+                    'dotnet-3.1' => Runtime::DOTNET31(),
+                    'dotnet-6.0' => Runtime::DOTNET60(),
+                    'dotnet-7.0' => Runtime::DOTNET70(),
+                    'java-8.0' => Runtime::JAVA80(),
+                    'java-11.0' => Runtime::JAVA110(),
+                    'java-17.0' => Runtime::JAVA170(),
+                    'java-18.0' => Runtime::JAVA180(),
+                    'java-21.0' => Runtime::JAVA210(),
+                    'swift-5.5' => Runtime::SWIFT55(),
+                    'swift-5.8' => Runtime::SWIFT58(),
+                    'swift-5.9' => Runtime::SWIFT59(),
+                    'kotlin-1.6' => Runtime::KOTLIN16(),
+                    'kotlin-1.8' => Runtime::KOTLIN18(),
+                    'kotlin-1.9' => Runtime::KOTLIN19(),
+                    'cpp-17' => Runtime::CPP17(),
+                    'cpp-20' => Runtime::CPP20(),
+                    'bun-1.0' => Runtime::BUN10(),
+                    default => throw new \Exception('Invalid Runtime: ' . $resource->getRuntime()),
+                };
+
                 $this->functions->create(
                     $resource->getId(),
                     $resource->getFunctionName(),
-                    $resource->getRuntime(),
+                    $runtype,
                     $resource->getExecute(),
                     $resource->getEvents(),
                     $resource->getSchedule(),
