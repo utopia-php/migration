@@ -44,11 +44,14 @@ class Appwrite extends Source
     protected Client $client;
 
     private Users $users;
-    private Teams $teams;
-    private Databases $database;
-    private Storage $storage;
-    private Functions $functions;
 
+    private Teams $teams;
+
+    private Databases $database;
+
+    private Storage $storage;
+
+    private Functions $functions;
 
     public function __construct(
         protected string $project,
@@ -108,6 +111,7 @@ class Appwrite extends Source
     /**
      * @param  array<string>  $resources
      * @return array<string, mixed>
+     *
      * @throws \Exception
      */
     public function report(array $resources = []): array
@@ -293,7 +297,7 @@ class Appwrite extends Source
                 '/health/version',
                 [
                     'X-Appwrite-Key' => '',
-                    'X-Appwrite-Project' => ''
+                    'X-Appwrite-Project' => '',
                 ]
             )['version'];
 
@@ -314,7 +318,6 @@ class Appwrite extends Source
      *
      * @param  int  $batchSize  Max 100
      * @param  array<string>  $resources
-     * @return void
      */
     protected function exportGroupAuth(int $batchSize, array $resources): void
     {
@@ -683,7 +686,7 @@ class Appwrite extends Source
     {
         switch ($value['type']) {
             case 'string':
-                if (!isset($value['format'])) {
+                if (! isset($value['format'])) {
                     return new Text(
                         $value['key'],
                         $collection,
@@ -1321,10 +1324,16 @@ class Appwrite extends Source
                 $responseHeaders
             );
 
+            $size = mb_strlen($file);
+
+            if ($end > $size) {
+                $end = $size - 1;
+            }
+
             $deployment = new Deployment(
                 $deployment['$id'],
                 $func,
-                strlen($file),
+                $size,
                 $deployment['entrypoint'],
                 $start,
                 $end,
