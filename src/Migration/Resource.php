@@ -52,7 +52,7 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_HASH = 'hash';
 
-    public const TYPE_ENVIRONMENT_VARIABLE = 'environment variable';
+    public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
 
     public const ALL_RESOURCES = [
         self::TYPE_ATTRIBUTE,
