@@ -44,6 +44,7 @@ class Deployment extends Resource
     public function jsonSerialize(): array
     {
         return [
+            'id' => $this->id,
             'func' => $this->func,
             'size' => $this->size,
             'entrypoint' => $this->entrypoint,

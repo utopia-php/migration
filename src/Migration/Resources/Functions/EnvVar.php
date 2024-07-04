@@ -36,6 +36,7 @@ class EnvVar extends Resource
     public function jsonSerialize(): array
     {
         return [
+            'id' => $this->id,
             'func' => $this->func,
             'key' => $this->key,
             'value' => $this->value,

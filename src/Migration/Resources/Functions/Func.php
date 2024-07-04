@@ -57,8 +57,8 @@ class Func extends Resource
     public function jsonSerialize(): array
     {
         return [
-            'name' => $this->name,
             'id' => $this->id,
+            'name' => $this->name,
             'execute' => $this->execute,
             'enabled' => $this->enabled,
             'runtime' => $this->runtime,
