@@ -870,7 +870,8 @@ class Appwrite extends Destination
                     $resource->getEvents(),
                     $resource->getSchedule(),
                     $resource->getTimeout(),
-                    $resource->getEnabled()
+                    $resource->getEnabled(),
+                    entrypoint:$resource->getEntrypoint(),
                 );
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:

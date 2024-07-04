@@ -121,4 +121,9 @@ class Func extends Resource
     {
         return $this->activeDeployment;
     }
+
+    public function getEntrypoint(): string
+    {
+        return $this->entrypoint;
+    }
 }
