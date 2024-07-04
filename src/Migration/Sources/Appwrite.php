@@ -1226,7 +1226,8 @@ class Appwrite extends Source
                 $function['events'],
                 $function['schedule'],
                 $function['timeout'],
-                $function['deployment']
+                $function['deployment'],
+                $function['entrypoint']
             );
 
             $convertedResources[] = $convertedFunc;

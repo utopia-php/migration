@@ -27,7 +27,8 @@ class Func extends Resource
         private readonly array $events = [],
         private readonly string $schedule = '',
         private readonly int $timeout = 0,
-        private readonly string $activeDeployment = ''
+        private readonly string $activeDeployment = '',
+        private readonly string $entrypoint = ''
     ) {
         $this->id = $id;
     }
@@ -47,7 +48,8 @@ class Func extends Resource
             $array['events'] ?? [],
             $array['schedule'] ?? '',
             $array['timeout'] ?? 0,
-            $array['activeDeployment'] ?? ''
+            $array['activeDeployment'] ?? '',
+            $array['entrypoint'] ?? ''
         );
     }
 
@@ -66,6 +68,7 @@ class Func extends Resource
             'schedule' => $this->schedule,
             'timeout' => $this->timeout,
             'activeDeployment' => $this->activeDeployment,
+            'entrypoint' => $this->entrypoint,
         ];
     }
 
