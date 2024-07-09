@@ -378,6 +378,9 @@ class Appwrite extends Destination
      */
     public function createAttribute(Attribute $attribute): void
     {
+        var_dump('createAttribute ' . $attribute->getTypeName());
+        var_dump('createAttribute key ' . $attribute->getKey());
+
         switch ($attribute->getTypeName()) {
             case Attribute::TYPE_STRING:
                 /** @var Text $attribute */
@@ -432,6 +435,9 @@ class Appwrite extends Destination
                 break;
             case Attribute::TYPE_DATETIME:
                 /** @var DateTime $attribute */
+
+                var_dump('createDatetimeAttribute key: ' . $attribute->getKey());
+
                 $this->databases->createDatetimeAttribute(
                     $attribute->getCollection()->getDatabase()->getId(),
                     $attribute->getCollection()->getId(),
