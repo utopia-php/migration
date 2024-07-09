@@ -32,9 +32,7 @@ abstract class Source extends Target
             $prunedResources = [];
             foreach ($returnedResources as $resource) {
                 /** @var Resource $resource */
-                var_dump('Source::run method');
-                var_dump($resource->getName());
-                var_dump($resources);
+                var_dump('Source::run method = ' . $resource->getName());
 
                 if (! in_array($resource->getName(), $resources)) {
                     var_dump('setStatus === ' . Resource::STATUS_SKIPPED);
