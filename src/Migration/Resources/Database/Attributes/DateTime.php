@@ -18,6 +18,32 @@ class DateTime extends Attribute
         $this->default = $default;
     }
 
+    public function getTypeName(): string
+    {
+        return Attribute::TYPE_DATETIME;
+    }
+
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['key'],
+            Collection::fromArray($array['collection']),
+            $array['required'] ?? false,
+            $array['array'] ?? false,
+            $array['default'] ?? null,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return array_merge(parent::jsonSerialize(), [
+            'default' => $this->default,
+        ]);
+    }
+
     public function getDefault(): ?string
     {
         return $this->default;
@@ -26,10 +52,5 @@ class DateTime extends Attribute
     public function setDefault(string $default): void
     {
         $this->default = $default;
-    }
-
-    public function getTypeName(): string
-    {
-        return Attribute::TYPE_DATETIME;
     }
 }
