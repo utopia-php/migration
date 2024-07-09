@@ -6,9 +6,12 @@ use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\IndexType;
+use Appwrite\Enums\RelationMutate;
+use Appwrite\Enums\RelationshipType;
 use Appwrite\Enums\Runtime;
 use Appwrite\InputFile;
 use Appwrite\Services\Databases;
+use Utopia\Database\Database as DatabaseLibrary;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
@@ -485,15 +488,31 @@ class Appwrite extends Destination
                 break;
             case Attribute::TYPE_RELATIONSHIP:
                 /** @var Relationship $attribute */
+
+                $type = match ($attribute->getRelationType()) {
+                    DatabaseLibrary::RELATION_MANY_TO_MANY => RelationshipType::MANYTOMANY(),
+                    DatabaseLibrary::RELATION_MANY_TO_ONE => RelationshipType::MANYTOONE(),
+                    DatabaseLibrary::RELATION_ONE_TO_MANY => RelationshipType::ONETOMANY(),
+                    DatabaseLibrary::RELATION_ONE_TO_ONE => RelationshipType::ONETOONE(),
+                    default => throw new \Exception('Invalid RelationshipType: ' . $attribute->getRelationType()),
+                };
+
+                $mutation = match ($attribute->getRelationType()) {
+                    DatabaseLibrary::RELATION_MUTATE_CASCADE => RelationMutate::CASCADE(),
+                    DatabaseLibrary::RELATION_MUTATE_RESTRICT => RelationMutate::RESTRICT(),
+                    DatabaseLibrary::RELATION_MUTATE_SET_NULL => RelationMutate::SETNULL(),
+                    default => null,
+                };
+
                 $this->databases->createRelationshipAttribute(
                     $attribute->getCollection()->getDatabase()->getId(),
                     $attribute->getCollection()->getId(),
                     $attribute->getRelatedCollection(),
-                    $attribute->getRelationType(),
+                    $type,
                     $attribute->getTwoWay(),
                     $attribute->getKey(),
                     $attribute->getTwoWayKey(),
-                    $attribute->getOnDelete()
+                    $mutation
                 );
                 break;
             default:
