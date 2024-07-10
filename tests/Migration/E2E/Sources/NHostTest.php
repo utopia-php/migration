@@ -96,8 +96,7 @@ class NHostTest extends Base
     {
         $this->transfer->run(
             $this->source->getSupportedResources(),
-            function () {
-            }
+            function () {}
         );
 
         $this->assertEquals(0, count($this->transfer->getReport('error')));
