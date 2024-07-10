@@ -213,18 +213,26 @@ class Firebase extends Source
             $nextPageToken = $response['nextPageToken'] ?? null;
 
             foreach ($result as $user) {
-                $users[] = new User(
+                $transferUser = new User(
                     $user['localId'] ?? '',
-                    $user['email'] ?? '',
-                    $user['displayName'] ?? $user['email'] ?? '',
-                    new Hash($user['passwordHash'] ?? '', $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'] ?? '', $hashConfig['signerKey'] ?? ''),
-                    $user['phoneNumber'] ?? '',
+                    $user['email'] ?? null,
+                    $user['displayName'] ?? $user['email'] ?? null,
+                    null,
+                    $user['phoneNumber'] ?? null,
                     [],
                     '',
                     $user['emailVerified'] ?? false,
                     false, // Can't get phone number status on firebase :/
                     $user['disabled'] ?? false
                 );
+
+                if (key_exists('passwordHash', $user)) {
+                    $transferUser->setPasswordHash(
+                        new Hash($user['passwordHash'], $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'] ?? '', $hashConfig['signerKey'] ?? '')
+                    );
+                }
+
+                $users[] = $transferUser;
             }
 
             $this->callback($users);
