@@ -20,9 +20,9 @@ class MigrationCLI
 {
     protected Transfer $transfer;
 
-    protected $source;
+    protected mixed $source;
 
-    protected $destination;
+    protected mixed $destination;
 
     /**
      * Prints the current status of migrations as a table after wiping the screen
