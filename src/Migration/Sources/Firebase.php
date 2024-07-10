@@ -226,7 +226,7 @@ class Firebase extends Source
                     $user['disabled'] ?? false
                 );
 
-                if (key_exists('passwordHash', $user)) {
+                if (array_key_exists('passwordHash', $user)) {
                     $transferUser->setPasswordHash(
                         new Hash($user['passwordHash'], $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'] ?? '', $hashConfig['signerKey'] ?? '')
                     );

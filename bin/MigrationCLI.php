@@ -60,9 +60,10 @@ class MigrationCLI
         }
     }
 
-    function getSource(): Source {
+    public function getSource(): Source
+    {
         switch ($_ENV['SOURCE_PROVIDER']) {
-            case 'appwrite': 
+            case 'appwrite':
                 return new Appwrite(
                     $_ENV['SOURCE_APPWRITE_TEST_PROJECT'],
                     $_ENV['SOURCE_APPWRITE_TEST_ENDPOINT'],
@@ -98,7 +99,7 @@ class MigrationCLI
     public function getDestination(): Destination
     {
         switch ($_ENV['DESTINATION_PROVIDER']) {
-            case 'appwrite': 
+            case 'appwrite':
                 return new DestinationsAppwrite(
                     $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
                     $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],

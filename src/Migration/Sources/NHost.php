@@ -262,7 +262,7 @@ class NHost extends Source
                     []
                 );
 
-                if (key_exists('password_hash', $user)) {
+                if (array_key_exists('password_hash', $user)) {
                     $transferUser->setPasswordHash(new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT));
                 }
 
