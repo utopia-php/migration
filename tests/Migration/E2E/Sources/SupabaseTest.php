@@ -75,8 +75,7 @@ class SupabaseTest extends Base
     public function testRunTransfer($state)
     {
         $this->transfer->run($this->source->getSupportedResources(),
-            function () {
-            }
+            function () {}
         );
 
         $this->assertEquals(0, count($this->transfer->getReport('error')));
