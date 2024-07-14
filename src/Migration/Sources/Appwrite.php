@@ -634,7 +634,7 @@ class Appwrite extends Source
 //                    $queries[] = Query::select($selects);
 //                }
 
-                $queries[] = Query::select(['*', '$id', '$permissions', '$createdAt', '$updatedAt']);
+                $queries[] = Query::select(['*', '$id', '$permissions']);
 
                 $response = $this->database->listDocuments(
                     $collection->getDatabase()->getId(),
