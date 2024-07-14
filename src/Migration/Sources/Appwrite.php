@@ -613,15 +613,28 @@ class Appwrite extends Source
                 if ($lastDocument) {
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
+//
+//                $selects = [];
+//                $attributes = $this->cache->get(Attribute::getName());
+//                foreach ($attributes as $attribute) {
+//                    /** @var Attribute $attribute */
+//                    if ($attribute->getCollection()->getId() === $collection->getId()) {
+//
+//                        var_dump(' === exportDocuments === ');
+//                        var_dump($attribute->getKey());
+//                        var_dump($attribute);
+//                        $selects[] = $attribute->getKey();
+//                        if($attribute->getTypeName() === Attribute::TYPE_RELATIONSHIP){
+//                            var_dump(' === this is TYPE_RELATIONSHIP === ');
+//                        }
+//                    }
+//                }
+//
+//                if(!empty($selects)){
+//                    $queries[] = Query::select($selects);
+//                }
 
-                $attributes = $this->cache->get(Attribute::getName());
-                foreach ($attributes as $attribute) {
-                    /** @var Attribute $attribute */
-                    if ($attribute->getCollection()->getId() === $collection->getId()) {
-                        var_dump(' === exportDocuments exportDocuments exportDocuments === ');
-                        var_dump($attribute);
-                    }
-                }
+                $queries[] = Query::select(['*', '$id', '$permissions', '$createdAt', '$updatedAt']);
 
                 $response = $this->database->listDocuments(
                     $collection->getDatabase()->getId(),
