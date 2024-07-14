@@ -10,7 +10,7 @@ require_once __DIR__.'/vendor/autoload.php';
 use Dotenv\Dotenv;
 use Utopia\CLI\Console;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
-use Utopia\Migration\Destinations\Backup;
+use Utopia\Migration\Destinations\Local;
 use Utopia\Migration\Sources\Appwrite;
 use Utopia\Migration\Sources\Firebase;
 use Utopia\Migration\Sources\NHost;
@@ -63,12 +63,14 @@ $destinationAppwrite = new AppwriteDestination(
     $_ENV['DESTINATION_APPWRITE_TEST_KEY']
 );
 
-/**xx
+$destinationLocal = new Local(__DIR__.'/localBackup/');
+
+/**
  * Initialise Transfer Class
  */
 $transfer = new Transfer(
     $sourceAppwrite,
-    new Backup(__DIR__.'/localBackup/')
+    $destinationAppwrite
 );
 
 /**
