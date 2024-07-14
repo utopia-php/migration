@@ -614,6 +614,15 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
 
+                $attributes = $this->cache->get(Attribute::getName());
+                foreach ($attributes as $attribute) {
+                    /** @var Attribute $attribute */
+                    if ($attribute->getCollection()->getId() === $collection->getId()) {
+                        var_dump(' === exportDocuments exportDocuments exportDocuments === ');
+                        var_dump($attribute);
+                    }
+                }
+
                 $response = $this->database->listDocuments(
                     $collection->getDatabase()->getId(),
                     $collection->getId(),
@@ -915,7 +924,6 @@ class Appwrite extends Source
                 );
 
                 // Remove two way relationship attributes
-                $this->cache->get(Resource::TYPE_ATTRIBUTE);
 
                 $knownTwoWays = [];
 
