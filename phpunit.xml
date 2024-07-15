@@ -10,5 +10,8 @@
         <testsuite name="E2E">
             <directory>./tests/Migration/E2E</directory>
         </testsuite>
+        <testsuite name="Unit">
+            <directory>./tests/Migration/unit</directory>
+        </testsuite>
     </testsuites>
 </phpunit>

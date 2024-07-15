@@ -7,7 +7,7 @@ use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\E2E\Adapters\Mock;
+use Utopia\Tests\Adapters\MockDestination;
 
 abstract class Base extends TestCase
 {
@@ -23,7 +23,7 @@ abstract class Base extends TestCase
             throw new \Exception('Source not set');
         }
 
-        $this->destination = new Mock();
+        $this->destination = new MockDestination();
         $this->transfer = new Transfer($this->source, $this->destination);
     }
 

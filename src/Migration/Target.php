@@ -22,6 +22,8 @@ abstract class Target
 
     protected $endpoint = '';
 
+    protected $rootResourceId = '';
+
     abstract public static function getName(): string;
 
     abstract public static function getSupportedResources(): array;
@@ -36,8 +38,9 @@ abstract class Target
      *
      * @param  array<string>  $resources  Resources to transfer
      * @param  callable  $callback  Callback to run after transfer
+     * @param  string  $rootResourceId  Root resource ID, If enabled you can only transfer a single root resource
      */
-    abstract public function run(array $resources, callable $callback): void;
+    abstract public function run(array $resources, callable $callback, string $rootResourceId = ''): void;
 
     /**
      * Report Resources

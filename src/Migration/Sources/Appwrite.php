@@ -362,6 +362,12 @@ class Appwrite extends Source
     {
         $lastDocument = null;
 
+        // Root Level Resource
+        if (!empty($this->rootResourceId)) {
+            $this->callback([$this->users->get($this->rootResourceId)]);
+            return;
+        }
+
         // Export Users
         while (true) {
             $users = [];
@@ -411,6 +417,12 @@ class Appwrite extends Source
     {
         $this->teams = new Teams($this->client);
         $lastDocument = null;
+
+        // Root Level Resource
+        if (!empty($this->rootResourceId)) {
+            $this->callback([$this->teams->get($this->rootResourceId)]);
+            return;
+        }
 
         // Export Teams
         while (true) {
@@ -828,6 +840,12 @@ class Appwrite extends Source
 
         $lastDatabase = null;
 
+        // Root Level Resource
+        if (!empty($this->rootResourceId)) {
+            $this->callback([$this->database->get($this->rootResourceId)]);
+            return;
+        }
+
         // Transfer Databases
         while (true) {
             $queries = [Query::limit($batchSize)];
@@ -1078,6 +1096,12 @@ class Appwrite extends Source
      */
     private function exportBuckets(int $batchSize): void
     {
+        // Root Level Resource
+        if (!empty($this->rootResourceId)) {
+            $this->callback([$this->storage->getBucket($this->rootResourceId)]);
+            return;
+        }
+
         $buckets = $this->storage->listBuckets();
 
         $convertedBuckets = [];
@@ -1228,6 +1252,12 @@ class Appwrite extends Source
     private function exportFunctions(int $batchSize): void
     {
         $this->functions = new Functions($this->client);
+
+        // Root Level Resource
+        if (!empty($this->rootResourceId)) {
+            $this->callback([$this->functions->get($this->rootResourceId)]);
+            return;
+        }
 
         $functions = $this->functions->list();
 

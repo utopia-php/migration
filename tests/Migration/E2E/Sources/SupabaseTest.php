@@ -7,7 +7,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Supabase;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\E2E\Adapters\Mock;
+use Utopia\Tests\Adapters\MockDestination;
 
 class SupabaseTest extends Base
 {
@@ -53,7 +53,7 @@ class SupabaseTest extends Base
             'postgres'
         );
 
-        $this->destination = new Mock();
+        $this->destination = new MockDestination();
         $this->transfer = new Transfer($this->source, $this->destination);
     }
 
