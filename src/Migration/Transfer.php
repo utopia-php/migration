@@ -47,7 +47,7 @@ class Transfer
         Resource::TYPE_DATABASE,
         Resource::TYPE_FUNCTION,
         Resource::TYPE_USER,
-        Resource::TYPE_TEAM
+        Resource::TYPE_TEAM,
     ];
 
     public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
@@ -119,7 +119,7 @@ class Transfer
 
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
-                /** @var Resource $resource */
+                /** @var resource $resource */
                 if (isset($status[$resource->getName()])) {
                     $status[$resource->getName()][$resource->getStatus()]++;
                     if ($status[$resource->getName()]['pending'] > 0) {
@@ -164,11 +164,13 @@ class Transfer
     /**
      * Transfer Resources between adapters
      *
-     * @param array<string> $resources Resources to transfer
-     * @param callable $callback Callback to run after transfer
-     * @param string $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
+     * @param  array<string>  $resources Resources to transfer
+     * @param  callable  $callback Callback to run after transfer
+     * @param  string|null  $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
+     *
+     * @throws \Exception
      */
-    public function run(array $resources, callable $callback, string $rootResourceId = ''): void
+    public function run(array $resources, callable $callback, string $rootResourceId = null): void
     {
         // Allows you to push entire groups if you want.
         $computedResources = [];
@@ -183,6 +185,9 @@ class Transfer
         $computedResources = array_map('strtolower', $computedResources);
 
         // Check we don't have multiple root resources if rootResourceId is set
+
+        $rootResourceId = $rootResourceId ?? ''; // Convert null to empty string
+
         if ($rootResourceId) {
             $rootResourceCount = count(array_intersect($computedResources, self::ROOT_RESOURCES));
 
@@ -216,7 +221,7 @@ class Transfer
     /**
      * Get Transfer Report
      *
-     * @param string $statusLevel If no status level is provided, all status types will be returned.
+     * @param  string  $statusLevel If no status level is provided, all status types will be returned.
      * @return array<array<string, mixed>>
      */
     public function getReport(string $statusLevel = ''): array
@@ -250,7 +255,7 @@ class Transfer
     {
         $resources = [];
         foreach ($services as $service) {
-            var_dump("converting resource === " . $service);
+            var_dump('converting resource === '.$service);
             $resources = match ($service) {
                 self::GROUP_FUNCTIONS => array_merge($resources, self::GROUP_FUNCTIONS_RESOURCES),
                 self::GROUP_STORAGE => array_merge($resources, self::GROUP_STORAGE_RESOURCES),
