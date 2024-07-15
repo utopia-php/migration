@@ -25,7 +25,7 @@ class TransferTest extends TestCase
             $this->destination
         );
     }
-    
+
     public function testRootResourceId(): void
     {
         /**

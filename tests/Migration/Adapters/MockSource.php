@@ -2,7 +2,6 @@
 
 namespace Utopia\Tests\Adapters;
 
-use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;

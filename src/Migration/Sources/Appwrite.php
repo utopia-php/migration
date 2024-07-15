@@ -625,26 +625,26 @@ class Appwrite extends Source
                 if ($lastDocument) {
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
-//
-//                $selects = [];
-//                $attributes = $this->cache->get(Attribute::getName());
-//                foreach ($attributes as $attribute) {
-//                    /** @var Attribute $attribute */
-//                    if ($attribute->getCollection()->getId() === $collection->getId()) {
-//
-//                        var_dump(' === exportDocuments === ');
-//                        var_dump($attribute->getKey());
-//                        var_dump($attribute);
-//                        $selects[] = $attribute->getKey();
-//                        if($attribute->getTypeName() === Attribute::TYPE_RELATIONSHIP){
-//                            var_dump(' === this is TYPE_RELATIONSHIP === ');
-//                        }
-//                    }
-//                }
-//
-//                if(!empty($selects)){
-//                    $queries[] = Query::select($selects);
-//                }
+                //
+                //                $selects = [];
+                //                $attributes = $this->cache->get(Attribute::getName());
+                //                foreach ($attributes as $attribute) {
+                //                    /** @var Attribute $attribute */
+                //                    if ($attribute->getCollection()->getId() === $collection->getId()) {
+                //
+                //                        var_dump(' === exportDocuments === ');
+                //                        var_dump($attribute->getKey());
+                //                        var_dump($attribute);
+                //                        $selects[] = $attribute->getKey();
+                //                        if($attribute->getTypeName() === Attribute::TYPE_RELATIONSHIP){
+                //                            var_dump(' === this is TYPE_RELATIONSHIP === ');
+                //                        }
+                //                    }
+                //                }
+                //
+                //                if(!empty($selects)){
+                //                    $queries[] = Query::select($selects);
+                //                }
 
                 $queries[] = Query::select(['*', '$id', '$permissions']);
 
@@ -761,13 +761,13 @@ class Appwrite extends Source
                         $value['array'],
                         $value['default']
                     ),
-//                    'datetime' => new DateTime(
-//                        $value['key'],
-//                        $collection,
-//                        $value['required'],
-//                        $value['array'],
-//                        $value['default']
-//                    ),
+                    //                    'datetime' => new DateTime(
+                    //                        $value['key'],
+                    //                        $collection,
+                    //                        $value['required'],
+                    //                        $value['array'],
+                    //                        $value['default']
+                    //                    ),
                     default => new Text(
                         $value['key'],
                         $collection,

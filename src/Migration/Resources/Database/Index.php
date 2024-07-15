@@ -2,7 +2,6 @@
 
 namespace Utopia\Migration\Resources\Database;
 
-use Appwrite\Enums\IndexType;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
