@@ -669,6 +669,7 @@ class Appwrite extends Source
                         $document,
                         $permissions
                     );
+
                     $lastDocument = $id;
                 }
 
