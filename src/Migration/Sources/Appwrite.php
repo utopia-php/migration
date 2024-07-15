@@ -592,7 +592,7 @@ class Appwrite extends Source
                 if ($lastDocument) {
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
-//
+
 //                $selects = [];
 //                $attributes = $this->cache->get(Attribute::getName());
 //                foreach ($attributes as $attribute) {
@@ -622,15 +622,13 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['documents'] as $document) {
-                    //$id = $document['$id'];
-                    //$permissions = $document['$permissions'];
+                    $id = $document['$id'];
+                    $permissions = $document['$permissions'];
 
-                    $data = $document;
-
-                    unset($data['$permissions']);
-                    unset($data['$collectionId']);
-                    unset($data['$databaseId']);
-                    unset($data['$id']);
+                    unset($document['$id']);
+                    unset($document['$permissions']);
+                    unset($document['$collectionId']);
+                    unset($document['$databaseId']);
 
                     // Certain Appwrite versions allowed for data to be required but null
                     // This isn't allowed in modern versions so we need to remove it by comparing their attributes and replacing it with default value.
@@ -666,12 +664,12 @@ class Appwrite extends Source
                     }
 
                     $documents[] = new Document(
-                        $document['$id'],
+                        $id,
                         $collection,
-                        $data,
-                        $document['$permissions']
+                        $document,
+                        $permissions
                     );
-                    $lastDocument = $document['$id'];
+                    $lastDocument = $id;
                 }
 
                 $this->callback($documents);
