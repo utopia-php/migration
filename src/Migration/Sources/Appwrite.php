@@ -573,31 +573,6 @@ class Appwrite extends Source
         }
     }
 
-    public function stripMetadata(array $document): array
-    {
-        unset($document['$collectionId']);
-        unset($document['$databaseId']);
-
-//
-//        if ($root) {
-//            unset($document['$id']);
-//        }
-//
-//        unset($document['$permissions']);
-//
-//        unset($document['$updatedAt']);
-//        unset($document['$createdAt']);
-//        unset($document['$tenant']);
-//
-//        foreach ($document as $key => $value) {
-//            if (is_array($value)) {
-//                $document[$key] = $this->stripMetadata($value, false);
-//            }
-//        }
-
-        return $document;
-    }
-
     /**
      * @throws AppwriteException
      */
@@ -649,10 +624,16 @@ class Appwrite extends Source
                 foreach ($response['documents'] as $document) {
                     //$id = $document['$id'];
                     //$permissions = $document['$permissions'];
-                    $document = $this->stripMetadata($document);
+
+                    $data = $document;
+
+                    unset($data['$permissions']);
+                    unset($data['$collectionId']);
+                    unset($data['$databaseId']);
+                    unset($data['$id']);
 
                     // Certain Appwrite versions allowed for data to be required but null
-                    // This isn't allowed in modern versions, so we need to remove it by comparing their attributes and replacing it with default value.
+                    // This isn't allowed in modern versions so we need to remove it by comparing their attributes and replacing it with default value.
                     $attributes = $this->cache->get(Attribute::getName());
                     foreach ($attributes as $attribute) {
                         /** @var Attribute $attribute */
@@ -684,12 +665,10 @@ class Appwrite extends Source
                         }
                     }
 
-                    $cleanData = $this->stripMetadata($document);
-
                     $documents[] = new Document(
                         $document['$id'],
                         $collection,
-                        $cleanData,
+                        $data,
                         $document['$permissions']
                     );
                     $lastDocument = $document['$id'];
