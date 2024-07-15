@@ -362,6 +362,12 @@ class Appwrite extends Source
     {
         $lastDocument = null;
 
+        // Root Level Resource
+        if (!empty($this->rootResourceId)) {
+            $this->callback([$this->users->get($this->rootResourceId)]);
+            return;
+        }
+
         // Export Users
         while (true) {
             $users = [];
@@ -411,6 +417,12 @@ class Appwrite extends Source
     {
         $this->teams = new Teams($this->client);
         $lastDocument = null;
+
+        // Root Level Resource
+        if (!empty($this->rootResourceId)) {
+            $this->callback([$this->teams->get($this->rootResourceId)]);
+            return;
+        }
 
         // Export Teams
         while (true) {
@@ -593,25 +605,25 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
 
-//                $selects = [];
-//                $attributes = $this->cache->get(Attribute::getName());
-//                foreach ($attributes as $attribute) {
-//                    /** @var Attribute $attribute */
-//                    if ($attribute->getCollection()->getId() === $collection->getId()) {
-//
-//                        var_dump(' === exportDocuments === ');
-//                        var_dump($attribute->getKey());
-//                        var_dump($attribute);
-//                        $selects[] = $attribute->getKey();
-//                        if($attribute->getTypeName() === Attribute::TYPE_RELATIONSHIP){
-//                            var_dump(' === this is TYPE_RELATIONSHIP === ');
-//                        }
-//                    }
-//                }
-//
-//                if(!empty($selects)){
-//                    $queries[] = Query::select($selects);
-//                }
+                //                $selects = [];
+                //                $attributes = $this->cache->get(Attribute::getName());
+                //                foreach ($attributes as $attribute) {
+                //                    /** @var Attribute $attribute */
+                //                    if ($attribute->getCollection()->getId() === $collection->getId()) {
+                //
+                //                        var_dump(' === exportDocuments === ');
+                //                        var_dump($attribute->getKey());
+                //                        var_dump($attribute);
+                //                        $selects[] = $attribute->getKey();
+                //                        if($attribute->getTypeName() === Attribute::TYPE_RELATIONSHIP){
+                //                            var_dump(' === this is TYPE_RELATIONSHIP === ');
+                //                        }
+                //                    }
+                //                }
+                //
+                //                if(!empty($selects)){
+                //                    $queries[] = Query::select($selects);
+                //                }
 
                 $queries[] = Query::select(['*', '$id', '$permissions', '$updatedAt', '$createdAt']); // We want Relations flat!
 
@@ -730,13 +742,13 @@ class Appwrite extends Source
                         $value['array'],
                         $value['default']
                     ),
-//                    'datetime' => new DateTime(
-//                        $value['key'],
-//                        $collection,
-//                        $value['required'],
-//                        $value['array'],
-//                        $value['default']
-//                    ),
+                    //                    'datetime' => new DateTime(
+                    //                        $value['key'],
+                    //                        $collection,
+                    //                        $value['required'],
+                    //                        $value['array'],
+                    //                        $value['default']
+                    //                    ),
                     default => new Text(
                         $value['key'],
                         $collection,
@@ -808,6 +820,12 @@ class Appwrite extends Source
         $this->database = new Databases($this->client);
 
         $lastDatabase = null;
+
+        // Root Level Resource
+        if (!empty($this->rootResourceId)) {
+            $this->callback([$this->database->get($this->rootResourceId)]);
+            return;
+        }
 
         // Transfer Databases
         while (true) {
@@ -1059,6 +1077,12 @@ class Appwrite extends Source
      */
     private function exportBuckets(int $batchSize): void
     {
+        // Root Level Resource
+        if (!empty($this->rootResourceId)) {
+            $this->callback([$this->storage->getBucket($this->rootResourceId)]);
+            return;
+        }
+
         $buckets = $this->storage->listBuckets();
 
         $convertedBuckets = [];
@@ -1209,6 +1233,12 @@ class Appwrite extends Source
     private function exportFunctions(int $batchSize): void
     {
         $this->functions = new Functions($this->client);
+
+        // Root Level Resource
+        if (!empty($this->rootResourceId)) {
+            $this->callback([$this->functions->get($this->rootResourceId)]);
+            return;
+        }
 
         $functions = $this->functions->list();
 

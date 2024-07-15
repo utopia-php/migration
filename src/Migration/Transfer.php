@@ -42,6 +42,14 @@ class Transfer
         Resource::TYPE_DOCUMENT,
     ];
 
+    public const ROOT_RESOURCES = [
+        Resource::TYPE_BUCKET,
+        Resource::TYPE_DATABASE,
+        Resource::TYPE_FUNCTION,
+        Resource::TYPE_USER,
+        Resource::TYPE_TEAM
+    ];
+
     public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 
     protected Source $source;
@@ -156,10 +164,11 @@ class Transfer
     /**
      * Transfer Resources between adapters
      *
-     * @param array<string> $resources
-     * @param callable $callback
+     * @param array<string> $resources Resources to transfer
+     * @param callable $callback Callback to run after transfer
+     * @param string $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
      */
-    public function run(array $resources, callable $callback): void
+    public function run(array $resources, callable $callback, string $rootResourceId = ''): void
     {
         // Allows you to push entire groups if you want.
         $computedResources = [];
@@ -173,9 +182,18 @@ class Transfer
 
         $computedResources = array_map('strtolower', $computedResources);
 
+        // Check we don't have multiple root resources if rootResourceId is set
+        if ($rootResourceId) {
+            $rootResourceCount = count(array_intersect($computedResources, self::ROOT_RESOURCES));
+
+            if ($rootResourceCount > 1) {
+                throw new \Exception('Multiple root resources found. Only one root resource can be transferred at a time if using $rootResourceId.');
+            }
+        }
+
         $this->resources = $computedResources;
 
-        $this->destination->run($computedResources, $callback);
+        $this->destination->run($computedResources, $callback, $rootResourceId);
     }
 
     /**

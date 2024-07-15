@@ -23,11 +23,14 @@ abstract class Source extends Target
     /**
      * Transfer Resources into destination
      *
-     * @param  array<string>  $resources  Resources to transfer
-     * @param  callable  $callback  Callback to run after transfer
+     * @param array<string> $resources Resources to transfer
+     * @param callable $callback Callback to run after transfer
+     * @param string $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
      */
-    public function run(array $resources, callable $callback): void
+    public function run(array $resources, callable $callback, string $rootResourceId = ''): void
     {
+        $this->rootResourceId = $rootResourceId;
+
         $this->transferCallback = function (array $returnedResources) use ($callback, $resources) {
             $prunedResources = [];
             foreach ($returnedResources as $resource) {
