@@ -585,27 +585,6 @@ class Appwrite extends Source
         }
     }
 
-    public function stripMetadata(array $document, bool $root = true): array
-    {
-        if ($root) {
-            unset($document['$id']);
-        }
-
-        unset($document['$permissions']);
-        unset($document['$collectionId']);
-        unset($document['$updatedAt']);
-        unset($document['$createdAt']);
-        unset($document['$databaseId']);
-
-        foreach ($document as $key => $value) {
-            if (is_array($value)) {
-                $document[$key] = $this->stripMetadata($value, false);
-            }
-        }
-
-        return $document;
-    }
-
     /**
      * @throws AppwriteException
      */
@@ -625,28 +604,28 @@ class Appwrite extends Source
                 if ($lastDocument) {
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
-                //
-                //                $selects = [];
-                //                $attributes = $this->cache->get(Attribute::getName());
-                //                foreach ($attributes as $attribute) {
-                //                    /** @var Attribute $attribute */
-                //                    if ($attribute->getCollection()->getId() === $collection->getId()) {
-                //
-                //                        var_dump(' === exportDocuments === ');
-                //                        var_dump($attribute->getKey());
-                //                        var_dump($attribute);
-                //                        $selects[] = $attribute->getKey();
-                //                        if($attribute->getTypeName() === Attribute::TYPE_RELATIONSHIP){
-                //                            var_dump(' === this is TYPE_RELATIONSHIP === ');
-                //                        }
-                //                    }
-                //                }
-                //
-                //                if(!empty($selects)){
-                //                    $queries[] = Query::select($selects);
-                //                }
 
-                $queries[] = Query::select(['*', '$id', '$permissions']);
+//                $selects = [];
+//                $attributes = $this->cache->get(Attribute::getName());
+//                foreach ($attributes as $attribute) {
+//                    /** @var Attribute $attribute */
+//                    if ($attribute->getCollection()->getId() === $collection->getId()) {
+//
+//                        var_dump(' === exportDocuments === ');
+//                        var_dump($attribute->getKey());
+//                        var_dump($attribute);
+//                        $selects[] = $attribute->getKey();
+//                        if($attribute->getTypeName() === Attribute::TYPE_RELATIONSHIP){
+//                            var_dump(' === this is TYPE_RELATIONSHIP === ');
+//                        }
+//                    }
+//                }
+//
+//                if(!empty($selects)){
+//                    $queries[] = Query::select($selects);
+//                }
+
+                $queries[] = Query::select(['*', '$id', '$permissions', '$updatedAt', '$createdAt']); // We want Relations flat!
 
                 $response = $this->database->listDocuments(
                     $collection->getDatabase()->getId(),
@@ -658,10 +637,13 @@ class Appwrite extends Source
                     $id = $document['$id'];
                     $permissions = $document['$permissions'];
 
-                    $document = $this->stripMetadata($document);
+                    unset($document['$id']);
+                    unset($document['$permissions']);
+                    unset($document['$collectionId']);
+                    unset($document['$databaseId']);
 
                     // Certain Appwrite versions allowed for data to be required but null
-                    // This isn't allowed in modern versions, so we need to remove it by comparing their attributes and replacing it with default value.
+                    // This isn't allowed in modern versions so we need to remove it by comparing their attributes and replacing it with default value.
                     $attributes = $this->cache->get(Attribute::getName());
                     foreach ($attributes as $attribute) {
                         /** @var Attribute $attribute */
@@ -693,14 +675,13 @@ class Appwrite extends Source
                         }
                     }
 
-                    $cleanData = $this->stripMetadata($document);
-
                     $documents[] = new Document(
                         $id,
                         $collection,
-                        $cleanData,
+                        $document,
                         $permissions
                     );
+
                     $lastDocument = $id;
                 }
 
