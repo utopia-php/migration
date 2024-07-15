@@ -573,7 +573,7 @@ class Appwrite extends Source
         }
     }
 
-    public function stripMetadata(array $document, bool $root = true): array
+    public function stripMetadata(array $document): array
     {
         unset($document['$collectionId']);
         unset($document['$databaseId']);
@@ -638,7 +638,7 @@ class Appwrite extends Source
 //                    $queries[] = Query::select($selects);
 //                }
 
-                $queries[] = Query::select(['*', '$id', '$permissions']); // We want Relations flat!
+                $queries[] = Query::select(['*', '$id', '$permissions', '$updatedAt', '$createdAt']); // We want Relations flat!
 
                 $response = $this->database->listDocuments(
                     $collection->getDatabase()->getId(),
