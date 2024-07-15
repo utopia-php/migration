@@ -7,7 +7,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\NHost;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\E2E\Adapters\Mock;
+use Utopia\Tests\Adapters\MockDestination;
 
 class NHostTest extends Base
 {
@@ -73,7 +73,7 @@ class NHostTest extends Base
         $this->source->pdo = new \PDO('pgsql:host=nhost-db'.';port=5432;dbname=postgres', 'postgres', 'postgres');
         $this->source->storageURL = 'http://nhost-storage';
 
-        $this->destination = new Mock();
+        $this->destination = new MockDestination();
         $this->transfer = new Transfer($this->source, $this->destination);
     }
 

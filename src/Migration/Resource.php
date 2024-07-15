@@ -87,6 +87,8 @@ abstract class Resource
 
     abstract public function getGroup(): string;
 
+    abstract public function isRoot(): bool;
+
     public function getId(): string
     {
         return $this->id;

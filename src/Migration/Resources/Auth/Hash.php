@@ -67,6 +67,11 @@ class Hash extends Resource
         return Transfer::GROUP_AUTH;
     }
 
+    public function isRoot(): bool
+    {
+        return false;
+    }
+
     /**
      * Get Hash
      */

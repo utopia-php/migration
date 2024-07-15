@@ -31,6 +31,11 @@ class Integer extends Attribute
         return Attribute::TYPE_INTEGER;
     }
 
+    public function isRoot(): bool
+    {
+        return false;
+    }
+
     public function getMin(): ?int
     {
         return $this->min;

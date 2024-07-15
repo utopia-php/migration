@@ -32,4 +32,9 @@ class URL extends Attribute
     {
         return Attribute::TYPE_URL;
     }
+
+    public function isRoot(): bool
+    {
+        return false;
+    }
 }

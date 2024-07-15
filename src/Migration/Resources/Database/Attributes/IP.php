@@ -29,4 +29,9 @@ class IP extends Attribute
     {
         return Attribute::TYPE_IP;
     }
+
+    public function isRoot(): bool
+    {
+        return false;
+    }
 }

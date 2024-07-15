@@ -26,6 +26,11 @@ class Text extends Attribute
         return Attribute::TYPE_STRING;
     }
 
+    public function isRoot(): bool
+    {
+        return false;
+    }
+
     public function getSize(): int
     {
         return $this->size;

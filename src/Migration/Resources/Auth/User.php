@@ -61,6 +61,11 @@ class User extends Resource
         return Resource::TYPE_USER;
     }
 
+    public function isRoot(): bool
+    {
+        return true;
+    }
+
     /**
      * Get Email
      */

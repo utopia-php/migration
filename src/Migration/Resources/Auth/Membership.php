@@ -36,6 +36,11 @@ class Membership extends Resource
         return Transfer::GROUP_AUTH;
     }
 
+    public function isRoot(): bool
+    {
+        return false;
+    }
+
     public function getTeam(): Team
     {
         return $this->team;

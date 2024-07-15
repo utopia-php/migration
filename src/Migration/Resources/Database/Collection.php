@@ -42,6 +42,11 @@ class Collection extends Resource
         return Transfer::GROUP_DATABASES;
     }
 
+    public function isRoot(): bool
+    {
+        return false;
+    }
+
     public function getDatabase(): Database
     {
         return $this->database;

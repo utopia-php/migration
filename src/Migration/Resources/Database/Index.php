@@ -46,6 +46,11 @@ class Index extends Resource
         return Transfer::GROUP_DATABASES;
     }
 
+    public function isRoot(): bool
+    {
+        return false;
+    }
+
     public function getKey(): string
     {
         return $this->key;

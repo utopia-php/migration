@@ -31,6 +31,11 @@ class Decimal extends Attribute
         return Attribute::TYPE_FLOAT;
     }
 
+    public function isRoot(): bool
+    {
+        return false;
+    }
+
     public function getMin(): ?float
     {
         return $this->min;

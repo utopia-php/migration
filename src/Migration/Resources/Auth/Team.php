@@ -32,6 +32,11 @@ class Team extends Resource
         return Transfer::GROUP_AUTH;
     }
 
+    public function isRoot(): bool
+    {
+        return true;
+    }
+
     public function getTeamName(): string
     {
         return $this->name;

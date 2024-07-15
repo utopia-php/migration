@@ -27,6 +27,11 @@ class Enum extends Attribute
         return Attribute::TYPE_ENUM;
     }
 
+    public function isRoot(): bool
+    {
+        return false;
+    }
+
     public function getElements(): array
     {
         return $this->elements;

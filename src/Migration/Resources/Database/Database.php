@@ -38,6 +38,11 @@ class Database extends Resource
         return Transfer::GROUP_DATABASES;
     }
 
+    public function isRoot(): bool
+    {
+        return true;
+    }
+
     public function getDBName(): string
     {
         return $this->name;

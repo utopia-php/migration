@@ -35,6 +35,11 @@ class Relationship extends Attribute
         return Attribute::TYPE_RELATIONSHIP;
     }
 
+    public function isRoot(): bool
+    {
+        return false;
+    }
+
     public function getRelatedCollection(): string
     {
         return $this->relatedCollection;

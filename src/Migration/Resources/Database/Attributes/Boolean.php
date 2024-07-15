@@ -29,6 +29,11 @@ class Boolean extends Attribute
         return Attribute::TYPE_BOOLEAN;
     }
 
+    public function isRoot(): bool
+    {
+        return false;
+    }
+
     public function getDefault(): ?bool
     {
         return $this->default;

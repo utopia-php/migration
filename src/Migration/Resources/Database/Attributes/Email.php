@@ -32,4 +32,9 @@ class Email extends Attribute
     {
         return Attribute::TYPE_EMAIL;
     }
+
+    public function isRoot(): bool
+    {
+        return false;
+    }
 }

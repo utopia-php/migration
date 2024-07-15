@@ -18,6 +18,11 @@ class DateTime extends Attribute
         $this->default = $default;
     }
 
+    public function isRoot(): bool
+    {
+        return false;
+    }
+
     public function getDefault(): ?string
     {
         return $this->default;
