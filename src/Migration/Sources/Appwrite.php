@@ -575,21 +575,25 @@ class Appwrite extends Source
 
     public function stripMetadata(array $document, bool $root = true): array
     {
-        if ($root) {
-            unset($document['$id']);
-        }
-
-        unset($document['$permissions']);
         unset($document['$collectionId']);
-        unset($document['$updatedAt']);
-        unset($document['$createdAt']);
         unset($document['$databaseId']);
 
-        foreach ($document as $key => $value) {
-            if (is_array($value)) {
-                $document[$key] = $this->stripMetadata($value, false);
-            }
-        }
+//
+//        if ($root) {
+//            unset($document['$id']);
+//        }
+//
+//        unset($document['$permissions']);
+//
+//        unset($document['$updatedAt']);
+//        unset($document['$createdAt']);
+//        unset($document['$tenant']);
+//
+//        foreach ($document as $key => $value) {
+//            if (is_array($value)) {
+//                $document[$key] = $this->stripMetadata($value, false);
+//            }
+//        }
 
         return $document;
     }
@@ -634,7 +638,7 @@ class Appwrite extends Source
 //                    $queries[] = Query::select($selects);
 //                }
 
-                $queries[] = Query::select(['*', '$id', '$permissions']);
+                $queries[] = Query::select(['*', '$id', '$permissions']); // We want Relations flat!
 
                 $response = $this->database->listDocuments(
                     $collection->getDatabase()->getId(),
@@ -643,9 +647,8 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['documents'] as $document) {
-                    $id = $document['$id'];
-                    $permissions = $document['$permissions'];
-
+                    //$id = $document['$id'];
+                    //$permissions = $document['$permissions'];
                     $document = $this->stripMetadata($document);
 
                     // Certain Appwrite versions allowed for data to be required but null
@@ -684,12 +687,12 @@ class Appwrite extends Source
                     $cleanData = $this->stripMetadata($document);
 
                     $documents[] = new Document(
-                        $id,
+                        $document['$id'],
                         $collection,
                         $cleanData,
-                        $permissions
+                        $document['$permissions']
                     );
-                    $lastDocument = $id;
+                    $lastDocument = $document['$id'];
                 }
 
                 $this->callback($documents);
