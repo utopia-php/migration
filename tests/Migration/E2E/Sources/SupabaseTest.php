@@ -84,6 +84,7 @@ class SupabaseTest extends Base
         return array_merge($state, [
             'transfer' => $this->transfer,
             'source' => $this->source,
+            'destination' => $this->destination,
         ]);
     }
 
