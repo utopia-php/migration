@@ -2,12 +2,12 @@
 
 namespace Utopia\Tests\E2E\Sources;
 
-use Migration\Unit\Adapters\MockDestination;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\NHost;
 use Utopia\Migration\Transfer;
+use Utopia\Tests\Unit\Adapters\MockDestination;
 
 class NHostTest extends Base
 {

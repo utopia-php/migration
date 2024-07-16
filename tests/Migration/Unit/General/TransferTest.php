@@ -2,12 +2,12 @@
 
 namespace Utopia\Tests\Unit\General;
 
-use Migration\Unit\Adapters\MockDestination;
-use Migration\Unit\Adapters\MockSource;
 use PHPUnit\Framework\TestCase;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Transfer;
+use Utopia\Tests\Unit\Adapters\MockDestination;
+use Utopia\Tests\Unit\Adapters\MockSource;
 
 class TransferTest extends TestCase
 {
