@@ -363,16 +363,20 @@ class Appwrite extends Source
         $lastDocument = null;
 
         // Root Level Resource
-        if (!empty($this->rootResourceId)) {
-            $this->callback([$this->users->get($this->rootResourceId)]);
-            return;
-        }
+//        if (!empty($this->rootResourceId)) {
+//            $this->callback([$this->users->get($this->rootResourceId)]);
+//            return;
+//        }
 
         // Export Users
         while (true) {
             $users = [];
 
             $queries = [Query::limit($batchSize)];
+
+            if (!empty($this->rootResourceId)) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+            }
 
             if ($lastDocument) {
                 $queries[] = Query::cursorAfter($lastDocument);
@@ -419,16 +423,20 @@ class Appwrite extends Source
         $lastDocument = null;
 
         // Root Level Resource
-        if (!empty($this->rootResourceId)) {
-            $this->callback([$this->teams->get($this->rootResourceId)]);
-            return;
-        }
+//        if (!empty($this->rootResourceId)) {
+//            $this->callback([$this->teams->get($this->rootResourceId)]);
+//            return;
+//        }
 
         // Export Teams
         while (true) {
             $teams = [];
 
             $queries = [Query::limit($batchSize)];
+
+            if (!empty($this->rootResourceId)) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+            }
 
             if ($lastDocument) {
                 $queries[] = Query::cursorAfter($lastDocument);
@@ -822,18 +830,18 @@ class Appwrite extends Source
         $lastDatabase = null;
 
         // Root Level Resource
-        if (!empty($this->rootResourceId)) {
-            $this->callback([$this->database->get($this->rootResourceId)]);
-            return;
-        }
+//        if (!empty($this->rootResourceId)) {
+//            $this->callback([$this->database->get($this->rootResourceId)]);
+//            return;
+//        }
 
         // Transfer Databases
         while (true) {
             $queries = [Query::limit($batchSize)];
 
-//            if (!empty($this->rootResourceId)) {
-//                $queries[] = Query::equal('$id', $this->rootResourceId);
-//            }
+            if (!empty($this->rootResourceId)) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+            }
 
             $databases = [];
 
@@ -1083,12 +1091,18 @@ class Appwrite extends Source
     private function exportBuckets(int $batchSize): void
     {
         // Root Level Resource
+//        if (!empty($this->rootResourceId)) {
+//            $this->callback([$this->storage->getBucket($this->rootResourceId)]);
+//            return;
+//        }
+
+        $queries = [];
+
         if (!empty($this->rootResourceId)) {
-            $this->callback([$this->storage->getBucket($this->rootResourceId)]);
-            return;
+            $queries[] = Query::equal('$id', $this->rootResourceId);
         }
 
-        $buckets = $this->storage->listBuckets();
+        $buckets = $this->storage->listBuckets($queries);
 
         $convertedBuckets = [];
 
@@ -1240,12 +1254,18 @@ class Appwrite extends Source
         $this->functions = new Functions($this->client);
 
         // Root Level Resource
+//        if (!empty($this->rootResourceId)) {
+//            $this->callback([$this->functions->get($this->rootResourceId)]);
+//            return;
+//        }
+
+        $queries = [];
+
         if (!empty($this->rootResourceId)) {
-            $this->callback([$this->functions->get($this->rootResourceId)]);
-            return;
+            $queries[] = Query::equal('$id', $this->rootResourceId);
         }
 
-        $functions = $this->functions->list();
+        $functions = $this->functions->list($queries);
 
         if ($functions['total'] === 0) {
             return;
