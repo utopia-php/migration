@@ -2,12 +2,12 @@
 
 namespace Utopia\Tests\E2E\Sources;
 
+use Migration\Unit\Adapters\MockDestination;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\NHost;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\Adapters\MockDestination;
 
 class NHostTest extends Base
 {
@@ -96,8 +96,7 @@ class NHostTest extends Base
     {
         $this->transfer->run(
             $this->source->getSupportedResources(),
-            function () {
-            }
+            function () {}
         );
 
         $this->assertEquals(0, count($this->transfer->getReport('error')));
@@ -157,7 +156,6 @@ class NHostTest extends Base
         $this->assertEquals('$2a$10$ARQ/f.K6OmCjZ8XF0U.6fezPMlxDqsmcl0Rs6xQVkvj62u7gcSzOW', $foundUser->getPasswordHash()->getHash());
         $this->assertEquals('bcrypt', $foundUser->getPasswordHash()->getAlgorithm());
         $this->assertEquals('test@test.com', $foundUser->getUsername());
-        $this->assertEquals(['password'], $foundUser->getTypes());
     }
 
     /**

@@ -7,3 +7,4 @@ test-service-account.json
 localBackup/
 .vscode/
 .env.prod
+serviceAccount.json

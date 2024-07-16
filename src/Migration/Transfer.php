@@ -131,8 +131,9 @@ class Transfer
 
         // Process Destination Errors
         foreach ($this->destination->getErrors() as $error) {
-            if (isset($status[$error->getResourceType()])) {
-                $status[$error->getResourceType()][Resource::STATUS_ERROR]++;
+            /** @var Exception $error */
+            if (isset($status[$error->getResourceGroup()])) {
+                $status[$error->getResourceGroup()][Resource::STATUS_ERROR]++;
             }
         }
 

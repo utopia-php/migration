@@ -355,7 +355,10 @@ class Supabase extends NHost
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
-                $e->getMessage()
+                Transfer::GROUP_STORAGE,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
     }
@@ -379,13 +382,12 @@ class Supabase extends NHost
             $transferUsers = [];
 
             foreach ($users as $user) {
-                $transferUsers[] = new User(
+                $transferUser = new User(
                     $user['id'],
-                    $user['email'] ?? '',
+                    $user['email'] ?? null,
                     '',
-                    new Hash($user['encrypted_password'], '', Hash::ALGORITHM_BCRYPT),
-                    $user['phone'] ?? '',
-                    $this->calculateAuthTypes($user),
+                    null,
+                    $user['phone'] ?? null,
                     [],
                     '',
                     ! empty($user['email_confirmed_at']),
@@ -393,6 +395,12 @@ class Supabase extends NHost
                     false,
                     []
                 );
+
+                if (array_key_exists('encrypted_password', $user)) {
+                    $transferUser->setPasswordHash(new Hash($user['encrypted_password'], '', Hash::ALGORITHM_BCRYPT));
+                }
+
+                $transferUsers[] = $transferUser;
             }
 
             $this->callback($transferUsers);
@@ -410,26 +418,7 @@ class Supabase extends NHost
         return $extensions;
     }
 
-    private function calculateAuthTypes(array $user): array
-    {
-        if (empty($user['encrypted_password']) && empty($user['phone'])) {
-            return [User::TYPE_ANONYMOUS];
-        }
-
-        $types = [];
-
-        if (! empty($user['encrypted_password'])) {
-            $types[] = User::TYPE_PASSWORD;
-        }
-
-        if (! empty($user['phone'])) {
-            $types[] = User::TYPE_PHONE;
-        }
-
-        return $types;
-    }
-
-    protected function exportGroupStorage(int $batchSize, array $resources): void
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         try {
             if (\in_array(Resource::TYPE_BUCKET, $resources)) {
@@ -438,7 +427,10 @@ class Supabase extends NHost
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
-                $e->getMessage()
+                Transfer::GROUP_STORAGE,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
 
@@ -449,7 +441,10 @@ class Supabase extends NHost
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
-                $e->getMessage()
+                Transfer::GROUP_STORAGE,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
     }

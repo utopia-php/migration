@@ -2,12 +2,12 @@
 
 namespace Utopia\Tests\E2E\Sources;
 
+use Migration\Unit\Adapters\MockDestination;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Supabase;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\Adapters\MockDestination;
 
 class SupabaseTest extends Base
 {
@@ -76,8 +76,7 @@ class SupabaseTest extends Base
     {
         $this->transfer->run(
             $this->source->getSupportedResources(),
-            function () {
-            }
+            function () {}
         );
 
         $this->assertEquals(0, count($this->transfer->getReport('error')));
@@ -137,7 +136,6 @@ class SupabaseTest extends Base
         $this->assertEquals('success', $foundUser->getStatus());
         $this->assertEquals('$2a$10$NGZAAOfXeheUoH9V3dnRoeR.r3J5ynnSZ6KjvHxOUlV8XUrulJzQa', $foundUser->getPasswordHash()->getHash());
         $this->assertEquals('bcrypt', $foundUser->getPasswordHash()->getAlgorithm());
-        $this->assertEquals(['password'], $foundUser->getTypes());
     }
 
     /**

@@ -1,9 +1,11 @@
 <?php
 
-namespace Utopia\Tests\Adapters;
+namespace Utopia\Tests\Unit\Adapters;
 
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
+use Utopia\Migration\Resources\Functions\Deployment;
+use Utopia\Migration\Resources\Storage\File;
 
 class MockDestination extends Destination
 {
@@ -83,7 +85,7 @@ class MockDestination extends Destination
         $callback($resources);
     }
 
-    public function report(array $groups = []): array
+    public function report(array $resources = []): array
     {
         return [];
     }

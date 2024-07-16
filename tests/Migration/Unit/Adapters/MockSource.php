@@ -1,6 +1,6 @@
 <?php
 
-namespace Utopia\Tests\Adapters;
+namespace Utopia\Tests\Unit\Adapters;
 
 use Utopia\Migration\Resource;
 use Utopia\Migration\Source;

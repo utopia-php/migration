@@ -7,16 +7,6 @@ use Utopia\Migration\Transfer;
 
 class User extends Resource
 {
-    public const string TYPE_PASSWORD = 'password';
-
-    public const string TYPE_PHONE = 'phone';
-
-    public const string TYPE_ANONYMOUS = 'anonymous';
-
-    public const string TYPE_MAGIC = 'magic';
-
-    public const string TYPE_OAUTH = 'oauth';
-
     /**
      * @param string $id
      * @param string $email
@@ -36,8 +26,7 @@ class User extends Resource
         private readonly string $email = '',
         private readonly string $username = '',
         private readonly ?Hash $passwordHash = null,
-        private readonly string $phone = '',
-        private readonly array $types = [self::TYPE_ANONYMOUS],
+        private readonly ?string $phone = null,
         private readonly array $labels = [],
         private readonly string $oauthProvider = '',
         private readonly bool $emailVerified = false,
@@ -60,7 +49,6 @@ class User extends Resource
             $array['username'] ?? '',
             $array['passwordHash'] ?? null,
             $array['phone'] ?? '',
-            $array['types'] ?? [self::TYPE_ANONYMOUS],
             $array['labels'] ?? [],
             $array['oauthProvider'] ?? '',
             $array['emailVerified'] ?? false,
@@ -81,7 +69,6 @@ class User extends Resource
             'username' => $this->username,
             'passwordHash' => $this->passwordHash,
             'phone' => $this->phone,
-            'types' => $this->types,
             'labels' => $this->labels,
             'oauthProvider' => $this->oauthProvider,
             'emailVerified' => $this->emailVerified,
@@ -102,14 +89,14 @@ class User extends Resource
     /**
      * Get Email
      */
-    public function getEmail(): string
+    public function getEmail(): ?string
     {
         return $this->email;
     }
     /**
      * Get Username
      */
-    public function getUsername(): string
+    public function getUsername(): ?string
     {
         return $this->username;
     }
@@ -125,17 +112,9 @@ class User extends Resource
     /**
      * Get Phone
      */
-    public function getPhone(): string
+    public function getPhone(): ?string
     {
         return $this->phone;
-    }
-
-    /**
-     * Get Type
-     */
-    public function getTypes(): array
-    {
-        return $this->types;
     }
 
     /**

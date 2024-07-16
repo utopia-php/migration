@@ -328,7 +328,10 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_USER,
-                $e->getMessage()
+                Transfer::GROUP_AUTH,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
 
@@ -339,7 +342,10 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_TEAM,
-                $e->getMessage()
+                Transfer::GROUP_AUTH,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
 
@@ -350,7 +356,10 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_MEMBERSHIP,
-                $e->getMessage()
+                Transfer::GROUP_AUTH,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
     }
@@ -386,11 +395,10 @@ class Appwrite extends Source
             foreach ($response['users'] as $user) {
                 $users[] = new User(
                     $user['$id'],
-                    $user['email'],
-                    $user['name'],
+                    empty($user['email']) ? null : $user['email'],
+                    empty($user['name']) ? null : $user['name'],
                     $user['password'] ? new Hash($user['password'], algorithm: $user['hash']) : null,
-                    $user['phone'],
-                    $this->calculateTypes($user),
+                    empty($user['phone']) ? null : $user['phone'],
                     $user['labels'] ?? [],
                     '',
                     $user['emailVerification'] ?? false,
@@ -527,7 +535,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DATABASE,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -540,7 +551,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_COLLECTION,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -553,7 +567,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_ATTRIBUTE,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -566,7 +583,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_INDEX,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -579,7 +599,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DOCUMENT,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -1024,26 +1047,7 @@ class Appwrite extends Source
         }
     }
 
-    private function calculateTypes(array $user): array
-    {
-        if (empty($user['email']) && empty($user['phone'])) {
-            return [User::TYPE_ANONYMOUS];
-        }
-
-        $types = [];
-
-        if (! empty($user['email']) && ! empty($user['password'])) {
-            $types[] = User::TYPE_PASSWORD;
-        }
-
-        if (! empty($user['phone'])) {
-            $types[] = User::TYPE_PHONE;
-        }
-
-        return $types;
-    }
-
-    protected function exportGroupStorage(int $batchSize, array $resources): void
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         try {
             if (\in_array(Resource::TYPE_BUCKET, $resources)) {
@@ -1053,7 +1057,10 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_BUCKET,
-                    $e->getMessage()
+                    Transfer::GROUP_STORAGE,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -1066,7 +1073,26 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_FILE,
-                    $e->getMessage()
+                    Transfer::GROUP_STORAGE,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
+                )
+            );
+        }
+
+        try {
+            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+                $this->exportBuckets($batchSize, true);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_BUCKET,
+                    Transfer::GROUP_STORAGE,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -1146,7 +1172,8 @@ class Appwrite extends Source
                         ));
                     } catch (\Throwable $e) {
                         $this->addError(new Exception(
-                            resourceType: Resource::TYPE_FILE,
+                            resourceName: Resource::TYPE_FILE,
+                            resourceGroup: Transfer::GROUP_STORAGE,
                             message: $e->getMessage(),
                             code: $e->getCode(),
                             resourceId: $file['$id']
@@ -1211,7 +1238,10 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_FUNCTION,
-                $e->getMessage()
+                Transfer::GROUP_FUNCTIONS,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
 
@@ -1222,7 +1252,10 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_DEPLOYMENT,
-                $e->getMessage()
+                Transfer::GROUP_FUNCTIONS,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
     }

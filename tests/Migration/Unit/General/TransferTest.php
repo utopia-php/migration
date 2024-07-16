@@ -2,12 +2,12 @@
 
 namespace Utopia\Tests\Unit\General;
 
+use Migration\Unit\Adapters\MockDestination;
+use Migration\Unit\Adapters\MockSource;
 use PHPUnit\Framework\TestCase;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\Adapters\MockDestination;
-use Utopia\Tests\Adapters\MockSource;
 
 class TransferTest extends TestCase
 {
@@ -26,6 +26,9 @@ class TransferTest extends TestCase
         );
     }
 
+    /**
+     * @throws \Exception
+     */
     public function testRootResourceId(): void
     {
         /**
@@ -46,7 +49,7 @@ class TransferTest extends TestCase
          * TEST FOR SUCCESS
          */
         $this->transfer->run([Resource::TYPE_DATABASE], function () {}, 'test');
-        $this->assertEquals(1, count($this->destination->getResourceTypeData(Transfer::GROUP_DATABASES, Resource::TYPE_DATABASE)));
+        $this->assertCount(1, $this->destination->getResourceTypeData(Transfer::GROUP_DATABASES, Resource::TYPE_DATABASE));
 
         $database = $this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_DATABASE, 'test');
         /** @var Database $database */

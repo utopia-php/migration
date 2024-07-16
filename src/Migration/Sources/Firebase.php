@@ -185,7 +185,10 @@ class Firebase extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_USER,
-                    $e->getMessage()
+                    Transfer::GROUP_AUTH,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -223,19 +226,26 @@ class Firebase extends Source
             $nextPageToken = $response['nextPageToken'] ?? null;
 
             foreach ($result as $user) {
-                $users[] = new User(
+                $transferUser = new User(
                     $user['localId'] ?? '',
-                    $user['email'] ?? '',
-                    $user['displayName'] ?? $user['email'] ?? '',
-                    new Hash($user['passwordHash'] ?? '', $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'] ?? '', $hashConfig['signerKey'] ?? ''),
-                    $user['phoneNumber'] ?? '',
-                    $this->calculateUserType($user['providerUserInfo'] ?? []),
+                    $user['email'] ?? null,
+                    $user['displayName'] ?? $user['email'] ?? null,
+                    null,
+                    $user['phoneNumber'] ?? null,
                     [],
                     '',
                     $user['emailVerified'] ?? false,
                     false, // Can't get phone number status on firebase :/
                     $user['disabled'] ?? false
                 );
+
+                if (array_key_exists('passwordHash', $user)) {
+                    $transferUser->setPasswordHash(
+                        new Hash($user['passwordHash'], $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'] ?? '', $hashConfig['signerKey'] ?? '')
+                    );
+                }
+
+                $users[] = $transferUser;
             }
 
             $this->callback($users);
@@ -246,32 +256,7 @@ class Firebase extends Source
         }
     }
 
-    private function calculateUserType(array $providerData): array
-    {
-        if (count($providerData) === 0) {
-            return [User::TYPE_ANONYMOUS];
-        }
-
-        $types = [];
-
-        foreach ($providerData as $provider) {
-            switch ($provider['providerId']) {
-                case 'password':
-                    $types[] = User::TYPE_PASSWORD;
-                    break;
-                case 'phone':
-                    $types[] = User::TYPE_PHONE;
-                    break;
-                default:
-                    $types[] = User::TYPE_OAUTH;
-                    break;
-            }
-        }
-
-        return $types;
-    }
-
-    protected function exportGroupDatabases(int $batchSize, array $resources): void
+    protected function exportGroupDatabases(int $batchSize, array $resources)
     {
         // Check if Firestore is enabled
         try {
@@ -297,7 +282,10 @@ class Firebase extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DATABASE,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -310,7 +298,10 @@ class Firebase extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_COLLECTION,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -568,7 +559,10 @@ class Firebase extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
-                $e->getMessage()
+                Transfer::GROUP_STORAGE,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
 
@@ -579,7 +573,10 @@ class Firebase extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_FILE,
-                $e->getMessage()
+                Transfer::GROUP_STORAGE,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
 

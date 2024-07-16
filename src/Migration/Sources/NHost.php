@@ -219,7 +219,10 @@ class NHost extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_USER,
-                $e->getMessage()
+                Transfer::GROUP_AUTH,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
     }
@@ -245,13 +248,12 @@ class NHost extends Source
             $transferUsers = [];
 
             foreach ($users as $user) {
-                $transferUsers[] = new User(
+                $transferUser = new User(
                     $user['id'],
-                    $user['email'] ?? '',
-                    $user['display_name'] ?? '',
-                    new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT),
-                    $user['phone_number'] ?? '',
-                    $this->calculateUserTypes($user),
+                    $user['email'] ?? null,
+                    $user['display_name'] ?? null,
+                    null,
+                    $user['phone_number'] ?? null,
                     [],
                     '',
                     $user['email_verified'] ?? false,
@@ -259,6 +261,12 @@ class NHost extends Source
                     $user['disabled'] ?? false,
                     []
                 );
+
+                if (array_key_exists('password_hash', $user)) {
+                    $transferUser->setPasswordHash(new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT));
+                }
+
+                $transferUsers[] = $transferUser;
             }
 
             $this->callback($transferUsers);
@@ -275,7 +283,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DATABASE,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -288,7 +299,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_COLLECTION,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -301,7 +315,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_ATTRIBUTE,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -314,7 +331,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DOCUMENT,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -327,7 +347,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_INDEX,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -590,26 +613,7 @@ class NHost extends Source
         }
     }
 
-    private function calculateUserTypes(array $user): array
-    {
-        if (empty($user['password_hash']) && empty($user['phone_number'])) {
-            return [User::TYPE_ANONYMOUS];
-        }
-
-        $types = [];
-
-        if (! empty($user['password_hash'])) {
-            $types[] = User::TYPE_PASSWORD;
-        }
-
-        if (! empty($user['phone_number'])) {
-            $types[] = User::TYPE_PHONE;
-        }
-
-        return $types;
-    }
-
-    protected function exportGroupStorage(int $batchSize, array $resources): void
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         try {
             if (\in_array(Resource::TYPE_BUCKET, $resources)) {
@@ -619,7 +623,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_BUCKET,
-                    $e->getMessage()
+                    Transfer::GROUP_STORAGE,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -632,7 +639,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_FILE,
-                    $e->getMessage()
+                    Transfer::GROUP_STORAGE,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
