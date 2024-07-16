@@ -248,11 +248,17 @@ class NHost extends Source
             $transferUsers = [];
 
             foreach ($users as $user) {
+                $hash = null;
+
+                if (array_key_exists('password_hash', $user)) {
+                    $hash = new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT);
+                }
+
                 $transferUser = new User(
                     $user['id'],
                     $user['email'] ?? null,
                     $user['display_name'] ?? null,
-                    null,
+                    $hash,
                     $user['phone_number'] ?? null,
                     [],
                     '',
@@ -261,10 +267,6 @@ class NHost extends Source
                     $user['disabled'] ?? false,
                     []
                 );
-
-                if (array_key_exists('password_hash', $user)) {
-                    $transferUser->setPasswordHash(new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT));
-                }
 
                 $transferUsers[] = $transferUser;
             }

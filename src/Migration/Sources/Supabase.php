@@ -382,11 +382,17 @@ class Supabase extends NHost
             $transferUsers = [];
 
             foreach ($users as $user) {
+                $hash = null;
+
+                if (array_key_exists('encrypted_password', $user)) {
+                    $hash = new Hash($user['encrypted_password'], '', Hash::ALGORITHM_BCRYPT);
+                }
+
                 $transferUser = new User(
                     $user['id'],
                     $user['email'] ?? null,
                     '',
-                    null,
+                    $hash,
                     $user['phone'] ?? null,
                     [],
                     '',
@@ -395,10 +401,6 @@ class Supabase extends NHost
                     false,
                     []
                 );
-
-                if (array_key_exists('encrypted_password', $user)) {
-                    $transferUser->setPasswordHash(new Hash($user['encrypted_password'], '', Hash::ALGORITHM_BCRYPT));
-                }
 
                 $transferUsers[] = $transferUser;
             }

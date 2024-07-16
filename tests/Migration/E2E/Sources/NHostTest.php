@@ -104,32 +104,60 @@ class NHostTest extends Base
         return array_merge($state, [
             'transfer' => $this->transfer,
             'source' => $this->source,
+            'destination' => $this->destination,
         ]);
     }
 
     /**
      * @depends testRunTransfer
      */
-    public function testValidateTransfer($state)
+    public function testValidateSourceErrors($state)
     {
-        $statusCounters = $state['transfer']->getStatusCounters();
+        /** @var Transfer $transfer */
+        $transfer = $state['transfer'];
+
+        /** @var Source $source */
+        $source = $state['source'];
+
+        $statusCounters = $transfer->getStatusCounters();
         $this->assertNotEmpty($statusCounters);
 
-        foreach ($statusCounters as $resource => $counters) {
-            $this->assertNotEmpty($counters);
+        $errors = $source->getErrors();
 
-            if ($counters[Resource::STATUS_ERROR] > 0) {
-                $this->fail('Resource '.$resource.' has '.$counters[Resource::STATUS_ERROR].' errors');
-
-                return;
-            }
+        foreach ($errors as $error) {
+            /** @var Exception $error */
+            $this->fail('[Source] Resource: "' . $error->getResourceName() . '" Failed with: ' .  $error->getMessage());
         }
 
         return $state;
     }
 
     /**
-     * @depends testValidateTransfer
+     * @depends testValidateSourceErrors
+     */
+    public function testValidateDestinationErrors($state)
+    {
+        /** @var Transfer $transfer */
+        $transfer = $state['transfer'];
+
+        /** @var Destination $destination */
+        $destination = $state['destination'];
+
+        $statusCounters = $transfer->getStatusCounters();
+        $this->assertNotEmpty($statusCounters);
+
+        $errors = $destination->getErrors();
+
+        foreach ($errors as $error) {
+            /** @var Exception $error */
+            $this->fail('[Destination] Resource: "' . $error->getResourceName() . '" Failed with: ' .  $error->getMessage());
+        }
+
+        return $state;
+    }
+
+    /**
+     * @depends testValidateDestinationErrors
      */
     public function testValidateUserTransfer($state): void
     {
@@ -159,7 +187,7 @@ class NHostTest extends Base
     }
 
     /**
-     * @depends testValidateTransfer
+     * @depends testValidateDestinationErrors
      */
     public function testValidateDatabaseTransfer($state): void
     {
@@ -212,7 +240,7 @@ class NHostTest extends Base
     }
 
     /**
-     * @depends testValidateTransfer
+     * @depends testValidateDestinationErrors
      */
     public function testValidateStorageTransfer($state): void
     {
