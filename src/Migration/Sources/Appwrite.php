@@ -822,18 +822,18 @@ class Appwrite extends Source
         $lastDatabase = null;
 
         // Root Level Resource
-//        if (!empty($this->rootResourceId)) {
-//            $this->callback([$this->database->get($this->rootResourceId)]);
-//            return;
-//        }
+        if (!empty($this->rootResourceId)) {
+            $this->callback([$this->database->get($this->rootResourceId)]);
+            return;
+        }
 
         // Transfer Databases
         while (true) {
             $queries = [Query::limit($batchSize)];
 
-            if (!empty($this->rootResourceId)) {
-                $queries[] = Query::equal('$id', $this->rootResourceId);
-            }
+//            if (!empty($this->rootResourceId)) {
+//                $queries[] = Query::equal('$id', $this->rootResourceId);
+//            }
 
             $databases = [];
 
