@@ -89,7 +89,7 @@ class User extends Resource
     /**
      * Get Email
      */
-    public function getEmail(): ?string
+    public function getEmail(): string
     {
         return $this->email;
     }

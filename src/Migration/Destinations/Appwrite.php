@@ -6,6 +6,7 @@ use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\IndexType;
+use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\RelationMutate;
 use Appwrite\Enums\RelationshipType;
 use Appwrite\Enums\Runtime;
@@ -183,7 +184,7 @@ class Appwrite extends Destination
                 $this->databases->listIndexes('', '');
 
                 $scope = 'indexes.write';
-                $this->databases->createIndex('', '', '', '', []);
+                $this->databases->createIndex('', '', '', IndexType::KEY(), []);
             }
 
             if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
@@ -217,7 +218,7 @@ class Appwrite extends Destination
                 $this->functions->list();
 
                 $scope = 'functions.write';
-                $this->functions->create('', '', '');
+                $this->functions->create('', '', Runtime::NODE180());
             }
 
         } catch (AppwriteException $e) {
@@ -782,7 +783,7 @@ class Appwrite extends Destination
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    'sha256',
+                    PasswordHash::SHA256(),
                     empty($user->getUsername()) ? null : $user->getUsername()
                 );
                 break;
@@ -830,7 +831,7 @@ class Appwrite extends Destination
             case Resource::TYPE_FUNCTION:
                 /** @var Func $resource */
 
-                $runtype = match ($resource->getRuntime()) {
+                $runtime = match ($resource->getRuntime()) {
                     'node-14.5' => Runtime::NODE145(),
                     'node-16.0' => Runtime::NODE160(),
                     'node-18.0' => Runtime::NODE180(),
@@ -885,7 +886,7 @@ class Appwrite extends Destination
                 $this->functions->create(
                     $resource->getId(),
                     $resource->getFunctionName(),
-                    $runtype,
+                    $runtime,
                     $resource->getExecute(),
                     $resource->getEvents(),
                     $resource->getSchedule(),
