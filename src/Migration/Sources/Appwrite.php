@@ -661,10 +661,10 @@ class Appwrite extends Source
                             [Query::select($stack)]
                         );
 
-                        foreach ($manyToMany as $relation){
-                            $document[$relation] = [];
-                            foreach ($doc[$relation] as $relationDocument){
-                                $document[$relation][] = $relationDocument['$id'];
+                        foreach ($manyToMany as $key){
+                            $document[$key] = [];
+                            foreach ($doc[$key] as $relationDocument){
+                                $document[$key][] = $relationDocument['$id'];
                             }
                         }
                     }
