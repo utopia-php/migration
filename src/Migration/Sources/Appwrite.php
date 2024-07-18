@@ -613,27 +613,30 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
 
-                //                $selects = [];
-                //                $attributes = $this->cache->get(Attribute::getName());
-                //                foreach ($attributes as $attribute) {
-                //                    /** @var Attribute $attribute */
-                //                    if ($attribute->getCollection()->getId() === $collection->getId()) {
-                //
-                //                        var_dump(' === exportDocuments === ');
-                //                        var_dump($attribute->getKey());
-                //                        var_dump($attribute);
-                //                        $selects[] = $attribute->getKey();
-                //                        if($attribute->getTypeName() === Attribute::TYPE_RELATIONSHIP){
-                //                            var_dump(' === this is TYPE_RELATIONSHIP === ');
-                //                        }
-                //                    }
-                //                }
-                //
-                //                if(!empty($selects)){
-                //                    $queries[] = Query::select($selects);
-                //                }
+                $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want Relations flat!
+                $manyToMany = [];
 
-                $queries[] = Query::select(['*', '$id', '$permissions', '$updatedAt', '$createdAt']); // We want Relations flat!
+                $attributes = $this->cache->get(Attribute::getName());
+                foreach ($attributes as $attribute) {
+                    /** @var Attribute|Relationship $attribute */
+                    if (
+                        $attribute->getCollection()->getId() === $collection->getId() &&
+                        $attribute->getTypeName() === Attribute::TYPE_RELATIONSHIP &&
+                        $attribute->getSide() === 'parent' &&
+                        $attribute->getRelationType() == 'manyToMany'
+                    ) {
+                        /**
+                         * Blockers:
+                         * we should use but Does not work properly:
+                         * $selects[] = $attribute->getKey() . '.$id';
+                         * when selecting for a relation we get all relations not just the one we were asking.
+                         * when selecting for a relation like select(*, relation.$id) , all relations get resolve
+                         */
+                        $manyToMany[] = $attribute->getKey();
+                    }
+                }
+
+                $queries[] = Query::select($selects);
 
                 $response = $this->database->listDocuments(
                     $collection->getDatabase()->getId(),
@@ -642,6 +645,33 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['documents'] as $document) {
+                    /**
+                     * Hack for many 2 many
+                     */
+                    if(!empty($manyToMany)){
+                        $stack = ['$id']; // Adding $id becuase can't select only relations
+                        foreach ($manyToMany as $relation){
+                            $stack[] = $relation . '.$id';
+                        }
+
+                        $doc = $this->database->getDocument(
+                            $collection->getDatabase()->getId(),
+                            $collection->getId(),
+                            $document['$id'],
+                            [Query::select($stack)]
+                        );
+
+                        foreach ($manyToMany as $relation){
+                            $document[$relation] = [];
+                            foreach ($doc[$relation] as $relationDocument){
+                                $document[$relation][] = $relationDocument['$id'];
+                            }
+                        }
+                    }
+                    /**
+                     * end Hack for many 2 many
+                     */
+
                     $id = $document['$id'];
                     $permissions = $document['$permissions'];
 
@@ -966,6 +996,10 @@ class Appwrite extends Source
                     }
 
                     if ($attribute['type'] === 'relationship') {
+                        if ($attribute['side'] === 'child'){
+                            continue;
+                        }
+
                         $knownTwoWays[] = $attribute['twoWayKey'];
                     }
 
