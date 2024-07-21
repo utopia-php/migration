@@ -363,10 +363,10 @@ class Appwrite extends Source
         $lastDocument = null;
 
         // Root Level Resource
-//        if (!empty($this->rootResourceId)) {
-//            $this->callback([$this->users->get($this->rootResourceId)]);
-//            return;
-//        }
+        //        if (!empty($this->rootResourceId)) {
+        //            $this->callback([$this->users->get($this->rootResourceId)]);
+        //            return;
+        //        }
 
         // Export Users
         while (true) {
@@ -423,10 +423,10 @@ class Appwrite extends Source
         $lastDocument = null;
 
         // Root Level Resource
-//        if (!empty($this->rootResourceId)) {
-//            $this->callback([$this->teams->get($this->rootResourceId)]);
-//            return;
-//        }
+        //        if (!empty($this->rootResourceId)) {
+        //            $this->callback([$this->teams->get($this->rootResourceId)]);
+        //            return;
+        //        }
 
         // Export Teams
         while (true) {
@@ -648,9 +648,9 @@ class Appwrite extends Source
                     /**
                      * Hack for many 2 many
                      */
-                    if(!empty($manyToMany)){
+                    if(!empty($manyToMany)) {
                         $stack = ['$id']; // Adding $id becuase can't select only relations
-                        foreach ($manyToMany as $relation){
+                        foreach ($manyToMany as $relation) {
                             $stack[] = $relation . '.$id';
                         }
 
@@ -661,9 +661,9 @@ class Appwrite extends Source
                             [Query::select($stack)]
                         );
 
-                        foreach ($manyToMany as $key){
+                        foreach ($manyToMany as $key) {
                             $document[$key] = [];
-                            foreach ($doc[$key] as $relationDocument){
+                            foreach ($doc[$key] as $relationDocument) {
                                 $document[$key][] = $relationDocument['$id'];
                             }
                         }
@@ -860,10 +860,10 @@ class Appwrite extends Source
         $lastDatabase = null;
 
         // Root Level Resource
-//        if (!empty($this->rootResourceId)) {
-//            $this->callback([$this->database->get($this->rootResourceId)]);
-//            return;
-//        }
+        //        if (!empty($this->rootResourceId)) {
+        //            $this->callback([$this->database->get($this->rootResourceId)]);
+        //            return;
+        //        }
 
         // Transfer Databases
         while (true) {
@@ -978,29 +978,11 @@ class Appwrite extends Source
                     $queries
                 );
 
-                // Remove two way relationship attributes
-
-                $knownTwoWays = [];
-
-                foreach ($this->cache->get(Resource::TYPE_ATTRIBUTE) as $attribute) {
-                    /** @var Attribute|Relationship $attribute */
-                    if ($attribute->getTypeName() == Attribute::TYPE_RELATIONSHIP && $attribute->getTwoWay()) {
-                        $knownTwoWays[] = $attribute->getTwoWayKey();
-                    }
-                }
-
                 foreach ($response['attributes'] as $attribute) {
                     /** @var array $attribute */
-                    if (\in_array($attribute['key'], $knownTwoWays)) {
+
+                    if ($attribute['type'] === 'relationship' && $attribute['side'] === 'child') {
                         continue;
-                    }
-
-                    if ($attribute['type'] === 'relationship') {
-                        if ($attribute['side'] === 'child'){
-                            continue;
-                        }
-
-                        $knownTwoWays[] = $attribute['twoWayKey'];
                     }
 
                     $attributes[] = $this->convertAttribute($attribute, $collection);
@@ -1125,10 +1107,10 @@ class Appwrite extends Source
     private function exportBuckets(int $batchSize): void
     {
         // Root Level Resource
-//        if (!empty($this->rootResourceId)) {
-//            $this->callback([$this->storage->getBucket($this->rootResourceId)]);
-//            return;
-//        }
+        //        if (!empty($this->rootResourceId)) {
+        //            $this->callback([$this->storage->getBucket($this->rootResourceId)]);
+        //            return;
+        //        }
 
         $queries = [];
 
@@ -1288,10 +1270,10 @@ class Appwrite extends Source
         $this->functions = new Functions($this->client);
 
         // Root Level Resource
-//        if (!empty($this->rootResourceId)) {
-//            $this->callback([$this->functions->get($this->rootResourceId)]);
-//            return;
-//        }
+        //        if (!empty($this->rootResourceId)) {
+        //            $this->callback([$this->functions->get($this->rootResourceId)]);
+        //            return;
+        //        }
 
         $queries = [];
 
