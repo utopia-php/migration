@@ -1035,6 +1035,7 @@ class Appwrite extends Source
                         $collection,
                         $index['type'],
                         $index['attributes'],
+                        [],
                         $index['orders']
                     );
                 }
