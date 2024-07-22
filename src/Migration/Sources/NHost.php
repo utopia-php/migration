@@ -512,7 +512,7 @@ class NHost extends Source
                 return new Boolean($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
             case 'smallint':
             case 'int2':
-                if (! is_numeric($column['column_default'])) {
+                if (! is_numeric($column['column_default']) && !is_null($column['column_default'])) {
                     $this->addWarning(new Warning(
                         Resource::TYPE_COLLECTION,
                         Transfer::GROUP_DATABASES,
@@ -528,7 +528,7 @@ class NHost extends Source
                 return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -32768, 32767);
             case 'integer':
             case 'int4':
-                if (! is_numeric($column['column_default'])) {
+                if (! is_numeric($column['column_default']) && !is_null($column['column_default'])) {
                     $this->addWarning(new Warning(
                         Resource::TYPE_COLLECTION,
                         Transfer::GROUP_DATABASES,
@@ -545,7 +545,7 @@ class NHost extends Source
             case 'bigint':
             case 'int8':
             case 'numeric':
-                if (! is_numeric($column['column_default'])) {
+                if (! is_numeric($column['column_default']) && !is_null($column['column_default'])) {
                     $this->addWarning(new Warning(
                         Resource::TYPE_COLLECTION,
                         Transfer::GROUP_DATABASES,
@@ -564,7 +564,7 @@ class NHost extends Source
             case 'float4':
             case 'float8':
             case 'money':
-                if (! is_numeric($column['column_default'])) {
+                if (! is_numeric($column['column_default']) && !is_null($column['column_default'])) {
                     $this->addWarning(new Warning(
                         Resource::TYPE_COLLECTION,
                         Transfer::GROUP_DATABASES,
