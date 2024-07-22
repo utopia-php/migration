@@ -172,7 +172,7 @@ abstract class Target
     /**
      * Get Errors
      *
-     * @returns Array<Exception>
+     * @returns array<Exception>
      */
     public function getErrors(): array
     {
