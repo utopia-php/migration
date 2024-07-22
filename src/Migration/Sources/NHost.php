@@ -511,21 +511,25 @@ class NHost extends Source
                 return new Boolean($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
             case 'smallint':
             case 'int2':
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -32768, 32767);
+                $columnDefault = is_numeric($column['column_default']) ? $column['column_default'] : null;
+                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $columnDefault, -32768, 32767);
             case 'integer':
             case 'int4':
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -2147483648, 2147483647);
+                $columnDefault = is_numeric($column['column_default']) ? $column['column_default'] : null;
+                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $columnDefault, -2147483648, 2147483647);
             case 'bigint':
             case 'int8':
             case 'numeric':
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                $columnDefault = is_numeric($column['column_default']) ? $column['column_default'] : null;
+                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $columnDefault);
             case 'decimal':
             case 'real':
             case 'double precision':
             case 'float4':
             case 'float8':
             case 'money':
-                return new Decimal($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                $columnDefault = is_numeric($column['column_default']) ? $column['column_default'] : null;
+                return new Decimal($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $columnDefault);
                 // Time (Conversion happens with documents)
             case 'timestamp with time zone':
             case 'date':

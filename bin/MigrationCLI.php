@@ -33,7 +33,7 @@ class MigrationCLI
 
         $statusCounters = $this->transfer->getStatusCounters();
 
-        $mask = "| %15.15s | %-7.7s | %10.10s | %7.7s | %7.7s | %8.8s |\n";
+        $mask = "| %15.15s | %-7.7s | %10.10s | %7.7s | %7.7s | %8.8s | %8.8s |\n";
         printf($mask, 'Resource', 'Pending', 'Processing', 'Skipped', 'Warning', 'Error', 'Success');
         printf($mask, '-------------', '-------------', '-------------', '-------------', '-------------', '-------------', '-------------');
         foreach ($statusCounters as $resource => $data) {

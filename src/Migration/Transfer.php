@@ -1,6 +1,7 @@
 <?php
 
 namespace Utopia\Migration;
+use Utopia\Migration\Exception;
 
 class Transfer
 {
@@ -115,8 +116,9 @@ class Transfer
 
         // Process Source Errprs
         foreach ($this->source->getErrors() as $error) {
-            if (isset($status[$error->getResourceType()])) {
-                $status[$error->getResourceType()][Resource::STATUS_ERROR]++;
+            /** @var Exception $error */
+            if (isset($status[$error->getResourceGroup()])) {
+                $status[$error->getResourceGroup()][Resource::STATUS_ERROR]++;
             }
         }
 
