@@ -63,12 +63,6 @@ class Transfer
      */
     protected Cache $cache;
 
-    protected array $options = [];
-
-    protected array $callbacks = [];
-
-    protected array $events = [];
-
     protected array $resources = [];
 
     public function getStatusCounters()
@@ -96,7 +90,7 @@ class Transfer
 
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
-                /** @var resource $resource */
+                /** @var Resource $resource */
                 if (isset($status[$resource->getName()])) {
                     $status[$resource->getName()][$resource->getStatus()]++;
                     if ($status[$resource->getName()]['pending'] > 0) {

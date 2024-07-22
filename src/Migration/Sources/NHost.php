@@ -21,6 +21,7 @@ use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
+use Utopia\Migration\Warning;
 
 class NHost extends Source
 {
@@ -511,25 +512,68 @@ class NHost extends Source
                 return new Boolean($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
             case 'smallint':
             case 'int2':
-                $columnDefault = is_numeric($column['column_default']) ? $column['column_default'] : null;
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $columnDefault, -32768, 32767);
+                if (!is_numeric($column['column_default'])) {
+                    $this->addWarning(new Warning(
+                        Resource::TYPE_COLLECTION,
+                        Transfer::GROUP_DATABASES,
+                        'Functional default values are not supported. Default value for attribute '.$column['column_name'] . ' will be set to null.',
+                        $collection->getId()
+                    ));
+
+                    $collection->setStatus(Resource::STATUS_WARNING);
+
+                    $column['column_default'] = null;
+                }
+                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -32768, 32767);
             case 'integer':
             case 'int4':
-                $columnDefault = is_numeric($column['column_default']) ? $column['column_default'] : null;
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $columnDefault, -2147483648, 2147483647);
+                if (!is_numeric($column['column_default'])) {
+                    $this->addWarning(new Warning(
+                        Resource::TYPE_COLLECTION,
+                        Transfer::GROUP_DATABASES,
+                        'Functional default values are not supported. Default value for attribute '.$column['column_name'] . ' will be set to null.',
+                        $collection->getId()
+                    ));
+
+                    $collection->setStatus(Resource::STATUS_WARNING);
+
+                    $column['column_default'] = null;
+                }
+                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -2147483648, 2147483647);
             case 'bigint':
             case 'int8':
             case 'numeric':
-                $columnDefault = is_numeric($column['column_default']) ? $column['column_default'] : null;
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $columnDefault);
+                if (!is_numeric($column['column_default'])) {
+                    $this->addWarning(new Warning(
+                        Resource::TYPE_COLLECTION,
+                        Transfer::GROUP_DATABASES,
+                        'Functional default values are not supported. Default value for attribute '.$column['column_name'] . ' will be set to null.',
+                        $collection->getId()
+                    ));
+                    $collection->setStatus(Resource::STATUS_WARNING);
+
+                    $column['column_default'] = null;
+                }
+                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
             case 'decimal':
             case 'real':
             case 'double precision':
             case 'float4':
             case 'float8':
             case 'money':
-                $columnDefault = is_numeric($column['column_default']) ? $column['column_default'] : null;
-                return new Decimal($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $columnDefault);
+                if (!is_numeric($column['column_default'])) {
+                    $this->addWarning(new Warning(
+                        Resource::TYPE_COLLECTION,
+                        Transfer::GROUP_DATABASES,
+                        'Functional default values are not supported. Default value for attribute '.$column['column_name'] . ' will be set to null.',
+                        $collection->getId()
+                    ));
+
+                    $collection->setStatus(Resource::STATUS_WARNING);
+
+                    $column['column_default'] = null;
+                }
+                return new Decimal($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
                 // Time (Conversion happens with documents)
             case 'timestamp with time zone':
             case 'date':

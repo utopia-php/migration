@@ -58,6 +58,25 @@ class MigrationCLI
                 echo $error->getResourceGroup().'['.$error->getResourceId().'] - '.$error->getMessage()."\n";
             }
         }
+
+        // Render Warnings
+        $sourceWarnings = $this->source->getWarnings();
+        if (! empty($sourceWarnings)) {
+            echo "\n\nSource Warnings:\n";
+            foreach ($sourceWarnings as $warning) {
+                /** @var Utopia\Migration\Warning $warning */
+                echo $warning->getResourceName().'['.$warning->getResourceId().'] - '.$warning->getMessage()."\n";
+            }
+        }
+
+        $destWarnings = $this->destination->getWarnings();
+        if (! empty($destWarnings)) {
+            echo "\n\nDestination Warnings:\n";
+            foreach ($destWarnings as $warning) {
+                /** @var Utopia\Migration\Warning $warning */
+                echo $warning->getResourceName().'['.$warning->getResourceId().'] - '.$warning->getMessage()."\n";
+            }
+        }
     }
 
     public function getSource(): Source
