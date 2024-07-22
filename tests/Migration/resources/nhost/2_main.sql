@@ -619,6 +619,23 @@ CREATE TABLE storage.files (
 ALTER TABLE storage.files OWNER TO nhost_storage_admin;
 
 --
+-- Name: FunctionalDefaultTestTable; Type: TABLE; Schema: public; Owner: nhost_hasura
+--
+CREATE SEQUENCE IF NOT EXISTS public.test_data_id_seq;
+
+-- Table Definition
+CREATE TABLE public."FunctionalDefaultTestTable" (
+    "id" int4 NOT NULL DEFAULT nextval('public.test_data_id_seq'::regclass),
+    PRIMARY KEY ("id")
+);
+
+-- Indices
+CREATE UNIQUE INDEX test_data_pkey ON public."FunctionalDefaultTestTable" USING btree (id);
+
+-- Change table owner
+ALTER TABLE public."FunctionalDefaultTestTable" OWNER TO nhost_hasura;
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: storage; Owner: nhost_storage_admin
 --
 

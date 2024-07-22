@@ -140,7 +140,7 @@ class SupabaseTest extends Base
     /**
      * @depends testValidateTransfer
      */
-    public function testValidateDatabaseTransfer($state): void
+    public function testValidateDatabaseTransfer($state)
     {
         // Find known database
         $databases = $state['source']->cache->get(Resource::TYPE_DATABASE);
@@ -151,9 +151,9 @@ class SupabaseTest extends Base
             /** @var \Utopia\Migration\Resources\Database $database */
             if ($database->getDBName() === 'public') {
                 $foundDatabase = $database;
-            }
 
-            break;
+                break;
+            }
         }
 
         if (! $foundDatabase) {
@@ -214,6 +214,38 @@ class SupabaseTest extends Base
         }
 
         $this->assertEquals('success', $foundDocument->getStatus());
+
+        return $state;
+    }
+
+    /**
+     * @depends testValidateDatabaseTransfer
+     */
+    public function testDatabaseFunctionalDefaultsWarn($state): void
+    {
+        // Find known collection
+        $collections = $state['source']->cache->get(Resource::TYPE_COLLECTION);
+        $foundCollection = null;
+
+        foreach ($collections as $collection) {
+            /** @var \Utopia\Migration\Resources\Database\Collection $collection */
+            if ($collection->getCollectionName() === 'FunctionalDefaultTestTable') {
+                $foundCollection = $collection;
+            }
+
+            break;
+        }
+
+        if (! $foundCollection) {
+            $this->fail('Collection "FunctionalDefaultTestTable" not found');
+
+            return;
+        }
+
+        $this->assertEquals('warning', $foundCollection->getStatus());
+        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getCollectionName());
+        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getId());
+        $this->assertEquals('public', $foundCollection->getDatabase()->getId());
     }
 
     /**
