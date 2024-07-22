@@ -62,12 +62,6 @@ class Transfer
      */
     protected Cache $cache;
 
-    protected array $options = [];
-
-    protected array $callbacks = [];
-
-    protected array $events = [];
-
     protected array $resources = [];
 
     public function getStatusCounters()
@@ -115,8 +109,9 @@ class Transfer
 
         // Process Source Errprs
         foreach ($this->source->getErrors() as $error) {
-            if (isset($status[$error->getResourceType()])) {
-                $status[$error->getResourceType()][Resource::STATUS_ERROR]++;
+            /** @var Exception $error */
+            if (isset($status[$error->getResourceGroup()])) {
+                $status[$error->getResourceGroup()][Resource::STATUS_ERROR]++;
             }
         }
 

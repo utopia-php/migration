@@ -33,7 +33,7 @@ class MigrationCLI
 
         $statusCounters = $this->transfer->getStatusCounters();
 
-        $mask = "| %15.15s | %-7.7s | %10.10s | %7.7s | %7.7s | %8.8s |\n";
+        $mask = "| %15.15s | %-7.7s | %10.10s | %7.7s | %7.7s | %8.8s | %8.8s |\n";
         printf($mask, 'Resource', 'Pending', 'Processing', 'Skipped', 'Warning', 'Error', 'Success');
         printf($mask, '-------------', '-------------', '-------------', '-------------', '-------------', '-------------', '-------------');
         foreach ($statusCounters as $resource => $data) {
@@ -56,6 +56,25 @@ class MigrationCLI
             foreach ($sourceErrors as $error) {
                 /** @var Utopia\Migration\Exception $error */
                 echo $error->getResourceGroup().'['.$error->getResourceId().'] - '.$error->getMessage()."\n";
+            }
+        }
+
+        // Render Warnings
+        $sourceWarnings = $this->source->getWarnings();
+        if (! empty($sourceWarnings)) {
+            echo "\n\nSource Warnings:\n";
+            foreach ($sourceWarnings as $warning) {
+                /** @var Utopia\Migration\Warning $warning */
+                echo $warning->getResourceName().'['.$warning->getResourceId().'] - '.$warning->getMessage()."\n";
+            }
+        }
+
+        $destWarnings = $this->destination->getWarnings();
+        if (! empty($destWarnings)) {
+            echo "\n\nDestination Warnings:\n";
+            foreach ($destWarnings as $warning) {
+                /** @var Utopia\Migration\Warning $warning */
+                echo $warning->getResourceName().'['.$warning->getResourceId().'] - '.$warning->getMessage()."\n";
             }
         }
     }

@@ -1305,6 +1305,17 @@ ALTER TABLE public.test OWNER TO postgres;
 
 COMMENT ON TABLE public.test IS 'test';
 
+CREATE SEQUENCE IF NOT EXISTS public.test_data_id_seq;
+
+-- Table Definition
+CREATE TABLE public."FunctionalDefaultTestTable" (
+    "id" int4 NOT NULL DEFAULT nextval('public.test_data_id_seq'::regclass),
+    PRIMARY KEY ("id")
+);
+
+-- Indices
+CREATE UNIQUE INDEX test_data_pkey ON public."FunctionalDefaultTestTable" USING btree (id);
+
 
 --
 -- Name: test2; Type: TABLE; Schema: public; Owner: postgres
