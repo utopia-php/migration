@@ -68,7 +68,8 @@ class Appwrite extends Destination
         $this->client = (new Client())
             ->setEndpoint($endpoint)
             ->setProject($project)
-            ->setKey($key);
+            ->setKey($key)
+            ->addHeader('x-appwrite-preserve-dates', 'true');
 
         $this->databases = new Databases($this->client);
         $this->functions = new Functions($this->client);

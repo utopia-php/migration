@@ -362,13 +362,6 @@ class Appwrite extends Source
     {
         $lastDocument = null;
 
-        // Root Level Resource
-        //        if (!empty($this->rootResourceId)) {
-        //            $this->callback([$this->users->get($this->rootResourceId)]);
-        //            return;
-        //        }
-
-        // Export Users
         while (true) {
             $users = [];
 
@@ -376,6 +369,7 @@ class Appwrite extends Source
 
             if (!empty($this->rootResourceId)) {
                 $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
             }
 
             if ($lastDocument) {
@@ -422,13 +416,6 @@ class Appwrite extends Source
         $this->teams = new Teams($this->client);
         $lastDocument = null;
 
-        // Root Level Resource
-        //        if (!empty($this->rootResourceId)) {
-        //            $this->callback([$this->teams->get($this->rootResourceId)]);
-        //            return;
-        //        }
-
-        // Export Teams
         while (true) {
             $teams = [];
 
@@ -436,6 +423,7 @@ class Appwrite extends Source
 
             if (!empty($this->rootResourceId)) {
                 $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
             }
 
             if ($lastDocument) {
@@ -859,18 +847,12 @@ class Appwrite extends Source
 
         $lastDatabase = null;
 
-        // Root Level Resource
-        //        if (!empty($this->rootResourceId)) {
-        //            $this->callback([$this->database->get($this->rootResourceId)]);
-        //            return;
-        //        }
-
-        // Transfer Databases
         while (true) {
             $queries = [Query::limit($batchSize)];
 
             if (!empty($this->rootResourceId)) {
                 $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
             }
 
             $databases = [];
@@ -1107,16 +1089,11 @@ class Appwrite extends Source
      */
     private function exportBuckets(int $batchSize): void
     {
-        // Root Level Resource
-        //        if (!empty($this->rootResourceId)) {
-        //            $this->callback([$this->storage->getBucket($this->rootResourceId)]);
-        //            return;
-        //        }
-
-        $queries = [];
+       $queries = [];
 
         if (!empty($this->rootResourceId)) {
             $queries[] = Query::equal('$id', $this->rootResourceId);
+            $queries[] = Query::limit(1);
         }
 
         $buckets = $this->storage->listBuckets($queries);
@@ -1270,16 +1247,11 @@ class Appwrite extends Source
     {
         $this->functions = new Functions($this->client);
 
-        // Root Level Resource
-        //        if (!empty($this->rootResourceId)) {
-        //            $this->callback([$this->functions->get($this->rootResourceId)]);
-        //            return;
-        //        }
-
         $queries = [];
 
         if (!empty($this->rootResourceId)) {
             $queries[] = Query::equal('$id', $this->rootResourceId);
+            $queries[] = Query::limit(1);
         }
 
         $functions = $this->functions->list($queries);
