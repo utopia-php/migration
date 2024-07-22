@@ -190,7 +190,7 @@ abstract class Target
     /**
      * Get Warnings
      *
-     * @returns Array<Warning>
+     * @returns array<Warning>
      */
     public function getWarnings(): array
     {
