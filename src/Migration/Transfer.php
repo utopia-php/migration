@@ -1,7 +1,6 @@
 <?php
 
 namespace Utopia\Migration;
-use Utopia\Migration\Exception;
 
 class Transfer
 {
@@ -90,7 +89,7 @@ class Transfer
 
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
-                /** @var Resource $resource */
+                /** @var resource $resource */
                 if (isset($status[$resource->getName()])) {
                     $status[$resource->getName()][$resource->getStatus()]++;
                     if ($status[$resource->getName()]['pending'] > 0) {

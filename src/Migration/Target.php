@@ -17,15 +17,15 @@ abstract class Target
 
     /**
      * Errors
-     * 
-     * @var Array<Exception>
+     *
+     * @var array<Exception>
      */
     public $errors = [];
 
     /**
      * Warnings
-     * 
-     * @var Array<Warning>
+     *
+     * @var array<Warning>
      */
     public $warnings = [];
 
@@ -181,8 +181,6 @@ abstract class Target
 
     /**
      * Add Error
-     * 
-     * @param Exception $error
      */
     public function addError(Exception $error): void
     {
@@ -201,8 +199,6 @@ abstract class Target
 
     /**
      * Add Warning
-     * 
-     * @param Warning $warning
      */
     public function addWarning(Warning $warning): void
     {
