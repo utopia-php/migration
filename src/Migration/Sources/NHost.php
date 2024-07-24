@@ -21,6 +21,7 @@ use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
+use Utopia\Migration\Warning;
 
 class NHost extends Source
 {
@@ -219,7 +220,10 @@ class NHost extends Source
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_USER,
-                $e->getMessage()
+                Transfer::GROUP_AUTH,
+                $e->getMessage(),
+                $e->getCode(),
+                $e
             ));
         }
     }
@@ -245,13 +249,12 @@ class NHost extends Source
             $transferUsers = [];
 
             foreach ($users as $user) {
-                $transferUsers[] = new User(
+                $transferUser = new User(
                     $user['id'],
-                    $user['email'] ?? '',
-                    $user['display_name'] ?? '',
-                    new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT),
-                    $user['phone_number'] ?? '',
-                    $this->calculateUserTypes($user),
+                    $user['email'] ?? null,
+                    $user['display_name'] ?? null,
+                    null,
+                    $user['phone_number'] ?? null,
                     [],
                     '',
                     $user['email_verified'] ?? false,
@@ -259,6 +262,12 @@ class NHost extends Source
                     $user['disabled'] ?? false,
                     []
                 );
+
+                if (array_key_exists('password_hash', $user)) {
+                    $transferUser->setPasswordHash(new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT));
+                }
+
+                $transferUsers[] = $transferUser;
             }
 
             $this->callback($transferUsers);
@@ -275,7 +284,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DATABASE,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -288,7 +300,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_COLLECTION,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -301,7 +316,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_ATTRIBUTE,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -314,7 +332,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_DOCUMENT,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -327,7 +348,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_INDEX,
-                    $e->getMessage()
+                    Transfer::GROUP_DATABASES,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -488,13 +512,51 @@ class NHost extends Source
                 return new Boolean($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
             case 'smallint':
             case 'int2':
+                if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
+                    $this->addWarning(new Warning(
+                        Resource::TYPE_COLLECTION,
+                        Transfer::GROUP_DATABASES,
+                        'Functional default values are not supported. Default value for attribute '.$column['column_name'].' will be set to null.',
+                        $collection->getId()
+                    ));
+
+                    $collection->setStatus(Resource::STATUS_WARNING);
+
+                    $column['column_default'] = null;
+                }
+
                 return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -32768, 32767);
             case 'integer':
             case 'int4':
+                if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
+                    $this->addWarning(new Warning(
+                        Resource::TYPE_COLLECTION,
+                        Transfer::GROUP_DATABASES,
+                        'Functional default values are not supported. Default value for attribute '.$column['column_name'].' will be set to null.',
+                        $collection->getId()
+                    ));
+
+                    $collection->setStatus(Resource::STATUS_WARNING);
+
+                    $column['column_default'] = null;
+                }
+
                 return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -2147483648, 2147483647);
             case 'bigint':
             case 'int8':
             case 'numeric':
+                if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
+                    $this->addWarning(new Warning(
+                        Resource::TYPE_COLLECTION,
+                        Transfer::GROUP_DATABASES,
+                        'Functional default values are not supported. Default value for attribute '.$column['column_name'].' will be set to null.',
+                        $collection->getId()
+                    ));
+                    $collection->setStatus(Resource::STATUS_WARNING);
+
+                    $column['column_default'] = null;
+                }
+
                 return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
             case 'decimal':
             case 'real':
@@ -502,6 +564,19 @@ class NHost extends Source
             case 'float4':
             case 'float8':
             case 'money':
+                if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
+                    $this->addWarning(new Warning(
+                        Resource::TYPE_COLLECTION,
+                        Transfer::GROUP_DATABASES,
+                        'Functional default values are not supported. Default value for attribute '.$column['column_name'].' will be set to null.',
+                        $collection->getId()
+                    ));
+
+                    $collection->setStatus(Resource::STATUS_WARNING);
+
+                    $column['column_default'] = null;
+                }
+
                 return new Decimal($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
                 // Time (Conversion happens with documents)
             case 'timestamp with time zone':
@@ -590,26 +665,7 @@ class NHost extends Source
         }
     }
 
-    private function calculateUserTypes(array $user): array
-    {
-        if (empty($user['password_hash']) && empty($user['phone_number'])) {
-            return [User::TYPE_ANONYMOUS];
-        }
-
-        $types = [];
-
-        if (! empty($user['password_hash'])) {
-            $types[] = User::TYPE_PASSWORD;
-        }
-
-        if (! empty($user['phone_number'])) {
-            $types[] = User::TYPE_PHONE;
-        }
-
-        return $types;
-    }
-
-    protected function exportGroupStorage(int $batchSize, array $resources): void
+    protected function exportGroupStorage(int $batchSize, array $resources)
     {
         try {
             if (\in_array(Resource::TYPE_BUCKET, $resources)) {
@@ -619,7 +675,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_BUCKET,
-                    $e->getMessage()
+                    Transfer::GROUP_STORAGE,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }
@@ -632,7 +691,10 @@ class NHost extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_FILE,
-                    $e->getMessage()
+                    Transfer::GROUP_STORAGE,
+                    $e->getMessage(),
+                    $e->getCode(),
+                    $e
                 )
             );
         }

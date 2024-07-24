@@ -76,8 +76,7 @@ class SupabaseTest extends Base
     {
         $this->transfer->run(
             $this->source->getSupportedResources(),
-            function () {
-            }
+            function () {}
         );
 
         $this->assertEquals(0, count($this->transfer->getReport('error')));
@@ -137,13 +136,12 @@ class SupabaseTest extends Base
         $this->assertEquals('success', $foundUser->getStatus());
         $this->assertEquals('$2a$10$NGZAAOfXeheUoH9V3dnRoeR.r3J5ynnSZ6KjvHxOUlV8XUrulJzQa', $foundUser->getPasswordHash()->getHash());
         $this->assertEquals('bcrypt', $foundUser->getPasswordHash()->getAlgorithm());
-        $this->assertEquals(['password'], $foundUser->getTypes());
     }
 
     /**
      * @depends testValidateTransfer
      */
-    public function testValidateDatabaseTransfer($state): void
+    public function testValidateDatabaseTransfer($state)
     {
         // Find known database
         $databases = $state['source']->cache->get(Resource::TYPE_DATABASE);
@@ -154,9 +152,9 @@ class SupabaseTest extends Base
             /** @var \Utopia\Migration\Resources\Database $database */
             if ($database->getDBName() === 'public') {
                 $foundDatabase = $database;
-            }
 
-            break;
+                break;
+            }
         }
 
         if (! $foundDatabase) {
@@ -217,6 +215,38 @@ class SupabaseTest extends Base
         }
 
         $this->assertEquals('success', $foundDocument->getStatus());
+
+        return $state;
+    }
+
+    /**
+     * @depends testValidateDatabaseTransfer
+     */
+    public function testDatabaseFunctionalDefaultsWarn($state): void
+    {
+        // Find known collection
+        $collections = $state['source']->cache->get(Resource::TYPE_COLLECTION);
+        $foundCollection = null;
+
+        foreach ($collections as $collection) {
+            /** @var \Utopia\Migration\Resources\Database\Collection $collection */
+            if ($collection->getCollectionName() === 'FunctionalDefaultTestTable') {
+                $foundCollection = $collection;
+            }
+
+            break;
+        }
+
+        if (! $foundCollection) {
+            $this->fail('Collection "FunctionalDefaultTestTable" not found');
+
+            return;
+        }
+
+        $this->assertEquals('warning', $foundCollection->getStatus());
+        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getCollectionName());
+        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getId());
+        $this->assertEquals('public', $foundCollection->getDatabase()->getId());
     }
 
     /**

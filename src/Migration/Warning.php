@@ -2,7 +2,7 @@
 
 namespace Utopia\Migration;
 
-class Exception extends \Exception
+class Warning
 {
     public string $resourceName;
 
@@ -10,19 +10,14 @@ class Exception extends \Exception
 
     public string $resourceId;
 
-    public function __construct(
-        string $resourceName,
-        string $resourceGroup,
-        string $message,
-        int $code = 0,
-        ?\Throwable $previous = null,
-        string $resourceId = ''
-    ) {
+    public string $message;
+
+    public function __construct(string $resourceName, string $resourceGroup, string $message, string $resourceId = '')
+    {
         $this->resourceName = $resourceName;
         $this->resourceId = $resourceId;
         $this->resourceGroup = $resourceGroup;
-
-        parent::__construct($message, $code, $previous);
+        $this->message = $message;
     }
 
     public function getResourceName(): string
@@ -38,5 +33,10 @@ class Exception extends \Exception
     public function getResourceId(): string
     {
         return $this->resourceId;
+    }
+
+    public function getMessage(): string
+    {
+        return $this->message;
     }
 }

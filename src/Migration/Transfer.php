@@ -94,7 +94,11 @@ class Transfer
     /**
      * @return array<string, array<string, int>>
      */
-    public function getStatusCounters(): array
+    protected Cache $cache;
+
+    protected array $resources = [];
+
+    public function getStatusCounters()
     {
         $status = [];
 
@@ -131,15 +135,17 @@ class Transfer
 
         // Process Destination Errors
         foreach ($this->destination->getErrors() as $error) {
-            if (isset($status[$error->getResourceType()])) {
-                $status[$error->getResourceType()][Resource::STATUS_ERROR]++;
+            /** @var Exception $error */
+            if (isset($status[$error->getResourceGroup()])) {
+                $status[$error->getResourceGroup()][Resource::STATUS_ERROR]++;
             }
         }
 
         // Process source errors
         foreach ($this->source->getErrors() as $error) {
-            if (isset($status[$error->getResourceType()])) {
-                $status[$error->getResourceType()][Resource::STATUS_ERROR]++;
+            /** @var Exception $error */
+            if (isset($status[$error->getResourceGroup()])) {
+                $status[$error->getResourceGroup()][Resource::STATUS_ERROR]++;
             }
         }
 

@@ -16,9 +16,18 @@ abstract class Target
     public Cache $cache;
 
     /**
-     * @var array<\Exception>
+     * Errors
+     *
+     * @var array<Exception>
      */
-    public array $errors = [];
+    public $errors = [];
+
+    /**
+     * Warnings
+     *
+     * @var array<Warning>
+     */
+    public $warnings = [];
 
     protected $endpoint = '';
 
@@ -185,24 +194,36 @@ abstract class Target
     }
 
     /**
-     * Set Errors
-     *
-     * @param  array<Exception>  $errors
+     * Add Error
      */
-    public function setErrors(array $errors): void
-    {
-        $this->errors = $errors;
-    }
-
     public function addError(Exception $error): void
     {
         $this->errors[] = $error;
     }
 
     /**
-     * shutDown function
+     * Get Warnings
+     *
+     * @returns array<Warning>
+     */
+    public function getWarnings(): array
+    {
+        return $this->warnings;
+    }
+
+    /**
+     * Add Warning
+     */
+    public function addWarning(Warning $warning): void
+    {
+        $this->warnings[] = $warning;
+    }
+
+    /**
+     * Completion callback
      */
     public function shutdown(): void
     {
+
     }
 }

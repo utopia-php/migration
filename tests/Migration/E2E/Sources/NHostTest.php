@@ -96,8 +96,7 @@ class NHostTest extends Base
     {
         $this->transfer->run(
             $this->source->getSupportedResources(),
-            function () {
-            }
+            function () {}
         );
 
         $this->assertEquals(0, count($this->transfer->getReport('error')));
@@ -157,13 +156,12 @@ class NHostTest extends Base
         $this->assertEquals('$2a$10$ARQ/f.K6OmCjZ8XF0U.6fezPMlxDqsmcl0Rs6xQVkvj62u7gcSzOW', $foundUser->getPasswordHash()->getHash());
         $this->assertEquals('bcrypt', $foundUser->getPasswordHash()->getAlgorithm());
         $this->assertEquals('test@test.com', $foundUser->getUsername());
-        $this->assertEquals(['password'], $foundUser->getTypes());
     }
 
     /**
      * @depends testValidateTransfer
      */
-    public function testValidateDatabaseTransfer($state): void
+    public function testValidateDatabaseTransfer($state)
     {
         // Find known database
         $databases = $state['source']->cache->get(Resource::TYPE_DATABASE);
@@ -196,9 +194,9 @@ class NHostTest extends Base
             /** @var \Utopia\Migration\Resources\Database\Collection $collection */
             if ($collection->getCollectionName() === 'TestTable') {
                 $foundCollection = $collection;
-            }
 
-            break;
+                break;
+            }
         }
 
         if (! $foundCollection) {
@@ -210,6 +208,38 @@ class NHostTest extends Base
         $this->assertEquals('success', $foundCollection->getStatus());
         $this->assertEquals('TestTable', $foundCollection->getCollectionName());
         $this->assertEquals('TestTable', $foundCollection->getId());
+        $this->assertEquals('public', $foundCollection->getDatabase()->getId());
+
+        return $state;
+    }
+
+    /**
+     * @depends testValidateDatabaseTransfer
+     */
+    public function testDatabaseFunctionalDefaultsWarn($state): void
+    {
+        // Find known collection
+        $collections = $state['source']->cache->get(Resource::TYPE_COLLECTION);
+        $foundCollection = null;
+
+        foreach ($collections as $collection) {
+            /** @var \Utopia\Migration\Resources\Database\Collection $collection */
+            if ($collection->getCollectionName() === 'FunctionalDefaultTestTable') {
+                $foundCollection = $collection;
+            }
+
+            break;
+        }
+
+        if (! $foundCollection) {
+            $this->fail('Collection "FunctionalDefaultTestTable" not found');
+
+            return;
+        }
+
+        $this->assertEquals('warning', $foundCollection->getStatus());
+        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getCollectionName());
+        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getId());
         $this->assertEquals('public', $foundCollection->getDatabase()->getId());
     }
 
