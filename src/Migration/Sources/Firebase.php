@@ -186,9 +186,9 @@ class Firebase extends Source
                 new Exception(
                     Resource::TYPE_USER,
                     Transfer::GROUP_AUTH,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
@@ -283,9 +283,9 @@ class Firebase extends Source
                 new Exception(
                     Resource::TYPE_DATABASE,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
@@ -299,9 +299,9 @@ class Firebase extends Source
                 new Exception(
                     Resource::TYPE_COLLECTION,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
@@ -365,28 +365,97 @@ class Firebase extends Source
         }
     }
 
+    /**
+     * @throws \Exception
+     */
     private function convertAttribute(Collection $collection, string $key, array $field): Attribute
     {
         if (array_key_exists('booleanValue', $field)) {
-            return new Boolean($key, $collection, false, false, null);
+            return new Boolean(
+                $key,
+                $collection,
+                required:false,
+                default: null,
+                array: false,
+            );
         } elseif (array_key_exists('bytesValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000);
+            return new Text(
+                $key,
+                $collection,
+                required: false,
+                default: null,
+                array: false,
+                size: 1000000,
+            );
         } elseif (array_key_exists('doubleValue', $field)) {
-            return new Decimal($key, $collection, false, false, null);
+            return new Decimal(
+                $key,
+                $collection,
+                required: false,
+                default: null,
+                array: false,
+            );
         } elseif (array_key_exists('integerValue', $field)) {
-            return new Integer($key, $collection, false, false, null);
+            return new Integer(
+                $key,
+                $collection,
+                required: false,
+                default: null,
+                array: false,
+            );
         } elseif (array_key_exists('mapValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000);
+            return new Text(
+                $key,
+                $collection,
+                required: false,
+                default: null,
+                array: false,
+                size: 1000000,
+            );
         } elseif (array_key_exists('nullValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000);
+            return new Text(
+                $key,
+                $collection,
+                required: false,
+                default: null,
+                array: false,
+                size: 1000000,
+            );
         } elseif (array_key_exists('referenceValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000); //TODO: This should be a reference attribute
+            return new Text(
+                $key,
+                $collection,
+                required: false,
+                default: null,
+                array: false,
+                size: 1000000,
+            ); //TODO: This should be a reference attribute
         } elseif (array_key_exists('stringValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000);
+            return new Text(
+                $key,
+                $collection,
+                required: false,
+                default: null,
+                array: false,
+                size: 1000000,
+            );
         } elseif (array_key_exists('timestampValue', $field)) {
-            return new DateTime($key, $collection, false, false, null);
+            return new DateTime(
+                $key,
+                $collection,
+                required: false,
+                default: null,
+                array: false,
+            );
         } elseif (array_key_exists('geoPointValue', $field)) {
-            return new Text($key, $collection, false, false, null, 1000000);
+            return new Text(
+                $key,
+                $collection,
+                required: false,
+                default: null,
+                array: false,
+                size: 1000000,
+            );
         } elseif (array_key_exists('arrayValue', $field)) {
             return $this->calculateArrayType($collection, $key, $field['arrayValue']);
         } else {
@@ -560,9 +629,9 @@ class Firebase extends Source
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
                 Transfer::GROUP_STORAGE,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
 
@@ -574,9 +643,9 @@ class Firebase extends Source
             $this->addError(new Exception(
                 Resource::TYPE_FILE,
                 Transfer::GROUP_STORAGE,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
 

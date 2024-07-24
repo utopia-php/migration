@@ -11,14 +11,35 @@ class Boolean extends Attribute
         string $key,
         Collection $collection,
         bool $required = false,
+        ?bool $default = null,
         bool $array = false,
-        private readonly ?bool $default = null
     ) {
-        parent::__construct($key, $collection, $required, $array);
+        parent::__construct(
+            $key,
+            $collection,
+            required: $required,
+            default: $default,
+            array: $array
+        );
     }
 
     /**
-     * @param array<string, mixed> $array
+     * @param array{
+     *     key: string,
+     *     collection: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     required: bool,
+     *     array: bool,
+     *     default: ?bool,
+     * } $array
      * @return self
      */
     public static function fromArray(array $array): self
@@ -26,29 +47,14 @@ class Boolean extends Attribute
         return new self(
             $array['key'],
             Collection::fromArray($array['collection']),
-            $array['required'] ?? false,
-            $array['array'] ?? false,
-            $array['default'] ?? null
+            required: $array['required'],
+            default: $array['default'],
+            array: $array['array'],
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function jsonSerialize(): array
-    {
-        return array_merge(parent::jsonSerialize(), [
-            'default' => $this->default,
-        ]);
-    }
-
-    public function getTypeName(): string
+    public function getType(): string
     {
         return Attribute::TYPE_BOOLEAN;
-    }
-
-    public function getDefault(): ?bool
-    {
-        return $this->default;
     }
 }

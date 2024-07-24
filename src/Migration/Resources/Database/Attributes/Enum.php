@@ -8,21 +8,48 @@ use Utopia\Migration\Resources\Database\Collection;
 class Enum extends Attribute
 {
     /**
-     * @param  array<string>  $elements
+     * @param array<string> $elements
      */
     public function __construct(
         string $key,
         Collection $collection,
-        private readonly array $elements,
+        array $elements,
         bool $required = false,
+        ?string $default = null,
         bool $array = false,
-        private readonly ?string $default = null
     ) {
-        parent::__construct($key, $collection, $required, $array);
+        parent::__construct(
+            $key,
+            $collection,
+            required: $required,
+            default: $default,
+            array: $array,
+            formatOptions: [
+                'elements' => $elements,
+            ]
+        );
     }
 
     /**
-     * @param array<string, mixed> $array
+     * @param array{
+     *     key: string,
+     *     collection: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     required: bool,
+     *     default: ?string,
+     *     array: bool,
+     *     formatOptions: array{
+     *         elements: array<string>
+     *     }
+     * } $array
      * @return self
      */
     public static function fromArray(array $array): self
@@ -30,25 +57,14 @@ class Enum extends Attribute
         return new self(
             $array['key'],
             Collection::fromArray($array['collection']),
-            $array['elements'],
-            $array['required'] ?? false,
-            $array['array'] ?? false,
-            $array['default'] ?? null
+            elements: $array['formatOptions']['elements'],
+            required: $array['required'],
+            default: $array['default'],
+            array: $array['array'],
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function jsonSerialize(): array
-    {
-        return array_merge(parent::jsonSerialize(), [
-            'elements' => $this->elements,
-            'default' => $this->default,
-        ]);
-    }
-
-    public function getTypeName(): string
+    public function getType(): string
     {
         return Attribute::TYPE_ENUM;
     }
@@ -58,11 +74,6 @@ class Enum extends Attribute
      */
     public function getElements(): array
     {
-        return $this->elements;
-    }
-
-    public function getDefault(): ?string
-    {
-        return $this->default;
+        return (array)$this->formatOptions['elements'];
     }
 }

@@ -11,16 +11,45 @@ class Decimal extends Attribute
         string $key,
         Collection $collection,
         bool $required = false,
+        ?float $default = null,
         bool $array = false,
-        private readonly ?float $default = null,
-        private readonly ?float $min = null,
-        private readonly ?float $max = null
+        ?float $min = null,
+        ?float $max = null
     ) {
-        parent::__construct($key, $collection, $required, $array);
+        parent::__construct(
+            $key,
+            $collection,
+            required: $required,
+            default: $default,
+            array: $array,
+            formatOptions: [
+                'min' => $min,
+                'max' => $max,
+            ]
+        );
     }
 
     /**
-     * @param array<string, mixed> $array
+     * @param array{
+     *     key: string,
+     *     collection: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     required: bool,
+     *     array: bool,
+     *     default: ?float,
+     *     formatOptions: array{
+     *         min: ?float,
+     *         max: ?float
+     *     }
+     * } $array
      * @return self
      */
     public static function fromArray(array $array): self
@@ -28,43 +57,26 @@ class Decimal extends Attribute
         return new self(
             $array['key'],
             Collection::fromArray($array['collection']),
-            $array['required'] ?? false,
-            $array['array'] ?? false,
-            $array['default'] ?? null,
-            $array['min'] ?? null,
-            $array['max'] ?? null
+            required: $array['required'],
+            default: $array['default'],
+            array: $array['array'],
+            min: $array['formatOptions']['min'],
+            max: $array['formatOptions']['max'],
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function jsonSerialize(): array
-    {
-        return array_merge(parent::jsonSerialize(), [
-            'default' => $this->default,
-            'min' => $this->min,
-            'max' => $this->max,
-        ]);
-    }
-
-    public function getTypeName(): string
+    public function getType(): string
     {
         return Attribute::TYPE_FLOAT;
     }
 
     public function getMin(): ?float
     {
-        return $this->min;
+        return (float)$this->formatOptions['min'];
     }
 
     public function getMax(): ?float
     {
-        return $this->max;
-    }
-
-    public function getDefault(): ?float
-    {
-        return $this->default;
+        return (float)$this->formatOptions['max'];
     }
 }

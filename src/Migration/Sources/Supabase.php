@@ -356,9 +356,9 @@ class Supabase extends NHost
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
                 Transfer::GROUP_STORAGE,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
     }
@@ -428,9 +428,9 @@ class Supabase extends NHost
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
                 Transfer::GROUP_STORAGE,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
 
@@ -442,9 +442,9 @@ class Supabase extends NHost
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
                 Transfer::GROUP_STORAGE,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
     }

@@ -221,9 +221,9 @@ class NHost extends Source
             $this->addError(new Exception(
                 Resource::TYPE_USER,
                 Transfer::GROUP_AUTH,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
     }
@@ -285,9 +285,9 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_DATABASE,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
@@ -301,9 +301,9 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_COLLECTION,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
@@ -317,9 +317,9 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_ATTRIBUTE,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
@@ -333,9 +333,9 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_DOCUMENT,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
@@ -349,9 +349,9 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_INDEX,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
@@ -458,12 +458,12 @@ class NHost extends Source
 
             foreach ($collections as $collection) {
                 /** @var Collection $collection */
-                $total = $db->query('SELECT COUNT(*) FROM '.$collection->getDatabase()->getDBName().'."'.$collection->getCollectionName().'"')->fetchColumn();
+                $total = $db->query('SELECT COUNT(*) FROM '.$collection->getDatabase()->getDatabaseName().'."'.$collection->getCollectionName().'"')->fetchColumn();
 
                 $offset = 0;
 
                 while ($offset < $total) {
-                    $statement = $db->prepare('SELECT row_to_json(t) FROM (SELECT * FROM '.$collection->getDatabase()->getDBName().'."'.$collection->getCollectionName().'" LIMIT :limit OFFSET :offset) t;');
+                    $statement = $db->prepare('SELECT row_to_json(t) FROM (SELECT * FROM '.$collection->getDatabase()->getDatabaseName().'."'.$collection->getCollectionName().'" LIMIT :limit OFFSET :offset) t;');
                     $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
                     $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
                     $statement->execute();
@@ -509,7 +509,13 @@ class NHost extends Source
             // Numbers
             case 'boolean':
             case 'bool':
-                return new Boolean($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new Boolean(
+                    $column['column_name'],
+                    $collection,
+                    required: $column['is_nullable'] === 'NO',
+                    default: $column['column_default'],
+                    array: $isArray,
+                );
             case 'smallint':
             case 'int2':
                 if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
@@ -525,7 +531,15 @@ class NHost extends Source
                     $column['column_default'] = null;
                 }
 
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -32768, 32767);
+                return new Integer(
+                    $column['column_name'],
+                    $collection,
+                    required: $column['is_nullable'] === 'NO',
+                    default:$column['column_default'],
+                    array: $isArray,
+                    min: -32768,
+                    max: 32767,
+                );
             case 'integer':
             case 'int4':
                 if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
@@ -541,7 +555,15 @@ class NHost extends Source
                     $column['column_default'] = null;
                 }
 
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -2147483648, 2147483647);
+                return new Integer(
+                    $column['column_name'],
+                    $collection,
+                    required: $column['is_nullable'] === 'NO',
+                    default: $column['column_default'],
+                    array: $isArray,
+                    min: -2147483648,
+                    max: 2147483647,
+                );
             case 'bigint':
             case 'int8':
             case 'numeric':
@@ -557,7 +579,13 @@ class NHost extends Source
                     $column['column_default'] = null;
                 }
 
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new Integer(
+                    $column['column_name'],
+                    $collection,
+                    required: $column['is_nullable'] === 'NO',
+                    default: $column['column_default'],
+                    array: $isArray,
+                );
             case 'decimal':
             case 'real':
             case 'double precision':
@@ -577,7 +605,13 @@ class NHost extends Source
                     $column['column_default'] = null;
                 }
 
-                return new Decimal($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new Decimal(
+                    $column['column_name'],
+                    $collection,
+                    required: $column['is_nullable'] === 'NO',
+                    default: $column['column_default'],
+                    array: $isArray,
+                );
                 // Time (Conversion happens with documents)
             case 'timestamp with time zone':
             case 'date':
@@ -588,36 +622,23 @@ class NHost extends Source
             case 'time':
             case 'timetz':
             case 'interval':
-                return new DateTime($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, null);
-                break;
-                // Strings and Objects
-            case 'uuid':
-            case 'character varying':
-            case 'text':
-            case 'character':
-            case 'json':
-            case 'jsonb':
-            case 'varchar':
-            case 'bytea':
-                return new Text(
+                return new DateTime(
                     $column['column_name'],
                     $collection,
-                    $column['is_nullable'] === 'NO',
-                    $isArray,
-                    $column['column_default'],
-                    $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760
+                    required: $column['is_nullable'] === 'NO',
+                    default: null,
+                    array: $isArray,
                 );
-                break;
             default:
+                // Strings and Objects
                 return new Text(
                     $column['column_name'],
                     $collection,
-                    $column['is_nullable'] === 'NO',
-                    $isArray,
-                    $column['column_default'],
-                    $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760
+                    required: $column['is_nullable'] === 'NO',
+                    default: $column['column_default'],
+                    array: $isArray,
+                    size: $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760,
                 );
-                break;
         }
     }
 
@@ -676,9 +697,9 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_BUCKET,
                     Transfer::GROUP_STORAGE,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
@@ -692,9 +713,9 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_FILE,
                     Transfer::GROUP_STORAGE,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }

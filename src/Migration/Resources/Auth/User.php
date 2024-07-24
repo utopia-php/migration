@@ -88,14 +88,14 @@ class User extends Resource
     /**
      * Get Email
      */
-    public function getEmail(): ?string
+    public function getEmail(): string
     {
         return $this->email;
     }
     /**
      * Get Username
      */
-    public function getUsername(): ?string
+    public function getUsername(): string
     {
         return $this->username;
     }

@@ -8,15 +8,15 @@ class Exception extends \Exception
 
     public string $resourceGroup;
 
-    public string $resourceId;
+    public ?string $resourceId;
 
     public function __construct(
         string $resourceName,
         string $resourceGroup,
-        string $message,
+        ?string $resourceId = null,
+        string $message = '',
         int $code = 0,
         ?\Throwable $previous = null,
-        string $resourceId = ''
     ) {
         $this->resourceName = $resourceName;
         $this->resourceId = $resourceId;

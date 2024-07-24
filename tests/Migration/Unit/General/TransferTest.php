@@ -51,7 +51,7 @@ class TransferTest extends TestCase
         $database = $this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_DATABASE, 'test');
         /** @var Database $database */
         $this->assertNotNull($database);
-        $this->assertEquals('test', $database->getDBName());
+        $this->assertEquals('test', $database->getDatabaseName());
         $this->assertEquals('test', $database->getId());
     }
 }

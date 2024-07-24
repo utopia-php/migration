@@ -6,7 +6,7 @@ use Utopia\Migration\Resources\Database\Attribute;
 
 class URL extends Text
 {
-    public function getTypeName(): string
+    public function getType(): string
     {
         return Attribute::TYPE_URL;
     }

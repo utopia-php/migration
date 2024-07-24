@@ -20,18 +20,18 @@ abstract class Target
      *
      * @var array<Exception>
      */
-    public $errors = [];
+    public array $errors = [];
 
     /**
      * Warnings
      *
      * @var array<Warning>
      */
-    public $warnings = [];
+    public array $warnings = [];
 
-    protected $endpoint = '';
+    protected string $endpoint = '';
 
-    protected $rootResourceId = '';
+    protected string $rootResourceId = '';
 
     abstract public static function getName(): string;
 
@@ -224,6 +224,5 @@ abstract class Target
      */
     public function shutdown(): void
     {
-
     }
 }

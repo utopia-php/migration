@@ -24,14 +24,28 @@ class Document extends Resource
     }
 
     /**
-     * @param array<string, mixed> $array
+     * @param array{
+     *     id: string,
+     *     collection: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     data: array<string, mixed>,
+     *     permissions: ?array<string>
+     * } $array
      */
     public static function fromArray(array $array): self
     {
         return new self(
             $array['id'],
             Collection::fromArray($array['collection']),
-            $array['attributes'],
+            $array['data'],
             $array['permissions'] ?? []
         );
     }
@@ -44,7 +58,7 @@ class Document extends Resource
         return [
             'id' => $this->id,
             'collection' => $this->collection,
-            'attributes' => $this->data,
+            'data' => $this->data,
             'permissions' => $this->permissions,
         ];
     }

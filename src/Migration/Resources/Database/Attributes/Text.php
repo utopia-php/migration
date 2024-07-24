@@ -11,15 +11,38 @@ class Text extends Attribute
         string $key,
         Collection $collection,
         bool $required = false,
+        ?string $default = null,
         bool $array = false,
-        private readonly ?string $default = null,
-        private readonly int $size = 256
+        int $size = 256
     ) {
-        parent::__construct($key, $collection, $required, $array);
+        parent::__construct(
+            $key,
+            $collection,
+            size: $size,
+            required: $required,
+            default: $default,
+            array: $array
+        );
     }
 
     /**
-     * @param array<string, mixed> $array
+     * @param array{
+     *     key: string,
+     *     collection: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     required: bool,
+     *     default: ?string,
+     *     array: bool,
+     *     size: int
+     * } $array
      * @return self
      */
     public static function fromArray(array $array): self
@@ -27,25 +50,14 @@ class Text extends Attribute
         return new self(
             $array['key'],
             Collection::fromArray($array['collection']),
-            $array['required'] ?? false,
-            $array['array'] ?? false,
-            $array['default'] ?? null,
-            $array['size'] ?? 256
+            required: $array['required'],
+            default: $array['default'] ?? null,
+            array: $array['array'],
+            size: $array['size']
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function jsonSerialize(): array
-    {
-        return array_merge(parent::jsonSerialize(), [
-            'default' => $this->default,
-            'size' => $this->size,
-        ]);
-    }
-
-    public function getTypeName(): string
+    public function getType(): string
     {
         return Attribute::TYPE_STRING;
     }
@@ -53,10 +65,5 @@ class Text extends Attribute
     public function getSize(): int
     {
         return $this->size;
-    }
-
-    public function getDefault(): ?string
-    {
-        return $this->default;
     }
 }

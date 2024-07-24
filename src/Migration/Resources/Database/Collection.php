@@ -16,26 +16,35 @@ class Collection extends Resource
      */
     public function __construct(
         private readonly Database $database,
-        private readonly string $name,
         string $id,
+        private readonly string $name,
         private readonly bool $documentSecurity = false,
-        array $permissions = []
+        array $permissions = [],
     ) {
         $this->id = $id;
         $this->permissions = $permissions;
     }
 
     /**
-     * @param array<string, mixed> $array
+     * @param array{
+     *     database: array{
+     *        id: string,
+     *        name: string,
+ *         },
+     *     name: string,
+     *     id: string,
+     *     documentSecurity: bool,
+     *     permissions: ?array<string>
+     * } $array
      */
     public static function fromArray(array $array): self
     {
         return new self(
             Database::fromArray($array['database']),
-            $array['name'],
-            $array['id'],
-            $array['documentSecurity'] ?? false,
-            $array['permissions'] ?? []
+            id: $array['id'],
+            name: $array['name'],
+            documentSecurity: $array['documentSecurity'],
+            permissions: $array['permissions'] ?? []
         );
     }
 
@@ -46,7 +55,6 @@ class Collection extends Resource
     {
         return array_merge([
             'database' => $this->database,
-            //'databaseId' => $this->database->getId(),
             'id' => $this->id,
             'name' => $this->name,
             'documentSecurity' => $this->documentSecurity,

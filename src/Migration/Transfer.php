@@ -4,29 +4,47 @@ namespace Utopia\Migration;
 
 class Transfer
 {
-    public const GROUP_GENERAL = 'general';
+    public const string GROUP_GENERAL = 'general';
 
-    public const GROUP_AUTH = 'auth';
+    public const string GROUP_AUTH = 'auth';
 
-    public const GROUP_STORAGE = 'storage';
+    public const string GROUP_STORAGE = 'storage';
 
-    public const GROUP_FUNCTIONS = 'functions';
+    public const string GROUP_FUNCTIONS = 'functions';
 
-    public const GROUP_DATABASES = 'databases';
+    public const string GROUP_DATABASES = 'databases';
 
-    public const GROUP_SETTINGS = 'settings';
+    public const string GROUP_SETTINGS = 'settings';
 
-    public const GROUP_AUTH_RESOURCES = [Resource::TYPE_USER, Resource::TYPE_TEAM, Resource::TYPE_MEMBERSHIP, Resource::TYPE_HASH];
+    public const array GROUP_AUTH_RESOURCES = [
+        Resource::TYPE_USER,
+        Resource::TYPE_TEAM,
+        Resource::TYPE_MEMBERSHIP,
+        Resource::TYPE_HASH
+    ];
 
-    public const GROUP_STORAGE_RESOURCES = [Resource::TYPE_FILE, Resource::TYPE_BUCKET];
+    public const array GROUP_STORAGE_RESOURCES = [
+        Resource::TYPE_FILE,
+        Resource::TYPE_BUCKET
+    ];
 
-    public const GROUP_FUNCTIONS_RESOURCES = [Resource::TYPE_FUNCTION, Resource::TYPE_ENVIRONMENT_VARIABLE, Resource::TYPE_DEPLOYMENT];
+    public const array GROUP_FUNCTIONS_RESOURCES = [
+        Resource::TYPE_FUNCTION,
+        Resource::TYPE_ENVIRONMENT_VARIABLE,
+        Resource::TYPE_DEPLOYMENT
+    ];
 
-    public const GROUP_DATABASES_RESOURCES = [Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE, Resource::TYPE_DOCUMENT];
+    public const array GROUP_DATABASES_RESOURCES = [
+        Resource::TYPE_DATABASE,
+        Resource::TYPE_COLLECTION,
+        Resource::TYPE_INDEX,
+        Resource::TYPE_ATTRIBUTE,
+        Resource::TYPE_DOCUMENT
+    ];
 
-    public const GROUP_SETTINGS_RESOURCES = [];
+    public const array GROUP_SETTINGS_RESOURCES = [];
 
-    public const ALL_PUBLIC_RESOURCES = [
+    public const array ALL_PUBLIC_RESOURCES = [
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
         Resource::TYPE_MEMBERSHIP,
@@ -42,7 +60,7 @@ class Transfer
         Resource::TYPE_DOCUMENT,
     ];
 
-    public const ROOT_RESOURCES = [
+    public const array ROOT_RESOURCES = [
         Resource::TYPE_BUCKET,
         Resource::TYPE_DATABASE,
         Resource::TYPE_FUNCTION,
@@ -50,7 +68,7 @@ class Transfer
         Resource::TYPE_TEAM,
     ];
 
-    public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
+    public const int STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 
     protected Source $source;
 
@@ -91,14 +109,7 @@ class Transfer
         return $this;
     }
 
-    /**
-     * @return array<string, array<string, int>>
-     */
-    protected Cache $cache;
-
-    protected array $resources = [];
-
-    public function getStatusCounters()
+    public function getStatusCounters(): array
     {
         $status = [];
 
@@ -123,7 +134,6 @@ class Transfer
 
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
-                /** @var resource $resource */
                 if (isset($status[$resource->getName()])) {
                     $status[$resource->getName()][$resource->getStatus()]++;
                     if ($status[$resource->getName()]['pending'] > 0) {
@@ -135,7 +145,6 @@ class Transfer
 
         // Process Destination Errors
         foreach ($this->destination->getErrors() as $error) {
-            /** @var Exception $error */
             if (isset($status[$error->getResourceGroup()])) {
                 $status[$error->getResourceGroup()][Resource::STATUS_ERROR]++;
             }
@@ -191,19 +200,15 @@ class Transfer
         $computedResources = array_map('strtolower', $computedResources);
 
         // Check we don't have multiple root resources if rootResourceId is set
-
-        $rootResourceId = $rootResourceId ?? ''; // Convert null to empty string
-
+        $rootResourceId = $rootResourceId ?? '';
         if ($rootResourceId) {
-            $rootResourceCount = count(array_intersect($computedResources, self::ROOT_RESOURCES));
-
+            $rootResourceCount = \count(\array_intersect($computedResources, self::ROOT_RESOURCES));
             if ($rootResourceCount > 1) {
                 throw new \Exception('Multiple root resources found. Only one root resource can be transferred at a time if using $rootResourceId.');
             }
         }
 
         $this->resources = $computedResources;
-
         $this->destination->run($computedResources, $callback, $rootResourceId);
     }
 

@@ -35,7 +35,24 @@ class Index extends Resource
     }
 
     /**
-     * @param array<string, mixed> $array
+     * @param array{
+     *     id: string,
+     *     key: string,
+     *     collection: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     type: string,
+     *     attributes: array<string>,
+     *     lengths: ?array<int>,
+     *     orders: ?array<string>
+     * } $array
      */
     public static function fromArray(array $array): self
     {
@@ -43,7 +60,7 @@ class Index extends Resource
             $array['id'],
             $array['key'],
             Collection::fromArray($array['collection']),
-            $array['type'] ?? '',
+            $array['type'],
             $array['attributes'],
             $array['lengths'] ?? [],
             $array['orders'] ?? []

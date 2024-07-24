@@ -24,7 +24,10 @@ class Database extends Resource
     }
 
     /**
-     * @param array<string, mixed> $array
+     * @param array{
+     *     id: string,
+     *     name: string,
+     * } $array
      */
     public static function fromArray(array $array): self
     {
@@ -55,7 +58,7 @@ class Database extends Resource
         return Transfer::GROUP_DATABASES;
     }
 
-    public function getDBName(): string
+    public function getDatabaseName(): string
     {
         return $this->name;
     }

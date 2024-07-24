@@ -5,18 +5,26 @@ namespace Utopia\Migration\Destinations;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Enums\Compression;
-use Appwrite\Enums\IndexType;
-use Appwrite\Enums\RelationMutate;
-use Appwrite\Enums\RelationshipType;
+use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\Runtime;
 use Appwrite\InputFile;
-use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Override;
-use Utopia\Database\Database as DatabaseLibrary;
+use Utopia\Database\Database as UtopiaDatabase;
+use Utopia\Database\Document as UtopiaDocument;
+use Utopia\Database\Exception as DatabaseException;
+use Utopia\Database\Exception\Authorization as AuthorizationException;
+use Utopia\Database\Exception\Duplicate as DuplicateException;
+use Utopia\Database\Exception\Limit as LimitException;
+use Utopia\Database\Exception\Structure as StructureException;
+use Utopia\Database\Helpers\ID;
+use Utopia\Database\Helpers\Permission;
+use Utopia\Database\Query;
+use Utopia\Database\Validator\Index as IndexValidator;
+use Utopia\Database\Validator\Structure;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
@@ -25,15 +33,6 @@ use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
 use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Attributes\Boolean;
-use Utopia\Migration\Resources\Database\Attributes\DateTime;
-use Utopia\Migration\Resources\Database\Attributes\Decimal;
-use Utopia\Migration\Resources\Database\Attributes\Email;
-use Utopia\Migration\Resources\Database\Attributes\Enum;
-use Utopia\Migration\Resources\Database\Attributes\IP;
-use Utopia\Migration\Resources\Database\Attributes\Relationship;
-use Utopia\Migration\Resources\Database\Attributes\Text;
-use Utopia\Migration\Resources\Database\Attributes\URL;
 use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Document;
@@ -52,15 +51,31 @@ class Appwrite extends Destination
 
     protected string $key;
 
-    private Databases $databases;
+
     private Functions $functions;
     private Storage $storage;
     private Teams $teams;
     private Users $users;
 
+    /**
+     * @var array<UtopiaDocument>
+     */
+    private array $documentBuffer = [];
 
-    public function __construct(string $project, string $endpoint, string $key)
-    {
+    /**
+     * @param string $project
+     * @param string $endpoint
+     * @param string $key
+     * @param UtopiaDatabase $database
+     * @param array<string, array<string, array<string, mixed>>> $collectionConfig
+     */
+    public function __construct(
+        string $project,
+        string $endpoint,
+        string $key,
+        protected UtopiaDatabase $database,
+        protected array $collectionConfig
+    ) {
         $this->project = $project;
         $this->endpoint = $endpoint;
         $this->key = $key;
@@ -71,7 +86,6 @@ class Appwrite extends Destination
             ->setKey($key)
             ->addHeader('x-appwrite-preserve-dates', 'true');
 
-        $this->databases = new Databases($this->client);
         $this->functions = new Functions($this->client);
         $this->storage = new Storage($this->client);
         $this->teams = new Teams($this->client);
@@ -114,8 +128,8 @@ class Appwrite extends Destination
 
     /**
      * @param array<string> $resources
+     * @return array<string, int>
      * @throws AppwriteException
-     * @throws \Exception
      */
     #[Override]
     public function report(array $resources = []): array
@@ -154,47 +168,6 @@ class Appwrite extends Destination
                 $this->teams->createMembership('', [], '');
             }
 
-            // Database
-            if (\in_array(Resource::TYPE_DATABASE, $resources)) {
-                $scope = 'database.read';
-                $this->databases->list();
-
-                $scope = 'database.write';
-                $this->databases->create('', '');
-            }
-
-            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
-                $scope = 'collections.read';
-                $this->databases->listCollections('');
-
-                $scope = 'collections.write';
-                $this->databases->createCollection('', '', '');
-            }
-
-            if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-                $scope = 'attributes.read';
-                $this->databases->listAttributes('', '');
-
-                $scope = 'attributes.write';
-                $this->databases->createStringAttribute('', '', '', 0, false);
-            }
-
-            if (\in_array(Resource::TYPE_INDEX, $resources)) {
-                $scope = 'indexes.read';
-                $this->databases->listIndexes('', '');
-
-                $scope = 'indexes.write';
-                $this->databases->createIndex('', '', '', '', []);
-            }
-
-            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
-                $scope = 'documents.read';
-                $this->databases->listDocuments('', '');
-
-                $scope = 'documents.write';
-                $this->databases->createDocument('', '', '', []);
-            }
-
             // Storage
             if (\in_array(Resource::TYPE_BUCKET, $resources)) {
                 $scope = 'storage.read';
@@ -218,7 +191,7 @@ class Appwrite extends Destination
                 $this->functions->list();
 
                 $scope = 'functions.write';
-                $this->functions->create('', '', '');
+                $this->functions->create('', '', Runtime::NODE180());
             }
 
         } catch (AppwriteException $e) {
@@ -245,14 +218,18 @@ class Appwrite extends Destination
             return;
         }
 
-        foreach ($resources as $resource) {
+        $total = \count($resources);
+
+        foreach ($resources as $index => $resource) {
             var_dump("Importing......." . $resource->getGroup() . ' - ' . $resource->getName());
 
             $resource->setStatus(Resource::STATUS_PROCESSING);
 
+            $isLast = $index === $total - 1;
+
             try {
                 $responseResource = match ($resource->getGroup()) {
-                    Transfer::GROUP_DATABASES => $this->importDatabaseResource($resource),
+                    Transfer::GROUP_DATABASES => $this->importDatabaseResource($resource, $isLast),
                     Transfer::GROUP_STORAGE => $this->importFileResource($resource),
                     Transfer::GROUP_AUTH => $this->importAuthResource($resource),
                     Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
@@ -266,7 +243,7 @@ class Appwrite extends Destination
                 var_dump("getMessage ==== ");
                 var_dump($e->getMessage());
 
-                if ($e->getCode() ===  409) {
+                if ($e->getCode() === 409) {
                     // DATABASE_ALREADY_EXISTS why SKIP? not termination
                     $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
                 } else {
@@ -294,263 +271,627 @@ class Appwrite extends Destination
     /**
      * @throws AppwriteException
      * @throws \Exception
+     * @throws \Throwable
      */
-    public function importDatabaseResource(Resource $resource): Resource
+    public function importDatabaseResource(Resource $resource, bool $isLast): Resource
     {
-        var_dump("Destination Appwrite::importDatabaseResource === " . $resource->getName());
-
-        $this->databases = new Databases($this->client);
-
         switch ($resource->getName()) {
             case Resource::TYPE_DATABASE:
                 /** @var Database $resource */
-                $this->databases->create(
-                    $resource->getId(),
-                    $resource->getDBName()
-                );
+                $success = $this->createDatabase($resource);
                 break;
             case Resource::TYPE_COLLECTION:
                 /** @var Collection $resource */
-                $newCollection = $this->databases->createCollection(
-                    $resource->getDatabase()->getId(),
-                    $resource->getId(),
-                    $resource->getCollectionName(),
-                    $resource->getPermissions(),
-                    $resource->getDocumentSecurity()
-                );
-                $resource->setId($newCollection['$id']);
-                break;
-            case Resource::TYPE_INDEX:
-                /** @var Index $resource */
-
-                $type = match ($resource->getType()) {
-                    Index::TYPE_KEY => IndexType::KEY(),
-                    Index::TYPE_UNIQUE => IndexType::UNIQUE(),
-                    Index::TYPE_FULLTEXT => IndexType::FULLTEXT(),
-                    default => throw new \Exception('Invalid IndexType: ' . $resource->getType()),
-                };
-
-                $this->databases->createIndex(
-                    $resource->getCollection()->getDatabase()->getId(),
-                    $resource->getCollection()->getId(),
-                    $resource->getKey(),
-                    $type,
-                    $resource->getAttributes(),
-                    $resource->getOrders()
-                );
+                $success = $this->createCollection($resource);
                 break;
             case Resource::TYPE_ATTRIBUTE:
                 /** @var Attribute $resource */
-                $this->createAttribute($resource);
+                $success = $this->createAttribute($resource);
+                break;
+            case Resource::TYPE_INDEX:
+                /** @var Index $resource */
+                $success = $this->createIndex($resource);
                 break;
             case Resource::TYPE_DOCUMENT:
                 /** @var Document $resource */
-                // Check if document has already been created
-                $exists = \array_key_exists(
-                    $resource->getId(),
-                    $this->cache->get(Resource::TYPE_DOCUMENT)
-                );
-
-                if ($exists) {
-                    $resource->setStatus(
-                        Resource::STATUS_SKIPPED,
-                        'Document has been already created by relationship'
-                    );
-
-                    return $resource;
-                }
-
-                $this->databases->createDocument(
-                    $resource->getCollection()->getDatabase()->getId(),
-                    $resource->getCollection()->getId(),
-                    $resource->getId(),
-                    $resource->getData(),
-                    $resource->getPermissions()
-                );
+                $success = $this->createDocument($resource, $isLast);
+                break;
+            default:
+                $success = false;
                 break;
         }
 
-        $resource->setStatus(Resource::STATUS_SUCCESS);
+        if ($success) {
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        }
 
         return $resource;
     }
 
     /**
-     * @throws AppwriteException
-     * @throws \Exception
+     * @throws AuthorizationException
+     * @throws StructureException
+     * @throws DatabaseException
      */
-    public function createAttribute(Attribute $attribute): void
+    protected function createDatabase(Database $resource): bool
     {
-        var_dump('createAttribute ' . $attribute->getTypeName());
-        var_dump('createAttribute key ' . $attribute->getKey());
+        $resourceId = $resource->getId() == 'unique()'
+            ? ID::unique()
+            : $resource->getId();
 
-        switch ($attribute->getTypeName()) {
-            case Attribute::TYPE_STRING:
-                /** @var Text $attribute */
-                $this->databases->createStringAttribute(
-                    $attribute->getCollection()->getDatabase()->getId(),
-                    $attribute->getCollection()->getId(),
-                    $attribute->getKey(),
-                    $attribute->getSize(),
-                    $attribute->getRequired(),
-                    $attribute->getDefault(),
-                    $attribute->getArray()
-                );
-                break;
-            case Attribute::TYPE_INTEGER:
-                /** @var \Utopia\Migration\Resources\Database\Attributes\Integer $attribute */
-                $this->databases->createIntegerAttribute(
-                    $attribute->getCollection()->getDatabase()->getId(),
-                    $attribute->getCollection()->getId(),
-                    $attribute->getKey(),
-                    $attribute->getRequired(),
-                    $attribute->getMin(),
-                    $attribute->getMax(),
-                    $attribute->getDefault(),
-                    $attribute->getArray()
-                );
-                break;
-            case Attribute::TYPE_FLOAT:
-                /** @var Decimal $attribute */
-                // todo: Change createFloatAttribute min/max to accept float!!!
+        $resource->setId($resourceId);
 
-                $this->databases->createFloatAttribute(
-                    $attribute->getCollection()->getDatabase()->getId(),
-                    $attribute->getCollection()->getId(),
-                    $attribute->getKey(),
-                    $attribute->getRequired(),
-                    $attribute->getMin(),
-                    $attribute->getMax(),
-                    $attribute->getDefault(),
-                    $attribute->getArray()
-                );
-                break;
-            case Attribute::TYPE_BOOLEAN:
-                /** @var Boolean $attribute */
-                $this->databases->createBooleanAttribute(
-                    $attribute->getCollection()->getDatabase()->getId(),
-                    $attribute->getCollection()->getId(),
-                    $attribute->getKey(),
-                    $attribute->getRequired(),
-                    $attribute->getDefault(),
-                    $attribute->getArray()
-                );
-                break;
-            case Attribute::TYPE_DATETIME:
-                /** @var DateTime $attribute */
+        $database = $this->database->createDocument('databases', new UtopiaDocument([
+            '$id' => $resource->getId(),
+            'name' => $resource->getDatabaseName(),
+            'enabled' => true,
+            'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
+        ]));
 
-                var_dump('createDatetimeAttribute key: ' . $attribute->getKey());
+        $resource->setInternalId($database->getInternalId());
 
-                $this->databases->createDatetimeAttribute(
-                    $attribute->getCollection()->getDatabase()->getId(),
-                    $attribute->getCollection()->getId(),
-                    $attribute->getKey(),
-                    $attribute->getRequired(),
-                    $attribute->getDefault(),
-                    $attribute->getArray()
-                );
-                break;
-            case Attribute::TYPE_EMAIL:
-                /** @var Email $attribute */
-                $this->databases->createEmailAttribute(
-                    $attribute->getCollection()->getDatabase()->getId(),
-                    $attribute->getCollection()->getId(),
-                    $attribute->getKey(),
-                    $attribute->getRequired(),
-                    $attribute->getDefault(),
-                    $attribute->getArray()
-                );
-                break;
-            case Attribute::TYPE_IP:
-                /** @var IP $attribute */
-                $this->databases->createIpAttribute(
-                    $attribute->getCollection()->getDatabase()->getId(),
-                    $attribute->getCollection()->getId(),
-                    $attribute->getKey(),
-                    $attribute->getRequired(),
-                    $attribute->getDefault(),
-                    $attribute->getArray()
-                );
-                break;
-            case Attribute::TYPE_URL:
-                /** @var URL $attribute */
-                $this->databases->createUrlAttribute(
-                    $attribute->getCollection()->getDatabase()->getId(),
-                    $attribute->getCollection()->getId(),
-                    $attribute->getKey(),
-                    $attribute->getRequired(),
-                    $attribute->getDefault(),
-                    $attribute->getArray()
-                );
-                break;
-            case Attribute::TYPE_ENUM:
-                /** @var Enum $attribute */
-                $this->databases->createEnumAttribute(
-                    $attribute->getCollection()->getDatabase()->getId(),
-                    $attribute->getCollection()->getId(),
-                    $attribute->getKey(),
-                    $attribute->getElements(),
-                    $attribute->getRequired(),
-                    $attribute->getDefault(),
-                    $attribute->getArray()
-                );
-                break;
-            case Attribute::TYPE_RELATIONSHIP:
-                /** @var Relationship $attribute */
+        /**
+         * @var array{
+         *     "$collection": string,
+         *     "$id": string,
+         *     name: string,
+         *     attributes: array<array<string, mixed>>,
+         *     indexes: array<array<string, mixed>>
+         * } $collections
+         */
+        $collections = $this->collectionConfig['databases']['collections'];
 
-                $type = match ($attribute->getRelationType()) {
-                    DatabaseLibrary::RELATION_MANY_TO_MANY => RelationshipType::MANYTOMANY(),
-                    DatabaseLibrary::RELATION_MANY_TO_ONE => RelationshipType::MANYTOONE(),
-                    DatabaseLibrary::RELATION_ONE_TO_MANY => RelationshipType::ONETOMANY(),
-                    DatabaseLibrary::RELATION_ONE_TO_ONE => RelationshipType::ONETOONE(),
-                    default => throw new \Exception('Invalid RelationshipType: ' . $attribute->getRelationType()),
-                };
+        $attributes = \array_map(
+            fn ($attr) => new UtopiaDocument($attr),
+            $collections['attributes']
+        );
+        $indexes = \array_map(
+            fn ($index) => new UtopiaDocument($index),
+            $collections['indexes']
+        );
 
-                $mutation = match ($attribute->getRelationType()) {
-                    DatabaseLibrary::RELATION_MUTATE_CASCADE => RelationMutate::CASCADE(),
-                    DatabaseLibrary::RELATION_MUTATE_RESTRICT => RelationMutate::RESTRICT(),
-                    DatabaseLibrary::RELATION_MUTATE_SET_NULL => RelationMutate::SETNULL(),
-                    default => null,
-                };
+        $this->database->createCollection(
+            'database_' . $database->getInternalId(),
+            $attributes,
+            $indexes
+        );
 
-                $this->databases->createRelationshipAttribute(
-                    $attribute->getCollection()->getDatabase()->getId(),
-                    $attribute->getCollection()->getId(),
-                    $attribute->getRelatedCollection(),
-                    $type,
-                    $attribute->getTwoWay(),
-                    $attribute->getKey(),
-                    $attribute->getTwoWayKey(),
-                    $mutation
-                );
-                break;
-            default:
-                throw new \Exception('Invalid attribute type');
-        }
-
-        // Wait for attribute to be created
-        $this->awaitAttributeCreation($attribute, 5);
+        return true;
     }
 
     /**
-     * Await Attribute Creation
-     * @throws \Exception
+     * @throws AuthorizationException
+     * @throws DatabaseException
+     * @throws StructureException
+     * @throws Exception
      */
-    public function awaitAttributeCreation(Attribute $attribute, int $timeout): bool
+    protected function createCollection(Collection $resource): bool
     {
-        $start = \time();
+        $resourceId = $resource->getId() == 'unique()'
+            ? ID::unique()
+            : $resource->getId();
 
-        while (\time() - $start < $timeout) {
-            $response = $this->databases->getAttribute($attribute->getCollection()->getDatabase()->getId(), $attribute->getCollection()->getId(), $attribute->getKey());
+        $resource->setId($resourceId);
 
-            if ($response['status'] === 'available') {
-                return true;
-            }
+        $database = $this->database->getDocument(
+            'databases',
+            $resource->getDatabase()->getId()
+        );
 
-            \usleep(500000);
+        if ($database->isEmpty()) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Database not found',
+            );
         }
 
-        throw new \Exception('Attribute creation timeout');
+        $collection = $this->database->createDocument('database_' . $resource->getDatabase()->getInternalId(), new UtopiaDocument([
+            '$id' => $resource->getId(),
+            'databaseInternalId' => $resource->getDatabase()->getInternalId(),
+            'databaseId' => $resource->getDatabase()->getId(),
+            '$permissions' => Permission::aggregate($resource->getPermissions()),
+            'documentSecurity' => $resource->getDocumentSecurity(),
+            'enabled' => true,
+            'name' => $resource->getCollectionName(),
+            'search' => implode(' ', [$resource->getId(), $resource->getCollectionName()]),
+        ]));
+
+        $resource->setInternalId($collection->getInternalId());
+
+        $this->database->createCollection(
+            'database_' . $resource->getDatabase()->getInternalId() . '_collection_' . $resource->getInternalId(),
+            permissions: $resource->getPermissions(),
+            documentSecurity: $resource->getDocumentSecurity()
+        );
+
+        return true;
+    }
+
+    /**
+     * @throws AppwriteException
+     * @throws \Exception
+     * @throws \Throwable
+     */
+    protected function createAttribute(Attribute $resource): bool
+    {
+        $database = $this->database->getDocument(
+            'databases',
+            $resource->getCollection()->getDatabase()->getId(),
+        );
+        if ($database->isEmpty()) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Database not found',
+            );
+        }
+
+        $collection = $this->database->getDocument(
+            'database_' . $database->getInternalId(),
+            $resource->getCollection()->getId(),
+        );
+        if ($collection->isEmpty()) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Collection not found',
+            );
+        }
+
+        if (!empty($resource->getFormat())) {
+            if (!Structure::hasFormat($resource->getFormat(), $resource->getType())) {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: "Format {$resource->getFormat()} not available for attribute type {$resource->getType()}",
+                );
+            }
+        }
+        if ($resource->isRequired() && $resource->getDefault() !== null) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Cannot set default value for required attribute',
+            );
+        }
+        if ($resource->isArray() && $resource->getDefault() !== null) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Cannot set default value for array attribute',
+            );
+        }
+        if ($resource->getType() === UtopiaDatabase::VAR_RELATIONSHIP) {
+            $relatedCollection = $this->database->getDocument(
+                'database_' . $database->getInternalId(),
+                $resource->getOptions()['relatedCollection']
+            );
+            if ($relatedCollection->isEmpty()) {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Related collection not found',
+                );
+            }
+        }
+
+        try {
+            $attribute = new UtopiaDocument([
+                '$id' => ID::custom($database->getInternalId() . '_' . $collection->getInternalId() . '_' . $resource->getKey()),
+                'key' => $resource->getKey(),
+                'databaseInternalId' => $database->getInternalId(),
+                'databaseId' => $database->getId(),
+                'collectionInternalId' => $collection->getInternalId(),
+                'collectionId' => $collection->getId(),
+                'type' => $resource->getType(),
+                'status' => 'available', // processing, available, failed, deleting, stuck
+                'size' => $resource->getSize(),
+                'required' => $resource->isRequired(),
+                'signed' => $resource->isSigned(),
+                'default' => $resource->getDefault(),
+                'array' => $resource->isArray(),
+                'format' => $resource->getFormat(),
+                'formatOptions' => $resource->getFormatOptions(),
+                'filters' => $resource->getFilters(),
+                'options' => $resource->getOptions(),
+            ]);
+
+            $this->database->checkAttribute($collection, $attribute);
+
+            $attribute = $this->database->createDocument('attributes', $attribute);
+        } catch (DuplicateException) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Attribute already exists',
+            );
+        } catch (LimitException) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Attribute limit exceeded',
+            );
+        } catch (\Throwable $e) {
+            $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $collection->getId());
+            $this->database->purgeCachedCollection('database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId());
+            throw $e;
+        }
+
+        $options = $resource->getOptions();
+
+        if ($resource->getType() === UtopiaDatabase::VAR_RELATIONSHIP && isset($relatedCollection) && $options['twoWay']) {
+            $twoWayKey = $options['twoWayKey'];
+            $options['relatedCollection'] = $collection->getId();
+            $options['twoWayKey'] = $resource->getKey();
+            $options['side'] = UtopiaDatabase::RELATION_SIDE_CHILD;
+
+            try {
+                $twoWayAttribute = new UtopiaDocument([
+                    '$id' => ID::custom($database->getInternalId() . '_' . $relatedCollection->getInternalId() . '_' . $twoWayKey),
+                    'key' => $twoWayKey,
+                    'databaseInternalId' => $database->getInternalId(),
+                    'databaseId' => $database->getId(),
+                    'collectionInternalId' => $relatedCollection->getInternalId(),
+                    'collectionId' => $relatedCollection->getId(),
+                    'type' => $resource->getType(),
+                    'status' => 'processing', // processing, available, failed, deleting, stuck
+                    'size' => $resource->getSize(),
+                    'required' => $resource->isRequired(),
+                    'signed' => $resource->isSigned(),
+                    'default' => $resource->getDefault(),
+                    'array' => $resource->isArray(),
+                    'format' => $resource->getFormat(),
+                    'formatOptions' => $resource->getFormatOptions(),
+                    'filters' => $resource->getFilters(),
+                    'options' => $options,
+                ]);
+
+                $this->database->createDocument('attributes', $twoWayAttribute);
+            } catch (DuplicateException) {
+                $this->database->deleteDocument('attributes', $attribute->getId());
+
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Attribute already exists',
+                );
+            } catch (LimitException) {
+                $this->database->deleteDocument('attributes', $attribute->getId());
+
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Attribute limit exceeded',
+                );
+            } catch (\Throwable $e) {
+                $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $relatedCollection->getId());
+                $this->database->purgeCachedCollection('database_' . $database->getInternalId() . '_collection_' . $relatedCollection->getInternalId());
+                throw $e;
+            }
+        }
+
+        try {
+            switch ($resource->getType()) {
+                case UtopiaDatabase::VAR_RELATIONSHIP:
+                    if (
+                        isset($relatedCollection)
+                        && !$this->database->createRelationship(
+                            collection: 'database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId(),
+                            relatedCollection: 'database_' . $database->getInternalId() . '_collection_' . $relatedCollection->getInternalId(),
+                            type: $options['relationType'],
+                            twoWay: $options['twoWay'],
+                            id: $resource->getKey(),
+                            twoWayKey: $options['twoWayKey'],
+                            onDelete: $options['onDelete'],
+                        )
+                    ) {
+                        throw new Exception(
+                            resourceName: $resource->getName(),
+                            resourceGroup: $resource->getGroup(),
+                            resourceId: $resource->getId(),
+                            message: 'Failed to create relationship',
+                        );
+                    }
+
+                    if (isset($relatedCollection) && $options['twoWay']) {
+                        $relatedAttribute = $this->database->getDocument('attributes', $database->getInternalId() . '_' . $relatedCollection->getInternalId() . '_' . $options['twoWayKey']);
+                        $this->database->updateDocument('attributes', $relatedAttribute->getId(), $relatedAttribute->setAttribute('status', 'available'));
+                    }
+                    break;
+                default:
+                    if (!$this->database->createAttribute(
+                        'database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId(),
+                        $resource->getKey(),
+                        $resource->getType(),
+                        $resource->getSize(),
+                        $resource->isRequired(),
+                        $resource->getDefault(),
+                        $resource->isSigned(),
+                        $resource->isArray(),
+                        $resource->getFormat(),
+                        $resource->getFormatOptions(),
+                        $resource->getFilters(),
+                    )) {
+                        throw new \Exception('Failed to create Attribute');
+                    }
+            }
+        } catch (\Throwable) {
+            $this->database->deleteDocument('attributes', $attribute->getId());
+
+            if (isset($relatedAttribute)) {
+                $this->database->deleteDocument('attributes', $relatedAttribute->getId());
+            }
+        }
+
+        if ($resource->getType() === UtopiaDatabase::VAR_RELATIONSHIP && isset($relatedCollection) && $options['twoWay']) {
+            $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $relatedCollection->getId());
+        }
+
+        $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $collection->getId());
+        $this->database->purgeCachedCollection('database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId());
+
+        return true;
+    }
+
+    /**
+     * @throws Exception
+     * @throws \Throwable
+     */
+    protected function createIndex(Index $resource): bool
+    {
+        $database = $this->database->getDocument(
+            'databases',
+            $resource->getCollection()->getDatabase()->getId(),
+        );
+        if ($database->isEmpty()) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Database not found',
+            );
+        }
+
+        $collection = $this->database->getDocument(
+            'database_' . $database->getInternalId(),
+            $resource->getCollection()->getId(),
+        );
+        if ($collection->isEmpty()) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Collection not found',
+            );
+        }
+
+        $count = $this->database->count('indexes', [
+            Query::equal('collectionInternalId', [$collection->getInternalId()]),
+            Query::equal('databaseInternalId', [$database->getInternalId()])
+        ], $this->database->getLimitForIndexes());
+
+        if ($count >= $this->database->getLimitForIndexes()) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Index limit reached for collection',
+            );
+        }
+
+        /**
+         * @var array<UtopiaDocument> $collectionAttributes
+         */
+        $collectionAttributes = $collection->getAttribute('attributes');
+
+        $oldAttributes = \array_map(
+            fn ($attr) => $attr->getArrayCopy(),
+            $collectionAttributes
+        );
+
+        $oldAttributes[] = [
+            'key' => '$id',
+            'type' => UtopiaDatabase::VAR_STRING,
+            'status' => 'available',
+            'required' => true,
+            'array' => false,
+            'default' => null,
+            'size' => UtopiaDatabase::LENGTH_KEY
+        ];
+        $oldAttributes[] = [
+            'key' => '$createdAt',
+            'type' => UtopiaDatabase::VAR_DATETIME,
+            'status' => 'available',
+            'signed' => false,
+            'required' => false,
+            'array' => false,
+            'default' => null,
+            'size' => 0
+        ];
+        $oldAttributes[] = [
+            'key' => '$updatedAt',
+            'type' => UtopiaDatabase::VAR_DATETIME,
+            'status' => 'available',
+            'signed' => false,
+            'required' => false,
+            'array' => false,
+            'default' => null,
+            'size' => 0
+        ];
+
+        // Lengths hidden by default
+        $lengths = [];
+
+        foreach ($resource->getAttributes() as $i => $attribute) {
+            // find attribute metadata in collection document
+            $attributeIndex = \array_search(
+                $attribute,
+                \array_column($oldAttributes, 'key')
+            );
+
+            if ($attributeIndex === false) {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Attribute not found in collection: ' . $attribute,
+                );
+            }
+
+            $attributeStatus = $oldAttributes[$attributeIndex]['status'];
+            $attributeType = $oldAttributes[$attributeIndex]['type'];
+            $attributeSize = $oldAttributes[$attributeIndex]['size'];
+            $attributeArray = $oldAttributes[$attributeIndex]['array'] ?? false;
+
+            if ($attributeType === UtopiaDatabase::VAR_RELATIONSHIP) {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Relationship attributes are not supported in indexes',
+                );
+            }
+
+            // Ensure attribute is available
+            if ($attributeStatus !== 'available') {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Attribute not available: ' . $attribute,
+                );
+            }
+
+            $lengths[$i] = null;
+
+            if ($attributeType === UtopiaDatabase::VAR_STRING) {
+                $lengths[$i] = $attributeSize; // set attribute size as index length only for strings
+            }
+
+            if ($attributeArray === true) {
+                $lengths[$i] = UtopiaDatabase::ARRAY_INDEX_LENGTH;
+                $orders[$i] = null;
+            }
+        }
+
+        $index = new UtopiaDocument([
+            '$id' => ID::custom($database->getInternalId() . '_' . $collection->getInternalId() . '_' . $resource->getKey()),
+            'key' => $resource->getKey(),
+            'status' => 'available', // processing, available, failed, deleting, stuck
+            'databaseInternalId' => $database->getInternalId(),
+            'databaseId' => $database->getId(),
+            'collectionInternalId' => $collection->getInternalId(),
+            'collectionId' => $collection->getId(),
+            'type' => $resource->getType(),
+            'attributes' => $resource->getAttributes(),
+            'lengths' => $lengths,
+            'orders' => $resource->getOrders(),
+        ]);
+
+        $validator = new IndexValidator(
+            $collectionAttributes,
+            $this->database->getAdapter()->getMaxIndexLength()
+        );
+
+        if (!$validator->isValid($index)) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Invalid index: ' . $validator->getDescription(),
+            );
+        }
+
+        $index = $this->database->createDocument('indexes', $index);
+
+        try {
+            $result = $this->database->createIndex(
+                'database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId(),
+                $resource->getKey(),
+                $resource->getType(),
+                $resource->getAttributes(),
+                $lengths,
+                $resource->getOrders()
+            );
+
+            if (!$result) {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Failed to create index',
+                );
+            }
+        } catch (\Throwable $th) {
+            $this->database->deleteDocument('indexes', $index->getId());
+
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Failed to create index',
+            );
+        }
+
+        $this->database->purgeCachedDocument(
+            'database_' . $database->getInternalId(),
+            $collection->getId()
+        );
+
+        return true;
+    }
+
+    /**
+     * @throws AuthorizationException
+     * @throws DatabaseException
+     * @throws StructureException
+     */
+    protected function createDocument(Document $resource, bool $isLast): bool
+    {
+        // Check if document has already been created
+        $exists = \array_key_exists(
+            $resource->getId(),
+            $this->cache->get(Resource::TYPE_DOCUMENT)
+        );
+
+        if ($exists) {
+            $resource->setStatus(
+                Resource::STATUS_SKIPPED,
+                'Document has been already created by relationship'
+            );
+            return false;
+        }
+
+        if (!$isLast) {
+            $this->documentBuffer[] = new UtopiaDocument(\array_merge([
+                '$id' => $resource->getId(),
+                '$permissions' => $resource->getPermissions(),
+            ], $resource->getData()));
+            return true;
+        }
+
+        try {
+            $this->database->createDocuments(
+                $resource->getCollection()->getId(),
+                $this->documentBuffer
+            );
+        } finally {
+            $this->documentBuffer = [];
+        }
+
+        return true;
     }
 
     /**
@@ -617,7 +958,7 @@ class Appwrite extends Destination
                 [
                     'bucketId' => $bucketId,
                     'fileId' => $file->getId(),
-                    'file' => new \CurlFile('data://'.$file->getMimeType().';base64,'.base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
+                    'file' => new \CurlFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
                     'permissions' => $file->getPermissions(),
                 ]
             );
@@ -633,14 +974,14 @@ class Appwrite extends Destination
             "/storage/buckets/{$bucketId}/files",
             [
                 'content-type' => 'multipart/form-data',
-                'content-range' => 'bytes '.($file->getStart()) . '-' . ($file->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $file->getEnd()) . '/' . $file->getSize(),
+                'content-range' => 'bytes ' . ($file->getStart()) . '-' . ($file->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $file->getEnd()) . '/' . $file->getSize(),
                 'x-appwrite-project' => $this->project,
                 'x-appwrite-key' => $this->key,
             ],
             [
                 'bucketId' => $bucketId,
                 'fileId' => $file->getId(),
-                'file' => new \CurlFile('data://'.$file->getMimeType().';base64,'.base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
+                'file' => new \CurlFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
                 'permissions' => $file->getPermissions(),
             ]
         );
@@ -669,7 +1010,7 @@ class Appwrite extends Destination
         switch ($resource->getName()) {
             case Resource::TYPE_USER:
                 /** @var User $resource */
-                if (! empty($resource->getPasswordHash())) {
+                if (!empty($resource->getPasswordHash())) {
                     $this->importPasswordUser($resource);
                 } else {
                     $this->users->create(
@@ -783,7 +1124,7 @@ class Appwrite extends Destination
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
-                    'sha256',
+                    PasswordHash::SHA256(),
                     empty($user->getUsername()) ? null : $user->getUsername()
                 );
                 break;
@@ -892,7 +1233,7 @@ class Appwrite extends Destination
                     $resource->getSchedule(),
                     $resource->getTimeout(),
                     $resource->getEnabled(),
-                    entrypoint:$resource->getEntrypoint(),
+                    entrypoint: $resource->getEntrypoint(),
                 );
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
@@ -932,7 +1273,7 @@ class Appwrite extends Destination
                 ],
                 [
                     'functionId' => $functionId,
-                    'code' => new \CurlFile('data://application/gzip;base64,'.base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
+                    'code' => new \CurlFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
                     'activate' => $deployment->getActivated() ? 'true' : 'false',
                     'entrypoint' => $deployment->getEntrypoint(),
                 ]
@@ -948,12 +1289,12 @@ class Appwrite extends Destination
             "/v1/functions/{$functionId}/deployments",
             [
                 'content-type' => 'multipart/form-data',
-                'content-range' => 'bytes '.($deployment->getStart()).'-'.($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()).'/'.$deployment->getSize(),
+                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . ($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()) . '/' . $deployment->getSize(),
                 'x-appwrite-id' => $deployment->getId(),
             ],
             [
                 'functionId' => $functionId,
-                'code' => new \CurlFile('data://application/gzip;base64,'.base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
+                'code' => new \CurlFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
                 'activate' => $deployment->getActivated(),
                 'entrypoint' => $deployment->getEntrypoint(),
             ]
