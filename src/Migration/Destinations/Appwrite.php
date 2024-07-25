@@ -68,14 +68,14 @@ class Appwrite extends Destination
      * @param string $endpoint
      * @param string $key
      * @param UtopiaDatabase $database
-     * @param array<string, array<string, array<string, mixed>>> $collectionConfig
+     * @param array<array<string, mixed>> $collectionStructure
      */
     public function __construct(
         string $project,
         string $endpoint,
         string $key,
         protected UtopiaDatabase $database,
-        protected array $collectionConfig
+        protected array $collectionStructure
     ) {
         $this->project = $project;
         $this->endpoint = $endpoint;
@@ -331,24 +331,13 @@ class Appwrite extends Destination
 
         $resource->setInternalId($database->getInternalId());
 
-        /**
-         * @var array{
-         *     "$collection": string,
-         *     "$id": string,
-         *     name: string,
-         *     attributes: array<array<string, mixed>>,
-         *     indexes: array<array<string, mixed>>
-         * } $collections
-         */
-        $collections = $this->collectionConfig['databases']['collections'];
-
         $attributes = \array_map(
             fn ($attr) => new UtopiaDocument($attr),
-            $collections['attributes']
+            $this->collectionStructure['attributes']
         );
         $indexes = \array_map(
             fn ($index) => new UtopiaDocument($index),
-            $collections['indexes']
+            $this->collectionStructure['indexes']
         );
 
         $this->database->createCollection(
