@@ -115,7 +115,37 @@ class MigrationCLI
                 'array' => false,
                 'filters' => [],
             ],
-        ]
+        ],
+        'indexes' => [
+            [
+                '$id' => '_fulltext_search',
+                'type' => Database::INDEX_FULLTEXT,
+                'attributes' => ['search'],
+                'lengths' => [],
+                'orders' => [],
+            ],
+            [
+                '$id' => '_key_name',
+                'type' => Database::INDEX_KEY,
+                'attributes' => ['name'],
+                'lengths' => [256],
+                'orders' => [Database::ORDER_ASC],
+            ],
+            [
+                '$id' => '_key_enabled',
+                'type' => Database::INDEX_KEY,
+                'attributes' => ['enabled'],
+                'lengths' => [],
+                'orders' => [Database::ORDER_ASC],
+            ],
+            [
+                '$id' => '_key_documentSecurity',
+                'type' => Database::INDEX_KEY,
+                'attributes' => ['documentSecurity'],
+                'lengths' => [],
+                'orders' => [Database::ORDER_ASC],
+            ],
+        ],
     ];
 
     /**
