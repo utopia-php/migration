@@ -2,6 +2,7 @@
 
 namespace Utopia\Tests\E2E\Sources;
 
+use PHPUnit\Framework\Attributes\Depends;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\User;
@@ -82,9 +83,9 @@ class SupabaseTest extends Base
     }
 
     /**
-     * @depends testSourceReport
      * @throws \Exception
      */
+    #[Depends('testSourceReport')]
     public function testRunTransfer($state)
     {
         $this->transfer->run(
@@ -101,9 +102,7 @@ class SupabaseTest extends Base
         ]);
     }
 
-    /**
-     * @depends testRunTransfer
-     */
+    #[Depends('testRunTransfer')]
     public function testValidateSourceErrors($state)
     {
         /** @var Transfer $transfer */
@@ -118,15 +117,13 @@ class SupabaseTest extends Base
         $errors = $source->getErrors();
 
         if (!empty($errors)) {
-            $this->fail('[Source] Failed: ' . \json_encode($errors));
+            $this->fail('[Source] Failed: ' . \json_encode($errors, JSON_PRETTY_PRINT));
         }
 
         return $state;
     }
 
-    /**
-     * @depends testValidateSourceErrors
-     */
+    #[Depends('testValidateSourceErrors')]
     public function testValidateDestinationErrors($state)
     {
         /** @var Transfer $transfer */
@@ -141,15 +138,13 @@ class SupabaseTest extends Base
         $errors = $destination->getErrors();
 
         if (!empty($errors)) {
-            $this->fail('[Destination] Failed: ' . \json_encode($errors));
+            $this->fail('[Destination] Failed: ' . \json_encode($errors, JSON_PRETTY_PRINT));
         }
 
         return $state;
     }
 
-    /**
-     * @depends testValidateDestinationErrors
-     */
+    #[Depends('testValidateDestinationErrors')]
     public function testValidateUserTransfer($state): void
     {
         // Find known user
@@ -175,9 +170,7 @@ class SupabaseTest extends Base
         $this->assertEquals('bcrypt', $foundUser->getPasswordHash()->getAlgorithm());
     }
 
-    /**
-     * @depends testValidateDestinationErrors
-     */
+    #[Depends('testValidateDestinationErrors')]
     public function testValidateDatabaseTransfer($state)
     {
         // Find known database
@@ -250,9 +243,7 @@ class SupabaseTest extends Base
         return $state;
     }
 
-    /**
-     * @depends testValidateDatabaseTransfer
-     */
+    #[Depends('testValidateDatabaseTransfer')]
     public function testDatabaseFunctionalDefaultsWarn($state): void
     {
         // Find known collection
@@ -278,9 +269,7 @@ class SupabaseTest extends Base
         $this->assertEquals('public', $foundCollection->getDatabase()->getId());
     }
 
-    /**
-     * @depends testValidateDestinationErrors
-     */
+    #[Depends('testValidateDestinationErrors')]
     public function testValidateStorageTransfer($state): void
     {
         // Find known bucket
