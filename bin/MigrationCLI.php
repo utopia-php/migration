@@ -399,12 +399,17 @@ class MigrationCLI
         /**
          * Run Transfer
          */
-        $this->transfer->run(
-            $this->source->getSupportedResources(),
-            function (array $resources) {
+        Authorization::skip(fn() => $this->transfer->run(
+            [
+                \Utopia\Migration\Resources\Database\Database::getName(),
+                \Utopia\Migration\Resources\Database\Collection::getName(),
+                \Utopia\Migration\Resources\Database\Attribute::getName(),
+//                \Utopia\Migration\Resources\Database\Index::getName(),
+            ],
+            function () {
                 $this->drawFrame();
             }
-        );
+        ));
     }
 }
 
