@@ -37,8 +37,9 @@ class Exception extends \Exception implements \JsonSerializable
 
     public function getResourceId(): string
     {
-        return $this->resourceId;
+        return $this->resourceId ?? '';
     }
+
     public function jsonSerialize(): array
     {
         return [
@@ -50,5 +51,4 @@ class Exception extends \Exception implements \JsonSerializable
             'trace' => $this->getPrevious()->getTrace(),
         ];
     }
-
 }
