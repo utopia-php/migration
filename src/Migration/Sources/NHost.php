@@ -487,7 +487,7 @@ class NHost extends Source
                         $processedData = [];
                         foreach ($collectionAttributes as $attribute) {
                             /** @var Attribute $attribute */
-                            if (! $attribute->getArray() && \is_array($data[$attribute->getKey()])) {
+                            if (! $attribute->isArray() && \is_array($data[$attribute->getKey()])) {
                                 $processedData[$attribute->getKey()] = json_encode($data[$attribute->getKey()]);
                             } else {
                                 $processedData[$attribute->getKey()] = $data[$attribute->getKey()];
