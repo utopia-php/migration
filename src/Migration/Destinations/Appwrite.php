@@ -6,7 +6,6 @@ use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\PasswordHash;
-use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\Runtime;
 use Appwrite\InputFile;
 use Appwrite\Services\Functions;
