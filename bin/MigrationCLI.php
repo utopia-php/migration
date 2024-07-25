@@ -247,14 +247,7 @@ class MigrationCLI
                     $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
                     $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
                     $_ENV['DESTINATION_APPWRITE_TEST_KEY'],
-                    new Database(
-                        new MariaDB(new PDO(
-                            $_ENV['DESTINATION_APPWRITE_TEST_DSN'],
-                            $_ENV['DESTINATION_APPWRITE_TEST_USER'],
-                            $_ENV['DESTINATION_APPWRITE_TEST_PASSWORD']
-                        )),
-                        new Cache(new None())
-                    ),
+                    $this->getDatabase(),
                     self::STRUCTURE
                 );
             case 'local':
@@ -262,6 +255,25 @@ class MigrationCLI
             default:
                 throw new Exception('Invalid destination provider');
         }
+    }
+
+    public function getDatabase(): Database
+    {
+
+        $database = new Database(
+            new MariaDB(new PDO(
+                $_ENV['DESTINATION_APPWRITE_TEST_DSN'],
+                $_ENV['DESTINATION_APPWRITE_TEST_USER'],
+                $_ENV['DESTINATION_APPWRITE_TEST_PASSWORD']
+            )),
+            new Cache(new None())
+        );
+
+        $database
+            ->setDatabase('appwrite')
+            ->setNamespace('_' . $_ENV['DESTINATION_APPWRITE_TEST_NAMESPACE']);
+
+        return $database;
     }
 
     public function start(): void
