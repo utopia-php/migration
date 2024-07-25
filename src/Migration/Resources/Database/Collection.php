@@ -16,8 +16,8 @@ class Collection extends Resource
      */
     public function __construct(
         private readonly Database $database,
-        string $id,
         private readonly string $name,
+        string $id,
         private readonly bool $documentSecurity = false,
         array $permissions = [],
     ) {
