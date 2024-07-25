@@ -6,6 +6,7 @@ use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\PasswordHash;
+use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\Runtime;
 use Appwrite\InputFile;
 use Appwrite\Services\Functions;
@@ -1172,7 +1173,7 @@ class Appwrite extends Destination
             case Resource::TYPE_FUNCTION:
                 /** @var Func $resource */
 
-                $runtype = match ($resource->getRuntime()) {
+                $runtime = match ($resource->getRuntime()) {
                     'node-14.5' => Runtime::NODE145(),
                     'node-16.0' => Runtime::NODE160(),
                     'node-18.0' => Runtime::NODE180(),
@@ -1227,7 +1228,7 @@ class Appwrite extends Destination
                 $this->functions->create(
                     $resource->getId(),
                     $resource->getFunctionName(),
-                    $runtype,
+                    $runtime,
                     $resource->getExecute(),
                     $resource->getEvents(),
                     $resource->getSchedule(),

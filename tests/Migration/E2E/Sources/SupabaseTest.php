@@ -13,7 +13,7 @@ use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Supabase;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\Adapters\MockDestination;
+use Utopia\Tests\Unit\Adapters\MockDestination;
 
 class SupabaseTest extends Base
 {
@@ -97,30 +97,58 @@ class SupabaseTest extends Base
         return array_merge($state, [
             'transfer' => $this->transfer,
             'source' => $this->source,
+            'destination' => $this->destination,
         ]);
     }
 
     /**
      * @depends testRunTransfer
      */
-    public function testValidateTransfer($state)
+    public function testValidateSourceErrors($state)
     {
-        $statusCounters = $state['transfer']->getStatusCounters();
+        /** @var Transfer $transfer */
+        $transfer = $state['transfer'];
+
+        /** @var Source $source */
+        $source = $state['source'];
+
+        $statusCounters = $transfer->getStatusCounters();
         $this->assertNotEmpty($statusCounters);
 
-        foreach ($statusCounters as $resource => $counters) {
-            $this->assertNotEmpty($counters);
+        $errors = $source->getErrors();
 
-            if ($counters[Resource::STATUS_ERROR] > 0) {
-                $this->fail('Resource '.$resource.' has '.$counters[Resource::STATUS_ERROR].' errors');
-            }
+        if (!empty($errors)) {
+            $this->fail('[Source] Failed: ' . \json_encode($errors));
         }
 
         return $state;
     }
 
     /**
-     * @depends testValidateTransfer
+     * @depends testValidateSourceErrors
+     */
+    public function testValidateDestinationErrors($state)
+    {
+        /** @var Transfer $transfer */
+        $transfer = $state['transfer'];
+
+        /** @var Destination $destination */
+        $destination = $state['destination'];
+
+        $statusCounters = $transfer->getStatusCounters();
+        $this->assertNotEmpty($statusCounters);
+
+        $errors = $destination->getErrors();
+
+        if (!empty($errors)) {
+            $this->fail('[Destination] Failed: ' . \json_encode($errors));
+        }
+
+        return $state;
+    }
+
+    /**
+     * @depends testValidateDestinationErrors
      */
     public function testValidateUserTransfer($state): void
     {
@@ -148,7 +176,7 @@ class SupabaseTest extends Base
     }
 
     /**
-     * @depends testValidateTransfer
+     * @depends testValidateDestinationErrors
      */
     public function testValidateDatabaseTransfer($state)
     {
@@ -251,7 +279,7 @@ class SupabaseTest extends Base
     }
 
     /**
-     * @depends testValidateTransfer
+     * @depends testValidateDestinationErrors
      */
     public function testValidateStorageTransfer($state): void
     {

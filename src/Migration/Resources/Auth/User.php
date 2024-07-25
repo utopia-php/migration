@@ -47,7 +47,7 @@ class User extends Resource
             $array['email'] ?? '',
             $array['username'] ?? '',
             $array['passwordHash'] ?? null,
-            $array['phone'] ?? null,
+            $array['phone'] ?? '',
             $array['labels'] ?? [],
             $array['oauthProvider'] ?? '',
             $array['emailVerified'] ?? false,
@@ -95,7 +95,7 @@ class User extends Resource
     /**
      * Get Username
      */
-    public function getUsername(): string
+    public function getUsername(): ?string
     {
         return $this->username;
     }

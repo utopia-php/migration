@@ -226,11 +226,17 @@ class Firebase extends Source
             $nextPageToken = $response['nextPageToken'] ?? null;
 
             foreach ($result as $user) {
+                $hash = null;
+
+                if (array_key_exists('passwordHash', $user)) {
+                    $hash = new Hash($user['passwordHash'], $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'] ?? '', $hashConfig['signerKey'] ?? '');
+                }
+
                 $transferUser = new User(
                     $user['localId'] ?? '',
                     $user['email'] ?? null,
                     $user['displayName'] ?? $user['email'] ?? null,
-                    null,
+                    $hash,
                     $user['phoneNumber'] ?? null,
                     [],
                     '',
@@ -238,12 +244,6 @@ class Firebase extends Source
                     false, // Can't get phone number status on firebase :/
                     $user['disabled'] ?? false
                 );
-
-                if (array_key_exists('passwordHash', $user)) {
-                    $transferUser->setPasswordHash(
-                        new Hash($user['passwordHash'], $user['salt'] ?? '', Hash::ALGORITHM_SCRYPT_MODIFIED, $hashConfig['saltSeparator'] ?? '', $hashConfig['signerKey'] ?? '')
-                    );
-                }
 
                 $users[] = $transferUser;
             }

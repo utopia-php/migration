@@ -7,7 +7,7 @@ use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\Adapters\MockDestination;
+use Utopia\Tests\Unit\Adapters\MockDestination;
 
 abstract class Base extends TestCase
 {

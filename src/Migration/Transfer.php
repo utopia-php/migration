@@ -152,7 +152,6 @@ class Transfer
 
         // Process source errors
         foreach ($this->source->getErrors() as $error) {
-            /** @var Exception $error */
             if (isset($status[$error->getResourceGroup()])) {
                 $status[$error->getResourceGroup()][Resource::STATUS_ERROR]++;
             }

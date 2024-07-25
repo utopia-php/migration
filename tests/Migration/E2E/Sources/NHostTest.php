@@ -2,6 +2,7 @@
 
 namespace Utopia\Tests\E2E\Sources;
 
+use PHPUnit\Framework\Attributes\Depends;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\User;
@@ -12,7 +13,7 @@ use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\NHost;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\Adapters\MockDestination;
+use Utopia\Tests\Unit\Adapters\MockDestination;
 
 class NHostTest extends Base
 {
@@ -101,9 +102,9 @@ class NHostTest extends Base
     }
 
     /**
-     * @depends testSourceReport
      * @throws \Exception
      */
+    #[Depends('testSourceReport')]
     public function testRunTransfer($state)
     {
         $this->transfer->run(
@@ -116,31 +117,53 @@ class NHostTest extends Base
         return array_merge($state, [
             'transfer' => $this->transfer,
             'source' => $this->source,
+            'destination' => $this->destination,
         ]);
     }
 
-    /**
-     * @depends testRunTransfer
-     */
-    public function testValidateTransfer($state)
+    #[Depends('testRunTransfer')]
+    public function testValidateSourceErrors($state)
     {
-        $statusCounters = $state['transfer']->getStatusCounters();
+        /** @var Transfer $transfer */
+        $transfer = $state['transfer'];
+
+        /** @var Source $source */
+        $source = $state['source'];
+
+        $statusCounters = $transfer->getStatusCounters();
         $this->assertNotEmpty($statusCounters);
 
-        foreach ($statusCounters as $resource => $counters) {
-            $this->assertNotEmpty($counters);
+        $errors = $source->getErrors();
 
-            if ($counters[Resource::STATUS_ERROR] > 0) {
-                $this->fail('Resource '.$resource.' has '.$counters[Resource::STATUS_ERROR].' errors');
-            }
+        if (!empty($errors)) {
+            $this->fail('[Source] Failed: ' . \json_encode($errors));
         }
 
         return $state;
     }
 
-    /**
-     * @depends testValidateTransfer
-     */
+    #[Depends('testValidateSourceErrors')]
+    public function testValidateDestinationErrors($state)
+    {
+        /** @var Transfer $transfer */
+        $transfer = $state['transfer'];
+
+        /** @var Destination $destination */
+        $destination = $state['destination'];
+
+        $statusCounters = $transfer->getStatusCounters();
+        $this->assertNotEmpty($statusCounters);
+
+        $errors = $destination->getErrors();
+
+        if (!empty($errors)) {
+            $this->fail('[Destination] Failed: ' . \json_encode($errors));
+        }
+
+        return $state;
+    }
+
+    #[Depends('testValidateDestinationErrors')]
     public function testValidateUserTransfer($state): void
     {
         // Find known user
@@ -166,9 +189,7 @@ class NHostTest extends Base
         $this->assertEquals('test@test.com', $foundUser->getUsername());
     }
 
-    /**
-     * @depends testValidateTransfer
-     */
+    #[Depends('testValidateDestinationErrors')]
     public function testValidateDatabaseTransfer($state)
     {
         // Find known database
@@ -217,9 +238,7 @@ class NHostTest extends Base
         return $state;
     }
 
-    /**
-     * @depends testValidateDatabaseTransfer
-     */
+    #[Depends('testValidateDatabaseTransfer')]
     public function testDatabaseFunctionalDefaultsWarn($state): void
     {
         // Find known collection
@@ -245,9 +264,7 @@ class NHostTest extends Base
         $this->assertEquals('public', $foundCollection->getDatabase()->getId());
     }
 
-    /**
-     * @depends testValidateTransfer
-     */
+    #[Depends('testValidateDatabaseTransfer')]
     public function testValidateStorageTransfer($state): void
     {
         // Find known bucket
