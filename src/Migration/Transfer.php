@@ -265,7 +265,6 @@ class Transfer
     {
         $resources = [];
         foreach ($services as $service) {
-            var_dump('converting resource === '.$service);
             $resources = match ($service) {
                 self::GROUP_FUNCTIONS => array_merge($resources, self::GROUP_FUNCTIONS_RESOURCES),
                 self::GROUP_STORAGE => array_merge($resources, self::GROUP_STORAGE_RESOURCES),

@@ -36,7 +36,6 @@ abstract class Source extends Target
             foreach ($returnedResources as $resource) {
                 /** @var Resource $resource */
                 if (! in_array($resource->getName(), $resources)) {
-                    var_dump('setStatus === ' . Resource::STATUS_SKIPPED);
                     $resource->setStatus(Resource::STATUS_SKIPPED);
                 } else {
                     $prunedResources[] = $resource;

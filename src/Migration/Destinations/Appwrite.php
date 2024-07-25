@@ -212,8 +212,6 @@ class Appwrite extends Destination
     #[Override]
     protected function import(array $resources, callable $callback): void
     {
-        var_dump("Destinations/Appwrite import....");
-
         if (empty($resources)) {
             return;
         }
@@ -221,8 +219,6 @@ class Appwrite extends Destination
         $total = \count($resources);
 
         foreach ($resources as $index => $resource) {
-            var_dump("Importing......." . $resource->getGroup() . ' - ' . $resource->getName());
-
             $resource->setStatus(Resource::STATUS_PROCESSING);
 
             $isLast = $index === $total - 1;
@@ -236,13 +232,6 @@ class Appwrite extends Destination
                     default => throw new \Exception('Invalid resource group'),
                 };
             } catch (\Throwable $e) {
-
-                var_dump("Appwrite import Throwable ==== ");
-                var_dump("getCode ==== ");
-                var_dump($e->getCode());
-                var_dump("getMessage ==== ");
-                var_dump($e->getMessage());
-
                 if ($e->getCode() === 409) {
                     // DATABASE_ALREADY_EXISTS why SKIP? not termination
                     $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
