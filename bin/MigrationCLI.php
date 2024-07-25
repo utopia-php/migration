@@ -28,7 +28,7 @@ class MigrationCLI
 
     protected mixed $destination;
 
-    protected array $structure = [
+    protected const array STRUCTURE = [
         '$collection' => 'databases',
         '$id' => 'collections',
         'name' => 'Collections',
@@ -255,7 +255,7 @@ class MigrationCLI
                         )),
                         new Cache(new None())
                     ),
-                    $this->structure
+                    self::STRUCTURE
                 );
             case 'local':
                 return new Local('./localBackup');
