@@ -47,7 +47,7 @@ class Exception extends \Exception implements \JsonSerializable
             'resourceName' => $this->resourceName,
             'resourceGroup' => $this->resourceGroup,
             'resourceId' => $this->resourceId,
-            'trace' => $this->getTrace()
+            'trace' => $this->getPrevious()->getTrace(),
         ];
     }
 
