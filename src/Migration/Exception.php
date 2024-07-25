@@ -13,10 +13,10 @@ class Exception extends \Exception implements \JsonSerializable
     public function __construct(
         string $resourceName,
         string $resourceGroup,
-        ?string $resourceId = null,
+        string $resourceId = null,
         string $message = '',
         int $code = 0,
-        ?\Throwable $previous = null,
+        \Throwable $previous = null,
     ) {
         $this->resourceName = $resourceName;
         $this->resourceId = $resourceId;
@@ -37,8 +37,9 @@ class Exception extends \Exception implements \JsonSerializable
 
     public function getResourceId(): string
     {
-        return $this->resourceId;
+        return $this->resourceId ?? '';
     }
+
     public function jsonSerialize(): array
     {
         return [
@@ -47,8 +48,7 @@ class Exception extends \Exception implements \JsonSerializable
             'resourceName' => $this->resourceName,
             'resourceGroup' => $this->resourceGroup,
             'resourceId' => $this->resourceId,
-            'trace' => $this->getTrace()
+            'trace' => $this->getTrace(),
         ];
     }
-
 }
