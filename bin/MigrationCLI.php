@@ -7,6 +7,7 @@ use Utopia\Cache\Adapter\None;
 use Utopia\Cache\Cache;
 use Utopia\Database\Adapter\MariaDB;
 use Utopia\Database\Database;
+use Utopia\Database\Validator\Authorization;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Destinations\Appwrite as DestinationsAppwrite;
 use Utopia\Migration\Destinations\Local;
