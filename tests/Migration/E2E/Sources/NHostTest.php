@@ -136,7 +136,7 @@ class NHostTest extends Base
         $errors = $source->getErrors();
 
         if (!empty($errors)) {
-            $this->fail('[Source] Failed: ' . \json_encode($errors));
+            $this->fail('[Source] Failed: ' . \json_encode($errors, JSON_PRETTY_PRINT));
         }
 
         return $state;
@@ -157,7 +157,7 @@ class NHostTest extends Base
         $errors = $destination->getErrors();
 
         if (!empty($errors)) {
-            $this->fail('[Destination] Failed: ' . \json_encode($errors));
+            $this->fail('[Destination] Failed: ' . \json_encode($errors, JSON_PRETTY_PRINT));
         }
 
         return $state;
