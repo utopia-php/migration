@@ -300,6 +300,64 @@ class MigrationCLI
             }
         );
 
+        Database::addFilter(
+            'casting',
+            function (mixed $value) {
+                return json_encode(['value' => $value], JSON_PRESERVE_ZERO_FRACTION);
+            },
+            function (mixed $value) {
+                if (is_null($value)) {
+                    return;
+                }
+
+                return json_decode($value, true)['value'];
+            }
+        );
+
+        Database::addFilter(
+            'enum',
+            function (mixed $value, Document $attribute) {
+                if ($attribute->isSet('elements')) {
+                    $attribute->removeAttribute('elements');
+                }
+
+                return $value;
+            },
+            function (mixed $value, Document $attribute) {
+                $formatOptions = \json_decode($attribute->getAttribute('formatOptions', '[]'), true);
+                if (isset($formatOptions['elements'])) {
+                    $attribute->setAttribute('elements', $formatOptions['elements']);
+                }
+
+                return $value;
+            }
+        );
+
+        Database::addFilter(
+            'range',
+            function (mixed $value, Document $attribute) {
+                if ($attribute->isSet('min')) {
+                    $attribute->removeAttribute('min');
+                }
+                if ($attribute->isSet('max')) {
+                    $attribute->removeAttribute('max');
+                }
+
+                return $value;
+            },
+            function (mixed $value, Document $attribute) {
+                $formatOptions = json_decode($attribute->getAttribute('formatOptions', '[]'), true);
+                if (isset($formatOptions['min']) || isset($formatOptions['max'])) {
+                    $attribute
+                        ->setAttribute('min', $formatOptions['min'])
+                        ->setAttribute('max', $formatOptions['max'])
+                    ;
+                }
+
+                return $value;
+            }
+        );
+
         $database = new Database(
             new MariaDB(new PDO(
                 $_ENV['DESTINATION_APPWRITE_TEST_DSN'],
