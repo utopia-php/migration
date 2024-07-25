@@ -470,7 +470,7 @@ class Appwrite extends Destination
                 'collectionInternalId' => $collection->getInternalId(),
                 'collectionId' => $collection->getId(),
                 'type' => $resource->getType(),
-                'status' => 'available', // processing, available, failed, deleting, stuck
+                'status' => 'available',
                 'size' => $resource->getSize(),
                 'required' => $resource->isRequired(),
                 'signed' => $resource->isSigned(),
@@ -522,7 +522,7 @@ class Appwrite extends Destination
                     'collectionInternalId' => $relatedCollection->getInternalId(),
                     'collectionId' => $relatedCollection->getId(),
                     'type' => $resource->getType(),
-                    'status' => 'processing', // processing, available, failed, deleting, stuck
+                    'status' => 'available',
                     'size' => $resource->getSize(),
                     'required' => $resource->isRequired(),
                     'signed' => $resource->isSigned(),
@@ -581,11 +581,6 @@ class Appwrite extends Destination
                             resourceId: $resource->getId(),
                             message: 'Failed to create relationship',
                         );
-                    }
-
-                    if (isset($relatedCollection) && $options['twoWay']) {
-                        $relatedAttribute = $this->database->getDocument('attributes', $database->getInternalId() . '_' . $relatedCollection->getInternalId() . '_' . $options['twoWayKey']);
-                        $this->database->updateDocument('attributes', $relatedAttribute->getId(), $relatedAttribute->setAttribute('status', 'available'));
                     }
                     break;
                 default:
