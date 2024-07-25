@@ -259,6 +259,46 @@ class MigrationCLI
 
     public function getDatabase(): Database
     {
+        Database::addFilter(
+            'subQueryAttributes',
+            function (mixed $value) {
+                return;
+            },
+            function (mixed $value, Document $document, Database $database) {
+                $attributes = $database->find('attributes', [
+                    Query::equal('collectionInternalId', [$document->getInternalId()]),
+                    Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
+                    Query::limit($database->getLimitForAttributes()),
+                ]);
+
+                foreach ($attributes as $attribute) {
+                    if ($attribute->getAttribute('type') === Database::VAR_RELATIONSHIP) {
+                        $options = $attribute->getAttribute('options');
+                        foreach ($options as $key => $value) {
+                            $attribute->setAttribute($key, $value);
+                        }
+                        $attribute->removeAttribute('options');
+                    }
+                }
+
+                return $attributes;
+            }
+        );
+
+        Database::addFilter(
+            'subQueryIndexes',
+            function (mixed $value) {
+                return;
+            },
+            function (mixed $value, Document $document, Database $database) {
+                return $database
+                    ->find('indexes', [
+                        Query::equal('collectionInternalId', [$document->getInternalId()]),
+                        Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
+                        Query::limit($database->getLimitForIndexes()),
+                    ]);
+            }
+        );
 
         $database = new Database(
             new MariaDB(new PDO(
