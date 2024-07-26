@@ -42,7 +42,7 @@ abstract class Attribute extends Resource
         protected readonly string $format = '',
         protected readonly array $formatOptions = [],
         protected readonly array $filters = [],
-        protected readonly array $options = [],
+        protected array $options = [],
     ) {
     }
 
@@ -138,7 +138,7 @@ abstract class Attribute extends Resource
     /**
      * @return array<string, mixed>
      */
-    public function getOptions(): array
+    public function &getOptions(): array
     {
         return $this->options;
     }
