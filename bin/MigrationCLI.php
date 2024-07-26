@@ -365,7 +365,14 @@ class MigrationCLI
             new MariaDB(new PDO(
                 $_ENV['DESTINATION_APPWRITE_TEST_DSN'],
                 $_ENV['DESTINATION_APPWRITE_TEST_USER'],
-                $_ENV['DESTINATION_APPWRITE_TEST_PASSWORD']
+                $_ENV['DESTINATION_APPWRITE_TEST_PASSWORD'],
+                [
+                    PDO::ATTR_TIMEOUT => 3,
+                    PDO::ATTR_PERSISTENT => true,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => true,
+                    PDO::ATTR_STRINGIFY_FETCHES => true
+                ],
             )),
             new Cache(new None())
         );
@@ -407,7 +414,7 @@ class MigrationCLI
                 \Utopia\Migration\Resources\Database\Database::getName(),
                 \Utopia\Migration\Resources\Database\Collection::getName(),
                 \Utopia\Migration\Resources\Database\Attribute::getName(),
-//                \Utopia\Migration\Resources\Database\Index::getName(),
+                \Utopia\Migration\Resources\Database\Index::getName(),
             ],
             function () {
                 $this->drawFrame();
