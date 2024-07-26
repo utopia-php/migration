@@ -605,8 +605,8 @@ class Appwrite extends Destination
         } catch (\Throwable) {
             $this->database->deleteDocument('attributes', $attribute->getId());
 
-            if (isset($relatedAttribute)) {
-                $this->database->deleteDocument('attributes', $relatedAttribute->getId());
+            if (isset($twoWayAttribute)) {
+                $this->database->deleteDocument('attributes', $twoWayAttribute->getId());
             }
 
             throw new Exception(
