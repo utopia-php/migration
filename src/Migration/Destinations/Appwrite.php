@@ -233,7 +233,6 @@ class Appwrite extends Destination
                 };
             } catch (\Throwable $e) {
                 if ($e->getCode() === 409) {
-                    // DATABASE_ALREADY_EXISTS why SKIP? not termination
                     $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
                 } else {
                     $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
@@ -447,6 +446,7 @@ class Appwrite extends Destination
             );
         }
         if ($resource->getType() === UtopiaDatabase::VAR_RELATIONSHIP) {
+            $resource->getOptions()['side'] = UtopiaDatabase::RELATION_SIDE_PARENT;
             $relatedCollection = $this->database->getDocument(
                 'database_' . $database->getInternalId(),
                 $resource->getOptions()['relatedCollection']
