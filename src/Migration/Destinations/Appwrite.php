@@ -856,21 +856,23 @@ class Appwrite extends Destination
             return false;
         }
 
-        if (!$isLast) {
-            $this->documentBuffer[] = new UtopiaDocument(\array_merge([
-                '$id' => $resource->getId(),
-                '$permissions' => $resource->getPermissions(),
-            ], $resource->getData()));
-            return true;
-        }
+        $this->documentBuffer[] = new UtopiaDocument(\array_merge([
+            '$id' => $resource->getId(),
+            '$permissions' => $resource->getPermissions(),
+        ], $resource->getData()));
 
-        try {
-            $this->database->createDocuments(
-                $resource->getCollection()->getId(),
-                $this->documentBuffer
-            );
-        } finally {
-            $this->documentBuffer = [];
+        if ($isLast) {
+            try {
+                $databaseInternalId = $resource->getCollection()->getDatabase()->getInternalId();
+                $collectionInternalId = $resource->getCollection()->getInternalId();
+
+                $this->database->createDocuments(
+                    'database_' . $databaseInternalId . '_collection_' . $collectionInternalId,
+                    $this->documentBuffer
+                );
+            } finally {
+                $this->documentBuffer = [];
+            }
         }
 
         return true;
