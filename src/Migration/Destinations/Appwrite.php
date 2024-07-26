@@ -573,7 +573,7 @@ class Appwrite extends Destination
                             type: $options['relationType'],
                             twoWay: $options['twoWay'],
                             id: $resource->getKey(),
-                            twoWayKey: $options['twoWayKey'],
+                            twoWayKey: $twoWayKey ?? null,
                             onDelete: $options['onDelete'],
                         )
                     ) {
