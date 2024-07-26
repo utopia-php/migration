@@ -505,6 +505,8 @@ class Appwrite extends Destination
             throw $e;
         }
 
+        $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $collection->getId());
+        $this->database->purgeCachedCollection('database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId());
         $options = $resource->getOptions();
 
         if ($resource->getType() === UtopiaDatabase::VAR_RELATIONSHIP && isset($relatedCollection) && $options['twoWay']) {
