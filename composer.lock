@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "35a8ee5847ea127c2281dc5a1ee285d5",
+    "content-hash": "7162a38cd3804bfd37499285693dd65c",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -308,16 +308,16 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "0.50.0",
+            "version": "0.50.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "ce3eaccb2f3bbd34b2b97419836fec633b26b8f7"
+                "reference": "1745147bef29a9bddf5dd03fd9174ec29e2c26f0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/ce3eaccb2f3bbd34b2b97419836fec633b26b8f7",
-                "reference": "ce3eaccb2f3bbd34b2b97419836fec633b26b8f7",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/1745147bef29a9bddf5dd03fd9174ec29e2c26f0",
+                "reference": "1745147bef29a9bddf5dd03fd9174ec29e2c26f0",
                 "shasum": ""
             },
             "require": {
@@ -358,9 +358,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/0.50.0"
+                "source": "https://github.com/utopia-php/database/tree/0.50.1"
             },
-            "time": "2024-06-21T03:21:42+00:00"
+            "time": "2024-07-26T11:56:05+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -2823,6 +2823,8 @@
         "ext-curl": "*",
         "ext-openssl": "*"
     },
-    "platform-dev": [],
+    "platform-dev": {
+        "ext-pdo": "*"
+    },
     "plugin-api-version": "2.6.0"
 }
