@@ -608,6 +608,13 @@ class Appwrite extends Destination
             if (isset($relatedAttribute)) {
                 $this->database->deleteDocument('attributes', $relatedAttribute->getId());
             }
+
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Failed to create attribute',
+            );
         }
 
         if ($resource->getType() === UtopiaDatabase::VAR_RELATIONSHIP && isset($relatedCollection) && $options['twoWay']) {
