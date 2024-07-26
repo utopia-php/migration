@@ -2,11 +2,13 @@
 
 require_once __DIR__ . '/.././vendor/autoload.php';
 
+use Appwrite\Query;
 use Dotenv\Dotenv;
 use Utopia\Cache\Adapter\None;
 use Utopia\Cache\Cache;
 use Utopia\Database\Adapter\MariaDB;
 use Utopia\Database\Database;
+use Utopia\Database\Document;
 use Utopia\Database\Validator\Authorization;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Destinations\Appwrite as DestinationsAppwrite;
@@ -308,7 +310,7 @@ class MigrationCLI
             },
             function (mixed $value) {
                 if (is_null($value)) {
-                    return;
+                    return null;
                 }
 
                 return json_decode($value, true)['value'];
