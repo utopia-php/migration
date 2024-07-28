@@ -393,6 +393,20 @@ class Appwrite extends Destination
      */
     protected function createAttribute(Attribute $resource): bool
     {
+        $type = match ($resource->getType()) {
+            Attribute::TYPE_DATETIME => UtopiaDatabase::VAR_DATETIME,
+            Attribute::TYPE_BOOLEAN => UtopiaDatabase::VAR_BOOLEAN,
+            Attribute::TYPE_FLOAT => UtopiaDatabase::VAR_FLOAT,
+            Attribute::TYPE_STRING => UtopiaDatabase::VAR_STRING,
+            Attribute::TYPE_INTEGER => UtopiaDatabase::VAR_INTEGER,
+            Attribute::TYPE_IP => UtopiaDatabase::VAR_STRING,
+            Attribute::TYPE_EMAIL => UtopiaDatabase::VAR_STRING,
+            Attribute::TYPE_URL => UtopiaDatabase::VAR_STRING,
+            Attribute::TYPE_RELATIONSHIP => UtopiaDatabase::VAR_RELATIONSHIP,
+            Attribute::TYPE_ENUM => UtopiaDatabase::VAR_STRING,
+            default => throw new \Exception('Invalid resource type ' . $resource->getType()),
+        };
+
         $database = $this->database->getDocument(
             'databases',
             $resource->getCollection()->getDatabase()->getId(),
@@ -420,12 +434,12 @@ class Appwrite extends Destination
         }
 
         if (!empty($resource->getFormat())) {
-            if (!Structure::hasFormat($resource->getFormat(), $resource->getType())) {
+            if (!Structure::hasFormat($resource->getFormat(), $type)) {
                 throw new Exception(
                     resourceName: $resource->getName(),
                     resourceGroup: $resource->getGroup(),
                     resourceId: $resource->getId(),
-                    message: "Format {$resource->getFormat()} not available for attribute type {$resource->getType()}",
+                    message: "Format {$resource->getFormat()} not available for attribute type {$type}",
                 );
             }
         }
@@ -445,7 +459,7 @@ class Appwrite extends Destination
                 message: 'Cannot set default value for array attribute',
             );
         }
-        if ($resource->getType() === UtopiaDatabase::VAR_RELATIONSHIP) {
+        if ($type === UtopiaDatabase::VAR_RELATIONSHIP) {
             $resource->getOptions()['side'] = UtopiaDatabase::RELATION_SIDE_PARENT;
             $relatedCollection = $this->database->getDocument(
                 'database_' . $database->getInternalId(),
@@ -469,7 +483,7 @@ class Appwrite extends Destination
                 'databaseId' => $database->getId(),
                 'collectionInternalId' => $collection->getInternalId(),
                 'collectionId' => $collection->getId(),
-                'type' => $resource->getType(),
+                'type' => $type,
                 'status' => 'available',
                 'size' => $resource->getSize(),
                 'required' => $resource->isRequired(),
@@ -509,7 +523,7 @@ class Appwrite extends Destination
         $this->database->purgeCachedCollection('database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId());
         $options = $resource->getOptions();
 
-        if ($resource->getType() === UtopiaDatabase::VAR_RELATIONSHIP && isset($relatedCollection) && $options['twoWay']) {
+        if ($type === UtopiaDatabase::VAR_RELATIONSHIP && isset($relatedCollection) && $options['twoWay']) {
             $twoWayKey = $options['twoWayKey'];
             $options['relatedCollection'] = $collection->getId();
             $options['twoWayKey'] = $resource->getKey();
@@ -523,7 +537,7 @@ class Appwrite extends Destination
                     'databaseId' => $database->getId(),
                     'collectionInternalId' => $relatedCollection->getInternalId(),
                     'collectionId' => $relatedCollection->getId(),
-                    'type' => $resource->getType(),
+                    'type' => $type,
                     'status' => 'available',
                     'size' => $resource->getSize(),
                     'required' => $resource->isRequired(),
@@ -563,7 +577,7 @@ class Appwrite extends Destination
         }
 
         try {
-            switch ($resource->getType()) {
+            switch ($type) {
                 case UtopiaDatabase::VAR_RELATIONSHIP:
                     if (
                         isset($relatedCollection)
@@ -589,7 +603,7 @@ class Appwrite extends Destination
                     if (!$this->database->createAttribute(
                         'database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId(),
                         $resource->getKey(),
-                        $resource->getType(),
+                        $type,
                         $resource->getSize(),
                         $resource->isRequired(),
                         $resource->getDefault(),
@@ -617,7 +631,7 @@ class Appwrite extends Destination
             );
         }
 
-        if ($resource->getType() === UtopiaDatabase::VAR_RELATIONSHIP && isset($relatedCollection) && $options['twoWay']) {
+        if ($type === UtopiaDatabase::VAR_RELATIONSHIP && isset($relatedCollection) && $options['twoWay']) {
             $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $relatedCollection->getId());
         }
 
