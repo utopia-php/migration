@@ -853,6 +853,8 @@ class Appwrite extends Destination
      */
     protected function createDocument(Document $resource, bool $isLast): bool
     {
+        $this->database->setPreserveDates(true);
+
         // Check if document has already been created
         $exists = \array_key_exists(
             $resource->getId(),
@@ -909,6 +911,8 @@ class Appwrite extends Destination
                 $this->documentBuffer = [];
             }
         }
+
+        $this->database->setPreserveDates(false);
 
         return true;
     }
