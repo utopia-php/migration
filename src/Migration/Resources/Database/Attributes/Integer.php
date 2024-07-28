@@ -67,7 +67,7 @@ class Integer extends Attribute
 
     public function getType(): string
     {
-        return Attribute::TYPE_FLOAT;
+        return Attribute::TYPE_INTEGER;
     }
 
     public function getMin(): ?int
