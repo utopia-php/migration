@@ -875,11 +875,35 @@ class Appwrite extends Destination
             '$permissions' => $resource->getPermissions(),
         ], $resource->getData()));
 
+        var_dump("shmuel 1");
+        var_dump($isLast);
+
         if ($isLast) {
             try {
-                $databaseInternalId = $resource->getCollection()->getDatabase()->getInternalId();
-                $collectionInternalId = $resource->getCollection()->getInternalId();
 
+                //$databaseInternalId = $resource->getCollection()->getDatabase()->getInternalId();
+                //$collectionInternalId = $resource->getCollection()->getInternalId();
+
+                /**
+                 * Make this use cache!
+                 */
+                $database = $this->database->getDocument(
+                    'databases',
+                    $resource->getCollection()->getDatabase()->getId(),
+                );
+
+                /**
+                 * Make this use cache!
+                 */
+                $collection = $this->database->getDocument(
+                    'database_' . $database->getInternalId(),
+                    $resource->getCollection()->getId(),
+                );
+
+                $databaseInternalId = $database->getInternalId();
+                $collectionInternalId = $collection->getInternalId();
+                var_dump($databaseInternalId);
+                var_dump($collectionInternalId);
                 $this->database->createDocuments(
                     'database_' . $databaseInternalId . '_collection_' . $collectionInternalId,
                     $this->documentBuffer
