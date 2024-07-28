@@ -364,9 +364,9 @@ class Appwrite extends Destination
             );
         }
 
-        $collection = $this->database->createDocument('database_' . $resource->getDatabase()->getInternalId(), new UtopiaDocument([
+        $collection = $this->database->createDocument('database_' . $database->getInternalId(), new UtopiaDocument([
             '$id' => $resource->getId(),
-            'databaseInternalId' => $resource->getDatabase()->getInternalId(),
+            'databaseInternalId' => $database->getInternalId(),
             'databaseId' => $resource->getDatabase()->getId(),
             '$permissions' => Permission::aggregate($resource->getPermissions()),
             'documentSecurity' => $resource->getDocumentSecurity(),
@@ -378,7 +378,7 @@ class Appwrite extends Destination
         $resource->setInternalId($collection->getInternalId());
 
         $this->database->createCollection(
-            'database_' . $resource->getDatabase()->getInternalId() . '_collection_' . $resource->getInternalId(),
+            'database_' . $database->getInternalId() . '_collection_' . $resource->getInternalId(),
             permissions: $resource->getPermissions(),
             documentSecurity: $resource->getDocumentSecurity()
         );
