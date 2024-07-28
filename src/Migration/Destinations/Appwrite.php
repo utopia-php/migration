@@ -397,11 +397,14 @@ class Appwrite extends Destination
             Attribute::TYPE_DATETIME => UtopiaDatabase::VAR_DATETIME,
             Attribute::TYPE_BOOLEAN => UtopiaDatabase::VAR_BOOLEAN,
             Attribute::TYPE_FLOAT => UtopiaDatabase::VAR_FLOAT,
-            Attribute::TYPE_STRING, Attribute::TYPE_IP, Attribute::TYPE_EMAIL, Attribute::TYPE_URL => UtopiaDatabase::VAR_STRING,
+            Attribute::TYPE_STRING,
+            Attribute::TYPE_IP,
+            Attribute::TYPE_EMAIL,
+            Attribute::TYPE_URL,
+            Attribute::TYPE_ENUM => UtopiaDatabase::VAR_STRING,
             Attribute::TYPE_INTEGER => UtopiaDatabase::VAR_INTEGER,
             Attribute::TYPE_RELATIONSHIP => UtopiaDatabase::VAR_RELATIONSHIP,
-            Attribute::TYPE_ENUM => UtopiaDatabase::VAR_STRING,
-            default => throw new \Exception('Invalid resource type ' . $resource->getType()),
+            default => throw new \Exception('Invalid resource type '.$resource->getType()),
         };
 
         $database = $this->database->getDocument(
@@ -874,9 +877,6 @@ class Appwrite extends Destination
             '$permissions' => $resource->getPermissions(),
         ], $resource->getData()));
 
-        var_dump("shmuel 1");
-        var_dump($isLast);
-
         if ($isLast) {
             try {
 
@@ -901,8 +901,7 @@ class Appwrite extends Destination
 
                 $databaseInternalId = $database->getInternalId();
                 $collectionInternalId = $collection->getInternalId();
-                var_dump($databaseInternalId);
-                var_dump($collectionInternalId);
+
                 $this->database->createDocuments(
                     'database_' . $databaseInternalId . '_collection_' . $collectionInternalId,
                     $this->documentBuffer
