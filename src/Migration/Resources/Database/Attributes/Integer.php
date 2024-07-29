@@ -19,9 +19,12 @@ class Integer extends Attribute
     ) {
         $min ??= PHP_INT_MIN;
         $max ??= PHP_INT_MAX;
+        $size = $max > 2147483647 ? 8 : 4;
+
         parent::__construct(
             $key,
             $collection,
+            size: $size,
             required: $required,
             default: $default,
             array: $array,
