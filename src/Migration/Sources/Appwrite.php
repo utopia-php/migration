@@ -38,6 +38,7 @@ use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
+use Utopia\Database\Database as UtopiaDatabase;
 
 class Appwrite extends Source
 {
@@ -768,6 +769,7 @@ class Appwrite extends Source
                         required: $value['required'],
                         default: $value['default'],
                         array: $value['array'],
+                        size: $value['size'] ?? UtopiaDatabase::LENGTH_KEY,
                     ),
                     'enum' => new Enum(
                         $value['key'],
@@ -776,7 +778,7 @@ class Appwrite extends Source
                         required: $value['required'],
                         default: $value['default'],
                         array: $value['array'],
-                        size: $value['size'] ?? 256,
+                        size: $value['size'] ?? UtopiaDatabase::LENGTH_KEY,
                     ),
                     'url' => new URL(
                         $value['key'],
