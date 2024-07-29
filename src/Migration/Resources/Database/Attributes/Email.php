@@ -14,7 +14,7 @@ class Email extends Text
         bool $required = false,
         ?string $default = null,
         bool $array = false,
-        int $size = Database::LENGTH_KEY
+        int $size = 254
     ) {
         parent::__construct(
             $key,

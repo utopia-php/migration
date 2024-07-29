@@ -769,7 +769,7 @@ class Appwrite extends Source
                         required: $value['required'],
                         default: $value['default'],
                         array: $value['array'],
-                        size: $value['size'] ?? UtopiaDatabase::LENGTH_KEY,
+                        size: $value['size'] ?? 254,
                     ),
                     'enum' => new Enum(
                         $value['key'],
