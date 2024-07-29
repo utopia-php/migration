@@ -776,6 +776,7 @@ class Appwrite extends Source
                         required: $value['required'],
                         default: $value['default'],
                         array: $value['array'],
+                        size: $value['size'] ?? 256,
                     ),
                     'url' => new URL(
                         $value['key'],
@@ -783,6 +784,7 @@ class Appwrite extends Source
                         required: $value['required'],
                         default: $value['default'],
                         array: $value['array'],
+                        size: $value['size'] ?? 2000,
                     ),
                     'ip' => new IP(
                         $value['key'],
@@ -790,6 +792,7 @@ class Appwrite extends Source
                         required: $value['required'],
                         default: $value['default'],
                         array: $value['array'],
+                        size: $value['size'] ?? 39,
                     ),
                     default => new Text(
                         $value['key'],

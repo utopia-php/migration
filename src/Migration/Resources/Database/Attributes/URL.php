@@ -9,8 +9,7 @@ class URL extends Text
 {
     public function __construct(
         string $key,
-        Collection
-        $collection,
+        Collection $collection,
         bool $required = false,
         ?string $default = null,
         bool $array = false,

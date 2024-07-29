@@ -17,17 +17,19 @@ class Enum extends Attribute
         bool $required = false,
         ?string $default = null,
         bool $array = false,
+        int $size = 256
     ) {
         parent::__construct(
             $key,
             $collection,
+            size: $size,
             required: $required,
             default: $default,
             array: $array,
             format: 'enum',
             formatOptions: [
                 'elements' => $elements,
-            ]
+            ],
         );
     }
 
@@ -62,6 +64,7 @@ class Enum extends Attribute
             required: $array['required'],
             default: $array['default'],
             array: $array['array'],
+            size: $array['size'],
         );
     }
 
