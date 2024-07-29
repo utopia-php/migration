@@ -14,14 +14,18 @@ class Integer extends Attribute
         ?int $default = null,
         bool $array = false,
         ?int $min = null,
-        ?int $max = null
+        ?int $max = null,
+        bool $signed = true,
     ) {
+        $min ??= PHP_INT_MIN;
+        $max ??= PHP_INT_MAX;
         parent::__construct(
             $key,
             $collection,
             required: $required,
             default: $default,
             array: $array,
+            signed: $signed,
             formatOptions: [
                 'min' => $min,
                 'max' => $max,

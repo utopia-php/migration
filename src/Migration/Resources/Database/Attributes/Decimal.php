@@ -14,14 +14,19 @@ class Decimal extends Attribute
         ?float $default = null,
         bool $array = false,
         ?float $min = null,
-        ?float $max = null
+        ?float $max = null,
+        bool $signed = true,
     ) {
+        $min ??= PHP_FLOAT_MIN;
+        $max ??= PHP_FLOAT_MAX;
+
         parent::__construct(
             $key,
             $collection,
             required: $required,
             default: $default,
             array: $array,
+            signed: $signed,
             formatOptions: [
                 'min' => $min,
                 'max' => $max,
