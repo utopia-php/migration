@@ -13,7 +13,8 @@ class Text extends Attribute
         bool $required = false,
         ?string $default = null,
         bool $array = false,
-        int $size = 256
+        int $size = 256,
+        string $format = '',
     ) {
         parent::__construct(
             $key,
@@ -21,7 +22,8 @@ class Text extends Attribute
             size: $size,
             required: $required,
             default: $default,
-            array: $array
+            array: $array,
+            format: $format,
         );
     }
 
@@ -41,7 +43,8 @@ class Text extends Attribute
      *     required: bool,
      *     default: ?string,
      *     array: bool,
-     *     size: int
+     *     size: int,
+     *     format: string,
      * } $array
      * @return self
      */
@@ -53,7 +56,8 @@ class Text extends Attribute
             required: $array['required'],
             default: $array['default'] ?? null,
             array: $array['array'],
-            size: $array['size']
+            size: $array['size'],
+            format: $array['format'],
         );
     }
 
@@ -65,5 +69,10 @@ class Text extends Attribute
     public function getSize(): int
     {
         return $this->size;
+    }
+
+    public function getFormat(): string
+    {
+        return $this->format;
     }
 }

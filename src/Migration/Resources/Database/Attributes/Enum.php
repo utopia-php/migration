@@ -24,6 +24,7 @@ class Enum extends Attribute
             required: $required,
             default: $default,
             array: $array,
+            format: 'enum',
             formatOptions: [
                 'elements' => $elements,
             ]

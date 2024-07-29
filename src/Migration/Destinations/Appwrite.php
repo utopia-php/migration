@@ -396,14 +396,14 @@ class Appwrite extends Destination
         $type = match ($resource->getType()) {
             Attribute::TYPE_DATETIME => UtopiaDatabase::VAR_DATETIME,
             Attribute::TYPE_BOOLEAN => UtopiaDatabase::VAR_BOOLEAN,
+            Attribute::TYPE_INTEGER => UtopiaDatabase::VAR_INTEGER,
             Attribute::TYPE_FLOAT => UtopiaDatabase::VAR_FLOAT,
+            Attribute::TYPE_RELATIONSHIP => UtopiaDatabase::VAR_RELATIONSHIP,
             Attribute::TYPE_STRING,
             Attribute::TYPE_IP,
             Attribute::TYPE_EMAIL,
             Attribute::TYPE_URL,
             Attribute::TYPE_ENUM => UtopiaDatabase::VAR_STRING,
-            Attribute::TYPE_INTEGER => UtopiaDatabase::VAR_INTEGER,
-            Attribute::TYPE_RELATIONSHIP => UtopiaDatabase::VAR_RELATIONSHIP,
             default => throw new \Exception('Invalid resource type '.$resource->getType()),
         };
 
