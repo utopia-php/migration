@@ -61,7 +61,7 @@ class MigrationCLI
             [
                 '$id' => 'name',
                 'type' => Database::VAR_STRING,
-                'size' => 256,
+                'size' => Database::LENGTH_KEY,
                 'required' => true,
                 'signed' => true,
                 'array' => false,
@@ -131,7 +131,7 @@ class MigrationCLI
                 '$id' => '_key_name',
                 'type' => Database::INDEX_KEY,
                 'attributes' => ['name'],
-                'lengths' => [256],
+                'lengths' => [Database::LENGTH_KEY],
                 'orders' => [Database::ORDER_ASC],
             ],
             [

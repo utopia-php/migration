@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Resources\Database\Attributes;
 
+use Utopia\Database\Database;
 use Utopia\Migration\Resources\Database\Attribute;
 use Utopia\Migration\Resources\Database\Collection;
 
@@ -14,7 +15,7 @@ class Email extends Text
         bool $required = false,
         ?string $default = null,
         bool $array = false,
-        int $size = 256
+        int $size = Database::LENGTH_KEY
     ) {
         parent::__construct(
             $key,

@@ -14,7 +14,7 @@ class URL extends Text
         bool $required = false,
         ?string $default = null,
         bool $array = false,
-        int $size = 256
+        int $size = 2000
     ) {
         parent::__construct(
             $key,
