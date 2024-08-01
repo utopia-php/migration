@@ -855,7 +855,6 @@ class Appwrite extends Destination
      * @throws AuthorizationException
      * @throws DatabaseException
      * @throws StructureException
-     * @throws Exception
      */
     protected function createDocument(Document $resource, bool $isLast): bool
     {
@@ -908,14 +907,6 @@ class Appwrite extends Destination
                 $this->database->createDocuments(
                     'database_' . $databaseInternalId . '_collection_' . $collectionInternalId,
                     $this->documentBuffer
-                );
-
-            } catch (\Throwable $e) {
-                throw new Exception(
-                    resourceName: $resource->getName(),
-                    resourceGroup: $resource->getGroup(),
-                    resourceId: $resource->getId(),
-                    message: 'createDocuments failed: ' . $e->getMessage(),
                 );
             } finally {
                 $this->documentBuffer = [];
