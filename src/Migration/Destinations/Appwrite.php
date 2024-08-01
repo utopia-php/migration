@@ -523,6 +523,8 @@ class Appwrite extends Destination
         $this->database->purgeCachedCollection('database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId());
         $options = $resource->getOptions();
 
+        $twoWayKey = null;
+
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP && isset($relatedCollection) && $options['twoWay']) {
             $twoWayKey = $options['twoWayKey'];
             $options['relatedCollection'] = $collection->getId();
@@ -587,7 +589,7 @@ class Appwrite extends Destination
                             type: $options['relationType'],
                             twoWay: $options['twoWay'],
                             id: $resource->getKey(),
-                            twoWayKey: $twoWayKey ?? null,
+                            twoWayKey: $options['twoWay'] ? $twoWayKey : $options['twoWayKey'] ?? null,
                             onDelete: $options['onDelete'],
                         )
                     ) {
