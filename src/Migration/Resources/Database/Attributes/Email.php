@@ -2,7 +2,6 @@
 
 namespace Utopia\Migration\Resources\Database\Attributes;
 
-use Utopia\Database\Database;
 use Utopia\Migration\Resources\Database\Attribute;
 use Utopia\Migration\Resources\Database\Collection;
 

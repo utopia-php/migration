@@ -180,12 +180,16 @@ class Transfer
      *
      * @param  array<string>  $resources Resources to transfer
      * @param  callable  $callback Callback to run after transfer
-     * @param  string|null  $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
+     * @param  string  $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
      *
      * @throws \Exception
      */
-    public function run(array $resources, callable $callback, string $rootResourceId = null): void
-    {
+    public function run(
+        array $resources,
+        callable $callback,
+        string $rootResourceId = '',
+        int $batchSize = 100
+    ): void {
         // Allows you to push entire groups if you want.
         $computedResources = [];
         foreach ($resources as $resource) {
@@ -208,7 +212,13 @@ class Transfer
         }
 
         $this->resources = $computedResources;
-        $this->destination->run($computedResources, $callback, $rootResourceId);
+
+        $this->destination->run(
+            $computedResources,
+            $callback,
+            $rootResourceId,
+            $batchSize
+        );
     }
 
     /**

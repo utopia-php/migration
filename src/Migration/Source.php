@@ -27,7 +27,7 @@ abstract class Source extends Target
      * @param callable $callback Callback to run after transfer
      * @param string $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
      */
-    public function run(array $resources, callable $callback, string $rootResourceId = ''): void
+    public function run(array $resources, callable $callback, string $rootResourceId = '', int $batchSize = 100): void
     {
         $this->rootResourceId = $rootResourceId;
 
@@ -46,7 +46,7 @@ abstract class Source extends Target
             $this->cache->addAll($prunedResources);
         };
 
-        $this->exportResources($resources, 100);
+        $this->exportResources($resources, $batchSize);
     }
 
     /**
