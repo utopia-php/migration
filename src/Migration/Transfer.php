@@ -178,10 +178,10 @@ class Transfer
     /**
      * Transfer Resources between adapters
      *
-     * @param  array<string>  $resources Resources to transfer
-     * @param  callable  $callback Callback to run after transfer
-     * @param  string  $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
-     *
+     * @param array<string> $resources Resources to transfer
+     * @param callable $callback Callback to run after transfer
+     * @param string|null $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
+     * @param int $batchSize
      * @throws \Exception
      */
     public function run(
