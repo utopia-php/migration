@@ -187,7 +187,7 @@ class Transfer
     public function run(
         array $resources,
         callable $callback,
-        string $rootResourceId = '',
+        string $rootResourceId = null,
         int $batchSize = 100
     ): void {
         // Allows you to push entire groups if you want.
