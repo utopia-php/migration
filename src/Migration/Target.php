@@ -225,9 +225,4 @@ abstract class Target
     public function shutdown(): void
     {
     }
-
-    public function getBatchSize(): int
-    {
-        return 100;
-    }
 }
