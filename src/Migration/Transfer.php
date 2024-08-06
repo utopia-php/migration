@@ -206,7 +206,7 @@ class Transfer
 
         if ($rootResourceId !== '') {
             if ($rootResourceType === '') {
-                throw new \Exception('Please $rootResourceId while using $rootResourceId');
+                throw new \Exception('Resource type must be set when resource ID is set.');
             }
 
             $computedResources = [$rootResourceType];
