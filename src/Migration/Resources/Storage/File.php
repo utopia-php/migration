@@ -9,7 +9,7 @@ class File extends Resource
 {
     /**
      * @param string $id
-     * @param Bucket|null $bucket
+     * @param Bucket $bucket
      * @param string $name
      * @param string $signature
      * @param string $mimeType
@@ -21,7 +21,7 @@ class File extends Resource
      */
     public function __construct(
         string $id,
-        private readonly ?Bucket $bucket = null,
+        private readonly Bucket $bucket,
         private readonly string $name = '',
         private readonly string $signature = '',
         private readonly string $mimeType = '',
@@ -43,7 +43,7 @@ class File extends Resource
     {
         return new self(
             $array['id'],
-            Bucket::fromArray($array['bucket']), // Do we need here only the BucketId?
+            Bucket::fromArray($array['bucket']),
             $array['name'] ?? '',
             $array['signature'] ?? '',
             $array['mimeType'] ?? '',

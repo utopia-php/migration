@@ -46,6 +46,7 @@ class Enum extends Attribute
      *         documentSecurity: bool,
      *         permissions: ?array<string>
      *     },
+     *     size: int,
      *     required: bool,
      *     default: ?string,
      *     array: bool,

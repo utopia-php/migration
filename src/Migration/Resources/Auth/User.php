@@ -118,6 +118,8 @@ class User extends Resource
 
     /**
      * Get Labels
+     *
+     * @return array<string>
      */
     public function getLabels(): array
     {
@@ -163,6 +165,8 @@ class User extends Resource
 
     /**
      * Get Preferences
+     *
+     * @return array<string, mixed>
      */
     public function getPreferences(): array
     {
