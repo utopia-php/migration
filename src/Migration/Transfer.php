@@ -209,6 +209,10 @@ class Transfer
                 throw new \Exception('Resource type must be set when resource ID is set.');
             }
 
+            if(!in_array($rootResourceType, self::ROOT_RESOURCES)){
+                throw new \Exception('Resource type must be one of ' . implode(', ', self::ROOT_RESOURCES));
+            }
+
             $rootResources = \array_intersect($computedResources, self::ROOT_RESOURCES);
 
             if (\count($rootResources) > 1) {
@@ -219,9 +223,7 @@ class Transfer
                 throw new \Exception('No root resources found.');
             }
 
-            if (\end($rootResources) !== $rootResourceType) {
-                throw new \Exception('$rootResourceType Does not match');
-            }
+
         }
 
         $this->resources = $computedResources;
