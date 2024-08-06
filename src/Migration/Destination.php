@@ -27,13 +27,12 @@ abstract class Destination extends Target
      * @param array<string> $resources Resources to transfer
      * @param callable $callback Callback to run after transfer
      * @param string $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
-     * @param int $batchSize The number of resources to transfer in a single batch
      */
     public function run(
         array $resources,
         callable $callback,
         string $rootResourceId = '',
-        int $batchSize = 100,
+        string $rootResourceType = '',
     ): void {
         $this->source->run(
             $resources,
@@ -41,7 +40,7 @@ abstract class Destination extends Target
                 $this->import($resources, $callback);
             },
             $rootResourceId,
-            $batchSize
+            $rootResourceType,
         );
     }
 

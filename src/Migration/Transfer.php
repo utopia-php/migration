@@ -181,17 +181,19 @@ class Transfer
      * @param array<string> $resources Resources to transfer
      * @param callable $callback Callback to run after transfer
      * @param string|null $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
-     * @param int $batchSize
      * @throws \Exception
      */
     public function run(
         array $resources,
         callable $callback,
         string $rootResourceId = null,
-        int $batchSize = 100
+        string $rootResourceType = null,
     ): void {
         // Allows you to push entire groups if you want.
         $computedResources = [];
+        $rootResourceId = $rootResourceId ?? '';
+        $rootResourceType = $rootResourceType ?? '';
+
         foreach ($resources as $resource) {
             if (is_array($resource)) {
                 $computedResources = array_merge($computedResources, $resource);
@@ -202,13 +204,12 @@ class Transfer
 
         $computedResources = array_map('strtolower', $computedResources);
 
-        // Check we don't have multiple root resources if rootResourceId is set
-        $rootResourceId = $rootResourceId ?? '';
-        if ($rootResourceId) {
-            $rootResourceCount = \count(\array_intersect($computedResources, self::ROOT_RESOURCES));
-            if ($rootResourceCount > 1) {
-                throw new \Exception('Multiple root resources found. Only one root resource can be transferred at a time if using $rootResourceId.');
+        if ($rootResourceId !== '') {
+            if ($rootResourceType === '') {
+                throw new \Exception('Please $rootResourceId while using $rootResourceId');
             }
+
+            $computedResources = [$rootResourceType];
         }
 
         $this->resources = $computedResources;
@@ -217,7 +218,7 @@ class Transfer
             $computedResources,
             $callback,
             $rootResourceId,
-            $batchSize
+            $rootResourceType,
         );
     }
 
