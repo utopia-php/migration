@@ -109,6 +109,9 @@ class Bucket extends Resource
     }
 
 
+    /**
+     * @return array<string>
+     */
     public function getAllowedFileExtensions(): array
     {
         return $this->allowedFileExtensions;

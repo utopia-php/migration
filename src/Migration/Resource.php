@@ -81,6 +81,9 @@ abstract class Resource implements \JsonSerializable
 
     protected string $message = '';
 
+    /**
+     * @var array<string>
+     */
     protected array $permissions = [];
 
     abstract public static function getName(): string;

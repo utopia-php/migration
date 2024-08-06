@@ -8,8 +8,8 @@ use Utopia\Migration\Transfer;
 class Func extends Resource
 {
     /**
-     * @param string $name
      * @param string $id
+     * @param string $name
      * @param string $runtime
      * @param array<string> $execute
      * @param bool $enabled
@@ -17,6 +17,7 @@ class Func extends Resource
      * @param string $schedule
      * @param int $timeout
      * @param string $activeDeployment
+     * @param string $entrypoint
      */
     public function __construct(
         string $id,
@@ -87,6 +88,9 @@ class Func extends Resource
         return $this->name;
     }
 
+    /**
+     * @return array<string>
+     */
     public function getExecute(): array
     {
         return $this->execute;
@@ -102,6 +106,9 @@ class Func extends Resource
         return $this->runtime;
     }
 
+    /**
+     * @return array<string>
+     */
     public function getEvents(): array
     {
         return $this->events;

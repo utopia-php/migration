@@ -4,6 +4,9 @@ namespace Utopia\Migration;
 
 abstract class Source extends Target
 {
+    /**
+     * @var callable(array<Resource>): void $transferCallback
+     */
     protected $transferCallback;
 
     /**
@@ -27,7 +30,12 @@ abstract class Source extends Target
      * @param callable $callback Callback to run after transfer
      * @param string $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
      */
-    public function run(array $resources, callable $callback, string $rootResourceId = '', int $batchSize = 100): void
+    public function run(
+        array $resources,
+        callable $callback,
+        string $rootResourceId = '',
+        int $batchSize = 100
+    ): void
     {
         $this->rootResourceId = $rootResourceId;
 
@@ -101,7 +109,7 @@ abstract class Source extends Target
      * @param  int  $batchSize  Max 100
      * @param  array<string>  $resources  Resources to export
      */
-    abstract protected function exportGroupAuth(int $batchSize, array $resources);
+    abstract protected function exportGroupAuth(int $batchSize, array $resources): void;
 
     /**
      * Export Databases Group
@@ -109,7 +117,7 @@ abstract class Source extends Target
      * @param  int  $batchSize  Max 100
      * @param  array<string>  $resources  Resources to export
      */
-    abstract protected function exportGroupDatabases(int $batchSize, array $resources);
+    abstract protected function exportGroupDatabases(int $batchSize, array $resources): void;
 
     /**
      * Export Storage Group
@@ -117,7 +125,7 @@ abstract class Source extends Target
      * @param  int  $batchSize  Max 5
      * @param  array<string>  $resources  Resources to export
      */
-    abstract protected function exportGroupStorage(int $batchSize, array $resources);
+    abstract protected function exportGroupStorage(int $batchSize, array $resources): void;
 
     /**
      * Export Functions Group
@@ -125,5 +133,5 @@ abstract class Source extends Target
      * @param  int  $batchSize  Max 100
      * @param  array<string>  $resources  Resources to export
      */
-    abstract protected function exportGroupFunctions(int $batchSize, array $resources);
+    abstract protected function exportGroupFunctions(int $batchSize, array $resources): void;
 }

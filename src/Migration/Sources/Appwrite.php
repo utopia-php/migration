@@ -81,6 +81,9 @@ class Appwrite extends Source
         return 'Appwrite';
     }
 
+    /**
+     * @return array<string>
+     */
     public static function getSupportedResources(): array
     {
         return [

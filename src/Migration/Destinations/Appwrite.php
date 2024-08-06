@@ -525,7 +525,7 @@ class Appwrite extends Destination
 
         $twoWayKey = null;
 
-        if ($type === UtopiaDatabase::VAR_RELATIONSHIP && isset($relatedCollection) && $options['twoWay']) {
+        if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
             $twoWayKey = $options['twoWayKey'];
             $options['relatedCollection'] = $collection->getId();
             $options['twoWayKey'] = $resource->getKey();
@@ -581,18 +581,15 @@ class Appwrite extends Destination
         try {
             switch ($type) {
                 case UtopiaDatabase::VAR_RELATIONSHIP:
-                    if (
-                        isset($relatedCollection)
-                        && !$this->database->createRelationship(
-                            collection: 'database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId(),
-                            relatedCollection: 'database_' . $database->getInternalId() . '_collection_' . $relatedCollection->getInternalId(),
-                            type: $options['relationType'],
-                            twoWay: $options['twoWay'],
-                            id: $resource->getKey(),
-                            twoWayKey: $options['twoWay'] ? $twoWayKey : $options['twoWayKey'] ?? null,
-                            onDelete: $options['onDelete'],
-                        )
-                    ) {
+                    if (!$this->database->createRelationship(
+                        collection: 'database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId(),
+                        relatedCollection: 'database_' . $database->getInternalId() . '_collection_' . $relatedCollection->getInternalId(),
+                        type: $options['relationType'],
+                        twoWay: $options['twoWay'],
+                        id: $resource->getKey(),
+                        twoWayKey: $options['twoWay'] ? $twoWayKey : $options['twoWayKey'] ?? null,
+                        onDelete: $options['onDelete'],
+                    )) {
                         throw new Exception(
                             resourceName: $resource->getName(),
                             resourceGroup: $resource->getGroup(),
@@ -633,7 +630,7 @@ class Appwrite extends Destination
             );
         }
 
-        if ($type === UtopiaDatabase::VAR_RELATIONSHIP && isset($relatedCollection) && $options['twoWay']) {
+        if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
             $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $relatedCollection->getId());
         }
 

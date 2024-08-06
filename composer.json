@@ -19,7 +19,7 @@
         "test": "./vendor/bin/phpunit",
         "lint": "./vendor/bin/pint --test",
         "format": "./vendor/bin/pint",
-        "check": "./vendor/bin/phpstan analyse --level=8"
+        "check": "./vendor/bin/phpstan analyse --level=8 --memory-limit 512M"
     },
     "require": {
         "php": "8.3",
