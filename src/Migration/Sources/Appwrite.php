@@ -377,7 +377,7 @@ class Appwrite extends Source
 
             $queries = [Query::limit($batchSize)];
 
-            if (!empty($this->rootResourceId)) {
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_USER) {
                 $queries[] = Query::equal('$id', $this->rootResourceId);
                 $queries[] = Query::limit(1);
             }
@@ -430,7 +430,7 @@ class Appwrite extends Source
 
             $queries = [Query::limit($batchSize)];
 
-            if (!empty($this->rootResourceId)) {
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_TEAM) {
                 $queries[] = Query::equal('$id', $this->rootResourceId);
                 $queries[] = Query::limit(1);
             }
@@ -869,7 +869,7 @@ class Appwrite extends Source
         while (true) {
             $queries = [Query::limit($batchSize)];
 
-            if (!empty($this->rootResourceId)) {
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_DATABASE) {
                 $queries[] = Query::equal('$id', $this->rootResourceId);
                 $queries[] = Query::limit(1);
             }
@@ -1113,7 +1113,7 @@ class Appwrite extends Source
     {
         $queries = [];
 
-        if (!empty($this->rootResourceId)) {
+        if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_BUCKET) {
             $queries[] = Query::equal('$id', $this->rootResourceId);
             $queries[] = Query::limit(1);
         }
@@ -1281,7 +1281,7 @@ class Appwrite extends Source
 
         $queries = [];
 
-        if (!empty($this->rootResourceId)) {
+        if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_FUNCTION) {
             $queries[] = Query::equal('$id', $this->rootResourceId);
             $queries[] = Query::limit(1);
         }

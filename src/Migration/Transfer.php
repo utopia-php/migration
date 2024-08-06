@@ -187,9 +187,13 @@ class Transfer
         array $resources,
         callable $callback,
         string $rootResourceId = null,
+        string $rootResourceType = null,
     ): void {
         // Allows you to push entire groups if you want.
         $computedResources = [];
+        $rootResourceId = $rootResourceId ?? '';
+        $rootResourceType = $rootResourceType ?? '';
+
         foreach ($resources as $resource) {
             if (is_array($resource)) {
                 $computedResources = array_merge($computedResources, $resource);
@@ -201,7 +205,7 @@ class Transfer
         $computedResources = array_map('strtolower', $computedResources);
 
         // Check we don't have multiple root resources if rootResourceId is set
-        $rootResourceId = $rootResourceId ?? '';
+
         if ($rootResourceId) {
             $rootResourceCount = \count(\array_intersect($computedResources, self::ROOT_RESOURCES));
             if ($rootResourceCount > 1) {

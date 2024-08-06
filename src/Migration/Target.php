@@ -33,6 +33,8 @@ abstract class Target
 
     protected string $rootResourceId = '';
 
+    protected string $rootResourceType = '';
+
     abstract public static function getName(): string;
 
     abstract public static function getSupportedResources(): array;

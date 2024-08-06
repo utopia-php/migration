@@ -32,6 +32,7 @@ abstract class Destination extends Target
         array $resources,
         callable $callback,
         string $rootResourceId = '',
+        string $rootResourceType = '',
     ): void {
         $this->source->run(
             $resources,
@@ -39,6 +40,7 @@ abstract class Destination extends Target
                 $this->import($resources, $callback);
             },
             $rootResourceId,
+            $rootResourceType,
         );
     }
 
