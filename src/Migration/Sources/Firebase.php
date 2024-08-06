@@ -256,7 +256,7 @@ class Firebase extends Source
         }
     }
 
-    protected function exportGroupDatabases(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         // Check if Firestore is enabled
         try {
@@ -785,7 +785,7 @@ class Firebase extends Source
         }
     }
 
-    protected function exportGroupFunctions(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources): void
     {
         throw new \Exception('Not implemented');
     }

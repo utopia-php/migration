@@ -420,7 +420,7 @@ class Supabase extends NHost
         return $extensions;
     }
 
-    protected function exportGroupStorage(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources): void
     {
         try {
             if (\in_array(Resource::TYPE_BUCKET, $resources)) {

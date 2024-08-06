@@ -91,7 +91,7 @@ class MockSource extends Source
      * @param  int  $batchSize  Max 100
      * @param  string[]  $resources  Resources to export
      */
-    protected function exportGroupAuth(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources): void
     {
         foreach (Transfer::GROUP_AUTH_RESOURCES as $resource) {
             if (!\in_array($resource, $resources)) {
@@ -108,7 +108,7 @@ class MockSource extends Source
      * @param  int  $batchSize  Max 100
      * @param  string[]  $resources  Resources to export
      */
-    protected function exportGroupDatabases(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         foreach (Transfer::GROUP_DATABASES_RESOURCES as $resource) {
             if (!\in_array($resource, $resources)) {
@@ -125,7 +125,7 @@ class MockSource extends Source
      * @param  int  $batchSize  Max 5
      * @param  string[]  $resources  Resources to export
      */
-    protected function exportGroupStorage(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources): void
     {
         foreach (Transfer::GROUP_STORAGE_RESOURCES as $resource) {
             if (!\in_array($resource, $resources)) {
@@ -142,7 +142,7 @@ class MockSource extends Source
      * @param  int  $batchSize  Max 100
      * @param  string[]  $resources  Resources to export
      */
-    protected function exportGroupFunctions(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources): void
     {
         foreach (Transfer::GROUP_FUNCTIONS_RESOURCES as $resource) {
             if (!\in_array($resource, $resources)) {

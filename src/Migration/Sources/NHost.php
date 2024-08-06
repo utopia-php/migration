@@ -688,7 +688,7 @@ class NHost extends Source
         }
     }
 
-    protected function exportGroupStorage(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources): void
     {
         try {
             if (\in_array(Resource::TYPE_BUCKET, $resources)) {
@@ -839,7 +839,7 @@ class NHost extends Source
         }
     }
 
-    protected function exportGroupFunctions(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
     }
