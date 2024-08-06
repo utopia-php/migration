@@ -222,8 +222,6 @@ class Transfer
             if (\count($rootResources) === 0) {
                 throw new \Exception('No root resources found.');
             }
-
-
         }
 
         $this->resources = $computedResources;
