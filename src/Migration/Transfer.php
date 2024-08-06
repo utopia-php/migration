@@ -212,7 +212,6 @@ class Transfer
             $computedResources = [$rootResourceType];
         }
 
-
         $this->resources = $computedResources;
 
         $this->destination->run(
