@@ -204,14 +204,14 @@ class Transfer
 
         $computedResources = array_map('strtolower', $computedResources);
 
-        // Check we don't have multiple root resources if rootResourceId is set
-
-        if ($rootResourceId) {
-            $rootResourceCount = \count(\array_intersect($computedResources, self::ROOT_RESOURCES));
-            if ($rootResourceCount > 1) {
-                throw new \Exception('Multiple root resources found. Only one root resource can be transferred at a time if using $rootResourceId.');
+        if ($rootResourceId !== '') {
+            if ($rootResourceType === '') {
+                throw new \Exception('Please $rootResourceId while using $rootResourceId');
             }
+
+            $computedResources = [$rootResourceType];
         }
+
 
         $this->resources = $computedResources;
 
@@ -219,6 +219,7 @@ class Transfer
             $computedResources,
             $callback,
             $rootResourceId,
+            $rootResourceType,
         );
     }
 
