@@ -54,6 +54,8 @@ abstract class Source extends Target
             $this->cache->addAll($prunedResources);
         };
 
+        $batchSize = $this->getBatchSize();
+        
         $this->exportResources($resources, $batchSize);
     }
 

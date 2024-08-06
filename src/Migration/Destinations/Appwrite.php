@@ -1337,4 +1337,9 @@ class Appwrite extends Destination
 
         return $deployment;
     }
+
+    public function getBatchSize(): int
+    {
+        return 200;
+    }
 }
