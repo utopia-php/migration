@@ -229,5 +229,5 @@ abstract class Target
     /**
      * Completion callback
      */
-    public function error(Document $migration): void {}
+    public function error(): void {}
 }
