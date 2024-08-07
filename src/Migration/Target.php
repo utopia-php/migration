@@ -2,6 +2,8 @@
 
 namespace Utopia\Migration;
 
+use Utopia\Database\Document;
+
 abstract class Target
 {
     /**
@@ -70,12 +72,11 @@ abstract class Target
     /**
      * Make an API call
      *
-     * @param string $method
-     * @param string $path
-     * @param array<string, string> $headers
-     * @param array<string, mixed> $params
-     * @param array<string, string> $responseHeaders
+     * @param  array<string, string>  $headers
+     * @param  array<string, mixed>  $params
+     * @param  array<string, string>  $responseHeaders
      * @return array<mixed>|string
+     *
      * @throws \Exception
      */
     protected function call(
@@ -88,10 +89,10 @@ abstract class Target
         $headers = \array_merge($this->headers, $headers);
         $ch = \curl_init((
             \str_contains($path, 'http')
-            ? $path.(($method == 'GET' && ! empty($params)) ? '?' . \http_build_query($params) : '')
+            ? $path.(($method == 'GET' && ! empty($params)) ? '?'.\http_build_query($params) : '')
             : $this->endpoint.$path.(
                 ($method == 'GET' && ! empty($params))
-                ? '?' . \http_build_query($params)
+                ? '?'.\http_build_query($params)
                 : ''
             )
         ));
@@ -164,8 +165,7 @@ abstract class Target
     /**
      * Flatten params array to PHP multiple format
      *
-     * @param array<string, mixed> $data
-     * @param string $prefix
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     protected function flatten(array $data, string $prefix = ''): array
@@ -224,7 +224,10 @@ abstract class Target
     /**
      * Completion callback
      */
-    public function shutdown(): void
-    {
-    }
+    public function shutdown(): void {}
+
+    /**
+     * Completion callback
+     */
+    public function error(Document $migration): void {}
 }
