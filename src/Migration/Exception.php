@@ -2,16 +2,22 @@
 
 namespace Utopia\Migration;
 
-class Exception extends \Exception
+class Exception extends \Exception implements \JsonSerializable
 {
     public string $resourceName;
 
     public string $resourceGroup;
 
-    public string $resourceId;
+    public ?string $resourceId;
 
-    public function __construct(string $resourceName, string $resourceGroup, string $message, int $code = 0, ?\Throwable $previous = null, string $resourceId = '')
-    {
+    public function __construct(
+        string $resourceName,
+        string $resourceGroup,
+        ?string $resourceId = null,
+        string $message = '',
+        int $code = 0,
+        ?\Throwable $previous = null,
+    ) {
         $this->resourceName = $resourceName;
         $this->resourceId = $resourceId;
         $this->resourceGroup = $resourceGroup;
@@ -31,6 +37,21 @@ class Exception extends \Exception
 
     public function getResourceId(): string
     {
-        return $this->resourceId;
+        return $this->resourceId ?? '';
+    }
+
+    /**
+     * @return array<string, string|int|null>
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'code' => $this->getCode(),
+            'message' => $this->getMessage(),
+            'resourceName' => $this->resourceName,
+            'resourceGroup' => $this->resourceGroup,
+            'resourceId' => $this->resourceId,
+            'trace' => $this->getPrevious()?->getTraceAsString(),
+        ];
     }
 }

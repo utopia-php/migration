@@ -9,17 +9,11 @@ abstract class Destination extends Target
      */
     protected Source $source;
 
-    /**
-     * Get Source
-     */
     public function getSource(): Source
     {
         return $this->source;
     }
 
-    /**
-     * Set Soruce
-     */
     public function setSource(Source $source): self
     {
         $this->source = $source;
@@ -30,20 +24,30 @@ abstract class Destination extends Target
     /**
      * Transfer Resources to Destination from Source callback
      *
-     * @param  string[]  $resources  Resources to transfer
-     * @param  callable  $callback  Callback to run after transfer
+     * @param array<string> $resources Resources to transfer
+     * @param callable $callback Callback to run after transfer
+     * @param string $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
      */
-    public function run(array $resources, callable $callback): void
-    {
-        $this->source->run($resources, function (array $resources) use ($callback) {
-            $this->import($resources, $callback);
-        });
+    public function run(
+        array $resources,
+        callable $callback,
+        string $rootResourceId = '',
+        string $rootResourceType = '',
+    ): void {
+        $this->source->run(
+            $resources,
+            function (array $resources) use ($callback) {
+                $this->import($resources, $callback);
+            },
+            $rootResourceId,
+            $rootResourceType,
+        );
     }
 
     /**
      * Import Resources
      *
-     * @param  resource[]  $resources  Resources to import
+     * @param  Resource[]  $resources  Resources to import
      * @param  callable  $callback  Callback to run after import
      */
     abstract protected function import(array $resources, callable $callback): void;

@@ -7,43 +7,64 @@ use Utopia\Migration\Transfer;
 
 abstract class Attribute extends Resource
 {
-    public const TYPE_STRING = 'string';
-
-    public const TYPE_INTEGER = 'int';
-
-    public const TYPE_FLOAT = 'float';
-
-    public const TYPE_BOOLEAN = 'bool';
-
-    public const TYPE_DATETIME = 'dateTime';
-
-    public const TYPE_EMAIL = 'email';
-
-    public const TYPE_ENUM = 'enum';
-
-    public const TYPE_IP = 'IP';
-
-    public const TYPE_URL = 'URL';
-
-    public const TYPE_RELATIONSHIP = 'relationship';
-
-    protected string $key;
-
-    protected bool $required;
-
-    protected bool $array;
-
-    protected Collection $collection;
+    public const string TYPE_STRING = 'string';
+    public const string TYPE_INTEGER = 'int';
+    public const string TYPE_FLOAT = 'float';
+    public const string TYPE_BOOLEAN = 'bool';
+    public const string TYPE_DATETIME = 'dateTime';
+    public const string TYPE_EMAIL = 'email';
+    public const string TYPE_ENUM = 'enum';
+    public const string TYPE_IP = 'IP';
+    public const string TYPE_URL = 'URL';
+    public const string TYPE_RELATIONSHIP = 'relationship';
 
     /**
-     * @param  int  $size
+     * @param string $key
+     * @param Collection $collection
+     * @param int $size
+     * @param bool $required
+     * @param mixed|null $default
+     * @param bool $array
+     * @param bool $signed
+     * @param string $format
+     * @param array<string, mixed> $formatOptions
+     * @param array<string> $filters
+     * @param array<string, mixed> $options
      */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false)
+    public function __construct(
+        protected readonly string $key,
+        protected readonly Collection $collection,
+        protected readonly int $size = 0,
+        protected readonly bool $required = false,
+        protected readonly mixed $default = null,
+        protected readonly bool $array = false,
+        protected readonly bool $signed = false,
+        protected readonly string $format = '',
+        protected readonly array $formatOptions = [],
+        protected readonly array $filters = [],
+        protected array $options = [],
+    ) {
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
     {
-        $this->key = $key;
-        $this->required = $required;
-        $this->array = $array;
-        $this->collection = $collection;
+        return [
+            'key' => $this->key,
+            'collection' => $this->collection,
+            'type' => $this->getType(),
+            'size' => $this->size,
+            'required' => $this->required,
+            'default' => $this->default,
+            'array' => $this->array,
+            'signed' => $this->signed,
+            'format' => $this->format,
+            'formatOptions' => $this->formatOptions,
+            'filters' => $this->filters,
+            'options' => $this->options,
+        ];
     }
 
     public static function getName(): string
@@ -51,7 +72,7 @@ abstract class Attribute extends Resource
         return Resource::TYPE_ATTRIBUTE;
     }
 
-    abstract public function getTypeName(): string;
+    abstract public function getType(): string;
 
     public function getGroup(): string
     {
@@ -63,56 +84,62 @@ abstract class Attribute extends Resource
         return $this->key;
     }
 
-    public function setKey(string $key): self
-    {
-        $this->key = $key;
-
-        return $this;
-    }
-
     public function getCollection(): Collection
     {
         return $this->collection;
     }
 
-    public function setCollection(Collection $collection)
+    public function getSize(): int
     {
-        $this->collection = $collection;
-
-        return $this;
+        return $this->size;
     }
 
-    public function getRequired(): bool
+    public function isRequired(): bool
     {
         return $this->required;
     }
 
-    public function setRequired(bool $required): self
+    public function getDefault(): mixed
     {
-        $this->required = $required;
-
-        return $this;
+        return $this->default;
     }
 
-    public function getArray(): bool
+    public function isArray(): bool
     {
         return $this->array;
     }
 
-    public function setArray(bool $array): self
+    public function isSigned(): bool
     {
-        $this->array = $array;
-
-        return $this;
+        return $this->signed;
     }
 
-    public function asArray(): array
+    public function getFormat(): string
     {
-        return [
-            'key' => $this->key,
-            'required' => $this->required,
-            'array' => $this->array,
-            'type' => $this->getName(),
-        ];
+        return $this->format;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getFormatOptions(): array
+    {
+        return $this->formatOptions;
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function getFilters(): array
+    {
+        return $this->filters;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function &getOptions(): array
+    {
+        return $this->options;
     }
 }

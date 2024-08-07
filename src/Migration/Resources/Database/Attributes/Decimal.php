@@ -7,72 +7,81 @@ use Utopia\Migration\Resources\Database\Collection;
 
 class Decimal extends Attribute
 {
-    protected ?float $default;
+    public function __construct(
+        string $key,
+        Collection $collection,
+        bool $required = false,
+        ?float $default = null,
+        bool $array = false,
+        ?float $min = null,
+        ?float $max = null,
+        bool $signed = true,
+    ) {
+        $min ??= PHP_FLOAT_MIN;
+        $max ??= PHP_FLOAT_MAX;
 
-    protected ?float $min;
-
-    protected ?float $max;
-
-    /**
-     * @param  ?float  $default
-     * @param  ?float  $min
-     * @param  ?float  $max
-     */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?float $default = null, ?float $min = null, ?float $max = null)
-    {
-        parent::__construct($key, $collection, $required, $array);
-        $this->default = $default;
-        $this->min = $min;
-        $this->max = $max;
+        parent::__construct(
+            $key,
+            $collection,
+            required: $required,
+            default: $default,
+            array: $array,
+            signed: $signed,
+            formatOptions: [
+                'min' => $min,
+                'max' => $max,
+            ]
+        );
     }
 
-    public function getTypeName(): string
+    /**
+     * @param array{
+     *     key: string,
+     *     collection: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     required: bool,
+     *     array: bool,
+     *     default: ?float,
+     *     formatOptions: array{
+     *         min: ?float,
+     *         max: ?float
+     *     }
+     * } $array
+     * @return self
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['key'],
+            Collection::fromArray($array['collection']),
+            required: $array['required'],
+            default: $array['default'],
+            array: $array['array'],
+            min: $array['formatOptions']['min'],
+            max: $array['formatOptions']['max'],
+        );
+    }
+
+    public function getType(): string
     {
         return Attribute::TYPE_FLOAT;
     }
 
     public function getMin(): ?float
     {
-        return $this->min;
+        return (float)$this->formatOptions['min'];
     }
 
     public function getMax(): ?float
     {
-        return $this->max;
-    }
-
-    public function setMin(float $min): self
-    {
-        $this->min = $min;
-
-        return $this;
-    }
-
-    public function setMax(float $max): self
-    {
-        $this->max = $max;
-
-        return $this;
-    }
-
-    public function getDefault(): ?float
-    {
-        return $this->default;
-    }
-
-    public function setDefault(float $default): self
-    {
-        $this->default = $default;
-
-        return $this;
-    }
-
-    public function asArray(): array
-    {
-        return array_merge(parent::asArray(), [
-            'min' => $this->getMin(),
-            'max' => $this->getMax(),
-            'default' => $this->getDefault(),
-        ]);
+        return (float)$this->formatOptions['max'];
     }
 }

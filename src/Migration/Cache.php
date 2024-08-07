@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration;
 
+use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Storage\File;
 
 /**
@@ -11,7 +12,10 @@ use Utopia\Migration\Resources\Storage\File;
  */
 class Cache
 {
-    protected $cache = [];
+    /**
+     * @var array<string, array<string, Resource>> $cache
+     */
+    protected array $cache = [];
 
     public function __construct()
     {
@@ -23,15 +27,14 @@ class Cache
      *
      * Places the resource in the cache, in the cache backend this also gets assigned a unique ID.
      *
-     * @param  resource  $resource
-     * @return void
      */
-    public function add($resource)
+    public function add(Resource $resource): void
     {
         if (! $resource->getInternalId()) {
             $resourceId = uniqid();
             if (isset($this->cache[$resource->getName()][$resourceId])) {
                 $resourceId = uniqid();
+                // todo: $resourceId is not used?
             }
             $resource->setInternalId(uniqid());
         }
@@ -47,10 +50,10 @@ class Cache
     /**
      * Add All Resources
      *
-     * @param  resource[]  $resources
+     * @param  array<Resource>  $resources
      * @return void
      */
-    public function addAll(array $resources)
+    public function addAll(array $resources): void
     {
         foreach ($resources as $resource) {
             $this->add($resource);
@@ -63,10 +66,10 @@ class Cache
      * Updates the resource in the cache, if the resource does not exist in the cache an exception is thrown.
      * Use Add to add a new resource to the cache.
      *
-     * @param  resource  $resource
+     * @param Resource $resource
      * @return void
      */
-    public function update($resource)
+    public function update(Resource $resource): void
     {
         if (! in_array($resource->getName(), $this->cache)) {
             $this->add($resource);
@@ -75,7 +78,11 @@ class Cache
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
     }
 
-    public function updateAll($resources)
+    /**
+     * @param array<Resource> $resources
+     * @return void
+     */
+    public function updateAll(array $resources): void
     {
         foreach ($resources as $resource) {
             $this->update($resource);
@@ -87,10 +94,11 @@ class Cache
      *
      * Removes the resource from the cache, if the resource does not exist in the cache an exception is thrown.
      *
-     * @param  resource  $resource
+     * @param Resource $resource
      * @return void
+     * @throws \Exception
      */
-    public function remove($resource)
+    public function remove(Resource $resource): void
     {
         if (! in_array($resource, $this->cache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
@@ -102,10 +110,10 @@ class Cache
     /**
      * Get Resources
      *
-     * @param  string|resource  $resourceType
-     * @return resource[]
+     * @param string|Resource $resource
+     * @return array<Resource>
      */
-    public function get($resource)
+    public function get(string|Resource $resource): array
     {
         if (is_string($resource)) {
             return $this->cache[$resource] ?? [];
@@ -117,9 +125,9 @@ class Cache
     /**
      * Get All Resources
      *
-     * @return array
+     * @return array<string, array<string, Resource>>
      */
-    public function getAll()
+    public function getAll(): array
     {
         return $this->cache;
     }
@@ -131,7 +139,7 @@ class Cache
      *
      * @return void
      */
-    public function wipe()
+    public function wipe(): void
     {
         $this->cache = [];
     }

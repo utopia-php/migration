@@ -2,7 +2,7 @@
 
 namespace Utopia\Migration;
 
-abstract class Resource
+abstract class Resource implements \JsonSerializable
 {
     public const STATUS_PENDING = 'pending';
 
@@ -52,7 +52,7 @@ abstract class Resource
 
     public const TYPE_HASH = 'hash';
 
-    public const TYPE_ENVIRONMENT_VARIABLE = 'environment variable';
+    public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
 
     public const ALL_RESOURCES = [
         self::TYPE_ATTRIBUTE,
@@ -81,6 +81,9 @@ abstract class Resource
 
     protected string $message = '';
 
+    /**
+     * @var array<string>
+     */
     protected array $permissions = [];
 
     abstract public static function getName(): string;
@@ -149,7 +152,7 @@ abstract class Resource
     }
 
     /**
-     * @returns string[]
+     * @returns array<string>
      */
     public function getPermissions(): array
     {
@@ -157,7 +160,7 @@ abstract class Resource
     }
 
     /**
-     * @param  string[]  $permissions
+     * @param  array<string>  $permissions
      */
     public function setPermissions(array $permissions): self
     {
@@ -165,6 +168,4 @@ abstract class Resource
 
         return $this;
     }
-
-    abstract public function asArray(): array;
 }

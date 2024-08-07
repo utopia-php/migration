@@ -7,30 +7,52 @@ use Utopia\Migration\Transfer;
 
 class Deployment extends Resource
 {
-    protected Func $func;
-
-    protected string $entrypoint;
-
-    protected int $size;
-
-    protected int $start;
-
-    protected int $end;
-
-    protected string $data;
-
-    protected bool $activated;
-
-    public function __construct(string $id, Func $func, int $size, string $entrypoint, int $start = 0, int $end = 0, string $data = '', bool $activated = false)
-    {
+    public function __construct(
+        string $id,
+        private readonly Func $func,
+        private readonly int $size,
+        private readonly string $entrypoint,
+        private int $start = 0,
+        private int $end = 0,
+        private string $data = '',
+        private readonly bool $activated = false
+    ) {
         $this->id = $id;
-        $this->func = $func;
-        $this->size = $size;
-        $this->entrypoint = $entrypoint;
-        $this->start = $start;
-        $this->end = $end;
-        $this->data = $data;
-        $this->activated = $activated;
+    }
+
+    /**
+     * @param array<string, mixed> $array
+     * @return self
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['id'],
+            Func::fromArray($array['func']),
+            $array['size'],
+            $array['entrypoint'],
+            $array['start'] ?? 0,
+            $array['end'] ?? 0,
+            $array['data'] ?? '',
+            $array['activated'] ?? false
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'id' => $this->id,
+            'func' => $this->func,
+            'size' => $this->size,
+            'entrypoint' => $this->entrypoint,
+            'start' => $this->start,
+            'end' => $this->end,
+            'data' => $this->data,
+            'activated' => $this->activated,
+        ];
     }
 
     public static function getName(): string
@@ -48,30 +70,9 @@ class Deployment extends Resource
         return $this->func;
     }
 
-    public function setFunction(Func $func): self
-    {
-        $this->func = $func;
-
-        return $this;
-    }
-
-    public function setSize(int $size): self
-    {
-        $this->size = $size;
-
-        return $this;
-    }
-
     public function getSize(): int
     {
         return $this->size;
-    }
-
-    public function setEntrypoint(string $entrypoint): self
-    {
-        $this->entrypoint = $entrypoint;
-
-        return $this;
     }
 
     public function getEntrypoint(): string
@@ -115,28 +116,8 @@ class Deployment extends Resource
         return $this->data;
     }
 
-    public function setActivated(bool $activated): self
-    {
-        $this->activated = $activated;
-
-        return $this;
-    }
-
     public function getActivated(): bool
     {
         return $this->activated;
-    }
-
-    public function asArray(): array
-    {
-        return [
-            'id' => $this->id,
-            'func' => $this->func->asArray(),
-            'size' => $this->size,
-            'entrypoint' => $this->entrypoint,
-            'start' => $this->start,
-            'end' => $this->end,
-            'activated' => $this->activated,
-        ];
     }
 }

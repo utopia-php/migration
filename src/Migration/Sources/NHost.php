@@ -114,7 +114,7 @@ class NHost extends Source
         }
 
         // Auth
-        if (in_array(Resource::TYPE_USER, $resources)) {
+        if (\in_array(Resource::TYPE_USER, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM auth.users');
             $statement->execute();
 
@@ -126,11 +126,11 @@ class NHost extends Source
         }
 
         // Databases
-        if (in_array(Resource::TYPE_DATABASE, $resources)) {
+        if (\in_array(Resource::TYPE_DATABASE, $resources)) {
             $report[Resource::TYPE_DATABASE] = 1;
         }
 
-        if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+        if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -141,7 +141,7 @@ class NHost extends Source
             $report[Resource::TYPE_COLLECTION] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+        if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -152,7 +152,7 @@ class NHost extends Source
             $report[Resource::TYPE_ATTRIBUTE] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_INDEX, $resources)) {
+        if (\in_array(Resource::TYPE_INDEX, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM pg_indexes WHERE schemaname = \'public\'');
             $statement->execute();
 
@@ -163,7 +163,7 @@ class NHost extends Source
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+        if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -175,7 +175,7 @@ class NHost extends Source
         }
 
         // Storage
-        if (in_array(Resource::TYPE_BUCKET, $resources)) {
+        if (\in_array(Resource::TYPE_BUCKET, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM storage.buckets');
             $statement->execute();
 
@@ -186,7 +186,7 @@ class NHost extends Source
             $report[Resource::TYPE_BUCKET] = $statement->fetchColumn();
         }
 
-        if (in_array(Resource::TYPE_FILE, $resources)) {
+        if (\in_array(Resource::TYPE_FILE, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM storage.files');
             $statement->execute();
 
@@ -211,24 +211,24 @@ class NHost extends Source
         return $report;
     }
 
-    protected function exportGroupAuth(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_USER, $resources)) {
+            if (\in_array(Resource::TYPE_USER, $resources)) {
                 $this->exportUsers($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_USER,
                 Transfer::GROUP_AUTH,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
     }
 
-    private function exportUsers(int $batchSize)
+    private function exportUsers(int $batchSize): void
     {
         $db = $this->getDatabase();
 
@@ -249,11 +249,17 @@ class NHost extends Source
             $transferUsers = [];
 
             foreach ($users as $user) {
+                $hash = null;
+
+                if (array_key_exists('password_hash', $user)) {
+                    $hash = new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT);
+                }
+
                 $transferUser = new User(
                     $user['id'],
                     $user['email'] ?? null,
                     $user['display_name'] ?? null,
-                    null,
+                    $hash,
                     $user['phone_number'] ?? null,
                     [],
                     '',
@@ -263,10 +269,6 @@ class NHost extends Source
                     []
                 );
 
-                if (array_key_exists('password_hash', $user)) {
-                    $transferUser->setPasswordHash(new Hash($user['password_hash'], '', Hash::ALGORITHM_BCRYPT));
-                }
-
                 $transferUsers[] = $transferUser;
             }
 
@@ -274,10 +276,10 @@ class NHost extends Source
         }
     }
 
-    protected function exportGroupDatabases(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_DATABASE, $resources)) {
+            if (\in_array(Resource::TYPE_DATABASE, $resources)) {
                 $this->exportDatabases($batchSize);
             }
         } catch (\Throwable $e) {
@@ -285,15 +287,15 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_DATABASE,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
 
         try {
-            if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
                 $this->exportCollections($batchSize);
             }
         } catch (\Throwable $e) {
@@ -301,15 +303,15 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_COLLECTION,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
 
         try {
-            if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+            if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
                 $this->exportAttributes($batchSize);
             }
         } catch (\Throwable $e) {
@@ -317,15 +319,15 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_ATTRIBUTE,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
 
         try {
-            if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
                 $this->exportDocuments($batchSize);
             }
         } catch (\Throwable $e) {
@@ -333,15 +335,15 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_DOCUMENT,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
 
         try {
-            if (in_array(Resource::TYPE_INDEX, $resources)) {
+            if (\in_array(Resource::TYPE_INDEX, $resources)) {
                 $this->exportIndexes($batchSize);
             }
         } catch (\Throwable $e) {
@@ -349,9 +351,9 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_INDEX,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
@@ -365,7 +367,7 @@ class NHost extends Source
         $this->callback([$transferDatabase]);
     }
 
-    private function exportCollections(int $batchSize)
+    private function exportCollections(int $batchSize): void
     {
         $databases = $this->cache->get(Database::getName());
         $db = $this->getDatabase();
@@ -397,7 +399,7 @@ class NHost extends Source
         }
     }
 
-    private function exportAttributes(int $batchSize)
+    private function exportAttributes(int $batchSize): void
     {
         $collections = $this->cache->get(Collection::getName());
         $db = $this->getDatabase();
@@ -419,7 +421,7 @@ class NHost extends Source
         }
     }
 
-    private function exportIndexes(int $batchSize)
+    private function exportIndexes(int $batchSize): void
     {
         $collections = $this->cache->get(Collection::getName());
         $db = $this->getDatabase();
@@ -444,7 +446,7 @@ class NHost extends Source
         }
     }
 
-    private function exportDocuments(int $batchSize)
+    private function exportDocuments(int $batchSize): void
     {
         $databases = $this->cache->get(Database::getName());
         $collections = $this->cache->get(Collection::getName());
@@ -458,12 +460,12 @@ class NHost extends Source
 
             foreach ($collections as $collection) {
                 /** @var Collection $collection */
-                $total = $db->query('SELECT COUNT(*) FROM '.$collection->getDatabase()->getDBName().'."'.$collection->getCollectionName().'"')->fetchColumn();
+                $total = $db->query('SELECT COUNT(*) FROM '.$collection->getDatabase()->getDatabaseName().'."'.$collection->getCollectionName().'"')->fetchColumn();
 
                 $offset = 0;
 
                 while ($offset < $total) {
-                    $statement = $db->prepare('SELECT row_to_json(t) FROM (SELECT * FROM '.$collection->getDatabase()->getDBName().'."'.$collection->getCollectionName().'" LIMIT :limit OFFSET :offset) t;');
+                    $statement = $db->prepare('SELECT row_to_json(t) FROM (SELECT * FROM '.$collection->getDatabase()->getDatabaseName().'."'.$collection->getCollectionName().'" LIMIT :limit OFFSET :offset) t;');
                     $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
                     $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
                     $statement->execute();
@@ -485,14 +487,14 @@ class NHost extends Source
                         $processedData = [];
                         foreach ($collectionAttributes as $attribute) {
                             /** @var Attribute $attribute */
-                            if (! $attribute->getArray() && \is_array($data[$attribute->getKey()])) {
+                            if (! $attribute->isArray() && \is_array($data[$attribute->getKey()])) {
                                 $processedData[$attribute->getKey()] = json_encode($data[$attribute->getKey()]);
                             } else {
                                 $processedData[$attribute->getKey()] = $data[$attribute->getKey()];
                             }
                         }
 
-                        $transferDocuments[] = new Document('unique()', $database, $collection, $processedData);
+                        $transferDocuments[] = new Document('unique()', $collection, $processedData);
                     }
 
                     $this->callback($transferDocuments);
@@ -509,7 +511,13 @@ class NHost extends Source
             // Numbers
             case 'boolean':
             case 'bool':
-                return new Boolean($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new Boolean(
+                    $column['column_name'],
+                    $collection,
+                    required: $column['is_nullable'] === 'NO',
+                    default: $column['column_default'],
+                    array: $isArray,
+                );
             case 'smallint':
             case 'int2':
                 if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
@@ -525,7 +533,15 @@ class NHost extends Source
                     $column['column_default'] = null;
                 }
 
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -32768, 32767);
+                return new Integer(
+                    $column['column_name'],
+                    $collection,
+                    required: $column['is_nullable'] === 'NO',
+                    default:$column['column_default'],
+                    array: $isArray,
+                    min: -32768,
+                    max: 32767,
+                );
             case 'integer':
             case 'int4':
                 if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
@@ -541,7 +557,15 @@ class NHost extends Source
                     $column['column_default'] = null;
                 }
 
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default'], -2147483648, 2147483647);
+                return new Integer(
+                    $column['column_name'],
+                    $collection,
+                    required: $column['is_nullable'] === 'NO',
+                    default: $column['column_default'],
+                    array: $isArray,
+                    min: -2147483648,
+                    max: 2147483647,
+                );
             case 'bigint':
             case 'int8':
             case 'numeric':
@@ -557,7 +581,13 @@ class NHost extends Source
                     $column['column_default'] = null;
                 }
 
-                return new Integer($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new Integer(
+                    $column['column_name'],
+                    $collection,
+                    required: $column['is_nullable'] === 'NO',
+                    default: $column['column_default'],
+                    array: $isArray,
+                );
             case 'decimal':
             case 'real':
             case 'double precision':
@@ -577,7 +607,13 @@ class NHost extends Source
                     $column['column_default'] = null;
                 }
 
-                return new Decimal($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, $column['column_default']);
+                return new Decimal(
+                    $column['column_name'],
+                    $collection,
+                    required: $column['is_nullable'] === 'NO',
+                    default: $column['column_default'],
+                    array: $isArray,
+                );
                 // Time (Conversion happens with documents)
             case 'timestamp with time zone':
             case 'date':
@@ -588,36 +624,23 @@ class NHost extends Source
             case 'time':
             case 'timetz':
             case 'interval':
-                return new DateTime($column['column_name'], $collection, $column['is_nullable'] === 'NO', $isArray, null);
-                break;
-                // Strings and Objects
-            case 'uuid':
-            case 'character varying':
-            case 'text':
-            case 'character':
-            case 'json':
-            case 'jsonb':
-            case 'varchar':
-            case 'bytea':
-                return new Text(
+                return new DateTime(
                     $column['column_name'],
                     $collection,
-                    $column['is_nullable'] === 'NO',
-                    $isArray,
-                    $column['column_default'],
-                    $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760
+                    required: $column['is_nullable'] === 'NO',
+                    default: null,
+                    array: $isArray,
                 );
-                break;
             default:
+                // Strings and Objects
                 return new Text(
                     $column['column_name'],
                     $collection,
-                    $column['is_nullable'] === 'NO',
-                    $isArray,
-                    $column['column_default'],
-                    $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760
+                    required: $column['is_nullable'] === 'NO',
+                    default: $column['column_default'],
+                    array: $isArray,
+                    size: $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760,
                 );
-                break;
         }
     }
 
@@ -665,10 +688,10 @@ class NHost extends Source
         }
     }
 
-    protected function exportGroupStorage(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_BUCKET, $resources)) {
+            if (\in_array(Resource::TYPE_BUCKET, $resources)) {
                 $this->exportBuckets($batchSize);
             }
         } catch (\Throwable $e) {
@@ -676,15 +699,15 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_BUCKET,
                     Transfer::GROUP_STORAGE,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
 
         try {
-            if (in_array(Resource::TYPE_FILE, $resources)) {
+            if (\in_array(Resource::TYPE_FILE, $resources)) {
                 $this->exportFiles($batchSize);
             }
         } catch (\Throwable $e) {
@@ -692,15 +715,15 @@ class NHost extends Source
                 new Exception(
                     Resource::TYPE_FILE,
                     Transfer::GROUP_STORAGE,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
     }
 
-    protected function exportBuckets(int $batchSize)
+    protected function exportBuckets(int $batchSize): void
     {
         $db = $this->getDatabase();
         $total = $db->query('SELECT COUNT(*) FROM storage.buckets')->fetchColumn();
@@ -730,7 +753,7 @@ class NHost extends Source
         }
     }
 
-    private function exportFiles(int $batchSize)
+    private function exportFiles(int $batchSize): void
     {
         $buckets = $this->cache->get(Bucket::getName());
         $db = $this->getDatabase();
@@ -768,7 +791,7 @@ class NHost extends Source
         }
     }
 
-    private function exportFile(File $file)
+    private function exportFile(File $file): void
     {
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
@@ -816,7 +839,7 @@ class NHost extends Source
         }
     }
 
-    protected function exportGroupFunctions(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
     }

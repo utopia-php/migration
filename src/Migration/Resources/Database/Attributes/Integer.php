@@ -7,72 +7,83 @@ use Utopia\Migration\Resources\Database\Collection;
 
 class Integer extends Attribute
 {
-    protected ?int $default;
+    public function __construct(
+        string $key,
+        Collection $collection,
+        bool $required = false,
+        ?int $default = null,
+        bool $array = false,
+        ?int $min = null,
+        ?int $max = null,
+        bool $signed = true,
+    ) {
+        $min ??= PHP_INT_MIN;
+        $max ??= PHP_INT_MAX;
+        $size = $max > 2147483647 ? 8 : 4;
 
-    protected ?int $min;
-
-    protected ?int $max;
-
-    /**
-     * @param  ?int  $default
-     * @param  ?int  $min
-     * @param  ?int  $max
-     */
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?int $default = null, ?int $min = null, ?int $max = null)
-    {
-        parent::__construct($key, $collection, $required, $array);
-        $this->default = $default;
-        $this->min = $min;
-        $this->max = $max;
+        parent::__construct(
+            $key,
+            $collection,
+            size: $size,
+            required: $required,
+            default: $default,
+            array: $array,
+            signed: $signed,
+            formatOptions: [
+                'min' => $min,
+                'max' => $max,
+            ]
+        );
     }
 
-    public function getTypeName(): string
+    /**
+     * @param array{
+     *     key: string,
+     *     collection: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     required: bool,
+     *     array: bool,
+     *     default: ?int,
+     *     formatOptions: array{
+     *         min: ?int,
+     *         max: ?int
+     *     }
+     * } $array
+     * @return self
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['key'],
+            Collection::fromArray($array['collection']),
+            required: $array['required'],
+            default: $array['default'],
+            array: $array['array'],
+            min: $array['formatOptions']['min'] ?? null,
+            max: $array['formatOptions']['max'] ?? null
+        );
+    }
+
+    public function getType(): string
     {
         return Attribute::TYPE_INTEGER;
     }
 
     public function getMin(): ?int
     {
-        return $this->min;
+        return (int)$this->formatOptions['min'];
     }
 
     public function getMax(): ?int
     {
-        return $this->max;
-    }
-
-    public function setMin(?int $min): self
-    {
-        $this->min = $min;
-
-        return $this;
-    }
-
-    public function setMax(?int $max): self
-    {
-        $this->max = $max;
-
-        return $this;
-    }
-
-    public function getDefault(): ?int
-    {
-        return $this->default;
-    }
-
-    public function setDefault(int $default): self
-    {
-        $this->default = $default;
-
-        return $this;
-    }
-
-    public function asArray(): array
-    {
-        return array_merge(parent::asArray(), [
-            'min' => $this->getMin(),
-            'max' => $this->getMax(),
-            'default' => $this->getDefault(),
-        ]);
+        return (int)$this->formatOptions['max'];
     }
 }

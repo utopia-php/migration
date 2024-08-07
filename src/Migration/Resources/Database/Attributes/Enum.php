@@ -7,52 +7,78 @@ use Utopia\Migration\Resources\Database\Collection;
 
 class Enum extends Attribute
 {
-    protected ?string $default;
-
-    protected array $elements;
-
     /**
-     * @param  string[]  $elements
-     * @param  ?string  $default
+     * @param array<string> $elements
      */
-    public function __construct(string $key, Collection $collection, array $elements, bool $required, bool $array, ?string $default)
-    {
-        parent::__construct($key, $collection, $required, $array);
-        $this->default = $default;
-        $this->elements = $elements;
+    public function __construct(
+        string $key,
+        Collection $collection,
+        array $elements,
+        bool $required = false,
+        ?string $default = null,
+        bool $array = false,
+        int $size = 256
+    ) {
+        parent::__construct(
+            $key,
+            $collection,
+            size: $size,
+            required: $required,
+            default: $default,
+            array: $array,
+            format: 'enum',
+            formatOptions: [
+                'elements' => $elements,
+            ],
+        );
     }
 
-    public function getTypeName(): string
+    /**
+     * @param array{
+     *     key: string,
+     *     collection: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     size: int,
+     *     required: bool,
+     *     default: ?string,
+     *     array: bool,
+     *     formatOptions: array{
+     *         elements: array<string>
+     *     }
+     * } $array
+     * @return self
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['key'],
+            Collection::fromArray($array['collection']),
+            elements: $array['formatOptions']['elements'],
+            required: $array['required'],
+            default: $array['default'],
+            array: $array['array'],
+            size: $array['size'],
+        );
+    }
+
+    public function getType(): string
     {
         return Attribute::TYPE_ENUM;
     }
 
+    /**
+     * @return array<string>
+     */
     public function getElements(): array
     {
-        return $this->elements;
-    }
-
-    public function setElements(array $elements): self
-    {
-        $this->elements = $elements;
-
-        return $this;
-    }
-
-    public function getDefault(): ?string
-    {
-        return $this->default;
-    }
-
-    public function setDefault(string $default): void
-    {
-        $this->default = $default;
-    }
-
-    public function asArray(): array
-    {
-        return array_merge(parent::asArray(), [
-            'elements' => $this->elements,
-        ]);
+        return (array)$this->formatOptions['elements'];
     }
 }
