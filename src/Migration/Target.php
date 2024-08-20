@@ -2,8 +2,6 @@
 
 namespace Utopia\Migration;
 
-use Utopia\Database\Document;
-
 abstract class Target
 {
     /**
@@ -224,10 +222,14 @@ abstract class Target
     /**
      * Completion callback
      */
-    public function shutdown(): void {}
+    public function shutdown(): void
+    {
+    }
 
     /**
      * Completion callback
      */
-    public function error(): void {}
+    public function error(): void
+    {
+    }
 }
