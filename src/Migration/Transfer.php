@@ -209,7 +209,7 @@ class Transfer
                 throw new \Exception('Resource type must be set when resource ID is set.');
             }
 
-            if(!in_array($rootResourceType, self::ROOT_RESOURCES)){
+            if(!in_array($rootResourceType, self::ROOT_RESOURCES)) {
                 throw new \Exception('Resource type must be one of ' . implode(', ', self::ROOT_RESOURCES));
             }
 
