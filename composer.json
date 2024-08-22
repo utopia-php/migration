@@ -22,7 +22,7 @@
         "check": "./vendor/bin/phpstan analyse --level=8 --memory-limit 512M"
     },
     "require": {
-        "php": "8.3",
+        "php": "8.3.*",
         "ext-curl": "*",
         "ext-openssl": "*",
         "appwrite/appwrite": "11.1.*",

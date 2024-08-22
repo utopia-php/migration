@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "710d0646ba3d1752ef9e2580d7bca33d",
+    "content-hash": "09c49772fb03e8a2c305a6e24f3e2bf7",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -2819,7 +2819,7 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": "8.3",
+        "php": "8.3.*",
         "ext-curl": "*",
         "ext-openssl": "*"
     },
