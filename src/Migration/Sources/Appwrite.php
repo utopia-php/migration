@@ -660,11 +660,9 @@ class Appwrite extends Source
                 );
 
                 foreach ($response['documents'] as $document) {
-                    /**
-                     * Hack for many 2 many
-                     */
+                    // HACK: Handle many to many
                     if(!empty($manyToMany)) {
-                        $stack = ['$id']; // Adding $id becuase can't select only relations
+                        $stack = ['$id']; // Adding $id because we can't select only relations
                         foreach ($manyToMany as $relation) {
                             $stack[] = $relation . '.$id';
                         }
@@ -683,9 +681,6 @@ class Appwrite extends Source
                             }
                         }
                     }
-                    /**
-                     * end Hack for many 2 many
-                     */
 
                     $id = $document['$id'];
                     $permissions = $document['$permissions'];

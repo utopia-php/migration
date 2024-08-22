@@ -854,8 +854,6 @@ class Appwrite extends Destination
      */
     protected function createDocument(Document $resource, bool $isLast): bool
     {
-        $this->database->setPreserveDates(true);
-
         // Check if document has already been created
         $exists = \array_key_exists(
             $resource->getId(),
@@ -865,7 +863,7 @@ class Appwrite extends Destination
         if ($exists) {
             $resource->setStatus(
                 Resource::STATUS_SKIPPED,
-                'Document has been already created by relationship'
+                'Document has already been created'
             );
             return false;
         }
@@ -877,21 +875,10 @@ class Appwrite extends Destination
 
         if ($isLast) {
             try {
-
-                //$databaseInternalId = $resource->getCollection()->getDatabase()->getInternalId();
-                //$collectionInternalId = $resource->getCollection()->getInternalId();
-
-                /**
-                 * Make this use cache!
-                 */
                 $database = $this->database->getDocument(
                     'databases',
                     $resource->getCollection()->getDatabase()->getId(),
                 );
-
-                /**
-                 * Make this use cache!
-                 */
                 $collection = $this->database->getDocument(
                     'database_' . $database->getInternalId(),
                     $resource->getCollection()->getId(),
@@ -900,16 +887,18 @@ class Appwrite extends Destination
                 $databaseInternalId = $database->getInternalId();
                 $collectionInternalId = $collection->getInternalId();
 
-                $this->database->createDocuments(
-                    'database_' . $databaseInternalId . '_collection_' . $collectionInternalId,
-                    $this->documentBuffer
-                );
+                $this->database
+                    ->setPreserveDates(true)
+                    ->createDocuments(
+                        'database_' . $databaseInternalId . '_collection_' . $collectionInternalId,
+                        $this->documentBuffer
+                    );
             } finally {
                 $this->documentBuffer = [];
+                $this->database->setPreserveDates(false);
             }
         }
 
-        $this->database->setPreserveDates(false);
 
         return true;
     }

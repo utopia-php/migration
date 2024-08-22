@@ -227,7 +227,7 @@ abstract class Target
     }
 
     /**
-     * Completion callback
+     * Error callback
      */
     public function error(): void
     {
