@@ -37,9 +37,9 @@ class TransferTest extends TestCase
          */
         try {
             $this->transfer->run([Resource::TYPE_USER, Resource::TYPE_DATABASE], function () {}, 'rootResourceId');
-            $this->fail('Multiple Root resources should not be allowed');
+            $this->fail('Multiple root resources should not be allowed');
         } catch (\Exception $e) {
-            $this->assertEquals('Multiple root resources found. Only one root resource can be transferred at a time if using $rootResourceId.', $e->getMessage());
+            $this->assertEquals('Resource type must be set when resource ID is set.', $e->getMessage());
         }
 
         $this->source->pushMockResource(new Database('test', 'test'));
@@ -48,7 +48,12 @@ class TransferTest extends TestCase
         /**
          * TEST FOR SUCCESS
          */
-        $this->transfer->run([Resource::TYPE_DATABASE], function () {}, 'test');
+        $this->transfer->run(
+            [Resource::TYPE_DATABASE],
+            function () {},
+            'test',
+            Resource::TYPE_DATABASE
+        );
         $this->assertCount(1, $this->destination->getResourceTypeData(Transfer::GROUP_DATABASES, Resource::TYPE_DATABASE));
 
         $database = $this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_DATABASE, 'test');

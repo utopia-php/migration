@@ -1,23 +1,23 @@
-FROM supabase/postgres:15.1.0.96 as supabase-db
+FROM supabase/postgres:15.1.0.96 AS supabase-db
 
 COPY tests/Migration/resources/supabase/1_globals.sql /docker-entrypoint-initdb.d/1_globals.sql
 COPY tests/Migration/resources/supabase/2_main.sql /docker-entrypoint-initdb.d/2_main.sql
 
 RUN rm -rf /docker-entrypoint-initdb.d/migrate.sh
 
-FROM postgres:alpine3.18 as nhost-db
+FROM postgres:alpine3.18 AS nhost-db
 
 COPY tests/Migration/resources/nhost/1_globals.sql /docker-entrypoint-initdb.d/1_globals.sql
 COPY tests/Migration/resources/nhost/2_main.sql /docker-entrypoint-initdb.d/2_main.sql
 
-FROM composer:2.0 as composer
+FROM composer:2.0 AS composer
 
 COPY composer.json /app
 COPY composer.lock /app
 
 RUN composer install --ignore-platform-reqs
 
-FROM php:8.3.3-cli-alpine3.19 as tests
+FROM php:8.3.10-cli-alpine3.20 AS tests
 
 # Postgres
 RUN set -ex \
