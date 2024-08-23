@@ -7,19 +7,60 @@ use Utopia\Migration\Transfer;
 
 class Document extends Resource
 {
-    protected Database $database;
-
-    protected Collection $collection;
-
-    protected array $data;
-
-    public function __construct(string $id, Database $database, Collection $collection, array $data = [], array $permissions = [])
-    {
+    /**
+     * @param string $id
+     * @param Collection $collection
+     * @param array<string, mixed> $data
+     * @param array<string> $permissions
+     */
+    public function __construct(
+        string $id,
+        private readonly Collection $collection,
+        private readonly array $data = [],
+        array $permissions = []
+    ) {
         $this->id = $id;
-        $this->database = $database;
-        $this->collection = $collection;
-        $this->data = $data;
         $this->permissions = $permissions;
+    }
+
+    /**
+     * @param array{
+     *     id: string,
+     *     collection: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     data: array<string, mixed>,
+     *     permissions: ?array<string>
+     * } $array
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['id'],
+            Collection::fromArray($array['collection']),
+            $array['data'],
+            $array['permissions'] ?? []
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'id' => $this->id,
+            'collection' => $this->collection,
+            'data' => $this->data,
+            'permissions' => $this->permissions,
+        ];
     }
 
     public static function getName(): string
@@ -32,55 +73,16 @@ class Document extends Resource
         return Transfer::GROUP_DATABASES;
     }
 
-    public function getDatabase(): Database
-    {
-        return $this->database;
-    }
-
-    public function setDatabase(Database $database): self
-    {
-        $this->database = $database;
-
-        return $this;
-    }
-
     public function getCollection(): Collection
     {
         return $this->collection;
     }
 
-    public function setCollection(Collection $collection): self
-    {
-        $this->collection = $collection;
-
-        return $this;
-    }
-
+    /**
+     * @return array<string, mixed>
+     */
     public function getData(): array
     {
         return $this->data;
-    }
-
-    /**
-     * Set Data
-     *
-     * @param  array<string, mixed>  $data
-     */
-    public function setData(array $data): self
-    {
-        $this->data = $data;
-
-        return $this;
-    }
-
-    public function asArray(): array
-    {
-        return [
-            'id' => $this->id,
-            'database' => $this->database,
-            'collection' => $this->collection,
-            'attributes' => $this->data,
-            'permissions' => $this->permissions,
-        ];
     }
 }

@@ -10,20 +10,50 @@ use Utopia\Migration\Transfer;
  */
 class Membership extends Resource
 {
-    protected Team $team;
+    /**
+     * @param string $id
+     * @param Team $team
+     * @param User $user
+     * @param array<string> $roles
+     * @param bool $active
+     */
+    public function __construct(
+        string $id,
+        private readonly Team  $team,
+        private readonly User  $user,
+        private readonly array $roles = [],
+        private readonly bool  $active = true
+    ) {
+        $this->id = $id;
+    }
 
-    protected User $user;
-
-    protected array $roles;
-
-    protected bool $active = true;
-
-    public function __construct(Team $team, User $user, array $roles = [], bool $active = true)
+    /**
+     * @param array<string, mixed> $array
+     * @return self
+     */
+    public static function fromArray(array $array): self
     {
-        $this->team = $team;
-        $this->user = $user;
-        $this->roles = $roles;
-        $this->active = $active;
+        return new self(
+            $array['id'],
+            Team::fromArray($array['team'] ?? []),
+            User::fromArray($array['user'] ?? []),
+            $array['roles'] ?? [],
+            $array['active'] ?? true
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'id' => $this->id,
+            'team' => $this->team,
+            'user' => $this->user,
+            'roles' => $this->roles,
+            'active' => $this->active,
+        ];
     }
 
     public static function getName(): string
@@ -41,55 +71,21 @@ class Membership extends Resource
         return $this->team;
     }
 
-    public function setTeam(Team $team): self
-    {
-        $this->team = $team;
-
-        return $this;
-    }
-
     public function getUser(): User
     {
         return $this->user;
     }
 
-    public function setUser(User $user): self
-    {
-        $this->user = $user;
-
-        return $this;
-    }
-
+    /**
+     * @return array<string>
+     */
     public function getRoles(): array
     {
         return $this->roles;
     }
 
-    public function setRoles(array $roles): self
-    {
-        $this->roles = $roles;
-
-        return $this;
-    }
-
     public function getActive(): bool
     {
         return $this->active;
-    }
-
-    public function setActive(bool $active): self
-    {
-        $this->active = $active;
-
-        return $this;
-    }
-
-    public function asArray(): array
-    {
-        return [
-            'userId' => $this->user->getId(),
-            'roles' => $this->roles,
-            'active' => $this->active,
-        ];
     }
 }

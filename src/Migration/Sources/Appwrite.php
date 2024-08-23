@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Sources;
 
+use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Query;
 use Appwrite\Services\Databases;
@@ -9,6 +10,7 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
+use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -40,25 +42,36 @@ use Utopia\Migration\Transfer;
 
 class Appwrite extends Source
 {
-    /**
-     * @var Client|null
-     */
-    protected $client = null;
+    protected Client $client;
 
-    protected string $project = '';
+    private Users $users;
 
-    protected string $key = '';
+    private Teams $teams;
 
-    public function __construct(string $project, string $endpoint, string $key)
-    {
+    private Databases $database;
+
+    private Storage $storage;
+
+    private Functions $functions;
+
+    public function __construct(
+        protected string $project,
+        string $endpoint,
+        protected string $key
+    ) {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
             ->setProject($project)
             ->setKey($key);
 
+        $this->users = new Users($this->client);
+        $this->teams = new Teams($this->client);
+        $this->database = new Databases($this->client);
+        $this->storage = new Storage($this->client);
+        $this->functions = new Functions($this->client);
+
         $this->endpoint = $endpoint;
-        $this->project = $project;
-        $this->key = $key;
+
         $this->headers['X-Appwrite-Project'] = $this->project;
         $this->headers['X-Appwrite-Key'] = $this->key;
     }
@@ -68,6 +81,9 @@ class Appwrite extends Source
         return 'Appwrite';
     }
 
+    /**
+     * @return array<string>
+     */
     public static function getSupportedResources(): array
     {
         return [
@@ -96,109 +112,129 @@ class Appwrite extends Source
         ];
     }
 
+    /**
+     * @param array<string> $resources
+     * @return array<string, mixed>
+     *
+     * @throws \Exception
+     */
     public function report(array $resources = []): array
     {
         $report = [];
-        $currentPermission = '';
 
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
         }
 
-        $usersClient = new Users($this->client);
-        $teamsClient = new Teams($this->client);
-        $databaseClient = new Databases($this->client);
-        $storageClient = new Storage($this->client);
-        $functionsClient = new Functions($this->client);
-
         // Auth
         try {
-            $currentPermission = 'users.read';
-            if (in_array(Resource::TYPE_USER, $resources)) {
-                $report[Resource::TYPE_USER] = $usersClient->list()['total'];
+            $scope = 'users.read';
+            if (\in_array(Resource::TYPE_USER, $resources)) {
+                $report[Resource::TYPE_USER] = $this->users->list()['total'];
             }
 
-            $currentPermission = 'teams.read';
-            if (in_array(Resource::TYPE_TEAM, $resources)) {
-                $report[Resource::TYPE_TEAM] = $teamsClient->list()['total'];
+            $scope = 'teams.read';
+            if (\in_array(Resource::TYPE_TEAM, $resources)) {
+                $report[Resource::TYPE_TEAM] = $this->teams->list()['total'];
             }
 
-            if (in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
+            if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
                 $report[Resource::TYPE_MEMBERSHIP] = 0;
-                $teams = $teamsClient->list()['teams'];
+                $teams = $this->teams->list()['teams'];
                 foreach ($teams as $team) {
-                    $report[Resource::TYPE_MEMBERSHIP] += $teamsClient->listMemberships($team['$id'], [Query::limit(1)])['total'];
+                    $report[Resource::TYPE_MEMBERSHIP] += $this->teams->listMemberships(
+                        $team['$id'],
+                        [Query::limit(1)]
+                    )['total'];
                 }
             }
 
             // Databases
-            $currentPermission = 'databases.read';
-            if (in_array(Resource::TYPE_DATABASE, $resources)) {
-                $report[Resource::TYPE_DATABASE] = $databaseClient->list()['total'];
+            $scope = 'databases.read';
+            if (\in_array(Resource::TYPE_DATABASE, $resources)) {
+                $report[Resource::TYPE_DATABASE] = $this->database->list()['total'];
             }
 
-            $currentPermission = 'collections.read';
-            if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+            $scope = 'collections.read';
+            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
                 $report[Resource::TYPE_COLLECTION] = 0;
-                $databases = $databaseClient->list()['databases'];
+                $databases = $this->database->list()['databases'];
                 foreach ($databases as $database) {
-                    $report[Resource::TYPE_COLLECTION] += $databaseClient->listCollections($database['$id'], [Query::limit(1)])['total'];
+                    $report[Resource::TYPE_COLLECTION] += $this->database->listCollections(
+                        $database['$id'],
+                        [Query::limit(1)]
+                    )['total'];
                 }
             }
 
-            $currentPermission = 'documents.read';
-            if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+            $scope = 'documents.read';
+            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
                 $report[Resource::TYPE_DOCUMENT] = 0;
-                $databases = $databaseClient->list()['databases'];
+                $databases = $this->database->list()['databases'];
                 foreach ($databases as $database) {
-                    $collections = $databaseClient->listCollections($database['$id'])['collections'];
+                    $collections = $this->database->listCollections($database['$id'])['collections'];
                     foreach ($collections as $collection) {
-                        $report[Resource::TYPE_DOCUMENT] += $databaseClient->listDocuments($database['$id'], $collection['$id'], [Query::limit(1)])['total'];
+                        $report[Resource::TYPE_DOCUMENT] += $this->database->listDocuments(
+                            $database['$id'],
+                            $collection['$id'],
+                            [Query::limit(1)]
+                        )['total'];
                     }
                 }
             }
 
-            $currentPermission = 'attributes.read';
-            if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+            $scope = 'attributes.read';
+            if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
                 $report[Resource::TYPE_ATTRIBUTE] = 0;
-                $databases = $databaseClient->list()['databases'];
+                $databases = $this->database->list()['databases'];
                 foreach ($databases as $database) {
-                    $collections = $databaseClient->listCollections($database['$id'])['collections'];
+                    $collections = $this->database->listCollections($database['$id'])['collections'];
                     foreach ($collections as $collection) {
-                        $report[Resource::TYPE_ATTRIBUTE] += $databaseClient->listAttributes($database['$id'], $collection['$id'])['total'];
+                        $report[Resource::TYPE_ATTRIBUTE] += $this->database->listAttributes(
+                            $database['$id'],
+                            $collection['$id']
+                        )['total'];
                     }
                 }
             }
 
-            $currentPermission = 'indexes.read';
-            if (in_array(Resource::TYPE_INDEX, $resources)) {
+            $scope = 'indexes.read';
+            if (\in_array(Resource::TYPE_INDEX, $resources)) {
                 $report[Resource::TYPE_INDEX] = 0;
-                $databases = $databaseClient->list()['databases'];
+                $databases = $this->database->list()['databases'];
                 foreach ($databases as $database) {
-                    $collections = $databaseClient->listCollections($database['$id'])['collections'];
+                    $collections = $this->database->listCollections($database['$id'])['collections'];
                     foreach ($collections as $collection) {
-                        $report[Resource::TYPE_INDEX] += $databaseClient->listIndexes($database['$id'], $collection['$id'])['total'];
+                        $report[Resource::TYPE_INDEX] += $this->database->listIndexes(
+                            $database['$id'],
+                            $collection['$id']
+                        )['total'];
                     }
                 }
             }
 
             // Storage
-            $currentPermission = 'buckets.read';
-            if (in_array(Resource::TYPE_BUCKET, $resources)) {
-                $report[Resource::TYPE_BUCKET] = $storageClient->listBuckets()['total'];
+            $scope = 'buckets.read';
+            if (\in_array(Resource::TYPE_BUCKET, $resources)) {
+                $report[Resource::TYPE_BUCKET] = $this->storage->listBuckets()['total'];
             }
 
-            $currentPermission = 'files.read';
-            if (in_array(Resource::TYPE_FILE, $resources)) {
+            $scope = 'files.read';
+            if (\in_array(Resource::TYPE_FILE, $resources)) {
                 $report[Resource::TYPE_FILE] = 0;
                 $report['size'] = 0;
                 $buckets = [];
                 $lastBucket = null;
 
                 while (true) {
-                    $currentBuckets = $storageClient->listBuckets($lastBucket ? [Query::cursorAfter($lastBucket)] : [Query::limit(20)])['buckets'];
+                    $currentBuckets = $this->storage->listBuckets(
+                        $lastBucket
+                            ? [Query::cursorAfter($lastBucket)]
+                            : [Query::limit(20)]
+                    )['buckets'];
+
                     $buckets = array_merge($buckets, $currentBuckets);
-                    $lastBucket = $buckets[count($buckets) - 1]['$id'];
+                    $lastBucket = $buckets[count($buckets) - 1]['$id'] ?? null;
 
                     if (count($currentBuckets) < 20) {
                         break;
@@ -210,7 +246,13 @@ class Appwrite extends Source
                     $lastFile = null;
 
                     while (true) {
-                        $currentFiles = $storageClient->listFiles($bucket['$id'], $lastFile ? [Query::cursorAfter($lastFile)] : [Query::limit(20)])['files'];
+                        $currentFiles = $this->storage->listFiles(
+                            $bucket['$id'],
+                            $lastFile
+                                ? [Query::cursorAfter($lastFile)]
+                                : [Query::limit(20)]
+                        )['files'];
+
                         $files = array_merge($files, $currentFiles);
                         $lastFile = $files[count($files) - 1]['$id'];
 
@@ -221,44 +263,54 @@ class Appwrite extends Source
 
                     $report[Resource::TYPE_FILE] += count($files);
                     foreach ($files as $file) {
-                        $report['size'] += $storageClient->getFile($bucket['$id'], $file['$id'])['sizeOriginal'];
+                        $report['size'] += $this->storage->getFile(
+                            $bucket['$id'],
+                            $file['$id']
+                        )['sizeOriginal'];
                     }
                 }
                 $report['size'] = $report['size'] / 1000 / 1000; // MB
             }
 
             // Functions
-            $currentPermission = 'functions.read';
-            if (in_array(Resource::TYPE_FUNCTION, $resources)) {
-                $report[Resource::TYPE_FUNCTION] = $functionsClient->list()['total'];
+            $scope = 'functions.read';
+            if (\in_array(Resource::TYPE_FUNCTION, $resources)) {
+                $report[Resource::TYPE_FUNCTION] = $this->functions->list()['total'];
             }
 
-            if (in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
+            if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
                 $report[Resource::TYPE_DEPLOYMENT] = 0;
-                $functions = $functionsClient->list()['functions'];
+                $functions = $this->functions->list()['functions'];
                 foreach ($functions as $function) {
-                    if (! empty($function['deployment'])) {
+                    if (!empty($function['deployment'])) {
                         $report[Resource::TYPE_DEPLOYMENT] += 1;
                     }
                 }
             }
 
-            if (in_array(Resource::TYPE_ENVIRONMENT_VARIABLE, $resources)) {
+            if (\in_array(Resource::TYPE_ENVIRONMENT_VARIABLE, $resources)) {
                 $report[Resource::TYPE_ENVIRONMENT_VARIABLE] = 0;
-                $functions = $functionsClient->list()['functions'];
+                $functions = $this->functions->list()['functions'];
                 foreach ($functions as $function) {
-                    $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += $functionsClient->listVariables($function['$id'])['total'];
+                    $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += $this->functions->listVariables($function['$id'])['total'];
                 }
             }
 
-            $report['version'] = $this->call('GET', '/health/version', ['X-Appwrite-Key' => '', 'X-Appwrite-Project' => ''])['version'];
+            $report['version'] = $this->call(
+                'GET',
+                '/health/version',
+                [
+                    'X-Appwrite-Key' => '',
+                    'X-Appwrite-Project' => '',
+                ]
+            )['version'];
 
             $this->previousReport = $report;
 
             return $report;
         } catch (\Throwable $e) {
             if ($e->getCode() === 403) {
-                throw new \Exception("Missing Permission: {$currentPermission}.");
+                throw new \Exception("Missing scope: $scope.");
             } else {
                 throw new \Exception($e->getMessage());
             }
@@ -268,71 +320,76 @@ class Appwrite extends Source
     /**
      * Export Auth Resources
      *
-     * @param  int  $batchSize  Max 100
-     * @param  string[]  $resources
-     * @return void
+     * @param int $batchSize Max 100
+     * @param array<string> $resources
      */
-    protected function exportGroupAuth(int $batchSize, array $resources)
+    protected function exportGroupAuth(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_USER, $resources)) {
+            if (\in_array(Resource::TYPE_USER, $resources)) {
                 $this->exportUsers($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_USER,
                 Transfer::GROUP_AUTH,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
 
         try {
-            if (in_array(Resource::TYPE_TEAM, $resources)) {
+            if (\in_array(Resource::TYPE_TEAM, $resources)) {
                 $this->exportTeams($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_TEAM,
                 Transfer::GROUP_AUTH,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
 
         try {
-            if (in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
+            if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
                 $this->exportMemberships($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_MEMBERSHIP,
                 Transfer::GROUP_AUTH,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
     }
 
-    private function exportUsers(int $batchSize)
+    /**
+     * @throws AppwriteException
+     */
+    private function exportUsers(int $batchSize): void
     {
-        $usersClient = new Users($this->client);
         $lastDocument = null;
 
-        // Export Users
         while (true) {
             $users = [];
 
             $queries = [Query::limit($batchSize)];
 
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_USER) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
             if ($lastDocument) {
                 $queries[] = Query::cursorAfter($lastDocument);
             }
 
-            $response = $usersClient->list($queries);
+            $response = $this->users->list($queries);
             if ($response['total'] == 0) {
                 break;
             }
@@ -348,7 +405,7 @@ class Appwrite extends Source
                     '',
                     $user['emailVerification'] ?? false,
                     $user['phoneVerification'] ?? false,
-                    ! $user['status'],
+                    !$user['status'],
                     $user['prefs'] ?? [],
                 );
 
@@ -363,22 +420,29 @@ class Appwrite extends Source
         }
     }
 
-    private function exportTeams(int $batchSize)
+    /**
+     * @throws AppwriteException
+     */
+    private function exportTeams(int $batchSize): void
     {
-        $teamsClient = new Teams($this->client);
+        $this->teams = new Teams($this->client);
         $lastDocument = null;
 
-        // Export Teams
         while (true) {
             $teams = [];
 
             $queries = [Query::limit($batchSize)];
 
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_TEAM) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
             if ($lastDocument) {
                 $queries[] = Query::cursorAfter($lastDocument);
             }
 
-            $response = $teamsClient->list($queries);
+            $response = $this->teams->list($queries);
             if ($response['total'] == 0) {
                 break;
             }
@@ -401,16 +465,18 @@ class Appwrite extends Source
         }
     }
 
-    private function exportMemberships(int $batchSize)
+    /**
+     * @throws AppwriteException
+     * @throws \Exception
+     */
+    private function exportMemberships(int $batchSize): void
     {
-        $teamsClient = new Teams($this->client);
-
-        // Export Memberships
         $cacheTeams = $this->cache->get(Team::getName());
-        /** @var array<string, User> - array where key is user ID */
+
+        /** @var array<string, User> $cacheUsers */
         $cacheUsers = [];
+
         foreach ($this->cache->get(User::getName()) as $cacheUser) {
-            /** @var User $cacheUser */
             $cacheUsers[$cacheUser->getId()] = $cacheUser;
         }
 
@@ -427,7 +493,7 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
 
-                $response = $teamsClient->listMemberships($team->getId(), $queries);
+                $response = $this->teams->listMemberships($team->getId(), $queries);
 
                 if ($response['total'] == 0) {
                     break;
@@ -440,6 +506,7 @@ class Appwrite extends Source
                     }
 
                     $memberships[] = new Membership(
+                        $membership['$id'],
                         $team,
                         $user,
                         $membership['roles'],
@@ -458,10 +525,10 @@ class Appwrite extends Source
         }
     }
 
-    protected function exportGroupDatabases(int $batchSize, array $resources)
+    protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_DATABASE, $resources)) {
+            if (\in_array(Resource::TYPE_DATABASE, $resources)) {
                 $this->exportDatabases($batchSize);
             }
         } catch (\Throwable $e) {
@@ -469,15 +536,15 @@ class Appwrite extends Source
                 new Exception(
                     Resource::TYPE_DATABASE,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
 
         try {
-            if (in_array(Resource::TYPE_COLLECTION, $resources)) {
+            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
                 $this->exportCollections($batchSize);
             }
         } catch (\Throwable $e) {
@@ -485,15 +552,15 @@ class Appwrite extends Source
                 new Exception(
                     Resource::TYPE_COLLECTION,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
 
         try {
-            if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+            if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
                 $this->exportAttributes($batchSize);
             }
         } catch (\Throwable $e) {
@@ -501,15 +568,15 @@ class Appwrite extends Source
                 new Exception(
                     Resource::TYPE_ATTRIBUTE,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
 
         try {
-            if (in_array(Resource::TYPE_INDEX, $resources)) {
+            if (\in_array(Resource::TYPE_INDEX, $resources)) {
                 $this->exportIndexes($batchSize);
             }
         } catch (\Throwable $e) {
@@ -517,15 +584,15 @@ class Appwrite extends Source
                 new Exception(
                     Resource::TYPE_INDEX,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
 
         try {
-            if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
+            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
                 $this->exportDocuments($batchSize);
             }
         } catch (\Throwable $e) {
@@ -533,38 +600,19 @@ class Appwrite extends Source
                 new Exception(
                     Resource::TYPE_DOCUMENT,
                     Transfer::GROUP_DATABASES,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
     }
 
-    public function stripMetadata(array $document, bool $root = true)
+    /**
+     * @throws AppwriteException
+     */
+    private function exportDocuments(int $batchSize): void
     {
-        if ($root) {
-            unset($document['$id']);
-        }
-
-        unset($document['$permissions']);
-        unset($document['$collectionId']);
-        unset($document['$updatedAt']);
-        unset($document['$createdAt']);
-        unset($document['$databaseId']);
-
-        foreach ($document as $key => $value) {
-            if (is_array($value)) {
-                $document[$key] = $this->stripMetadata($value, false);
-            }
-        }
-
-        return $document;
-    }
-
-    private function exportDocuments(int $batchSize)
-    {
-        $databaseClient = new Databases($this->client);
         $collections = $this->cache->get(Collection::getName());
 
         foreach ($collections as $collection) {
@@ -580,17 +628,67 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
 
-                $response = $databaseClient->listDocuments(
+                $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want Relations flat!
+                $manyToMany = [];
+
+                $attributes = $this->cache->get(Attribute::getName());
+                foreach ($attributes as $attribute) {
+                    /** @var Attribute|Relationship $attribute */
+                    if (
+                        $attribute->getCollection()->getId() === $collection->getId() &&
+                        $attribute->getType() === Attribute::TYPE_RELATIONSHIP &&
+                        $attribute->getSide() === 'parent' &&
+                        $attribute->getRelationType() == 'manyToMany'
+                    ) {
+                        /**
+                         * Blockers:
+                         * we should use but Does not work properly:
+                         * $selects[] = $attribute->getKey() . '.$id';
+                         * when selecting for a relation we get all relations not just the one we were asking.
+                         * when selecting for a relation like select(*, relation.$id) , all relations get resolve
+                         */
+                        $manyToMany[] = $attribute->getKey();
+                    }
+                }
+
+                $queries[] = Query::select($selects);
+
+                $response = $this->database->listDocuments(
                     $collection->getDatabase()->getId(),
                     $collection->getId(),
                     $queries
                 );
 
                 foreach ($response['documents'] as $document) {
+                    // HACK: Handle many to many
+                    if(!empty($manyToMany)) {
+                        $stack = ['$id']; // Adding $id because we can't select only relations
+                        foreach ($manyToMany as $relation) {
+                            $stack[] = $relation . '.$id';
+                        }
+
+                        $doc = $this->database->getDocument(
+                            $collection->getDatabase()->getId(),
+                            $collection->getId(),
+                            $document['$id'],
+                            [Query::select($stack)]
+                        );
+
+                        foreach ($manyToMany as $key) {
+                            $document[$key] = [];
+                            foreach ($doc[$key] as $relationDocument) {
+                                $document[$key][] = $relationDocument['$id'];
+                            }
+                        }
+                    }
+
                     $id = $document['$id'];
                     $permissions = $document['$permissions'];
 
-                    $document = $this->stripMetadata($document);
+                    unset($document['$id']);
+                    unset($document['$permissions']);
+                    unset($document['$collectionId']);
+                    unset($document['$databaseId']);
 
                     // Certain Appwrite versions allowed for data to be required but null
                     // This isn't allowed in modern versions so we need to remove it by comparing their attributes and replacing it with default value.
@@ -601,8 +699,8 @@ class Appwrite extends Source
                             continue;
                         }
 
-                        if ($attribute->getRequired() && ! isset($document[$attribute->getKey()])) {
-                            switch ($attribute->getTypeName()) {
+                        if ($attribute->isRequired() && !isset($document[$attribute->getKey()])) {
+                            switch ($attribute->getType()) {
                                 case Attribute::TYPE_BOOLEAN:
                                     $document[$attribute->getKey()] = false;
                                     break;
@@ -616,7 +714,7 @@ class Appwrite extends Source
                                     $document[$attribute->getKey()] = 0.0;
                                     break;
                                 case Attribute::TYPE_DATETIME:
-                                    $document[$attribute->getKey()] = 0;
+                                    $document[$attribute->getKey()] = '1970-01-01 00:00:00.000';
                                     break;
                                 case Attribute::TYPE_URL:
                                     $document[$attribute->getKey()] = 'http://null';
@@ -625,15 +723,13 @@ class Appwrite extends Source
                         }
                     }
 
-                    $cleanData = $this->stripMetadata($document);
-
                     $documents[] = new Document(
                         $id,
-                        $collection->getDatabase(),
                         $collection,
-                        $cleanData,
+                        $document,
                         $permissions
                     );
+
                     $lastDocument = $id;
                 }
 
@@ -646,148 +742,148 @@ class Appwrite extends Source
         }
     }
 
+    /**
+     * @throws \Exception
+     */
     private function convertAttribute(array $value, Collection $collection): Attribute
     {
         switch ($value['type']) {
             case 'string':
-                if (! isset($value['format'])) {
+                if (!isset($value['format'])) {
                     return new Text(
                         $value['key'],
                         $collection,
-                        $value['required'],
-                        $value['array'],
-                        $value['default'],
-                        $value['size'] ?? 0
+                        required: $value['required'],
+                        default: $value['default'],
+                        array: $value['array'],
+                        size: $value['size'] ?? 0
                     );
                 }
 
-                switch ($value['format']) {
-                    case 'email':
-                        return new Email(
-                            $value['key'],
-                            $collection,
-                            $value['required'],
-                            $value['array'],
-                            $value['default']
-                        );
-                    case 'enum':
-                        return new Enum(
-                            $value['key'],
-                            $collection,
-                            $value['elements'],
-                            $value['required'],
-                            $value['array'],
-                            $value['default']
-                        );
-                    case 'url':
-                        return new URL(
-                            $value['key'],
-                            $collection,
-                            $value['required'],
-                            $value['array'],
-                            $value['default']
-                        );
-                    case 'ip':
-                        return new IP(
-                            $value['key'],
-                            $collection,
-                            $value['required'],
-                            $value['array'],
-                            $value['default']
-                        );
-                    case 'datetime':
-                        return new DateTime(
-                            $value['key'],
-                            $collection,
-                            $value['required'],
-                            $value['array'],
-                            $value['default']
-                        );
-                    default:
-                        return new Text(
-                            $value['key'],
-                            $collection,
-                            $value['required'],
-                            $value['array'],
-                            $value['default'],
-                            $value['size'] ?? 0
-                        );
-                }
+                return match ($value['format']) {
+                    'email' => new Email(
+                        $value['key'],
+                        $collection,
+                        required: $value['required'],
+                        default: $value['default'],
+                        array: $value['array'],
+                        size: $value['size'] ?? 254,
+                    ),
+                    'enum' => new Enum(
+                        $value['key'],
+                        $collection,
+                        elements: $value['elements'],
+                        required: $value['required'],
+                        default: $value['default'],
+                        array: $value['array'],
+                        size: $value['size'] ?? UtopiaDatabase::LENGTH_KEY,
+                    ),
+                    'url' => new URL(
+                        $value['key'],
+                        $collection,
+                        required: $value['required'],
+                        default: $value['default'],
+                        array: $value['array'],
+                        size: $value['size'] ?? 2000,
+                    ),
+                    'ip' => new IP(
+                        $value['key'],
+                        $collection,
+                        required: $value['required'],
+                        default: $value['default'],
+                        array: $value['array'],
+                        size: $value['size'] ?? 39,
+                    ),
+                    default => new Text(
+                        $value['key'],
+                        $collection,
+                        required: $value['required'],
+                        default: $value['default'],
+                        array: $value['array'],
+                        size: $value['size'] ?? 0,
+                    ),
+                };
             case 'boolean':
                 return new Boolean(
                     $value['key'],
                     $collection,
-                    $value['required'],
-                    $value['array'],
-                    $value['default']
+                    required: $value['required'],
+                    default: $value['default'],
+                    array: $value['array']
                 );
             case 'integer':
                 return new Integer(
                     $value['key'],
                     $collection,
-                    $value['required'],
-                    $value['array'],
-                    $value['default'],
-                    $value['min'] ?? 0,
-                    $value['max'] ?? 0
+                    required: $value['required'],
+                    default: $value['default'],
+                    array: $value['array'],
+                    min: $value['min'] ?? null,
+                    max: $value['max'] ?? null,
                 );
             case 'double':
                 return new Decimal(
                     $value['key'],
                     $collection,
-                    $value['required'],
-                    $value['array'],
-                    $value['default'],
-                    $value['min'] ?? 0,
-                    $value['max'] ?? 0
+                    required: $value['required'],
+                    default: $value['default'],
+                    array: $value['array'],
+                    min: $value['min'] ?? null,
+                    max: $value['max'] ?? null,
                 );
             case 'relationship':
                 return new Relationship(
                     $value['key'],
                     $collection,
-                    $value['required'],
-                    $value['array'],
-                    $value['relatedCollection'],
-                    $value['relationType'],
-                    $value['twoWay'],
-                    $value['twoWayKey'],
-                    $value['onDelete'],
-                    $value['side']
+                    relatedCollection: $value['relatedCollection'],
+                    relationType: $value['relationType'],
+                    twoWay: $value['twoWay'],
+                    twoWayKey: $value['twoWayKey'],
+                    onDelete: $value['onDelete'],
+                    side: $value['side'],
                 );
             case 'datetime':
                 return new DateTime(
                     $value['key'],
                     $collection,
-                    $value['required'],
-                    $value['array'],
-                    $value['default']
+                    required: $value['required'],
+                    default: $value['default'],
+                    array: $value['array'],
                 );
         }
 
-        throw new \Exception('Unknown attribute type: '.$value['type']);
+        throw new \Exception('Unknown attribute type: ' . $value['type']);
     }
 
-    private function exportDatabases(int $batchSize)
+    /**
+     * @throws AppwriteException
+     */
+    private function exportDatabases(int $batchSize): void
     {
-        $databaseClient = new Databases($this->client);
+        $this->database = new Databases($this->client);
 
         $lastDatabase = null;
 
-        // Transfer Databases
         while (true) {
             $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_DATABASE) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
             $databases = [];
 
             if ($lastDatabase) {
                 $queries[] = Query::cursorAfter($lastDatabase);
             }
 
-            $response = $databaseClient->list($queries);
+            $response = $this->database->list($queries);
 
             foreach ($response['databases'] as $database) {
                 $newDatabase = new Database(
+                    $database['$id'],
                     $database['name'],
-                    $database['$id']
                 );
 
                 $databases[] = $newDatabase;
@@ -807,13 +903,13 @@ class Appwrite extends Source
         }
     }
 
-    private function exportCollections(int $batchSize)
+    /**
+     * @throws AppwriteException
+     */
+    private function exportCollections(int $batchSize): void
     {
-        $databaseClient = new Databases($this->client);
-
-        // Transfer Collections
-
         $databases = $this->cache->get(Database::getName());
+
         foreach ($databases as $database) {
             $lastCollection = null;
 
@@ -826,7 +922,7 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastCollection);
                 }
 
-                $response = $databaseClient->listCollections(
+                $response = $this->database->listCollections(
                     $database->getId(),
                     $queries
                 );
@@ -843,7 +939,9 @@ class Appwrite extends Source
                     $collections[] = $newCollection;
                 }
 
-                $lastCollection = $collections[count($collections) - 1]->getId();
+                $lastCollection = !empty($collection)
+                    ? $collections[count($collections) - 1]->getId()
+                    : null;
 
                 $this->callback($collections);
 
@@ -854,11 +952,12 @@ class Appwrite extends Source
         }
     }
 
-    private function exportAttributes(int $batchSize)
+    /**
+     * @throws AppwriteException
+     * @throws \Exception
+     */
+    private function exportAttributes(int $batchSize): void
     {
-        $databaseClient = new Databases($this->client);
-
-        // Transfer Attributes
         $collections = $this->cache->get(Collection::getName());
         /** @var Collection[] $collections */
         foreach ($collections as $collection) {
@@ -872,31 +971,17 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastAttribute);
                 }
 
-                $response = $databaseClient->listAttributes(
+                $response = $this->database->listAttributes(
                     $collection->getDatabase()->getId(),
                     $collection->getId(),
                     $queries
                 );
 
-                // Remove two way relationship attributes
-                $this->cache->get(Resource::TYPE_ATTRIBUTE);
-
-                $knownTwoways = [];
-
-                foreach ($this->cache->get(Resource::TYPE_ATTRIBUTE) as $attribute) {
-                    /** @var Attribute|Relationship $attribute */
-                    if ($attribute->getTypeName() == Attribute::TYPE_RELATIONSHIP && $attribute->getTwoWay()) {
-                        $knownTwoways[] = $attribute->getTwoWayKey();
-                    }
-                }
-
                 foreach ($response['attributes'] as $attribute) {
-                    if (in_array($attribute['key'], $knownTwoways)) {
-                        continue;
-                    }
+                    /** @var array $attribute */
 
-                    if ($attribute['type'] === 'relationship') {
-                        $knownTwoways[] = $attribute['twoWayKey'];
+                    if ($attribute['type'] === 'relationship' && $attribute['side'] === 'child') {
+                        continue;
                     }
 
                     $attributes[] = $this->convertAttribute($attribute, $collection);
@@ -916,10 +1001,11 @@ class Appwrite extends Source
         }
     }
 
-    private function exportIndexes(int $batchSize)
+    /**
+     * @throws AppwriteException
+     */
+    private function exportIndexes(int $batchSize): void
     {
-        $databaseClient = new Databases($this->client);
-
         $collections = $this->cache->get(Resource::TYPE_COLLECTION);
 
         // Transfer Indexes
@@ -935,7 +1021,7 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastIndex);
                 }
 
-                $response = $databaseClient->listIndexes(
+                $response = $this->database->listIndexes(
                     $collection->getDatabase()->getId(),
                     $collection->getId(),
                     $queries
@@ -948,6 +1034,7 @@ class Appwrite extends Source
                         $collection,
                         $index['type'],
                         $index['attributes'],
+                        [],
                         $index['orders']
                     );
                 }
@@ -966,26 +1053,26 @@ class Appwrite extends Source
         }
     }
 
-    protected function exportGroupStorage(int $batchSize, array $resources)
+    protected function exportGroupStorage(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_BUCKET, $resources)) {
-                $this->exportBuckets($batchSize, false);
+            if (\in_array(Resource::TYPE_BUCKET, $resources)) {
+                $this->exportBuckets($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
                     Resource::TYPE_BUCKET,
                     Transfer::GROUP_STORAGE,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
 
         try {
-            if (in_array(Resource::TYPE_FILE, $resources)) {
+            if (\in_array(Resource::TYPE_FILE, $resources)) {
                 $this->exportFiles($batchSize);
             }
         } catch (\Throwable $e) {
@@ -993,9 +1080,9 @@ class Appwrite extends Source
                 new Exception(
                     Resource::TYPE_FILE,
                     Transfer::GROUP_STORAGE,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
@@ -1009,19 +1096,27 @@ class Appwrite extends Source
                 new Exception(
                     Resource::TYPE_BUCKET,
                     Transfer::GROUP_STORAGE,
-                    $e->getMessage(),
-                    $e->getCode(),
-                    $e
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
                 )
             );
         }
     }
 
-    private function exportBuckets(int $batchSize, bool $updateLimits)
+    /**
+     * @throws AppwriteException
+     */
+    private function exportBuckets(int $batchSize): void
     {
-        $storageClient = new Storage($this->client);
+        $queries = [];
 
-        $buckets = $storageClient->listBuckets();
+        if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_BUCKET) {
+            $queries[] = Query::equal('$id', $this->rootResourceId);
+            $queries[] = Query::limit(1);
+        }
+
+        $buckets = $this->storage->listBuckets($queries);
 
         $convertedBuckets = [];
 
@@ -1037,10 +1132,7 @@ class Appwrite extends Source
                 $bucket['compression'],
                 $bucket['encryption'],
                 $bucket['antivirus'],
-                $updateLimits
             );
-
-            $bucket->setUpdateLimits($updateLimits);
             $convertedBuckets[] = $bucket;
         }
 
@@ -1051,11 +1143,13 @@ class Appwrite extends Source
         $this->callback($convertedBuckets);
     }
 
-    private function exportFiles(int $batchSize)
+    /**
+     * @throws AppwriteException
+     */
+    private function exportFiles(int $batchSize): void
     {
-        $storageClient = new Storage($this->client);
-
         $buckets = $this->cache->get(Bucket::getName());
+
         foreach ($buckets as $bucket) {
             /** @var Bucket $bucket */
             $lastDocument = null;
@@ -1067,7 +1161,7 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
 
-                $response = $storageClient->listFiles(
+                $response = $this->storage->listFiles(
                     $bucket->getId(),
                     $queries
                 );
@@ -1087,9 +1181,9 @@ class Appwrite extends Source
                         $this->addError(new Exception(
                             resourceName: Resource::TYPE_FILE,
                             resourceGroup: Transfer::GROUP_STORAGE,
+                            resourceId: $file['$id'],
                             message: $e->getMessage(),
-                            code: $e->getCode(),
-                            resourceId: $file['$id']
+                            code: $e->getCode()
                         ));
                     }
 
@@ -1103,7 +1197,10 @@ class Appwrite extends Source
         }
     }
 
-    private function exportFileData(File $file)
+    /**
+     * @throws \Exception
+     */
+    private function exportFileData(File $file): void
     {
         // Set the chunk size (5MB)
         $start = 0;
@@ -1125,7 +1222,8 @@ class Appwrite extends Source
             );
 
             // Send the chunk to the callback function
-            $file->setData($chunkData)
+            $file
+                ->setData($chunkData)
                 ->setStart($start)
                 ->setEnd($end);
 
@@ -1141,42 +1239,52 @@ class Appwrite extends Source
         }
     }
 
-    protected function exportGroupFunctions(int $batchSize, array $resources)
+    protected function exportGroupFunctions(int $batchSize, array $resources): void
     {
         try {
-            if (in_array(Resource::TYPE_FUNCTION, $resources)) {
+            if (\in_array(Resource::TYPE_FUNCTION, $resources)) {
                 $this->exportFunctions($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_FUNCTION,
                 Transfer::GROUP_FUNCTIONS,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
 
         try {
-            if (in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
+            if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
                 $this->exportDeployments($batchSize, true);
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_DEPLOYMENT,
                 Transfer::GROUP_FUNCTIONS,
-                $e->getMessage(),
-                $e->getCode(),
-                $e
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
             ));
         }
     }
 
-    private function exportFunctions(int $batchSize)
+    /**
+     * @throws AppwriteException
+     */
+    private function exportFunctions(int $batchSize): void
     {
-        $functionsClient = new Functions($this->client);
+        $this->functions = new Functions($this->client);
 
-        $functions = $functionsClient->list();
+        $queries = [];
+
+        if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_FUNCTION) {
+            $queries[] = Query::equal('$id', $this->rootResourceId);
+            $queries[] = Query::limit(1);
+        }
+
+        $functions = $this->functions->list($queries);
 
         if ($functions['total'] === 0) {
             return;
@@ -1186,21 +1294,23 @@ class Appwrite extends Source
 
         foreach ($functions['functions'] as $function) {
             $convertedFunc = new Func(
-                $function['name'],
                 $function['$id'],
+                $function['name'],
                 $function['runtime'],
                 $function['execute'],
                 $function['enabled'],
                 $function['events'],
                 $function['schedule'],
                 $function['timeout'],
-                $function['deployment']
+                $function['deployment'],
+                $function['entrypoint']
             );
 
             $convertedResources[] = $convertedFunc;
 
             foreach ($function['vars'] as $var) {
                 $convertedResources[] = new EnvVar(
+                    $var['$id'],
                     $convertedFunc,
                     $var['key'],
                     $var['value'],
@@ -1211,24 +1321,20 @@ class Appwrite extends Source
         $this->callback($convertedResources);
     }
 
-    private function exportDeployments(int $batchSize, bool $exportOnlyActive = false)
+    /**
+     * @throws AppwriteException
+     */
+    private function exportDeployments(int $batchSize, bool $exportOnlyActive = false): void
     {
-        $functionsClient = new Functions($this->client);
+        $this->functions = new Functions($this->client);
         $functions = $this->cache->get(Func::getName());
-
-        // exportDeploymentData doesn't exist on Appwrite versions prior to 1.4
-        $appwriteVersion = $this->call('GET', '/health/version', ['X-Appwrite-Key' => '', 'X-Appwrite-Project' => ''])['version'];
-
-        if (version_compare($appwriteVersion, '1.4.0', '<')) {
-            return;
-        }
 
         foreach ($functions as $func) {
             /** @var Func $func */
             $lastDocument = null;
 
             if ($exportOnlyActive && $func->getActiveDeployment()) {
-                $deployment = $functionsClient->getDeployment($func->getId(), $func->getActiveDeployment());
+                $deployment = $this->functions->getDeployment($func->getId(), $func->getActiveDeployment());
 
                 try {
                     $this->exportDeploymentData($func, $deployment);
@@ -1246,7 +1352,7 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
 
-                $response = $functionsClient->listDeployments(
+                $response = $this->functions->listDeployments(
                     $func->getId(),
                     $queries
                 );
@@ -1268,7 +1374,10 @@ class Appwrite extends Source
         }
     }
 
-    private function exportDeploymentData(Func $func, array $deployment)
+    /**
+     * @throws \Exception
+     */
+    private function exportDeploymentData(Func $func, array $deployment): void
     {
         // Set the chunk size (5MB)
         $start = 0;
@@ -1286,7 +1395,7 @@ class Appwrite extends Source
         );
 
         // Content-Length header was missing, file is less than max buffer size.
-        if (! array_key_exists('Content-Length', $responseHeaders)) {
+        if (!array_key_exists('Content-Length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
@@ -1295,10 +1404,16 @@ class Appwrite extends Source
                 $responseHeaders
             );
 
+            $size = mb_strlen($file);
+
+            if ($end > $size) {
+                $end = $size - 1;
+            }
+
             $deployment = new Deployment(
                 $deployment['$id'],
                 $func,
-                strlen($file),
+                $size,
                 $deployment['entrypoint'],
                 $start,
                 $end,
@@ -1307,7 +1422,8 @@ class Appwrite extends Source
             );
             $deployment->setInternalId($deployment->getId());
 
-            return $this->callback([$deployment]);
+            $this->callback([$deployment]);
+            return;
         }
 
         $fileSize = $responseHeaders['Content-Length'];
@@ -1334,9 +1450,11 @@ class Appwrite extends Source
             );
 
             // Send the chunk to the callback function
-            $deployment->setData($chunkData);
-            $deployment->setStart($start);
-            $deployment->setEnd($end);
+            $deployment
+                ->setData($chunkData)
+                ->setStart($start)
+                ->setEnd($end);
+
             $this->callback([$deployment]);
 
             // Update the range
@@ -1347,5 +1465,10 @@ class Appwrite extends Source
                 $end = $fileSize - 1;
             }
         }
+    }
+
+    public function getBatchSize(): int
+    {
+        return 250;
     }
 }

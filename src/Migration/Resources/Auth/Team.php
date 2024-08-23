@@ -3,23 +3,50 @@
 namespace Utopia\Migration\Resources\Auth;
 
 use Utopia\Migration\Resource;
-use Utopia\Migration\Resources\User;
 use Utopia\Migration\Transfer;
 
 class Team extends Resource
 {
-    protected string $name;
-
-    protected array $preferences = [];
-
-    protected array $members = [];
-
-    public function __construct(string $id, string $name, array $preferences = [], array $members = [])
-    {
+    /**
+     * @param string $id
+     * @param string $name
+     * @param array<string, mixed> $preferences
+     * @param array<User> $members
+     */
+    public function __construct(
+        string $id,
+        private readonly string $name,
+        private readonly array $preferences = [],
+        private readonly array $members = []
+    ) {
         $this->id = $id;
-        $this->name = $name;
-        $this->preferences = $preferences;
-        $this->members = $members;
+    }
+
+    /**
+     * @param array<string, mixed> $array
+     * @return self
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['id'],
+            $array['name'],
+            $array['preferences'] ?? [],
+            $array['members'] ?? []
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'preferences' => $this->preferences,
+            'members' => $this->members,
+        ];
     }
 
     public static function getName(): string
@@ -37,46 +64,19 @@ class Team extends Resource
         return $this->name;
     }
 
-    public function setTeamName(string $name): self
-    {
-        $this->name = $name;
-
-        return $this;
-    }
-
+    /**
+     * @return array<string, mixed>
+     */
     public function getPreferences(): array
     {
         return $this->preferences;
     }
 
-    public function setPreferences(array $preferences): self
-    {
-        $this->preferences = $preferences;
-
-        return $this;
-    }
-
+    /**
+     * @return array<User>
+     */
     public function getMembers(): array
     {
         return $this->members;
-    }
-
-    /**
-     * @param  User[]  $members
-     */
-    public function setMembers(array $members): self
-    {
-        $this->members = $members;
-
-        return $this;
-    }
-
-    public function asArray(): array
-    {
-        return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'preferences' => $this->preferences,
-        ];
     }
 }

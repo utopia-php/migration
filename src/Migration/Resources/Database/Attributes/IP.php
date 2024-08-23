@@ -5,27 +5,28 @@ namespace Utopia\Migration\Resources\Database\Attributes;
 use Utopia\Migration\Resources\Database\Attribute;
 use Utopia\Migration\Resources\Database\Collection;
 
-class IP extends Attribute
+class IP extends Text
 {
-    protected ?string $default;
-
-    public function __construct(string $key, Collection $collection, bool $required = false, bool $array = false, ?string $default = null)
-    {
-        parent::__construct($key, $collection, $required, $array);
-        $this->default = $default;
+    public function __construct(
+        string $key,
+        Collection $collection,
+        bool $required = false,
+        ?string $default = null,
+        bool $array = false,
+        int $size = 39
+    ) {
+        parent::__construct(
+            $key,
+            $collection,
+            required: $required,
+            default: $default,
+            array: $array,
+            size: $size,
+            format: 'ip',
+        );
     }
 
-    public function getDefault(): ?string
-    {
-        return $this->default;
-    }
-
-    public function setDefault(string $default): void
-    {
-        $this->default = $default;
-    }
-
-    public function getTypeName(): string
+    public function getType(): string
     {
         return Attribute::TYPE_IP;
     }

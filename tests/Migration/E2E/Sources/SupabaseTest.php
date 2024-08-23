@@ -2,12 +2,19 @@
 
 namespace Utopia\Tests\E2E\Sources;
 
+use PHPUnit\Framework\Attributes\Depends;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
+use Utopia\Migration\Resources\Auth\User;
+use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Database;
+use Utopia\Migration\Resources\Database\Document;
+use Utopia\Migration\Resources\Storage\Bucket;
+use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Supabase;
 use Utopia\Migration\Transfer;
-use Utopia\Tests\E2E\Adapters\Mock;
+use Utopia\Tests\Unit\Adapters\MockDestination;
 
 class SupabaseTest extends Base
 {
@@ -17,6 +24,9 @@ class SupabaseTest extends Base
 
     protected ?Destination $destination = null;
 
+    /**
+     * @throws \Exception
+     */
     protected function setUp(): void
     {
         // Check DB is online and ready
@@ -28,12 +38,12 @@ class SupabaseTest extends Base
                 $pdo = new \PDO('pgsql:host=supabase-db'.';port=5432;dbname=postgres', 'postgres', 'postgres');
                 $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
-                if ($pdo && $pdo->query('SELECT 1')->fetchColumn() === 1) {
+                if ($pdo->query('SELECT 1')->fetchColumn() === 1) {
                     break;
                 } else {
                     var_dump('DB was offline, waiting 1s then retrying.');
                 }
-            } catch (\PDOException $e) {
+            } catch (\PDOException) {
             }
 
             sleep(1);
@@ -53,10 +63,13 @@ class SupabaseTest extends Base
             'postgres'
         );
 
-        $this->destination = new Mock();
+        $this->destination = new MockDestination();
         $this->transfer = new Transfer($this->source, $this->destination);
     }
 
+    /**
+     * @throws \Exception
+     */
     public function testSourceReport()
     {
         // Test report all
@@ -70,46 +83,68 @@ class SupabaseTest extends Base
     }
 
     /**
-     * @depends testSourceReport
+     * @throws \Exception
      */
+    #[Depends('testSourceReport')]
     public function testRunTransfer($state)
     {
-        $this->transfer->run($this->source->getSupportedResources(),
+        $this->transfer->run(
+            $this->source->getSupportedResources(),
             function () {}
         );
 
-        $this->assertEquals(0, count($this->transfer->getReport('error')));
+        $this->assertCount(0, $this->transfer->getReport('error'));
 
         return array_merge($state, [
             'transfer' => $this->transfer,
             'source' => $this->source,
+            'destination' => $this->destination,
         ]);
     }
 
-    /**
-     * @depends testRunTransfer
-     */
-    public function testValidateTransfer($state)
+    #[Depends('testRunTransfer')]
+    public function testValidateSourceErrors($state)
     {
-        $statusCounters = $state['transfer']->getStatusCounters();
+        /** @var Transfer $transfer */
+        $transfer = $state['transfer'];
+
+        /** @var Source $source */
+        $source = $state['source'];
+
+        $statusCounters = $transfer->getStatusCounters();
         $this->assertNotEmpty($statusCounters);
 
-        foreach ($statusCounters as $resource => $counters) {
-            $this->assertNotEmpty($counters);
+        $errors = $source->getErrors();
 
-            if ($counters[Resource::STATUS_ERROR] > 0) {
-                $this->fail('Resource '.$resource.' has '.$counters[Resource::STATUS_ERROR].' errors');
-
-                return;
-            }
+        if (!empty($errors)) {
+            $this->fail('[Source] Failed: ' . \json_encode($errors, JSON_PRETTY_PRINT));
         }
 
         return $state;
     }
 
-    /**
-     * @depends testValidateTransfer
-     */
+    #[Depends('testValidateSourceErrors')]
+    public function testValidateDestinationErrors($state)
+    {
+        /** @var Transfer $transfer */
+        $transfer = $state['transfer'];
+
+        /** @var Destination $destination */
+        $destination = $state['destination'];
+
+        $statusCounters = $transfer->getStatusCounters();
+        $this->assertNotEmpty($statusCounters);
+
+        $errors = $destination->getErrors();
+
+        if (!empty($errors)) {
+            $this->fail('[Destination] Failed: ' . \json_encode($errors, JSON_PRETTY_PRINT));
+        }
+
+        return $state;
+    }
+
+    #[Depends('testValidateDestinationErrors')]
     public function testValidateUserTransfer($state): void
     {
         // Find known user
@@ -118,7 +153,7 @@ class SupabaseTest extends Base
         $foundUser = null;
 
         foreach ($users as $user) {
-            /** @var \Utopia\Migration\Resources\Auth\User $user */
+            /** @var User $user */
             if ($user->getEmail() == 'albert.kihn95@yahoo.com') {
                 $foundUser = $user;
 
@@ -128,8 +163,6 @@ class SupabaseTest extends Base
 
         if (! $foundUser) {
             $this->fail('User "albert.kihn95@yahoo.com" not found');
-
-            return;
         }
 
         $this->assertEquals('success', $foundUser->getStatus());
@@ -137,9 +170,7 @@ class SupabaseTest extends Base
         $this->assertEquals('bcrypt', $foundUser->getPasswordHash()->getAlgorithm());
     }
 
-    /**
-     * @depends testValidateTransfer
-     */
+    #[Depends('testValidateDestinationErrors')]
     public function testValidateDatabaseTransfer($state)
     {
         // Find known database
@@ -148,8 +179,8 @@ class SupabaseTest extends Base
         $foundDatabase = null;
 
         foreach ($databases as $database) {
-            /** @var \Utopia\Migration\Resources\Database $database */
-            if ($database->getDBName() === 'public') {
+            /** @var Database $database */
+            if ($database->getDatabaseName() === 'public') {
                 $foundDatabase = $database;
 
                 break;
@@ -158,12 +189,10 @@ class SupabaseTest extends Base
 
         if (! $foundDatabase) {
             $this->fail('Database "public" not found');
-
-            return;
         }
 
         $this->assertEquals('success', $foundDatabase->getStatus());
-        $this->assertEquals('public', $foundDatabase->getDBName());
+        $this->assertEquals('public', $foundDatabase->getDatabaseName());
         $this->assertEquals('public', $foundDatabase->getId());
 
         // Find Known Collections
@@ -173,8 +202,8 @@ class SupabaseTest extends Base
         $foundCollection = null;
 
         foreach ($collections as $collection) {
-            /** @var \Utopia\Migration\Resources\Database\Collection $collection */
-            if ($collection->getDatabase()->getDBName() === 'public' && $collection->getCollectionName() === 'test') {
+            /** @var Collection $collection */
+            if ($collection->getDatabase()->getDatabaseName() === 'public' && $collection->getCollectionName() === 'test') {
                 $foundCollection = $collection;
 
                 break;
@@ -183,13 +212,11 @@ class SupabaseTest extends Base
 
         if (! $foundCollection) {
             $this->fail('Collection "test" not found');
-
-            return;
         }
 
         $this->assertEquals('success', $foundCollection->getStatus());
         $this->assertEquals('test', $foundCollection->getCollectionName());
-        $this->assertEquals('public', $foundCollection->getDatabase()->getDBName());
+        $this->assertEquals('public', $foundCollection->getDatabase()->getDatabaseName());
         $this->assertEquals('public', $foundCollection->getDatabase()->getId());
 
         // Find Known Documents
@@ -199,8 +226,8 @@ class SupabaseTest extends Base
         $foundDocument = null;
 
         foreach ($documents as $document) {
-            /** @var \Utopia\Migration\Resources\Database\Document $document */
-            if ($document->getCollection()->getDatabase()->getDBName() === 'public' && $document->getCollection()->getCollectionName() === 'test') {
+            /** @var Document $document */
+            if ($document->getCollection()->getDatabase()->getDatabaseName() === 'public' && $document->getCollection()->getCollectionName() === 'test') {
                 $foundDocument = $document;
             }
 
@@ -209,8 +236,6 @@ class SupabaseTest extends Base
 
         if (! $foundDocument) {
             $this->fail('Document "1" not found');
-
-            return;
         }
 
         $this->assertEquals('success', $foundDocument->getStatus());
@@ -218,9 +243,7 @@ class SupabaseTest extends Base
         return $state;
     }
 
-    /**
-     * @depends testValidateDatabaseTransfer
-     */
+    #[Depends('testValidateDatabaseTransfer')]
     public function testDatabaseFunctionalDefaultsWarn($state): void
     {
         // Find known collection
@@ -228,7 +251,7 @@ class SupabaseTest extends Base
         $foundCollection = null;
 
         foreach ($collections as $collection) {
-            /** @var \Utopia\Migration\Resources\Database\Collection $collection */
+            /** @var Collection $collection */
             if ($collection->getCollectionName() === 'FunctionalDefaultTestTable') {
                 $foundCollection = $collection;
             }
@@ -238,8 +261,6 @@ class SupabaseTest extends Base
 
         if (! $foundCollection) {
             $this->fail('Collection "FunctionalDefaultTestTable" not found');
-
-            return;
         }
 
         $this->assertEquals('warning', $foundCollection->getStatus());
@@ -248,9 +269,7 @@ class SupabaseTest extends Base
         $this->assertEquals('public', $foundCollection->getDatabase()->getId());
     }
 
-    /**
-     * @depends testValidateTransfer
-     */
+    #[Depends('testValidateDestinationErrors')]
     public function testValidateStorageTransfer($state): void
     {
         // Find known bucket
@@ -260,7 +279,7 @@ class SupabaseTest extends Base
         $foundBucket = null;
 
         foreach ($buckets as $bucket) {
-            /** @var \Utopia\Migration\Resources\Storage\Bucket $bucket */
+            /** @var Bucket $bucket */
             if ($bucket->getBucketName() === 'Test Bucket 1') {
                 $foundBucket = $bucket;
             }
@@ -270,8 +289,6 @@ class SupabaseTest extends Base
 
         if (! $foundBucket) {
             $this->fail('Bucket "Test Bucket 1" not found');
-
-            return;
         }
 
         $this->assertEquals('success', $foundBucket->getStatus());
@@ -283,7 +300,7 @@ class SupabaseTest extends Base
         $foundFile = null;
 
         foreach ($files as $file) {
-            /** @var \Utopia\Migration\Resources\File $file */
+            /** @var File $file */
             if ($file->getFileName() === 'tulips.png') {
                 $foundFile = $file;
             }
@@ -293,10 +310,8 @@ class SupabaseTest extends Base
 
         if (! $foundFile) {
             $this->fail('File "tulips.png" not found');
-
-            return;
         }
-        /** @var \Utopia\Migration\Resources\Storage\File $foundFile */
+        /** @var File $foundFile */
         $this->assertEquals('success', $foundFile->getStatus());
         $this->assertEquals('tulips.png', $foundFile->getFileName());
         $this->assertEquals('image/png', $foundFile->getMimeType());

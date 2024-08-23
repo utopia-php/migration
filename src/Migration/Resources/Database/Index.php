@@ -7,33 +7,80 @@ use Utopia\Migration\Transfer;
 
 class Index extends Resource
 {
-    protected string $key;
+    public const string TYPE_UNIQUE = 'unique';
 
-    protected string $type;
+    public const string TYPE_FULLTEXT = 'fulltext';
 
-    protected array $attributes;
-
-    protected array $orders;
-
-    protected Collection $collection;
-
-    public const TYPE_UNIQUE = 'unique';
-
-    public const TYPE_FULLTEXT = 'fulltext';
-
-    public const TYPE_KEY = 'key';
+    public const string TYPE_KEY = 'key';
 
     /**
-     * @param  list<Attribute>  $attributes
+     * @param string $id
+     * @param string $key
+     * @param Collection $collection
+     * @param string $type
+     * @param array<string> $attributes
+     * @param array<int> $lengths
+     * @param array<string> $orders
      */
-    public function __construct(string $id, string $key, Collection $collection, string $type = '', array $attributes = [], array $orders = [])
-    {
+    public function __construct(
+        string $id,
+        private readonly string $key,
+        private readonly Collection $collection,
+        private readonly string $type = '',
+        private readonly array $attributes = [],
+        private readonly array $lengths = [],
+        private readonly array $orders = []
+    ) {
         $this->id = $id;
-        $this->key = $key;
-        $this->type = $type;
-        $this->attributes = $attributes;
-        $this->orders = $orders;
-        $this->collection = $collection;
+    }
+
+    /**
+     * @param array{
+     *     id: string,
+     *     key: string,
+     *     collection: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     type: string,
+     *     attributes: array<string>,
+     *     lengths: ?array<int>,
+     *     orders: ?array<string>
+     * } $array
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['id'],
+            $array['key'],
+            Collection::fromArray($array['collection']),
+            $array['type'],
+            $array['attributes'],
+            $array['lengths'] ?? [],
+            $array['orders'] ?? []
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'id' => $this->getId(),
+            'key' => $this->key,
+            'collection' => $this->collection,
+            'type' => $this->type,
+            'attributes' => $this->attributes,
+            'lengths' => $this->lengths,
+            'orders' => $this->orders,
+        ];
     }
 
     public static function getName(): string
@@ -51,23 +98,9 @@ class Index extends Resource
         return $this->key;
     }
 
-    public function setKey(string $key): self
-    {
-        $this->key = $key;
-
-        return $this;
-    }
-
     public function getCollection(): Collection
     {
         return $this->collection;
-    }
-
-    public function setCollection(Collection $collection): self
-    {
-        $this->collection = $collection;
-
-        return $this;
     }
 
     public function getType(): string
@@ -75,47 +108,19 @@ class Index extends Resource
         return $this->type;
     }
 
-    public function setType(string $type): self
-    {
-        $this->type = $type;
-
-        return $this;
-    }
-
+    /**
+     * @return array<string>
+     */
     public function getAttributes(): array
     {
         return $this->attributes;
     }
 
     /**
-     * @param  list<Attribute>  $attributes
+     * @return array<string>
      */
-    public function setAttributes(array $attributes): self
-    {
-        $this->attributes = $attributes;
-
-        return $this;
-    }
-
     public function getOrders(): array
     {
         return $this->orders;
-    }
-
-    public function setOrders(array $orders): self
-    {
-        $this->orders = $orders;
-
-        return $this;
-    }
-
-    public function asArray(): array
-    {
-        return [
-            'key' => $this->key,
-            'type' => $this->type,
-            'attributes' => $this->attributes,
-            'orders' => $this->orders,
-        ];
     }
 }

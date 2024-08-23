@@ -4,39 +4,97 @@ namespace Utopia\Migration;
 
 class Transfer
 {
-    public const GROUP_GENERAL = 'general';
+    public const string GROUP_GENERAL = 'general';
 
-    public const GROUP_AUTH = 'auth';
+    public const string GROUP_AUTH = 'auth';
 
-    public const GROUP_STORAGE = 'storage';
+    public const string GROUP_STORAGE = 'storage';
 
-    public const GROUP_FUNCTIONS = 'functions';
+    public const string GROUP_FUNCTIONS = 'functions';
 
-    public const GROUP_DATABASES = 'databases';
+    public const string GROUP_DATABASES = 'databases';
 
-    public const GROUP_SETTINGS = 'settings';
+    public const string GROUP_SETTINGS = 'settings';
 
-    public const GROUP_AUTH_RESOURCES = [Resource::TYPE_USER, Resource::TYPE_TEAM, Resource::TYPE_MEMBERSHIP, Resource::TYPE_HASH];
+    public const array GROUP_AUTH_RESOURCES = [
+        Resource::TYPE_USER,
+        Resource::TYPE_TEAM,
+        Resource::TYPE_MEMBERSHIP,
+        Resource::TYPE_HASH
+    ];
 
-    public const GROUP_STORAGE_RESOURCES = [Resource::TYPE_FILE, Resource::TYPE_BUCKET];
+    public const array GROUP_STORAGE_RESOURCES = [
+        Resource::TYPE_FILE,
+        Resource::TYPE_BUCKET
+    ];
 
-    public const GROUP_FUNCTIONS_RESOURCES = [Resource::TYPE_FUNCTION, Resource::TYPE_ENVIRONMENT_VARIABLE, Resource::TYPE_DEPLOYMENT];
+    public const array GROUP_FUNCTIONS_RESOURCES = [
+        Resource::TYPE_FUNCTION,
+        Resource::TYPE_ENVIRONMENT_VARIABLE,
+        Resource::TYPE_DEPLOYMENT
+    ];
 
-    public const GROUP_DATABASES_RESOURCES = [Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION, Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE, Resource::TYPE_DOCUMENT];
+    public const array GROUP_DATABASES_RESOURCES = [
+        Resource::TYPE_DATABASE,
+        Resource::TYPE_COLLECTION,
+        Resource::TYPE_INDEX,
+        Resource::TYPE_ATTRIBUTE,
+        Resource::TYPE_DOCUMENT
+    ];
 
-    public const GROUP_SETTINGS_RESOURCES = [];
+    public const array GROUP_SETTINGS_RESOURCES = [];
 
-    public const ALL_PUBLIC_RESOURCES = [
-        Resource::TYPE_USER, Resource::TYPE_TEAM,
-        Resource::TYPE_MEMBERSHIP, Resource::TYPE_FILE,
-        Resource::TYPE_BUCKET, Resource::TYPE_FUNCTION,
-        Resource::TYPE_ENVIRONMENT_VARIABLE, Resource::TYPE_DEPLOYMENT,
-        Resource::TYPE_DATABASE, Resource::TYPE_COLLECTION,
-        Resource::TYPE_INDEX, Resource::TYPE_ATTRIBUTE,
+    public const array ALL_PUBLIC_RESOURCES = [
+        Resource::TYPE_USER,
+        Resource::TYPE_TEAM,
+        Resource::TYPE_MEMBERSHIP,
+        Resource::TYPE_FILE,
+        Resource::TYPE_BUCKET,
+        Resource::TYPE_FUNCTION,
+        Resource::TYPE_ENVIRONMENT_VARIABLE,
+        Resource::TYPE_DEPLOYMENT,
+        Resource::TYPE_DATABASE,
+        Resource::TYPE_COLLECTION,
+        Resource::TYPE_INDEX,
+        Resource::TYPE_ATTRIBUTE,
         Resource::TYPE_DOCUMENT,
     ];
 
-    public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
+    public const array ROOT_RESOURCES = [
+        Resource::TYPE_BUCKET,
+        Resource::TYPE_DATABASE,
+        Resource::TYPE_FUNCTION,
+        Resource::TYPE_USER,
+        Resource::TYPE_TEAM,
+    ];
+
+    public const int STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
+
+    protected Source $source;
+
+    protected Destination $destination;
+
+    protected string $currentResource;
+
+    /**
+     * A local cache of resources that were transferred.
+     */
+    protected Cache $cache;
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $options = [];
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $events = [];
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $resources = [];
 
     public function __construct(Source $source, Destination $destination)
     {
@@ -51,20 +109,7 @@ class Transfer
         return $this;
     }
 
-    protected Source $source;
-
-    protected Destination $destination;
-
-    protected string $currentResource;
-
-    /**
-     * A local cache of resources that were transferred.
-     */
-    protected Cache $cache;
-
-    protected array $resources = [];
-
-    public function getStatusCounters()
+    public function getStatusCounters(): array
     {
         $status = [];
 
@@ -89,7 +134,6 @@ class Transfer
 
         foreach ($this->cache->getAll() as $resources) {
             foreach ($resources as $resource) {
-                /** @var resource $resource */
                 if (isset($status[$resource->getName()])) {
                     $status[$resource->getName()][$resource->getStatus()]++;
                     if ($status[$resource->getName()]['pending'] > 0) {
@@ -101,15 +145,13 @@ class Transfer
 
         // Process Destination Errors
         foreach ($this->destination->getErrors() as $error) {
-            /** @var Exception $error */
             if (isset($status[$error->getResourceGroup()])) {
                 $status[$error->getResourceGroup()][Resource::STATUS_ERROR]++;
             }
         }
 
-        // Process Source Errprs
+        // Process source errors
         foreach ($this->source->getErrors() as $error) {
-            /** @var Exception $error */
             if (isset($status[$error->getResourceGroup()])) {
                 $status[$error->getResourceGroup()][Resource::STATUS_ERROR]++;
             }
@@ -135,11 +177,23 @@ class Transfer
 
     /**
      * Transfer Resources between adapters
+     *
+     * @param array<string> $resources Resources to transfer
+     * @param callable $callback Callback to run after transfer
+     * @param string|null $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
+     * @throws \Exception
      */
-    public function run(array $resources, callable $callback): void
-    {
+    public function run(
+        array $resources,
+        callable $callback,
+        string $rootResourceId = null,
+        string $rootResourceType = null,
+    ): void {
         // Allows you to push entire groups if you want.
         $computedResources = [];
+        $rootResourceId = $rootResourceId ?? '';
+        $rootResourceType = $rootResourceType ?? '';
+
         foreach ($resources as $resource) {
             if (is_array($resource)) {
                 $computedResources = array_merge($computedResources, $resource);
@@ -150,8 +204,34 @@ class Transfer
 
         $computedResources = array_map('strtolower', $computedResources);
 
+        if ($rootResourceId !== '') {
+            if ($rootResourceType === '') {
+                throw new \Exception('Resource type must be set when resource ID is set.');
+            }
+
+            if(!in_array($rootResourceType, self::ROOT_RESOURCES)) {
+                throw new \Exception('Resource type must be one of ' . implode(', ', self::ROOT_RESOURCES));
+            }
+
+            $rootResources = \array_intersect($computedResources, self::ROOT_RESOURCES);
+
+            if (\count($rootResources) > 1) {
+                throw new \Exception('Multiple root resources found. Only one root resource can be transferred at a time if using $rootResourceId.');
+            }
+
+            if (\count($rootResources) === 0) {
+                throw new \Exception('No root resources found.');
+            }
+        }
+
         $this->resources = $computedResources;
-        $this->destination->run($computedResources, $callback, $this->source);
+
+        $this->destination->run(
+            $computedResources,
+            $callback,
+            $rootResourceId,
+            $rootResourceType,
+        );
     }
 
     /**
@@ -174,7 +254,8 @@ class Transfer
     /**
      * Get Transfer Report
      *
-     * @param  string  $statusLevel  If no status level is provided, all status types will be returned.
+     * @param  string  $statusLevel If no status level is provided, all status types will be returned.
+     * @return array<array<string, mixed>>
      */
     public function getReport(string $statusLevel = ''): array
     {
@@ -198,5 +279,26 @@ class Transfer
         }
 
         return $report;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public static function extractServices(array $services): array
+    {
+        $resources = [];
+        foreach ($services as $service) {
+            $resources = match ($service) {
+                self::GROUP_FUNCTIONS => array_merge($resources, self::GROUP_FUNCTIONS_RESOURCES),
+                self::GROUP_STORAGE => array_merge($resources, self::GROUP_STORAGE_RESOURCES),
+                self::GROUP_GENERAL => array_merge($resources, []),
+                self::GROUP_AUTH => array_merge($resources, self::GROUP_AUTH_RESOURCES),
+                self::GROUP_DATABASES => array_merge($resources, self::GROUP_DATABASES_RESOURCES),
+                self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
+                default => throw new \Exception('No service group found'),
+            };
+        }
+
+        return $resources;
     }
 }
