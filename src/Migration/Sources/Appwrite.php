@@ -868,7 +868,6 @@ class Appwrite extends Source
             $queries = [Query::limit($batchSize)];
 
             if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_DATABASE) {
-                var_dump('DBG query for rootResourceType TYPE_DATABASE , rootResourceId = ' . $this->rootResourceId);
                 $queries[] = Query::equal('$id', $this->rootResourceId);
                 $queries[] = Query::limit(1);
             }
