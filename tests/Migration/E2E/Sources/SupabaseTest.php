@@ -221,24 +221,24 @@ class SupabaseTest extends Base
 
         // Find Known Documents
         $documents = $state['source']->cache->get(Resource::TYPE_DOCUMENT);
-//        $this->assertGreaterThan(0, count($documents));
-//
-//        $foundDocument = null;
-//
-//        foreach ($documents as $document) {
-//            /** @var Document $document */
-//            if ($document->getCollection()->getDatabase()->getDatabaseName() === 'public' && $document->getCollection()->getCollectionName() === 'test') {
-//                $foundDocument = $document;
-//            }
-//
-//            break;
-//        }
-//
-//        if (! $foundDocument) {
-//            $this->fail('Document "1" not found');
-//        }
-//
-//        $this->assertEquals('success', $foundDocument->getStatus());
+        //        $this->assertGreaterThan(0, count($documents));
+        //
+        //        $foundDocument = null;
+        //
+        //        foreach ($documents as $document) {
+        //            /** @var Document $document */
+        //            if ($document->getCollection()->getDatabase()->getDatabaseName() === 'public' && $document->getCollection()->getCollectionName() === 'test') {
+        //                $foundDocument = $document;
+        //            }
+        //
+        //            break;
+        //        }
+        //
+        //        if (! $foundDocument) {
+        //            $this->fail('Document "1" not found');
+        //        }
+        //
+        //        $this->assertEquals('success', $foundDocument->getStatus());
 
         return $state;
     }
