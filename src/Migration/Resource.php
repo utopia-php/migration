@@ -171,4 +171,20 @@ abstract class Resource implements \JsonSerializable
 
         return $this;
     }
+
+    /**
+     * @returns string
+     */
+    public function getCreatedAt(): string
+    {
+        return $this->createdAt;
+    }
+
+    /**
+     * @returns string
+     */
+    public function getUpdatedAt(): string
+    {
+        return $this->updatedAt;
+    }
 }
