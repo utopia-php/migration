@@ -44,6 +44,10 @@ class Cache
             $resource->setData(''); // Prevent Memory Leak
         }
 
+        if($resource->getName() == Resource::TYPE_DOCUMENT) {
+            return;
+        }
+
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
     }
 
@@ -73,6 +77,10 @@ class Cache
     {
         if (! in_array($resource->getName(), $this->cache)) {
             $this->add($resource);
+        }
+
+        if($resource->getName() == Resource::TYPE_DOCUMENT) {
+            return;
         }
 
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
