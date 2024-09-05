@@ -936,8 +936,8 @@ class Appwrite extends Source
                         $collection['$id'],
                         $collection['documentSecurity'],
                         $collection['$permissions'],
-                        $database['$createdAt'],
-                        $database['$updatedAt'],
+                        $collection['$createdAt'],
+                        $collection['$updatedAt'],
                     );
 
                     $collections[] = $newCollection;
