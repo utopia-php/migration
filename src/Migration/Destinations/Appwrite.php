@@ -317,6 +317,8 @@ class Appwrite extends Destination
             'name' => $resource->getDatabaseName(),
             'enabled' => true,
             'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
+            '$createdAt' => $resource->getCreatedAt(),
+            '$updatedAt' => $resource->getUpdatedAt(),
         ]));
 
         $resource->setInternalId($database->getInternalId());
