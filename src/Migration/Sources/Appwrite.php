@@ -884,6 +884,8 @@ class Appwrite extends Source
                 $newDatabase = new Database(
                     $database['$id'],
                     $database['name'],
+                    $database['$createdAt'],
+                    $database['$updatedAt'],
                 );
 
                 $databases[] = $newDatabase;
@@ -933,7 +935,9 @@ class Appwrite extends Source
                         $collection['name'],
                         $collection['$id'],
                         $collection['documentSecurity'],
-                        $collection['$permissions']
+                        $collection['$permissions'],
+                        $database['$createdAt'],
+                        $database['$updatedAt'],
                     );
 
                     $collections[] = $newCollection;

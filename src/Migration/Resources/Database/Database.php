@@ -28,8 +28,8 @@ class Database extends Resource
      * @param array{
      *     id: string,
      *     name: string,
-     *     createdAt: ?string,
-     *     updatedAt: ?string,
+     *     createdAt: string,
+     *     updatedAt: string,
      * } $array
      */
     public static function fromArray(array $array): self
@@ -37,8 +37,8 @@ class Database extends Resource
         return new self(
             $array['id'],
             $array['name'],
-            createdAt: $array['createdAt'] ?? null,
-            updatedAt: $array['updatedAt'] ?? null,
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 

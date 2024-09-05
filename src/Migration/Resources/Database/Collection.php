@@ -37,8 +37,8 @@ class Collection extends Resource
      *     id: string,
      *     documentSecurity: bool,
      *     permissions: ?array<string>,
-     *     createdAt: ?string,
-     *     updatedAt: ?string
+     *     createdAt: string,
+     *     updatedAt: string
      * } $array
      */
     public static function fromArray(array $array): self
@@ -49,8 +49,8 @@ class Collection extends Resource
             id: $array['id'],
             documentSecurity: $array['documentSecurity'],
             permissions: $array['permissions'] ?? [],
-            createdAt: $array['createdAt'] ?? null,
-            updatedAt: $array['updatedAt'] ?? null,
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
