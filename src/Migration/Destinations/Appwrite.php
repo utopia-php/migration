@@ -223,6 +223,8 @@ class Appwrite extends Destination
             $isLast = $index === $total - 1;
 
             try {
+                $this->database->setPreserveDates(true);
+
                 $responseResource = match ($resource->getGroup()) {
                     Transfer::GROUP_DATABASES => $this->importDatabaseResource($resource, $isLast),
                     Transfer::GROUP_STORAGE => $this->importFileResource($resource),
@@ -247,6 +249,8 @@ class Appwrite extends Destination
                 }
 
                 $responseResource = $resource;
+            } finally {
+                $this->database->setPreserveDates(false);
             }
 
             $this->cache->update($responseResource);
@@ -888,14 +892,12 @@ class Appwrite extends Destination
                 $collectionInternalId = $collection->getInternalId();
 
                 $this->database
-                    ->setPreserveDates(true)
                     ->createDocuments(
                         'database_' . $databaseInternalId . '_collection_' . $collectionInternalId,
                         $this->documentBuffer
                     );
             } finally {
                 $this->documentBuffer = [];
-                $this->database->setPreserveDates(false);
             }
         }
 
