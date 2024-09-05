@@ -378,6 +378,8 @@ class Appwrite extends Destination
             'enabled' => true,
             'name' => $resource->getCollectionName(),
             'search' => implode(' ', [$resource->getId(), $resource->getCollectionName()]),
+            '$createdAt' => $resource->getCreatedAt(),
+            '$updatedAt' => $resource->getUpdatedAt(),
         ]));
 
         $resource->setInternalId($collection->getInternalId());
