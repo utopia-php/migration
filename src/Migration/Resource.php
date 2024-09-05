@@ -77,6 +77,9 @@ abstract class Resource implements \JsonSerializable
 
     protected string $internalId = '';
 
+    protected string $createdAt = '';
+    protected string $updatedAt = '';
+
     protected string $status = self::STATUS_PENDING;
 
     protected string $message = '';

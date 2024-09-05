@@ -18,15 +18,18 @@ class Database extends Resource
     public function __construct(
         string $id = '',
         private readonly string $name = '',
+        protected string $createdAt = '',
+        protected string $updatedAt = '',
     ) {
         $this->id = $id;
-        // Do we need to $this->name = $name;
     }
 
     /**
      * @param array{
      *     id: string,
      *     name: string,
+     *     createdAt: ?string,
+     *     updatedAt: ?string,
      * } $array
      */
     public static function fromArray(array $array): self
@@ -34,6 +37,8 @@ class Database extends Resource
         return new self(
             $array['id'],
             $array['name'],
+            createdAt: $array['createdAt'] ?? null,
+            updatedAt: $array['updatedAt'] ?? null,
         );
     }
 
@@ -45,6 +50,8 @@ class Database extends Resource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

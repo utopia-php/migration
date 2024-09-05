@@ -20,6 +20,8 @@ class Collection extends Resource
         string $id,
         private readonly bool $documentSecurity = false,
         array $permissions = [],
+        protected string $createdAt = '',
+        protected string $updatedAt = '',
     ) {
         $this->id = $id;
         $this->permissions = $permissions;
@@ -34,17 +36,21 @@ class Collection extends Resource
      *     name: string,
      *     id: string,
      *     documentSecurity: bool,
-     *     permissions: ?array<string>
+     *     permissions: ?array<string>,
+     *     createdAt: ?string,
+     *     updatedAt: ?string
      * } $array
      */
     public static function fromArray(array $array): self
     {
         return new self(
             Database::fromArray($array['database']),
-            id: $array['id'],
             name: $array['name'],
+            id: $array['id'],
             documentSecurity: $array['documentSecurity'],
-            permissions: $array['permissions'] ?? []
+            permissions: $array['permissions'] ?? [],
+            createdAt: $array['createdAt'] ?? null,
+            updatedAt: $array['updatedAt'] ?? null,
         );
     }
 
@@ -59,6 +65,8 @@ class Collection extends Resource
             'name' => $this->name,
             'documentSecurity' => $this->documentSecurity,
             'permissions' => $this->permissions,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ]);
     }
 
