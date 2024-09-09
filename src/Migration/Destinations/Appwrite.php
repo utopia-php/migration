@@ -501,6 +501,8 @@ class Appwrite extends Destination
                 'formatOptions' => $resource->getFormatOptions(),
                 'filters' => $resource->getFilters(),
                 'options' => $resource->getOptions(),
+                '$createdAt' => $resource->getCreatedAt(),
+                '$updatedAt' => $resource->getUpdatedAt(),
             ]);
 
             $this->database->checkAttribute($collection, $attribute);
@@ -557,6 +559,8 @@ class Appwrite extends Destination
                     'formatOptions' => $resource->getFormatOptions(),
                     'filters' => $resource->getFilters(),
                     'options' => $options,
+                    '$createdAt' => $resource->getCreatedAt(),
+                    '$updatedAt' => $resource->getUpdatedAt(),
                 ]);
 
                 $this->database->createDocument('attributes', $twoWayAttribute);

@@ -187,4 +187,19 @@ abstract class Resource implements \JsonSerializable
     {
         return $this->updatedAt;
     }
+
+
+    public function setCreatedAt(string $date): self
+    {
+        $this->createdAt = $date;
+
+        return $this;
+    }
+
+    public function setUpdatedAt(string $date): self
+    {
+        $this->updatedAt = $date;
+
+        return $this;
+    }
 }

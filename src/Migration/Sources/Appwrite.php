@@ -983,12 +983,16 @@ class Appwrite extends Source
 
                 foreach ($response['attributes'] as $attribute) {
                     /** @var array $attribute */
-
                     if ($attribute['type'] === 'relationship' && $attribute['side'] === 'child') {
                         continue;
                     }
 
-                    $attributes[] = $this->convertAttribute($attribute, $collection);
+                    $attr = $this->convertAttribute($attribute, $collection);
+
+                    $attr->setCreatedAt($attribute['$createdAt']);
+                    $attr->setUpdatedAt($attribute['$updatedAt']);
+
+                    $attributes[] = $attr;
                 }
 
                 if (empty($attributes)) {
