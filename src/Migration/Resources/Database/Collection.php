@@ -13,6 +13,8 @@ class Collection extends Resource
      * @param string $id
      * @param bool $documentSecurity
      * @param array<string> $permissions
+     * @param string $createdAt
+     * @param string $updatedAt
      */
     public function __construct(
         private readonly Database $database,

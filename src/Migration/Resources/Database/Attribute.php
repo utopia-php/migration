@@ -43,8 +43,6 @@ abstract class Attribute extends Resource
         protected readonly array $formatOptions = [],
         protected readonly array $filters = [],
         protected array $options = [],
-        protected string $createdAt = '',
-        protected string $updatedAt = '',
     ) {
     }
 
@@ -66,6 +64,8 @@ abstract class Attribute extends Resource
             'formatOptions' => $this->formatOptions,
             'filters' => $this->filters,
             'options' => $this->options,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

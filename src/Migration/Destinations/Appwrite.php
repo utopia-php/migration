@@ -804,6 +804,8 @@ class Appwrite extends Destination
             'attributes' => $resource->getAttributes(),
             'lengths' => $lengths,
             'orders' => $resource->getOrders(),
+            '$createdAt' => $resource->getCreatedAt(),
+            '$updatedAt' => $resource->getUpdatedAt(),
         ]);
 
         $validator = new IndexValidator(
