@@ -93,7 +93,7 @@ class MigrationCLI
                     $_ENV['SOURCE_SUPABASE_TEST_ENDPOINT'],
                     $_ENV['SOURCE_SUPABASE_TEST_KEY'],
                     $_ENV['SOURCE_SUPABASE_TEST_HOST'],
-                    $_ENV['SOURCE_SUPABASE_TEST_DATBASE_NAME'],
+                    $_ENV['SOURCE_SUPABASE_TEST_DATABASE_NAME'],
                     $_ENV['SOURCE_SUPABASE_TEST_DATABASE_USER'],
                     $_ENV['SOURCE_SUPABASE_TEST_DATABASE_PASSWORD']
                 );

@@ -396,7 +396,7 @@ class Supabase extends NHost
                     []
                 );
 
-                if (array_key_exists('encrypted_password', $user)) {
+                if (array_key_exists('encrypted_password', $user) && ! empty($user['encrypted_password'])) {
                     $transferUser->setPasswordHash(new Hash($user['encrypted_password'], '', Hash::ALGORITHM_BCRYPT));
                 }
 

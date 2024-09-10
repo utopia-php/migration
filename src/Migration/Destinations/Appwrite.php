@@ -532,15 +532,15 @@ class Appwrite extends Destination
                         $resource->getEmail(),
                         $resource->getPhone(),
                         null,
-                        $resource->getUsername()
+                        empty($resource->getUsername()) ? null : $resource->getUsername()
                     );
                 }
 
-                if ($resource->getUsername()) {
+                if (!empty($resource->getUsername())) {
                     $userService->updateName($resource->getId(), $resource->getUsername());
                 }
 
-                if ($resource->getPhone()) {
+                if (!empty($resource->getPhone())) {
                     $userService->updatePhone($resource->getId(), $resource->getPhone());
                 }
 
@@ -556,11 +556,11 @@ class Appwrite extends Destination
                     $userService->updateStatus($resource->getId(), ! $resource->getDisabled());
                 }
 
-                if ($resource->getPreferences()) {
+                if (!empty($resource->getPreferences())) {
                     $userService->updatePrefs($resource->getId(), $resource->getPreferences());
                 }
 
-                if ($resource->getLabels()) {
+                if (!empty($resource->getLabels())) {
                     $userService->updateLabels($resource->getId(), $resource->getLabels());
                 }
 
