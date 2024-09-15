@@ -14,8 +14,8 @@ class Email extends Text
         ?string $default = null,
         bool $array = false,
         int $size = 254,
-        protected string $createdAt = '',
-        protected string $updatedAt = ''
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,

@@ -16,8 +16,8 @@ class Decimal extends Attribute
         ?float $min = null,
         ?float $max = null,
         bool $signed = true,
-        protected string $createdAt = '',
-        protected string $updatedAt = ''
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         $min ??= PHP_FLOAT_MIN;
         $max ??= PHP_FLOAT_MAX;

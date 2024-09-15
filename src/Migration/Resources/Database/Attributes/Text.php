@@ -16,8 +16,8 @@ class Text extends Attribute
         bool $array = false,
         int $size = Database::LENGTH_KEY,
         string $format = '',
-        protected string $createdAt = '',
-        protected string $updatedAt = '',
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,

@@ -13,8 +13,8 @@ class DateTime extends Attribute
         bool $required = false,
         ?string $default = null,
         bool $array = false,
-        protected string $createdAt = '',
-        protected string $updatedAt = ''
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,

@@ -13,8 +13,8 @@ class Boolean extends Attribute
         bool $required = false,
         ?bool $default = null,
         bool $array = false,
-        protected string $createdAt = '',
-        protected string $updatedAt = ''
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,

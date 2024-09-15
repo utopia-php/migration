@@ -16,8 +16,8 @@ class Integer extends Attribute
         ?int $min = null,
         ?int $max = null,
         bool $signed = true,
-        protected string $createdAt = '',
-        protected string $updatedAt = '',
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         $min ??= PHP_INT_MIN;
         $max ??= PHP_INT_MAX;

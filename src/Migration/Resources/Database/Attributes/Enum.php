@@ -18,8 +18,8 @@ class Enum extends Attribute
         ?string $default = null,
         bool $array = false,
         int $size = 256,
-        protected string $createdAt = '',
-        protected string $updatedAt = ''
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,

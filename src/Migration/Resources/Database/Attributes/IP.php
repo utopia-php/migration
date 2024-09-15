@@ -14,8 +14,8 @@ class IP extends Text
         ?string $default = null,
         bool $array = false,
         int $size = 39,
-        protected string $createdAt = '',
-        protected string $updatedAt = '',
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,
