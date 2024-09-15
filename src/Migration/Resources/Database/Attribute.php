@@ -43,6 +43,8 @@ abstract class Attribute extends Resource
         protected readonly array $formatOptions = [],
         protected readonly array $filters = [],
         protected array $options = [],
+        protected string $createdAt = '',
+        protected string $updatedAt = '',
     ) {
     }
 

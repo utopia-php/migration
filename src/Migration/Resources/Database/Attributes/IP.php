@@ -13,7 +13,9 @@ class IP extends Text
         bool $required = false,
         ?string $default = null,
         bool $array = false,
-        int $size = 39
+        int $size = 39,
+        protected string $createdAt = '',
+        protected string $updatedAt = '',
     ) {
         parent::__construct(
             $key,
@@ -23,6 +25,8 @@ class IP extends Text
             array: $array,
             size: $size,
             format: 'ip',
+            createdAt: $createdAt,
+            updatedAt: $updatedAt,
         );
     }
 

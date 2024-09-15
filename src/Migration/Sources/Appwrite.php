@@ -756,7 +756,9 @@ class Appwrite extends Source
                         required: $value['required'],
                         default: $value['default'],
                         array: $value['array'],
-                        size: $value['size'] ?? 0
+                        size: $value['size'] ?? 0,
+                        createdAt: $array['createdAt'] ?? '',
+                        updatedAt: $array['updatedAt'] ?? '',
                     );
                 }
 
@@ -768,6 +770,8 @@ class Appwrite extends Source
                         default: $value['default'],
                         array: $value['array'],
                         size: $value['size'] ?? 254,
+                        createdAt: $array['createdAt'] ?? '',
+                        updatedAt: $array['updatedAt'] ?? '',
                     ),
                     'enum' => new Enum(
                         $value['key'],
@@ -777,6 +781,8 @@ class Appwrite extends Source
                         default: $value['default'],
                         array: $value['array'],
                         size: $value['size'] ?? UtopiaDatabase::LENGTH_KEY,
+                        createdAt: $array['createdAt'] ?? '',
+                        updatedAt: $array['updatedAt'] ?? '',
                     ),
                     'url' => new URL(
                         $value['key'],
@@ -785,6 +791,8 @@ class Appwrite extends Source
                         default: $value['default'],
                         array: $value['array'],
                         size: $value['size'] ?? 2000,
+                        createdAt: $array['createdAt'] ?? '',
+                        updatedAt: $array['updatedAt'] ?? '',
                     ),
                     'ip' => new IP(
                         $value['key'],
@@ -793,6 +801,8 @@ class Appwrite extends Source
                         default: $value['default'],
                         array: $value['array'],
                         size: $value['size'] ?? 39,
+                        createdAt: $array['createdAt'] ?? '',
+                        updatedAt: $array['updatedAt'] ?? '',
                     ),
                     default => new Text(
                         $value['key'],
@@ -801,6 +811,8 @@ class Appwrite extends Source
                         default: $value['default'],
                         array: $value['array'],
                         size: $value['size'] ?? 0,
+                        createdAt: $array['createdAt'] ?? '',
+                        updatedAt: $array['updatedAt'] ?? '',
                     ),
                 };
             case 'boolean':
@@ -809,7 +821,9 @@ class Appwrite extends Source
                     $collection,
                     required: $value['required'],
                     default: $value['default'],
-                    array: $value['array']
+                    array: $value['array'],
+                    createdAt: $array['createdAt'] ?? '',
+                    updatedAt: $array['updatedAt'] ?? '',
                 );
             case 'integer':
                 return new Integer(
@@ -820,6 +834,8 @@ class Appwrite extends Source
                     array: $value['array'],
                     min: $value['min'] ?? null,
                     max: $value['max'] ?? null,
+                    createdAt: $array['createdAt'] ?? '',
+                    updatedAt: $array['updatedAt'] ?? '',
                 );
             case 'double':
                 return new Decimal(
@@ -830,6 +846,8 @@ class Appwrite extends Source
                     array: $value['array'],
                     min: $value['min'] ?? null,
                     max: $value['max'] ?? null,
+                    createdAt: $array['createdAt'] ?? '',
+                    updatedAt: $array['updatedAt'] ?? '',
                 );
             case 'relationship':
                 return new Relationship(
@@ -841,6 +859,8 @@ class Appwrite extends Source
                     twoWayKey: $value['twoWayKey'],
                     onDelete: $value['onDelete'],
                     side: $value['side'],
+                    createdAt: $array['createdAt'] ?? '',
+                    updatedAt: $array['updatedAt'] ?? '',
                 );
             case 'datetime':
                 return new DateTime(
@@ -849,6 +869,8 @@ class Appwrite extends Source
                     required: $value['required'],
                     default: $value['default'],
                     array: $value['array'],
+                    createdAt: $array['createdAt'] ?? '',
+                    updatedAt: $array['updatedAt'] ?? '',
                 );
         }
 
@@ -988,9 +1010,6 @@ class Appwrite extends Source
                     }
 
                     $attr = $this->convertAttribute($attribute, $collection);
-
-                    $attr->setCreatedAt($attribute['$createdAt']);
-                    $attr->setUpdatedAt($attribute['$updatedAt']);
 
                     $attributes[] = $attr;
                 }
