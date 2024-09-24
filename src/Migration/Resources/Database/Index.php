@@ -7,11 +7,11 @@ use Utopia\Migration\Transfer;
 
 class Index extends Resource
 {
-    public const string TYPE_UNIQUE = 'unique';
+    public const TYPE_UNIQUE = 'unique';
 
-    public const string TYPE_FULLTEXT = 'fulltext';
+    public const TYPE_FULLTEXT = 'fulltext';
 
-    public const string TYPE_KEY = 'key';
+    public const TYPE_KEY = 'key';
 
     /**
      * @param string $id

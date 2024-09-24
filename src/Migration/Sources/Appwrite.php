@@ -59,7 +59,7 @@ class Appwrite extends Source
         string $endpoint,
         protected string $key
     ) {
-        $this->client = (new Client)
+        $this->client = (new Client())
             ->setEndpoint($endpoint)
             ->setProject($project)
             ->setKey($key);

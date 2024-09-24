@@ -7,16 +7,16 @@ use Utopia\Migration\Transfer;
 
 abstract class Attribute extends Resource
 {
-    public const string TYPE_STRING = 'string';
-    public const string TYPE_INTEGER = 'int';
-    public const string TYPE_FLOAT = 'float';
-    public const string TYPE_BOOLEAN = 'bool';
-    public const string TYPE_DATETIME = 'dateTime';
-    public const string TYPE_EMAIL = 'email';
-    public const string TYPE_ENUM = 'enum';
-    public const string TYPE_IP = 'IP';
-    public const string TYPE_URL = 'URL';
-    public const string TYPE_RELATIONSHIP = 'relationship';
+    public const TYPE_STRING = 'string';
+    public const TYPE_INTEGER = 'int';
+    public const TYPE_FLOAT = 'float';
+    public const TYPE_BOOLEAN = 'bool';
+    public const TYPE_DATETIME = 'dateTime';
+    public const TYPE_EMAIL = 'email';
+    public const TYPE_ENUM = 'enum';
+    public const TYPE_IP = 'IP';
+    public const TYPE_URL = 'URL';
+    public const TYPE_RELATIONSHIP = 'relationship';
 
     /**
      * @param string $key

@@ -10,21 +10,21 @@ use Utopia\Migration\Transfer;
  */
 class Hash extends Resource
 {
-    public const string ALGORITHM_SCRYPT_MODIFIED = 'scryptModified';
+    public const ALGORITHM_SCRYPT_MODIFIED = 'scryptModified';
 
-    public const string ALGORITHM_BCRYPT = 'bcrypt';
+    public const ALGORITHM_BCRYPT = 'bcrypt';
 
-    public const string ALGORITHM_MD5 = 'md5';
+    public const ALGORITHM_MD5 = 'md5';
 
-    public const string ALGORITHM_ARGON2 = 'argon2';
+    public const ALGORITHM_ARGON2 = 'argon2';
 
-    public const string ALGORITHM_SHA256 = 'sha256';
+    public const ALGORITHM_SHA256 = 'sha256';
 
-    public const string ALGORITHM_PHPASS = 'phpass';
+    public const ALGORITHM_PHPASS = 'phpass';
 
-    public const string ALGORITHM_SCRYPT = 'scrypt';
+    public const ALGORITHM_SCRYPT = 'scrypt';
 
-    public const string ALGORITHM_PLAINTEXT = 'plainText';
+    public const ALGORITHM_PLAINTEXT = 'plainText';
 
     public function __construct(
         private readonly string $hash,
