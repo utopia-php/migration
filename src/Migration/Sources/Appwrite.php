@@ -965,11 +965,13 @@ class Appwrite extends Source
                     $collections[] = $newCollection;
                 }
 
-                $lastCollection = ! empty($collections)
-                    ? $collections[count($collections) - 1]->getId()
-                    : null;
+                if (empty($collections)) {
+                    break;
+                }
 
                 $this->callback($collections);
+
+                $lastCollection = $collections[count($collections) - 1]->getId();
 
                 if (count($collections) < $batchSize) {
                     break;
@@ -1021,6 +1023,7 @@ class Appwrite extends Source
                 $this->callback($attributes);
 
                 $lastAttribute = $attributes[count($attributes) - 1]->getId();
+
                 if (count($attributes) < $batchSize) {
                     break;
                 }
