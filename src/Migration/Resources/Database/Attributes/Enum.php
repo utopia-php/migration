@@ -17,7 +17,9 @@ class Enum extends Attribute
         bool $required = false,
         ?string $default = null,
         bool $array = false,
-        int $size = 256
+        int $size = 256,
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,
@@ -30,6 +32,8 @@ class Enum extends Attribute
             formatOptions: [
                 'elements' => $elements,
             ],
+            createdAt: $createdAt,
+            updatedAt: $updatedAt
         );
     }
 
@@ -52,7 +56,9 @@ class Enum extends Attribute
      *     array: bool,
      *     formatOptions: array{
      *         elements: array<string>
-     *     }
+     *     },
+     *     createdAt: string,
+     *     updatedAt: string,
      * } $array
      * @return self
      */
@@ -66,6 +72,8 @@ class Enum extends Attribute
             default: $array['default'],
             array: $array['array'],
             size: $array['size'],
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 

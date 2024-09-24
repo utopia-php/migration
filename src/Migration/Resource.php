@@ -77,6 +77,9 @@ abstract class Resource implements \JsonSerializable
 
     protected string $internalId = '';
 
+    protected string $createdAt = '';
+    protected string $updatedAt = '';
+
     protected string $status = self::STATUS_PENDING;
 
     protected string $message = '';
@@ -165,6 +168,37 @@ abstract class Resource implements \JsonSerializable
     public function setPermissions(array $permissions): self
     {
         $this->permissions = $permissions;
+
+        return $this;
+    }
+
+    /**
+     * @returns string
+     */
+    public function getCreatedAt(): string
+    {
+        return $this->createdAt;
+    }
+
+    /**
+     * @returns string
+     */
+    public function getUpdatedAt(): string
+    {
+        return $this->updatedAt;
+    }
+
+
+    public function setCreatedAt(string $date): self
+    {
+        $this->createdAt = $date;
+
+        return $this;
+    }
+
+    public function setUpdatedAt(string $date): self
+    {
+        $this->updatedAt = $date;
 
         return $this;
     }

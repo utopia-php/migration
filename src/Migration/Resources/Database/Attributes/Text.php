@@ -16,6 +16,8 @@ class Text extends Attribute
         bool $array = false,
         int $size = Database::LENGTH_KEY,
         string $format = '',
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,
@@ -25,6 +27,8 @@ class Text extends Attribute
             default: $default,
             array: $array,
             format: $format,
+            createdAt: $createdAt,
+            updatedAt: $updatedAt
         );
     }
 
@@ -46,6 +50,8 @@ class Text extends Attribute
      *     array: bool,
      *     size: int,
      *     format: string,
+     *     createdAt: string,
+     *     updatedAt: string,
      * } $array
      * @return self
      */
@@ -59,6 +65,8 @@ class Text extends Attribute
             array: $array['array'],
             size: $array['size'],
             format: $array['format'],
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 

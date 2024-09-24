@@ -16,6 +16,8 @@ class Integer extends Attribute
         ?int $min = null,
         ?int $max = null,
         bool $signed = true,
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         $min ??= PHP_INT_MIN;
         $max ??= PHP_INT_MAX;
@@ -32,7 +34,9 @@ class Integer extends Attribute
             formatOptions: [
                 'min' => $min,
                 'max' => $max,
-            ]
+            ],
+            createdAt: $createdAt,
+            updatedAt: $updatedAt
         );
     }
 
@@ -55,7 +59,9 @@ class Integer extends Attribute
      *     formatOptions: array{
      *         min: ?int,
      *         max: ?int
-     *     }
+     *     },
+     *     createdAt: string,
+     *     updatedAt: string,
      * } $array
      * @return self
      */
@@ -68,7 +74,9 @@ class Integer extends Attribute
             default: $array['default'],
             array: $array['array'],
             min: $array['formatOptions']['min'] ?? null,
-            max: $array['formatOptions']['max'] ?? null
+            max: $array['formatOptions']['max'] ?? null,
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 

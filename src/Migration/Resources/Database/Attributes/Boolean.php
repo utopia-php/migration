@@ -13,13 +13,17 @@ class Boolean extends Attribute
         bool $required = false,
         ?bool $default = null,
         bool $array = false,
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,
             $collection,
             required: $required,
             default: $default,
-            array: $array
+            array: $array,
+            createdAt: $createdAt,
+            updatedAt: $updatedAt
         );
     }
 
@@ -39,6 +43,8 @@ class Boolean extends Attribute
      *     required: bool,
      *     array: bool,
      *     default: ?bool,
+     *     createdAt: string,
+     *     updatedAt: string,
      * } $array
      * @return self
      */
@@ -50,6 +56,8 @@ class Boolean extends Attribute
             required: $array['required'],
             default: $array['default'],
             array: $array['array'],
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 

@@ -7,11 +7,11 @@ use Utopia\Migration\Transfer;
 
 class Index extends Resource
 {
-    public const string TYPE_UNIQUE = 'unique';
+    public const TYPE_UNIQUE = 'unique';
 
-    public const string TYPE_FULLTEXT = 'fulltext';
+    public const TYPE_FULLTEXT = 'fulltext';
 
-    public const string TYPE_KEY = 'key';
+    public const TYPE_KEY = 'key';
 
     /**
      * @param string $id
@@ -21,6 +21,8 @@ class Index extends Resource
      * @param array<string> $attributes
      * @param array<int> $lengths
      * @param array<string> $orders
+     * @param string $createdAt
+     * @param string $updatedAt
      */
     public function __construct(
         string $id,
@@ -29,7 +31,9 @@ class Index extends Resource
         private readonly string $type = '',
         private readonly array $attributes = [],
         private readonly array $lengths = [],
-        private readonly array $orders = []
+        private readonly array $orders = [],
+        protected string $createdAt = '',
+        protected string $updatedAt = '',
     ) {
         $this->id = $id;
     }
@@ -51,7 +55,9 @@ class Index extends Resource
      *     type: string,
      *     attributes: array<string>,
      *     lengths: ?array<int>,
-     *     orders: ?array<string>
+     *     orders: ?array<string>,
+     *     createdAt: string,
+     *     updatedAt: string,
      * } $array
      */
     public static function fromArray(array $array): self
@@ -63,7 +69,9 @@ class Index extends Resource
             $array['type'],
             $array['attributes'],
             $array['lengths'] ?? [],
-            $array['orders'] ?? []
+            $array['orders'] ?? [],
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
@@ -80,6 +88,8 @@ class Index extends Resource
             'attributes' => $this->attributes,
             'lengths' => $this->lengths,
             'orders' => $this->orders,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

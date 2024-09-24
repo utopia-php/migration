@@ -31,7 +31,7 @@ class MigrationCLI
 
     protected mixed $destination;
 
-    protected const array STRUCTURE = [
+    protected const STRUCTURE = [
         '$collection' => 'databases',
         '$id' => 'collections',
         'name' => 'Collections',

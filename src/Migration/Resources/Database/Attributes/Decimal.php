@@ -16,6 +16,8 @@ class Decimal extends Attribute
         ?float $min = null,
         ?float $max = null,
         bool $signed = true,
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         $min ??= PHP_FLOAT_MIN;
         $max ??= PHP_FLOAT_MAX;
@@ -30,7 +32,9 @@ class Decimal extends Attribute
             formatOptions: [
                 'min' => $min,
                 'max' => $max,
-            ]
+            ],
+            createdAt: $createdAt,
+            updatedAt: $updatedAt
         );
     }
 
@@ -53,7 +57,9 @@ class Decimal extends Attribute
      *     formatOptions: array{
      *         min: ?float,
      *         max: ?float
-     *     }
+     *     },
+     *     createdAt: string,
+     *     updatedAt: string,
      * } $array
      * @return self
      */
@@ -67,6 +73,8 @@ class Decimal extends Attribute
             array: $array['array'],
             min: $array['formatOptions']['min'],
             max: $array['formatOptions']['max'],
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 

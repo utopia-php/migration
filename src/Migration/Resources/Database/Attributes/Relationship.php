@@ -16,7 +16,9 @@ class Relationship extends Attribute
         bool $twoWay = false,
         ?string $twoWayKey = null,
         string $onDelete = Database::RELATION_MUTATE_RESTRICT,
-        string $side = Database::RELATION_SIDE_PARENT
+        string $side = Database::RELATION_SIDE_PARENT,
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,
@@ -28,7 +30,9 @@ class Relationship extends Attribute
                 'twoWayKey' => $twoWayKey,
                 'onDelete' => $onDelete,
                 'side' => $side,
-            ]
+            ],
+            createdAt: $createdAt,
+            updatedAt: $updatedAt
         );
     }
 
@@ -52,7 +56,9 @@ class Relationship extends Attribute
      *         twoWayKey: ?string,
      *         onDelete: string,
      *         side: string,
-     *     }
+     *     },
+     *     createdAt: string,
+     *     updatedAt: string,
      * } $array
      * @return self
      */
@@ -67,6 +73,8 @@ class Relationship extends Attribute
             twoWayKey: $array['options']['twoWayKey'],
             onDelete: $array['options']['onDelete'],
             side: $array['options']['side'],
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 

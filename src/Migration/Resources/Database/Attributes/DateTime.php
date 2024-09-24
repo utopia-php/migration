@@ -13,6 +13,8 @@ class DateTime extends Attribute
         bool $required = false,
         ?string $default = null,
         bool $array = false,
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,
@@ -21,6 +23,8 @@ class DateTime extends Attribute
             default: $default,
             array: $array,
             filters: ['datetime'],
+            createdAt: $createdAt,
+            updatedAt: $updatedAt
         );
     }
 
@@ -45,6 +49,8 @@ class DateTime extends Attribute
      *     required: bool,
      *     array: bool,
      *     default: ?string,
+     *     createdAt: string,
+     *     updatedAt: string,
      * } $array
      * @return self
      */
@@ -56,6 +62,8 @@ class DateTime extends Attribute
             required: $array['required'],
             default: $array['default'],
             array: $array['array'],
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 }

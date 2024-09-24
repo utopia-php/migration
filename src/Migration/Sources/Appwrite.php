@@ -113,7 +113,7 @@ class Appwrite extends Source
     }
 
     /**
-     * @param array<string> $resources
+     * @param  array<string>  $resources
      * @return array<string, mixed>
      *
      * @throws \Exception
@@ -282,7 +282,7 @@ class Appwrite extends Source
                 $report[Resource::TYPE_DEPLOYMENT] = 0;
                 $functions = $this->functions->list()['functions'];
                 foreach ($functions as $function) {
-                    if (!empty($function['deployment'])) {
+                    if (! empty($function['deployment'])) {
                         $report[Resource::TYPE_DEPLOYMENT] += 1;
                     }
                 }
@@ -320,8 +320,8 @@ class Appwrite extends Source
     /**
      * Export Auth Resources
      *
-     * @param int $batchSize Max 100
-     * @param array<string> $resources
+     * @param  int  $batchSize  Max 100
+     * @param  array<string>  $resources
      */
     protected function exportGroupAuth(int $batchSize, array $resources): void
     {
@@ -405,7 +405,7 @@ class Appwrite extends Source
                     '',
                     $user['emailVerification'] ?? false,
                     $user['phoneVerification'] ?? false,
-                    !$user['status'],
+                    ! $user['status'],
                     $user['prefs'] ?? [],
                 );
 
@@ -661,10 +661,10 @@ class Appwrite extends Source
 
                 foreach ($response['documents'] as $document) {
                     // HACK: Handle many to many
-                    if(!empty($manyToMany)) {
+                    if (! empty($manyToMany)) {
                         $stack = ['$id']; // Adding $id because we can't select only relations
                         foreach ($manyToMany as $relation) {
-                            $stack[] = $relation . '.$id';
+                            $stack[] = $relation.'.$id';
                         }
 
                         $doc = $this->database->getDocument(
@@ -699,7 +699,7 @@ class Appwrite extends Source
                             continue;
                         }
 
-                        if ($attribute->isRequired() && !isset($document[$attribute->getKey()])) {
+                        if ($attribute->isRequired() && ! isset($document[$attribute->getKey()])) {
                             switch ($attribute->getType()) {
                                 case Attribute::TYPE_BOOLEAN:
                                     $document[$attribute->getKey()] = false;
@@ -749,14 +749,16 @@ class Appwrite extends Source
     {
         switch ($value['type']) {
             case 'string':
-                if (!isset($value['format'])) {
+                if (! isset($value['format'])) {
                     return new Text(
                         $value['key'],
                         $collection,
                         required: $value['required'],
                         default: $value['default'],
                         array: $value['array'],
-                        size: $value['size'] ?? 0
+                        size: $value['size'] ?? 0,
+                        createdAt: $value['$createdAt'] ?? '',
+                        updatedAt: $value['$updatedAt'] ?? '',
                     );
                 }
 
@@ -768,6 +770,8 @@ class Appwrite extends Source
                         default: $value['default'],
                         array: $value['array'],
                         size: $value['size'] ?? 254,
+                        createdAt: $value['$createdAt'] ?? '',
+                        updatedAt: $value['$updatedAt'] ?? '',
                     ),
                     'enum' => new Enum(
                         $value['key'],
@@ -777,6 +781,8 @@ class Appwrite extends Source
                         default: $value['default'],
                         array: $value['array'],
                         size: $value['size'] ?? UtopiaDatabase::LENGTH_KEY,
+                        createdAt: $value['$createdAt'] ?? '',
+                        updatedAt: $value['$updatedAt'] ?? '',
                     ),
                     'url' => new URL(
                         $value['key'],
@@ -785,6 +791,8 @@ class Appwrite extends Source
                         default: $value['default'],
                         array: $value['array'],
                         size: $value['size'] ?? 2000,
+                        createdAt: $value['$createdAt'] ?? '',
+                        updatedAt: $value['$updatedAt'] ?? '',
                     ),
                     'ip' => new IP(
                         $value['key'],
@@ -793,6 +801,8 @@ class Appwrite extends Source
                         default: $value['default'],
                         array: $value['array'],
                         size: $value['size'] ?? 39,
+                        createdAt: $value['$createdAt'] ?? '',
+                        updatedAt: $value['$updatedAt'] ?? '',
                     ),
                     default => new Text(
                         $value['key'],
@@ -801,6 +811,8 @@ class Appwrite extends Source
                         default: $value['default'],
                         array: $value['array'],
                         size: $value['size'] ?? 0,
+                        createdAt: $value['$createdAt'] ?? '',
+                        updatedAt: $value['$updatedAt'] ?? '',
                     ),
                 };
             case 'boolean':
@@ -809,7 +821,9 @@ class Appwrite extends Source
                     $collection,
                     required: $value['required'],
                     default: $value['default'],
-                    array: $value['array']
+                    array: $value['array'],
+                    createdAt: $value['$createdAt'] ?? '',
+                    updatedAt: $value['$updatedAt'] ?? '',
                 );
             case 'integer':
                 return new Integer(
@@ -820,6 +834,8 @@ class Appwrite extends Source
                     array: $value['array'],
                     min: $value['min'] ?? null,
                     max: $value['max'] ?? null,
+                    createdAt: $value['$createdAt'] ?? '',
+                    updatedAt: $value['$updatedAt'] ?? '',
                 );
             case 'double':
                 return new Decimal(
@@ -830,6 +846,8 @@ class Appwrite extends Source
                     array: $value['array'],
                     min: $value['min'] ?? null,
                     max: $value['max'] ?? null,
+                    createdAt: $value['$createdAt'] ?? '',
+                    updatedAt: $value['$updatedAt'] ?? '',
                 );
             case 'relationship':
                 return new Relationship(
@@ -841,6 +859,8 @@ class Appwrite extends Source
                     twoWayKey: $value['twoWayKey'],
                     onDelete: $value['onDelete'],
                     side: $value['side'],
+                    createdAt: $value['$createdAt'] ?? '',
+                    updatedAt: $value['$updatedAt'] ?? '',
                 );
             case 'datetime':
                 return new DateTime(
@@ -849,10 +869,12 @@ class Appwrite extends Source
                     required: $value['required'],
                     default: $value['default'],
                     array: $value['array'],
+                    createdAt: $value['$createdAt'] ?? '',
+                    updatedAt: $value['$updatedAt'] ?? '',
                 );
         }
 
-        throw new \Exception('Unknown attribute type: ' . $value['type']);
+        throw new \Exception('Unknown attribute type: '.$value['type']);
     }
 
     /**
@@ -884,6 +906,8 @@ class Appwrite extends Source
                 $newDatabase = new Database(
                     $database['$id'],
                     $database['name'],
+                    $database['$createdAt'],
+                    $database['$updatedAt'],
                 );
 
                 $databases[] = $newDatabase;
@@ -933,17 +957,21 @@ class Appwrite extends Source
                         $collection['name'],
                         $collection['$id'],
                         $collection['documentSecurity'],
-                        $collection['$permissions']
+                        $collection['$permissions'],
+                        $collection['$createdAt'],
+                        $collection['$updatedAt'],
                     );
 
                     $collections[] = $newCollection;
                 }
 
-                $lastCollection = !empty($collection)
-                    ? $collections[count($collections) - 1]->getId()
-                    : null;
+                if (empty($collections)) {
+                    break;
+                }
 
                 $this->callback($collections);
+
+                $lastCollection = $collections[count($collections) - 1]->getId();
 
                 if (count($collections) < $batchSize) {
                     break;
@@ -979,12 +1007,13 @@ class Appwrite extends Source
 
                 foreach ($response['attributes'] as $attribute) {
                     /** @var array $attribute */
-
                     if ($attribute['type'] === 'relationship' && $attribute['side'] === 'child') {
                         continue;
                     }
 
-                    $attributes[] = $this->convertAttribute($attribute, $collection);
+                    $attr = $this->convertAttribute($attribute, $collection);
+
+                    $attributes[] = $attr;
                 }
 
                 if (empty($attributes)) {
@@ -994,6 +1023,7 @@ class Appwrite extends Source
                 $this->callback($attributes);
 
                 $lastAttribute = $attributes[count($attributes) - 1]->getId();
+
                 if (count($attributes) < $batchSize) {
                     break;
                 }
@@ -1035,7 +1065,9 @@ class Appwrite extends Source
                         $index['type'],
                         $index['attributes'],
                         [],
-                        $index['orders']
+                        $index['orders'],
+                        $index['$createdAt'],
+                        $index['$updatedAt'],
                     );
                 }
 
@@ -1044,6 +1076,7 @@ class Appwrite extends Source
                 }
 
                 $this->callback($indexes);
+
                 $lastIndex = $indexes[count($indexes) - 1]->getId();
 
                 if (count($indexes) < $batchSize) {
@@ -1395,7 +1428,7 @@ class Appwrite extends Source
         );
 
         // Content-Length header was missing, file is less than max buffer size.
-        if (!array_key_exists('Content-Length', $responseHeaders)) {
+        if (! array_key_exists('Content-Length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
@@ -1423,6 +1456,7 @@ class Appwrite extends Source
             $deployment->setInternalId($deployment->getId());
 
             $this->callback([$deployment]);
+
             return;
         }
 

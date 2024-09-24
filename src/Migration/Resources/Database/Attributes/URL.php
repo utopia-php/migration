@@ -13,7 +13,9 @@ class URL extends Text
         bool $required = false,
         ?string $default = null,
         bool $array = false,
-        int $size = 2000
+        int $size = 2000,
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,
@@ -23,6 +25,8 @@ class URL extends Text
             array: $array,
             size: $size,
             format: 'url',
+            createdAt: $createdAt,
+            updatedAt: $updatedAt
         );
     }
 

@@ -13,7 +13,9 @@ class Email extends Text
         bool $required = false,
         ?string $default = null,
         bool $array = false,
-        int $size = 254
+        int $size = 254,
+        string $createdAt = '',
+        string $updatedAt = ''
     ) {
         parent::__construct(
             $key,
@@ -23,6 +25,8 @@ class Email extends Text
             array: $array,
             size: $size,
             format: 'email',
+            createdAt: $createdAt,
+            updatedAt: $updatedAt
         );
     }
 
