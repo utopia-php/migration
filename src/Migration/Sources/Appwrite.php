@@ -1076,6 +1076,7 @@ class Appwrite extends Source
                 }
 
                 $this->callback($indexes);
+
                 $lastIndex = $indexes[count($indexes) - 1]->getId();
 
                 if (count($indexes) < $batchSize) {
