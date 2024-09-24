@@ -59,7 +59,7 @@ class Appwrite extends Source
         string $endpoint,
         protected string $key
     ) {
-        $this->client = (new Client())
+        $this->client = (new Client)
             ->setEndpoint($endpoint)
             ->setProject($project)
             ->setKey($key);
@@ -113,7 +113,7 @@ class Appwrite extends Source
     }
 
     /**
-     * @param array<string> $resources
+     * @param  array<string>  $resources
      * @return array<string, mixed>
      *
      * @throws \Exception
@@ -282,7 +282,7 @@ class Appwrite extends Source
                 $report[Resource::TYPE_DEPLOYMENT] = 0;
                 $functions = $this->functions->list()['functions'];
                 foreach ($functions as $function) {
-                    if (!empty($function['deployment'])) {
+                    if (! empty($function['deployment'])) {
                         $report[Resource::TYPE_DEPLOYMENT] += 1;
                     }
                 }
@@ -320,8 +320,8 @@ class Appwrite extends Source
     /**
      * Export Auth Resources
      *
-     * @param int $batchSize Max 100
-     * @param array<string> $resources
+     * @param  int  $batchSize  Max 100
+     * @param  array<string>  $resources
      */
     protected function exportGroupAuth(int $batchSize, array $resources): void
     {
@@ -405,7 +405,7 @@ class Appwrite extends Source
                     '',
                     $user['emailVerification'] ?? false,
                     $user['phoneVerification'] ?? false,
-                    !$user['status'],
+                    ! $user['status'],
                     $user['prefs'] ?? [],
                 );
 
@@ -661,10 +661,10 @@ class Appwrite extends Source
 
                 foreach ($response['documents'] as $document) {
                     // HACK: Handle many to many
-                    if(!empty($manyToMany)) {
+                    if (! empty($manyToMany)) {
                         $stack = ['$id']; // Adding $id because we can't select only relations
                         foreach ($manyToMany as $relation) {
-                            $stack[] = $relation . '.$id';
+                            $stack[] = $relation.'.$id';
                         }
 
                         $doc = $this->database->getDocument(
@@ -699,7 +699,7 @@ class Appwrite extends Source
                             continue;
                         }
 
-                        if ($attribute->isRequired() && !isset($document[$attribute->getKey()])) {
+                        if ($attribute->isRequired() && ! isset($document[$attribute->getKey()])) {
                             switch ($attribute->getType()) {
                                 case Attribute::TYPE_BOOLEAN:
                                     $document[$attribute->getKey()] = false;
@@ -749,7 +749,7 @@ class Appwrite extends Source
     {
         switch ($value['type']) {
             case 'string':
-                if (!isset($value['format'])) {
+                if (! isset($value['format'])) {
                     return new Text(
                         $value['key'],
                         $collection,
@@ -874,7 +874,7 @@ class Appwrite extends Source
                 );
         }
 
-        throw new \Exception('Unknown attribute type: ' . $value['type']);
+        throw new \Exception('Unknown attribute type: '.$value['type']);
     }
 
     /**
@@ -965,7 +965,7 @@ class Appwrite extends Source
                     $collections[] = $newCollection;
                 }
 
-                $lastCollection = !empty($collection)
+                $lastCollection = ! empty($collections)
                     ? $collections[count($collections) - 1]->getId()
                     : null;
 
@@ -1424,7 +1424,7 @@ class Appwrite extends Source
         );
 
         // Content-Length header was missing, file is less than max buffer size.
-        if (!array_key_exists('Content-Length', $responseHeaders)) {
+        if (! array_key_exists('Content-Length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
@@ -1452,6 +1452,7 @@ class Appwrite extends Source
             $deployment->setInternalId($deployment->getId());
 
             $this->callback([$deployment]);
+
             return;
         }
 
