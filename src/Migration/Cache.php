@@ -44,7 +44,7 @@ class Cache
             $resource->setData(''); // Prevent Memory Leak
         }
 
-        if($resource->getName() == Resource::TYPE_DOCUMENT) {
+        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
             return;
         }
 
@@ -79,7 +79,7 @@ class Cache
             $this->add($resource);
         }
 
-        if($resource->getName() == Resource::TYPE_DOCUMENT) {
+        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
             return;
         }
 
