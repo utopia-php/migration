@@ -254,7 +254,7 @@ class Appwrite extends Source
                         )['files'];
 
                         $files = array_merge($files, $currentFiles);
-                        $lastFile = $files[count($files) - 1]['$id'];
+                        $lastFile = $files[count($files) - 1]['$id'] ?? null;
 
                         if (count($currentFiles) < 20) {
                             break;
