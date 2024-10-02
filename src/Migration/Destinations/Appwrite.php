@@ -315,7 +315,7 @@ class Appwrite extends Destination
         $database = $this->database->createDocument('databases', new UtopiaDocument([
             '$id' => $resource->getId(),
             'name' => $resource->getDatabaseName(),
-            'enabled' => true,
+            'enabled' => $resource->getEnabled(),
             'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
             '$createdAt' => $resource->getCreatedAt(),
             '$updatedAt' => $resource->getUpdatedAt(),
@@ -375,7 +375,7 @@ class Appwrite extends Destination
             'databaseId' => $resource->getDatabase()->getId(),
             '$permissions' => Permission::aggregate($resource->getPermissions()),
             'documentSecurity' => $resource->getDocumentSecurity(),
-            'enabled' => true,
+            'enabled' => $resource->getEnabled(),
             'name' => $resource->getCollectionName(),
             'search' => implode(' ', [$resource->getId(), $resource->getCollectionName()]),
             '$createdAt' => $resource->getCreatedAt(),
