@@ -20,6 +20,7 @@ class Database extends Resource
         private readonly string $name = '',
         protected string $createdAt = '',
         protected string $updatedAt = '',
+        protected bool $enabled = true,
     ) {
         $this->id = $id;
     }
@@ -39,6 +40,7 @@ class Database extends Resource
             $array['name'],
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
+            enabled: $array['enabled'] ?? true,
         );
     }
 
@@ -52,6 +54,7 @@ class Database extends Resource
             'name' => $this->name,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
+            'enabled' => $this->enabled,
         ];
     }
 
@@ -68,5 +71,10 @@ class Database extends Resource
     public function getDatabaseName(): string
     {
         return $this->name;
+    }
+
+    public function getEnabled(): bool
+    {
+        return $this->enabled;
     }
 }

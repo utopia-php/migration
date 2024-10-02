@@ -24,6 +24,7 @@ class Collection extends Resource
         array $permissions = [],
         protected string $createdAt = '',
         protected string $updatedAt = '',
+        protected bool $enabled = true,
     ) {
         $this->id = $id;
         $this->permissions = $permissions;
@@ -53,6 +54,7 @@ class Collection extends Resource
             permissions: $array['permissions'] ?? [],
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
+            enabled: $array['enabled'] ?? true,
         );
     }
 
@@ -69,6 +71,7 @@ class Collection extends Resource
             'permissions' => $this->permissions,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
+            'enabled' => $this->enabled,
         ]);
     }
 
@@ -95,5 +98,10 @@ class Collection extends Resource
     public function getDocumentSecurity(): bool
     {
         return $this->documentSecurity;
+    }
+
+    public function getEnabled(): bool
+    {
+        return $this->enabled;
     }
 }
