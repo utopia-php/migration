@@ -8,3 +8,4 @@ localBackup/
 .vscode/
 .env.prod
 serviceAccount.json
+.phpactor.json
