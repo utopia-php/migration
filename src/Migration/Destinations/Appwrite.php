@@ -319,6 +319,7 @@ class Appwrite extends Destination
             'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
             '$createdAt' => $resource->getCreatedAt(),
             '$updatedAt' => $resource->getUpdatedAt(),
+            'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
         ]));
 
         $resource->setInternalId($database->getInternalId());
