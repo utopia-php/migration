@@ -15,7 +15,7 @@ class Exception extends \Exception implements \JsonSerializable
         string $resourceGroup,
         ?string $resourceId = null,
         string $message = '',
-        int $code = 0,
+        int|string $code = 0,
         ?\Throwable $previous = null,
     ) {
         $this->resourceName = $resourceName;
