@@ -205,7 +205,7 @@ class Appwrite extends Destination
 
     /**
      * @param array<Resource> $resources
-     * @param callable $callback
+     * @param callable(array<Resource>): void $callback
      * @return void
      */
     #[Override]
@@ -789,7 +789,6 @@ class Appwrite extends Destination
 
             if ($attributeArray === true) {
                 $lengths[$i] = UtopiaDatabase::ARRAY_INDEX_LENGTH;
-                $orders[$i] = null;
             }
         }
 
@@ -980,7 +979,7 @@ class Appwrite extends Destination
                 [
                     'bucketId' => $bucketId,
                     'fileId' => $file->getId(),
-                    'file' => new \CurlFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
+                    'file' => new \CURLFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
                     'permissions' => $file->getPermissions(),
                 ]
             );
@@ -1003,7 +1002,7 @@ class Appwrite extends Destination
             [
                 'bucketId' => $bucketId,
                 'fileId' => $file->getId(),
-                'file' => new \CurlFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
+                'file' => new \CURLFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
                 'permissions' => $file->getPermissions(),
             ]
         );
@@ -1142,7 +1141,7 @@ class Appwrite extends Destination
                 );
                 break;
             case Hash::ALGORITHM_SHA256:
-                $result = $this->users->createShaUser(
+                $result = $this->users->createSHAUser(
                     $user->getId(),
                     $user->getEmail(),
                     $hash->getHash(),
@@ -1295,7 +1294,7 @@ class Appwrite extends Destination
                 ],
                 [
                     'functionId' => $functionId,
-                    'code' => new \CurlFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
+                    'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
                     'activate' => $deployment->getActivated() ? 'true' : 'false',
                     'entrypoint' => $deployment->getEntrypoint(),
                 ]
@@ -1316,7 +1315,7 @@ class Appwrite extends Destination
             ],
             [
                 'functionId' => $functionId,
-                'code' => new \CurlFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
+                'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
                 'activate' => $deployment->getActivated(),
                 'entrypoint' => $deployment->getEntrypoint(),
             ]
