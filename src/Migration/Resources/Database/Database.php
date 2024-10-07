@@ -21,6 +21,7 @@ class Database extends Resource
         protected string $createdAt = '',
         protected string $updatedAt = '',
         protected bool $enabled = true,
+        protected string $originalId = '',
     ) {
         $this->id = $id;
     }
@@ -31,6 +32,8 @@ class Database extends Resource
      *     name: string,
      *     createdAt: string,
      *     updatedAt: string,
+     *     enabled: bool,
+     *     originalId: string|null,
      * } $array
      */
     public static function fromArray(array $array): self
@@ -41,6 +44,7 @@ class Database extends Resource
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
             enabled: $array['enabled'] ?? true,
+            originalId: $array['originalId'] ?? '',
         );
     }
 

@@ -319,6 +319,7 @@ class Appwrite extends Destination
             'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
             '$createdAt' => $resource->getCreatedAt(),
             '$updatedAt' => $resource->getUpdatedAt(),
+            'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
         ]));
 
         $resource->setInternalId($database->getInternalId());
@@ -901,11 +902,12 @@ class Appwrite extends Destination
                 $databaseInternalId = $database->getInternalId();
                 $collectionInternalId = $collection->getInternalId();
 
-                $this->database
+                $this->database->skipRelationships(fn () => $this->database
                     ->createDocuments(
                         'database_' . $databaseInternalId . '_collection_' . $collectionInternalId,
                         $this->documentBuffer
-                    );
+                    ));
+
             } finally {
                 $this->documentBuffer = [];
             }
