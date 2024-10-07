@@ -15,12 +15,20 @@ class Exception extends \Exception implements \JsonSerializable
         string $resourceGroup,
         ?string $resourceId = null,
         string $message = '',
-        int $code = 0,
+        mixed $code = 0,
         ?\Throwable $previous = null,
     ) {
         $this->resourceName = $resourceName;
         $this->resourceId = $resourceId;
         $this->resourceGroup = $resourceGroup;
+
+        if (\is_string($code)) {
+            if (\is_numeric($code)) {
+                $code = (int) $code;
+            } else {
+                $code = 500; // PDOException
+            }
+        }
 
         parent::__construct($message, $code, $previous);
     }
