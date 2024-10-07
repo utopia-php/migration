@@ -26,10 +26,10 @@
         "ext-curl": "*",
         "ext-openssl": "*",
         "appwrite/appwrite": "11.1.*",
-        "utopia-php/database": "0.53.*",
-        "utopia-php/storage": "0.18.*",
+        "utopia-php/database": "0.54.*",
+        "utopia-php/storage": "0.19.*",
         "utopia-php/dsn": "0.2.*",
-        "utopia-php/framework": "0.33.*"
+        "utopia-php/framework": "1.0.*"
     },
     "require-dev": {
         "ext-pdo": "*",
@@ -37,7 +37,7 @@
         "vlucas/phpdotenv": "5.6.*",
         "laravel/pint": "1.17.*",
         "phpstan/phpstan": "1.11.*",
-        "utopia-php/cli": "0.16.*"
+        "utopia-php/cli": "0.19.*"
     },
     "platform": {
         "php": "8.3"
