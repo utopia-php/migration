@@ -902,11 +902,12 @@ class Appwrite extends Destination
                 $databaseInternalId = $database->getInternalId();
                 $collectionInternalId = $collection->getInternalId();
 
-                $this->database
+                $this->database->skipRelationships(fn () => $this->database
                     ->createDocuments(
                         'database_' . $databaseInternalId . '_collection_' . $collectionInternalId,
                         $this->documentBuffer
-                    );
+                    ));
+
             } finally {
                 $this->documentBuffer = [];
             }
