@@ -28,8 +28,7 @@
         "appwrite/appwrite": "11.1.*",
         "utopia-php/database": "0.54.*",
         "utopia-php/storage": "0.19.*",
-        "utopia-php/dsn": "0.2.*",
-        "utopia-php/framework": "1.0.*"
+        "utopia-php/dsn": "0.2.*"
     },
     "require-dev": {
         "ext-pdo": "*",
