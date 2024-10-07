@@ -26,7 +26,7 @@ class Exception extends \Exception implements \JsonSerializable
             if (\is_numeric($code)) {
                 $code = (int) $code;
             } else {
-                $code = 500;
+                $code = 500; // PDOException
             }
         }
 
