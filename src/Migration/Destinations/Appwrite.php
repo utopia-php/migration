@@ -313,7 +313,7 @@ class Appwrite extends Destination
 
         $validator = new UID();
 
-        if ($validator->isValid($resourceId)) {
+        if (!$validator->isValid($resourceId)) {
             throw new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
@@ -368,7 +368,7 @@ class Appwrite extends Destination
 
         $validator = new UID();
 
-        if ($validator->isValid($resourceId)) {
+        if (!$validator->isValid($resourceId)) {
             throw new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
@@ -894,7 +894,7 @@ class Appwrite extends Destination
     {
         $validator = new UID();
 
-        if ($validator->isValid($resource->getId())) {
+        if (!$validator->isValid($resource->getId())) {
             throw new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
