@@ -25,6 +25,7 @@ use Utopia\Database\Helpers\Permission;
 use Utopia\Database\Query;
 use Utopia\Database\Validator\Index as IndexValidator;
 use Utopia\Database\Validator\Structure;
+use Utopia\Database\Validator\UID;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
@@ -302,13 +303,24 @@ class Appwrite extends Destination
     /**
      * @throws AuthorizationException
      * @throws StructureException
-     * @throws DatabaseException
+     * @throws DatabaseException|Exception
      */
     protected function createDatabase(Database $resource): bool
     {
         $resourceId = $resource->getId() == 'unique()'
             ? ID::unique()
             : $resource->getId();
+
+        $validator = new UID();
+
+        if ($validator->isValid($resourceId)) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: $validator->getDescription(),
+            );
+        }
 
         $resource->setId($resourceId);
 
@@ -353,6 +365,17 @@ class Appwrite extends Destination
         $resourceId = $resource->getId() == 'unique()'
             ? ID::unique()
             : $resource->getId();
+
+        $validator = new UID();
+
+        if ($validator->isValid($resourceId)) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: $validator->getDescription(),
+            );
+        }
 
         $resource->setId($resourceId);
 
@@ -865,9 +888,21 @@ class Appwrite extends Destination
      * @throws AuthorizationException
      * @throws DatabaseException
      * @throws StructureException
+     * @throws Exception
      */
     protected function createDocument(Document $resource, bool $isLast): bool
     {
+        $validator = new UID();
+
+        if ($validator->isValid($resource->getId())) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: $validator->getDescription(),
+            );
+        }
+
         // Check if document has already been created
         $exists = \array_key_exists(
             $resource->getId(),
