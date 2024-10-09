@@ -541,6 +541,8 @@ class Appwrite extends Source
                     previous: $e
                 )
             );
+
+            return;
         }
 
         try {
@@ -557,6 +559,8 @@ class Appwrite extends Source
                     previous: $e
                 )
             );
+
+            return;
         }
 
         try {
@@ -573,6 +577,8 @@ class Appwrite extends Source
                     previous: $e
                 )
             );
+
+            return;
         }
 
         try {
@@ -589,6 +595,8 @@ class Appwrite extends Source
                     previous: $e
                 )
             );
+
+            return;
         }
 
         try {
@@ -605,6 +613,8 @@ class Appwrite extends Source
                     previous: $e
                 )
             );
+
+            return;
         }
     }
 
