@@ -384,7 +384,7 @@ class Supabase extends NHost
             foreach ($users as $user) {
                 $hash = null;
 
-                if (array_key_exists('encrypted_password', $user)) {
+                if (array_key_exists('encrypted_password', $user) && ! empty($user['encrypted_password'])) {
                     $hash = new Hash($user['encrypted_password'], '', Hash::ALGORITHM_BCRYPT);
                 }
 
