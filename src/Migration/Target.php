@@ -227,6 +227,13 @@ abstract class Target
     }
 
     /**
+     * Success callback
+     */
+    public function success(): void
+    {
+    }
+
+    /**
      * Error callback
      */
     public function error(): void
