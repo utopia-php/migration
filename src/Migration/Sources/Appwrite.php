@@ -638,7 +638,7 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastDocument);
                 }
 
-                $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want Relations flat!
+                $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want relations flat!
                 $manyToMany = [];
 
                 $attributes = $this->cache->get(Attribute::getName());
