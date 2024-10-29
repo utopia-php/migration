@@ -307,13 +307,13 @@ class Appwrite extends Destination
      */
     protected function createDatabase(Database $resource): bool
     {
-        $resourceId = $resource->getId() == 'unique()'
-            ? ID::unique()
-            : $resource->getId();
+        if ($resource->getId() == 'unique()') {
+            $resource->setId(ID::unique());
+        }
 
         $validator = new UID();
 
-        if (!$validator->isValid($resourceId)) {
+        if (!$validator->isValid($resource->getId())) {
             throw new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
@@ -321,8 +321,6 @@ class Appwrite extends Destination
                 message: $validator->getDescription(),
             );
         }
-
-        $resource->setId($resourceId);
 
         $database = $this->database->createDocument('databases', new UtopiaDocument([
             '$id' => $resource->getId(),
@@ -362,13 +360,13 @@ class Appwrite extends Destination
      */
     protected function createCollection(Collection $resource): bool
     {
-        $resourceId = $resource->getId() == 'unique()'
-            ? ID::unique()
-            : $resource->getId();
+        if ($resource->getId() == 'unique()') {
+            $resource->setId(ID::unique());
+        }
 
         $validator = new UID();
 
-        if (!$validator->isValid($resourceId)) {
+        if (!$validator->isValid($resource->getId())) {
             throw new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
@@ -376,8 +374,6 @@ class Appwrite extends Destination
                 message: $validator->getDescription(),
             );
         }
-
-        $resource->setId($resourceId);
 
         $database = $this->database->getDocument(
             'databases',
@@ -893,6 +889,10 @@ class Appwrite extends Destination
      */
     protected function createDocument(Document $resource, bool $isLast): bool
     {
+        if ($resource->getId() == 'unique()') {
+            $resource->setId(ID::unique());
+        }
+
         $validator = new UID();
 
         if (!$validator->isValid($resource->getId())) {
