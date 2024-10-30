@@ -1072,9 +1072,9 @@ class Appwrite extends Destination
                     $this->users->create(
                         $resource->getId(),
                         $resource->getEmail(),
-                        $resource->getPhone(),
                         null,
-                        $resource->getUsername()
+                        null,
+                        null
                     );
                 }
 
