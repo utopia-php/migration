@@ -22,8 +22,8 @@ class User extends Resource
      */
     public function __construct(
         string $id,
-        private readonly string $email = '',
-        private readonly string $username = '',
+        private readonly ?string $email = '',
+        private readonly ?string $username = '',
         private readonly ?Hash $passwordHash = null,
         private readonly ?string $phone = null,
         private readonly array $labels = [],
@@ -88,7 +88,7 @@ class User extends Resource
     /**
      * Get Email
      */
-    public function getEmail(): string
+    public function getEmail(): ?string
     {
         return $this->email;
     }
