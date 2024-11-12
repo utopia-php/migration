@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "72871dd50a1c1f7196cbc34c1ea07930",
+    "content-hash": "87fe465ef6e5b58e75d0e9e4623d4116",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -354,16 +354,16 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "dev-fix-index-validation",
+            "version": "0.53.20",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "82acc1c3f1543e994c7d433b19d6ded289a175e8"
+                "reference": "e43f8ee26e06ee8812737e63642dbd7ee7c9dc04"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/82acc1c3f1543e994c7d433b19d6ded289a175e8",
-                "reference": "82acc1c3f1543e994c7d433b19d6ded289a175e8",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/e43f8ee26e06ee8812737e63642dbd7ee7c9dc04",
+                "reference": "e43f8ee26e06ee8812737e63642dbd7ee7c9dc04",
                 "shasum": ""
             },
             "require": {
@@ -404,9 +404,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/fix-index-validation"
+                "source": "https://github.com/utopia-php/database/tree/0.53.20"
             },
-            "time": "2024-11-11T11:48:03+00:00"
+            "time": "2024-11-12T00:23:36+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -2860,18 +2860,9 @@
             "time": "2024-07-20T21:52:34+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "utopia-php/database",
-            "version": "dev-fix-index-validation",
-            "alias": "0.53.999",
-            "alias_normalized": "0.53.999.0"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "utopia-php/database": 20
-    },
+    "stability-flags": {},
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
