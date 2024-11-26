@@ -938,6 +938,31 @@ class Appwrite extends Destination
                 $databaseInternalId = $database->getInternalId();
                 $collectionInternalId = $collection->getInternalId();
 
+                /**
+                 * This is in case an attribute was deleted from Appwrite attributes collection but was not deleted from the table
+                 * When creating an archive we select * which will include orphan attribute from the schema
+                 */
+                foreach ($this->documentBuffer as $document) {
+                    foreach ($document as $key => $value) {
+                        if (\str_starts_with($key, '$')) {
+                            continue;
+                        }
+
+                        /** @var $attribute \Utopia\Database\Document */
+                        $found = false;
+                        foreach ($collection->getAttribute('attributes', []) as $attribute) {
+                            if ($attribute->getAttribute('key') == $key) {
+                                $found = true;
+                                break;
+                            }
+                        }
+
+                        if (! $found) {
+                            $document->removeAttribute($key);
+                        }
+                    }
+                }
+
                 $this->database->skipRelationshipsExistCheck(fn () => $this->database->createDocuments(
                     'database_' . $databaseInternalId . '_collection_' . $collectionInternalId,
                     $this->documentBuffer
