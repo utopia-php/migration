@@ -646,7 +646,7 @@ class Appwrite extends Destination
                         throw new \Exception('Failed to create Attribute');
                     }
             }
-        } catch (\Throwable) {
+        } catch (\Throwable $th) {
             $this->database->deleteDocument('attributes', $attribute->getId());
 
             if (isset($twoWayAttribute)) {
@@ -657,7 +657,8 @@ class Appwrite extends Destination
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
-                message: 'Failed to create attribute',
+                message: 'Failed to create attribute: ' . $th->getMessage(),
+                previous: $th,
             );
         }
 
@@ -870,7 +871,8 @@ class Appwrite extends Destination
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
-                message: 'Failed to create index',
+                message: 'Failed to create index: ' . $th->getMessage(),
+                previous: $th,
             );
         }
 
