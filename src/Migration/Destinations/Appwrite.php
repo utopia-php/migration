@@ -802,13 +802,8 @@ class Appwrite extends Destination
 
             $lengths[$i] = null;
 
-            if ($attributeType === UtopiaDatabase::VAR_STRING) {
-                $lengths[$i] = $attributeSize; // set attribute size as index length only for strings
-            }
-
             if ($attributeArray === true) {
                 $lengths[$i] = UtopiaDatabase::ARRAY_INDEX_LENGTH;
-                $orders[$i] = null;
             }
         }
 
