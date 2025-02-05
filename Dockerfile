@@ -10,12 +10,14 @@ FROM postgres:alpine3.18 AS nhost-db
 COPY tests/Migration/resources/nhost/1_globals.sql /docker-entrypoint-initdb.d/1_globals.sql
 COPY tests/Migration/resources/nhost/2_main.sql /docker-entrypoint-initdb.d/2_main.sql
 
-FROM composer:lts AS composer
+FROM composer:2.0 AS composer
 
 COPY composer.json /app
 COPY composer.lock /app
 
-RUN composer install --ignore-platform-reqs
+RUN composer install --ignore-platform-reqs --optimize-autoloader \
+    --no-plugins --no-scripts --prefer-dist \
+    `if [ "$TESTING" != "true" ]; then echo "--no-dev"; fi`
 
 FROM php:8.3.10-cli-alpine3.20 AS tests
 
