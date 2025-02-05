@@ -10,7 +10,7 @@ FROM postgres:alpine3.18 AS nhost-db
 COPY tests/Migration/resources/nhost/1_globals.sql /docker-entrypoint-initdb.d/1_globals.sql
 COPY tests/Migration/resources/nhost/2_main.sql /docker-entrypoint-initdb.d/2_main.sql
 
-FROM composer:2.0 AS composer
+FROM composer:lts AS composer
 
 COPY composer.json /app
 COPY composer.lock /app
