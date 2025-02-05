@@ -15,7 +15,8 @@ FROM composer:2.0 AS composer
 COPY composer.json /app
 COPY composer.lock /app
 
-RUN composer install --ignore-platform-reqs
+RUN composer install --ignore-platform-reqs --optimize-autoloader \
+    --no-plugins --no-scripts --prefer-dist;
 
 FROM php:8.3.10-cli-alpine3.20 AS tests
 
