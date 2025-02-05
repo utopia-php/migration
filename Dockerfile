@@ -16,8 +16,7 @@ COPY composer.json /app
 COPY composer.lock /app
 
 RUN composer install --ignore-platform-reqs --optimize-autoloader \
-    --no-plugins --no-scripts --prefer-dist \
-    `if [ "$TESTING" != "true" ]; then echo "--no-dev"; fi`
+    --no-plugins --no-scripts --prefer-dist;
 
 FROM php:8.3.10-cli-alpine3.20 AS tests
 
