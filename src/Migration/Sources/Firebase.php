@@ -115,6 +115,9 @@ class Firebase extends Source
         return parent::call($method, $path, $headers, $params, $responseHeaders);
     }
 
+    /**
+     * @return array<string>
+     */
     public static function getSupportedResources(): array
     {
         return [
@@ -368,7 +371,7 @@ class Firebase extends Source
     /**
      * @throws \Exception
      */
-    private function convertAttribute(Collection $collection, string $key, array $field): Attribute
+    private function convertAttribute(Collection $collection, string $key, array $field, bool $array = false): Attribute
     {
         if (array_key_exists('booleanValue', $field)) {
             return new Boolean(
@@ -376,7 +379,7 @@ class Firebase extends Source
                 $collection,
                 required:false,
                 default: null,
-                array: false,
+                array: $array,
             );
         } elseif (array_key_exists('bytesValue', $field)) {
             return new Text(
@@ -384,7 +387,7 @@ class Firebase extends Source
                 $collection,
                 required: false,
                 default: null,
-                array: false,
+                array: $array,
                 size: 1000000,
             );
         } elseif (array_key_exists('doubleValue', $field)) {
@@ -393,7 +396,7 @@ class Firebase extends Source
                 $collection,
                 required: false,
                 default: null,
-                array: false,
+                array: $array,
             );
         } elseif (array_key_exists('integerValue', $field)) {
             return new Integer(
@@ -401,7 +404,7 @@ class Firebase extends Source
                 $collection,
                 required: false,
                 default: null,
-                array: false,
+                array: $array,
             );
         } elseif (array_key_exists('mapValue', $field)) {
             return new Text(
@@ -409,7 +412,7 @@ class Firebase extends Source
                 $collection,
                 required: false,
                 default: null,
-                array: false,
+                array: $array,
                 size: 1000000,
             );
         } elseif (array_key_exists('nullValue', $field)) {
@@ -418,7 +421,7 @@ class Firebase extends Source
                 $collection,
                 required: false,
                 default: null,
-                array: false,
+                array: $array,
                 size: 1000000,
             );
         } elseif (array_key_exists('referenceValue', $field)) {
@@ -427,7 +430,7 @@ class Firebase extends Source
                 $collection,
                 required: false,
                 default: null,
-                array: false,
+                array: $array,
                 size: 1000000,
             ); //TODO: This should be a reference attribute
         } elseif (array_key_exists('stringValue', $field)) {
@@ -436,7 +439,7 @@ class Firebase extends Source
                 $collection,
                 required: false,
                 default: null,
-                array: false,
+                array: $array,
                 size: 1000000,
             );
         } elseif (array_key_exists('timestampValue', $field)) {
@@ -445,7 +448,7 @@ class Firebase extends Source
                 $collection,
                 required: false,
                 default: null,
-                array: false,
+                array: $array,
             );
         } elseif (array_key_exists('geoPointValue', $field)) {
             return new Text(
@@ -453,7 +456,7 @@ class Firebase extends Source
                 $collection,
                 required: false,
                 default: null,
-                array: false,
+                array: $array,
                 size: 1000000,
             );
         } elseif (array_key_exists('arrayValue', $field)) {
@@ -470,7 +473,7 @@ class Firebase extends Source
 
         foreach ($data['values'] as $field) {
             if (! $previousType) {
-                $previousType = $this->convertAttribute($collection, $key, $field);
+                $previousType = $this->convertAttribute($collection, $key, $field, true);
             } elseif ($previousType->getName() != ($this->convertAttribute($collection, $key, $field))->getName()) {
                 $isSameType = false;
                 break;
@@ -478,11 +481,9 @@ class Firebase extends Source
         }
 
         if ($isSameType) {
-            $previousType->setArray(true);
-
             return $previousType;
         } else {
-            return new Text($key, $collection, false, true, null, 1000000);
+            return new Text($key, $collection, false, true, true, 1000000);
         }
     }
 
@@ -521,7 +522,7 @@ class Firebase extends Source
                     }
                 }
 
-                $documents[] = $this->convertDocument($collection, $document);
+                $documents[] = $this->convertDocument($collection, $document, $documentSchema);
             }
 
             // Transfer Documents
@@ -561,9 +562,9 @@ class Firebase extends Source
         } elseif (array_key_exists('bytesValue', $field)) {
             return $field['bytesValue'];
         } elseif (array_key_exists('doubleValue', $field)) {
-            return $field['doubleValue'];
+            return (int)$field['doubleValue'];
         } elseif (array_key_exists('integerValue', $field)) {
-            return $field['integerValue'];
+            return (int)$field['integerValue'];
         } elseif (array_key_exists('mapValue', $field)) {
             return json_encode($field['mapValue']);
         } elseif (array_key_exists('nullValue', $field)) {
@@ -577,7 +578,11 @@ class Firebase extends Source
         } elseif (array_key_exists('geoPointValue', $field)) {
             return [$field['geoPointValue']['latitude'], $field['geoPointValue']['longitude']];
         } elseif (array_key_exists('arrayValue', $field)) {
-            //TODO:
+            $values = [];
+            foreach ($field['arrayValue']['values'] as $value) {
+                $values[] = $this->calculateValue($value);
+            }
+            return array_values($values);
         } elseif (array_key_exists('referenceValue', $field)) {
             //TODO:
         } else {
@@ -585,11 +590,19 @@ class Firebase extends Source
         }
     }
 
-    private function convertDocument(Collection $collection, array $document): Document
+    private function convertDocument(Collection $collection, array $document, array $documentSchema): Document
     {
         $data = [];
         foreach ($document['fields'] as $key => $field) {
-            $data[$key] = $this->calculateValue($field);
+            $value = $this->calculateValue($field);
+
+            if ($documentSchema[$key]->getType() === Attribute::TYPE_STRING && is_array($value)) {
+                $value = array_map(function($item) {
+                    return strval($item);
+                }, $value);
+            };
+
+            $data[$key] = $value;
         }
 
         $documentId = explode('/', $document['name']);
