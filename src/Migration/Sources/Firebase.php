@@ -597,7 +597,7 @@ class Firebase extends Source
             $value = $this->calculateValue($field);
 
             if ($documentSchema[$key]->getType() === Attribute::TYPE_STRING && is_array($value)) {
-                $value = array_map(function($item) {
+                $value = array_map(function ($item) {
                     return strval($item);
                 }, $value);
             };

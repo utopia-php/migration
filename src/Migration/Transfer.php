@@ -186,8 +186,8 @@ class Transfer
     public function run(
         array $resources,
         callable $callback,
-        string $rootResourceId = null,
-        string $rootResourceType = null,
+        ?string $rootResourceId = null,
+        ?string $rootResourceType = null,
     ): void {
         // Allows you to push entire groups if you want.
         $computedResources = [];
