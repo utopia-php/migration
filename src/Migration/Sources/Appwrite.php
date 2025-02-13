@@ -312,7 +312,7 @@ class Appwrite extends Source
             if ($e->getCode() === 403) {
                 throw new \Exception("Missing scope: $scope.");
             } else {
-                throw new \Exception($e->getMessage());
+                throw new \Exception($e->getMessage(), previous: $e);
             }
         }
     }
