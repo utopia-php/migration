@@ -275,10 +275,11 @@ class Firebase extends Source
             throw $e;
         }
 
+        $database = new Database('default', 'default');
+        $database->setOriginalId('(default)');
+
         try {
             if (\in_array(Resource::TYPE_DATABASE, $resources)) {
-                $database = new Database('default', 'default');
-                $database->setOriginalId('(default)');
                 $this->callback([$database]);
             }
         } catch (\Throwable $e) {
