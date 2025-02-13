@@ -558,13 +558,13 @@ class Firebase extends Source
     private function calculateValue(array $field)
     {
         if (array_key_exists('booleanValue', $field)) {
-            return $field['booleanValue'];
+            return boolval($field['booleanValue']);
         } elseif (array_key_exists('bytesValue', $field)) {
             return $field['bytesValue'];
         } elseif (array_key_exists('doubleValue', $field)) {
-            return (int)$field['doubleValue'];
+            return floatval($field['doubleValue']);
         } elseif (array_key_exists('integerValue', $field)) {
-            return (int)$field['integerValue'];
+            return intval($field['integerValue']);
         } elseif (array_key_exists('mapValue', $field)) {
             return json_encode($field['mapValue']);
         } elseif (array_key_exists('nullValue', $field)) {
@@ -576,7 +576,7 @@ class Firebase extends Source
         } elseif (array_key_exists('timestampValue', $field)) {
             return $field['timestampValue'];
         } elseif (array_key_exists('geoPointValue', $field)) {
-            return [$field['geoPointValue']['latitude'], $field['geoPointValue']['longitude']];
+            return json_encode($field['geoPointValue']);
         } elseif (array_key_exists('arrayValue', $field)) {
             $values = [];
             foreach ($field['arrayValue']['values'] as $value) {
