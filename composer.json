@@ -19,7 +19,7 @@
         "test": "./vendor/bin/phpunit",
         "lint": "./vendor/bin/pint --test",
         "format": "./vendor/bin/pint",
-        "check": "./vendor/bin/phpstan analyse --level 2 src tests --memory-limit 2G"
+        "check": "./vendor/bin/phpstan analyse --level 3 src tests --memory-limit 2G"
     },
     "require": {
         "php": ">=8.1",
