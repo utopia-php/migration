@@ -643,7 +643,7 @@ class Appwrite extends Source
 
                 $attributes = $this->cache->get(Attribute::getName());
                 foreach ($attributes as $attribute) {
-                    /** @var Attribute|Relationship $attribute */
+                    /** @var Relationship $attribute */
                     if (
                         $attribute->getCollection()->getId() === $collection->getId() &&
                         $attribute->getType() === Attribute::TYPE_RELATIONSHIP &&
@@ -660,6 +660,7 @@ class Appwrite extends Source
                         $manyToMany[] = $attribute->getKey();
                     }
                 }
+                /** @var Attribute|Relationship $attribute */
 
                 $queries[] = Query::select($selects);
 
@@ -1132,7 +1133,7 @@ class Appwrite extends Source
 
         try {
             if (in_array(Resource::TYPE_BUCKET, $resources)) {
-                $this->exportBuckets($batchSize, true);
+                $this->exportBuckets($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(

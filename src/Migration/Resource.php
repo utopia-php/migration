@@ -155,7 +155,7 @@ abstract class Resource implements \JsonSerializable
     }
 
     /**
-     * @returns array<string>
+     * @return array<string>
      */
     public function getPermissions(): array
     {

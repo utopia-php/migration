@@ -105,8 +105,6 @@ class Transfer
         $this->source->registerCache($this->cache);
         $this->destination->registerCache($this->cache);
         $this->destination->setSource($source);
-
-        return $this;
     }
 
     public function getStatusCounters(): array
@@ -186,8 +184,8 @@ class Transfer
     public function run(
         array $resources,
         callable $callback,
-        string $rootResourceId = null,
-        string $rootResourceType = null,
+        ?string $rootResourceId = null,
+        ?string $rootResourceType = null,
     ): void {
         // Allows you to push entire groups if you want.
         $computedResources = [];
@@ -196,12 +194,14 @@ class Transfer
 
         foreach ($resources as $resource) {
             if (is_array($resource)) {
+                /** @var array<string> $resource */
                 $computedResources = array_merge($computedResources, $resource);
             } else {
                 $computedResources[] = $resource;
             }
         }
 
+        /** @var array<string> $computedResources */
         $computedResources = array_map('strtolower', $computedResources);
 
         if ($rootResourceId !== '') {
