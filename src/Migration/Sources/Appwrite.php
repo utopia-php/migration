@@ -1044,39 +1044,6 @@ class Appwrite extends Source
                     unset($document['$collectionId']);
                     unset($document['$databaseId']);
 
-                    // Certain Appwrite versions allowed for data to be required but null
-                    // This isn't allowed in modern versions so we need to remove it by comparing their attributes and replacing it with default value.
-                    $attributes = $this->cache->get(Attribute::getName());
-                    foreach ($attributes as $attribute) {
-                        /** @var Attribute $attribute */
-                        if ($attribute->getCollection()->getId() !== $collection->getId()) {
-                            continue;
-                        }
-
-                        if ($attribute->isRequired() && ! isset($document[$attribute->getKey()])) {
-                            switch ($attribute->getType()) {
-                                case Attribute::TYPE_BOOLEAN:
-                                    $document[$attribute->getKey()] = false;
-                                    break;
-                                case Attribute::TYPE_STRING:
-                                    $document[$attribute->getKey()] = '';
-                                    break;
-                                case Attribute::TYPE_INTEGER:
-                                    $document[$attribute->getKey()] = 0;
-                                    break;
-                                case Attribute::TYPE_FLOAT:
-                                    $document[$attribute->getKey()] = 0.0;
-                                    break;
-                                case Attribute::TYPE_DATETIME:
-                                    $document[$attribute->getKey()] = '1970-01-01 00:00:00.000';
-                                    break;
-                                case Attribute::TYPE_URL:
-                                    $document[$attribute->getKey()] = 'http://null';
-                                    break;
-                            }
-                        }
-                    }
-
                     $documents[] = new Document(
                         $id,
                         $collection,
