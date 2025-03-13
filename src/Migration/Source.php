@@ -4,6 +4,8 @@ namespace Utopia\Migration;
 
 abstract class Source extends Target
 {
+    protected static int $defaultBatchSize = 100;
+
     /**
      * @var callable(array<Resource>): void $transferCallback
      */
@@ -13,6 +15,26 @@ abstract class Source extends Target
      * @var array<string, int>
      */
     public array $previousReport = [];
+
+    public function getAuthBatchSize(): int
+    {
+        return static::$defaultBatchSize;
+    }
+
+    public function getDatabasesBatchSize(): int
+    {
+        return static::$defaultBatchSize;
+    }
+
+    public function getStorageBatchSize(): int
+    {
+        return static::$defaultBatchSize;
+    }
+
+    public function getFunctionsBatchSize(): int
+    {
+        return static::$defaultBatchSize;
+    }
 
     /**
      * @param array<Resource> $resources
@@ -39,7 +61,7 @@ abstract class Source extends Target
             $prunedResources = [];
             foreach ($returnedResources as $resource) {
                 /** @var Resource $resource */
-                if (! in_array($resource->getName(), $resources)) {
+                if (!in_array($resource->getName(), $resources)) {
                     $resource->setStatus(Resource::STATUS_SKIPPED);
                 } else {
                     $prunedResources[] = $resource;
@@ -56,24 +78,24 @@ abstract class Source extends Target
     /**
      * Export Resources
      *
-     * @param  array<string>  $resources  Resources to export
+     * @param array<string> $resources Resources to export
      */
     public function exportResources(array $resources): void
     {
-        // Convert Resources back into their relevant groups
-
-        $batchSize = $this->getBatchSize();
-
         $groups = [];
         foreach ($resources as $resource) {
-            if (\in_array($resource, Transfer::GROUP_AUTH_RESOURCES)) {
-                $groups[Transfer::GROUP_AUTH][] = $resource;
-            } elseif (\in_array($resource, Transfer::GROUP_DATABASES_RESOURCES)) {
-                $groups[Transfer::GROUP_DATABASES][] = $resource;
-            } elseif (\in_array($resource, Transfer::GROUP_STORAGE_RESOURCES)) {
-                $groups[Transfer::GROUP_STORAGE][] = $resource;
-            } elseif (\in_array($resource, Transfer::GROUP_FUNCTIONS_RESOURCES)) {
-                $groups[Transfer::GROUP_FUNCTIONS][] = $resource;
+            $mapping = [
+                Transfer::GROUP_AUTH => Transfer::GROUP_AUTH_RESOURCES,
+                Transfer::GROUP_DATABASES => Transfer::GROUP_DATABASES_RESOURCES,
+                Transfer::GROUP_STORAGE => Transfer::GROUP_STORAGE_RESOURCES,
+                Transfer::GROUP_FUNCTIONS => Transfer::GROUP_FUNCTIONS_RESOURCES,
+            ];
+
+            foreach ($mapping as $group => $resources) {
+                if (\in_array($resource, $resources, true)) {
+                    $groups[$group][] = $resource;
+                    break;
+                }
             }
         }
 
@@ -81,58 +103,53 @@ abstract class Source extends Target
             return;
         }
 
-        // Send each group to the relevant export function
         foreach ($groups as $group => $resources) {
             switch ($group) {
                 case Transfer::GROUP_AUTH:
-                    $this->exportGroupAuth($batchSize, $resources);
+                    $this->exportGroupAuth($this->getAuthBatchSize(), $resources);
                     break;
                 case Transfer::GROUP_DATABASES:
-                    $this->exportGroupDatabases($batchSize, $resources);
+                    $this->exportGroupDatabases($this->getDatabasesBatchSize(), $resources);
                     break;
                 case Transfer::GROUP_STORAGE:
-                    $this->exportGroupStorage($batchSize, $resources);
+                    $this->exportGroupStorage($this->getStorageBatchSize(), $resources);
                     break;
                 case Transfer::GROUP_FUNCTIONS:
-                    $this->exportGroupFunctions($batchSize, $resources);
+                    $this->exportGroupFunctions($this->getFunctionsBatchSize(), $resources);
                     break;
             }
         }
-    }
-    public function getBatchSize(): int
-    {
-        return 100;
     }
 
     /**
      * Export Auth Group
      *
-     * @param  int  $batchSize  Max 100
-     * @param  array<string>  $resources  Resources to export
+     * @param int $batchSize
+     * @param array<string> $resources Resources to export
      */
     abstract protected function exportGroupAuth(int $batchSize, array $resources): void;
 
     /**
      * Export Databases Group
      *
-     * @param  int  $batchSize  Max 100
-     * @param  array<string>  $resources  Resources to export
+     * @param int $batchSize
+     * @param array<string> $resources Resources to export
      */
     abstract protected function exportGroupDatabases(int $batchSize, array $resources): void;
 
     /**
      * Export Storage Group
      *
-     * @param  int  $batchSize  Max 5
-     * @param  array<string>  $resources  Resources to export
+     * @param int $batchSize Max 5
+     * @param array<string> $resources Resources to export
      */
     abstract protected function exportGroupStorage(int $batchSize, array $resources): void;
 
     /**
      * Export Functions Group
      *
-     * @param  int  $batchSize  Max 100
-     * @param  array<string>  $resources  Resources to export
+     * @param int $batchSize
+     * @param array<string> $resources Resources to export
      */
     abstract protected function exportGroupFunctions(int $batchSize, array $resources): void;
 }
