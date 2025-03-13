@@ -109,7 +109,7 @@ class Appwrite extends Source
     }
 
     /**
-     * @param  array<string>  $resources
+     * @param array<string> $resources
      * @return array<string, mixed>
      *
      * @throws \Exception
@@ -148,35 +148,38 @@ class Appwrite extends Source
             // Databases
             $scope = 'databases.read';
             if (\in_array(Resource::TYPE_DATABASE, $resources)) {
-                $report[Resource::TYPE_DATABASE] = \count($this->listDatabases());
+                $report[Resource::TYPE_DATABASE] = $this->countResources('databases');
             }
 
             $scope = 'collections.read';
             if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
                 $report[Resource::TYPE_COLLECTION] = 0;
-                $databases = $this->database->list()['databases'];
+                $databases = $this->listDatabases();
                 foreach ($databases as $database) {
-                    $report[Resource::TYPE_COLLECTION] += $this->listCollections($database);
+                    $collectionId = "database_{$database->getInternalId()}";
 
-                    $report[Resource::TYPE_COLLECTION] += $this->database->listCollections(
-                        $database['$id'],
-                        [Query::limit(1)]
-                    )['total'];
+                    $report[Resource::TYPE_COLLECTION] += $this->countResources($collectionId);
                 }
             }
 
             $scope = 'documents.read';
             if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
                 $report[Resource::TYPE_DOCUMENT] = 0;
-                $databases = $this->database->list()['databases'];
+                $databases = $this->listDatabases();
                 foreach ($databases as $database) {
-                    $collections = $this->database->listCollections($database['$id'])['collections'];
+                    $dbResource = new Database(
+                        $database->getId(),
+                        $database->getAttribute('name'),
+                        $database->getCreatedAt(),
+                        $database->getUpdatedAt(),
+                    );
+
+                    $collections = $this->listCollections($dbResource);
+
                     foreach ($collections as $collection) {
-                        $report[Resource::TYPE_DOCUMENT] += $this->database->listDocuments(
-                            $database['$id'],
-                            $collection['$id'],
-                            [Query::limit(1)]
-                        )['total'];
+                        $collectionId = "database_{$database->getInternal()}_collection_{$collection->getInternalId()}";
+
+                        $report[Resource::TYPE_DOCUMENT] += $this->countResources($collectionId);
                     }
                 }
             }
@@ -184,14 +187,22 @@ class Appwrite extends Source
             $scope = 'attributes.read';
             if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
                 $report[Resource::TYPE_ATTRIBUTE] = 0;
-                $databases = $this->database->list()['databases'];
+                $databases = $this->listDatabases();
                 foreach ($databases as $database) {
-                    $collections = $this->database->listCollections($database['$id'])['collections'];
+                    $dbResource = new Database(
+                        $database->getId(),
+                        $database->getAttribute('name'),
+                        $database->getCreatedAt(),
+                        $database->getUpdatedAt(),
+                    );
+
+                    $collections = $this->listCollections($dbResource);
+
                     foreach ($collections as $collection) {
-                        $report[Resource::TYPE_ATTRIBUTE] += $this->database->listAttributes(
-                            $database['$id'],
-                            $collection['$id']
-                        )['total'];
+                        $report[Resource::TYPE_ATTRIBUTE] += $this->countResources('attributes', [
+                            Query::equal('databaseInternalId', [$database->getInternalId()]),
+                            Query::equal('collectionInternalId', [$collection->getInternalId()]),
+                        ]);
                     }
                 }
             }
@@ -199,14 +210,22 @@ class Appwrite extends Source
             $scope = 'indexes.read';
             if (\in_array(Resource::TYPE_INDEX, $resources)) {
                 $report[Resource::TYPE_INDEX] = 0;
-                $databases = $this->database->list()['databases'];
+                $databases = $this->listDatabases();
                 foreach ($databases as $database) {
-                    $collections = $this->database->listCollections($database['$id'])['collections'];
+                    $dbResource = new Database(
+                        $database->getId(),
+                        $database->getAttribute('name'),
+                        $database->getCreatedAt(),
+                        $database->getUpdatedAt(),
+                    );
+
+                    $collections = $this->listCollections($dbResource);
+
                     foreach ($collections as $collection) {
-                        $report[Resource::TYPE_INDEX] += $this->database->listIndexes(
-                            $database['$id'],
-                            $collection['$id']
-                        )['total'];
+                        $report[Resource::TYPE_INDEX] += $this->countResources('indexes', [
+                            Query::equal('databaseInternalId', [$database->getInternalId()]),
+                            Query::equal('collectionInternalId', [$collection->getInternalId()]),
+                        ]);
                     }
                 }
             }
@@ -280,7 +299,7 @@ class Appwrite extends Source
                 $report[Resource::TYPE_DEPLOYMENT] = 0;
                 $functions = $this->functions->list()['functions'];
                 foreach ($functions as $function) {
-                    if (! empty($function['deployment'])) {
+                    if (!empty($function['deployment'])) {
                         $report[Resource::TYPE_DEPLOYMENT] += 1;
                     }
                 }
@@ -1196,6 +1215,21 @@ class Appwrite extends Source
         $queries[] = Query::equal('collectionInternalId', [$collection->getInternalId()]);
 
         return $this->db->find('indexes', $queries);
+    }
+
+    /**
+     * @param string $collection
+     * @param array $queries
+     * @return int
+     * @throws Exception
+     */
+    private function countResources(string $collection, array $queries = []): int
+    {
+        try {
+            return $this->db->count($collection, $queries);
+        } catch (DatabaseException $e) {
+            throw new Exception($e->getMessage(), $e->getCode(), $e);
+        }
     }
 
     protected function exportGroupStorage(int $batchSize, array $resources): void
