@@ -1513,6 +1513,6 @@ class Appwrite extends Source
 
     public function getBatchSize(): int
     {
-        return 250;
+        return 500;
     }
 }
