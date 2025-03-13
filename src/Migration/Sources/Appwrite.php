@@ -1064,24 +1064,44 @@ class Appwrite extends Source
     }
 
     /**
-     * @throws Timeout
-     * @throws \Utopia\Database\Exception
-     * @throws \Utopia\Database\Exception\Query
+     * @throws Exception
+     *
+     * @returns array<Document>
      */
     private function listDatabases(array $queries = []): array
     {
-        return $this->db->find('databases', $queries);
+        try {
+            return $this->db->find('databases', $queries);
+        } catch (DatabaseException $e) {
+            throw new Exception(
+                resourceName: 'databases',
+                resourceGroup: Transfer::GROUP_DATABASES,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            );
+        }
     }
 
     /**
      * @throws Exception
-     * @throws \Utopia\Database\Exception
-     * @throws Timeout
-     * @throws \Utopia\Database\Exception\Query
+     *
+     * @returns array<Document>
      */
     private function listCollections(Database $resource, array $queries = []): array
     {
-        $database = $this->db->getDocument('databases', $resource->getId());
+        try {
+            $database = $this->db->getDocument('databases', $resource->getId());
+        } catch (DatabaseException $e) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            );
+        }
 
         if ($database->isEmpty()) {
             throw new Exception(
@@ -1092,17 +1112,29 @@ class Appwrite extends Source
             );
         }
 
-        return $this->db->find(
-            'database_' . $database->getInternalId(),
-            $queries
-        );
+        try {
+            return $this->db->find(
+                'database_' . $database->getInternalId(),
+                $queries
+            );
+        } catch (DatabaseException $e) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            );
+        }
     }
 
     /**
+     * @param Collection $resource
+     * @param array $queries
+     * @return array
+     * @throws DatabaseException
      * @throws Exception
-     * @throws \Utopia\Database\Exception
-     * @throws Timeout
-     * @throws \Utopia\Database\Exception\Query
      */
     private function listAttributes(Collection $resource, array $queries = []): array
     {
@@ -1137,14 +1169,26 @@ class Appwrite extends Source
         $queries[] = Query::equal('databaseInternalId', [$database->getInternalId()]);
         $queries[] = Query::equal('collectionInternalId', [$collection->getInternalId()]);
 
-        return $this->db->find('attributes', $queries);
+        try {
+            return $this->db->find('attributes', $queries);
+        } catch (DatabaseException $e) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            );
+        }
     }
 
     /**
+     * @param Collection $resource
+     * @param array $queries
+     * @return array
+     * @throws DatabaseException
      * @throws Exception
-     * @throws \Utopia\Database\Exception
-     * @throws Timeout
-     * @throws \Utopia\Database\Exception\Query
      */
     private function listIndexes(Collection $resource, array $queries = []): array
     {
@@ -1179,7 +1223,19 @@ class Appwrite extends Source
         $queries[] = Query::equal('databaseInternalId', [$database->getInternalId()]);
         $queries[] = Query::equal('collectionInternalId', [$collection->getInternalId()]);
 
-        return $this->db->find('indexes', $queries);
+        try {
+            return $this->db->find('indexes', $queries);
+        } catch (DatabaseException $e) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            );
+        }
+    }
 
     private function listDocuments(Collection $resource, array $queries = []): array
     {
