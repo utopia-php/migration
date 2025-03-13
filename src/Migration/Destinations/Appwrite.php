@@ -943,7 +943,7 @@ class Appwrite extends Destination
                             continue;
                         }
 
-                        /** @var $attribute \Utopia\Database\Document */
+                        /** @var \Utopia\Database\Document $attribute */
                         $found = false;
                         foreach ($collection->getAttribute('attributes', []) as $attribute) {
                             if ($attribute->getAttribute('key') == $key) {
