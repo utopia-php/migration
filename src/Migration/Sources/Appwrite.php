@@ -5,16 +5,12 @@ namespace Utopia\Migration\Sources;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Query;
-use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
-use Appwrite\Utopia\Response;
 use Utopia\Database\Database as UtopiaDatabase;
-use Utopia\Database\Exception\Timeout;
-use Utopia\Database\Validator\Authorization;
-use Utopia\Database\Validator\Query\Cursor;
+use Utopia\Database\Exception as DatabaseException;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -721,8 +717,8 @@ class Appwrite extends Source
 
 
     /**
-     * @throws AppwriteException
-     * @throws \Exception
+     * @param int $batchSize
+     * @throws Exception
      */
     private function exportAttributes(int $batchSize): void
     {
@@ -750,9 +746,9 @@ class Appwrite extends Source
                     }
 
                     switch ($attribute['type']) {
-                        case UtopiaDatabase::VAR_STRING:
+                        case Attribute::TYPE_STRING:
                             $attr = match ($attribute['format']) {
-                                'email' => new Email(
+                                Attribute::TYPE_EMAIL => new Email(
                                     $attribute['key'],
                                     $collection,
                                     required: $attribute['required'],
@@ -762,7 +758,7 @@ class Appwrite extends Source
                                     createdAt: $attribute['$createdAt'] ?? '',
                                     updatedAt: $attribute['$updatedAt'] ?? '',
                                 ),
-                                'enum' => new Enum(
+                                Attribute::TYPE_ENUM => new Enum(
                                     $attribute['key'],
                                     $collection,
                                     elements: $attribute['elements'],
@@ -773,7 +769,7 @@ class Appwrite extends Source
                                     createdAt: $attribute['$createdAt'] ?? '',
                                     updatedAt: $attribute['$updatedAt'] ?? '',
                                 ),
-                                'url' => new URL(
+                                Attribute::TYPE_URL => new URL(
                                     $attribute['key'],
                                     $collection,
                                     required: $attribute['required'],
@@ -783,7 +779,7 @@ class Appwrite extends Source
                                     createdAt: $attribute['$createdAt'] ?? '',
                                     updatedAt: $attribute['$updatedAt'] ?? '',
                                 ),
-                                'ip' => new IP(
+                                Attribute::TYPE_IP => new IP(
                                     $attribute['key'],
                                     $collection,
                                     required: $attribute['required'],
@@ -806,7 +802,7 @@ class Appwrite extends Source
                             };
 
                             break;
-                        case UtopiaDatabase::VAR_BOOLEAN:
+                        case Attribute::TYPE_BOOLEAN:
                             $attr = new Boolean(
                                 $attribute['key'],
                                 $collection,
@@ -817,7 +813,7 @@ class Appwrite extends Source
                                 updatedAt: $attribute['$updatedAt'] ?? '',
                             );
                             break;
-                        case UtopiaDatabase::VAR_INTEGER:
+                        case Attribute::TYPE_INTEGER:
                             $attr = new Integer(
                                 $attribute['key'],
                                 $collection,
@@ -830,7 +826,7 @@ class Appwrite extends Source
                                 updatedAt: $attribute['$updatedAt'] ?? '',
                             );
                             break;
-                        case UtopiaDatabase::VAR_FLOAT:
+                        case Attribute::TYPE_FLOAT:
                             $attr = new Decimal(
                                 $attribute['key'],
                                 $collection,
@@ -843,7 +839,7 @@ class Appwrite extends Source
                                 updatedAt: $attribute['$updatedAt'] ?? '',
                             );
                             break;
-                        case UtopiaDatabase::VAR_RELATIONSHIP:
+                        case Attribute::TYPE_RELATIONSHIP:
                             $attr = new Relationship(
                                 $attribute['key'],
                                 $collection,
@@ -857,7 +853,7 @@ class Appwrite extends Source
                                 updatedAt: $attribute['$updatedAt'] ?? '',
                             );
                             break;
-                        case 'datetime':
+                        case Attribute::TYPE_DATETIME:
                             $attr = new DateTime(
                                 $attribute['key'],
                                 $collection,
@@ -871,7 +867,12 @@ class Appwrite extends Source
                     }
 
                     if (!isset($attr)) {
-                        throw new \Exception('Unknown attribute type: ' . $attribute['type']);
+                        throw new Exception(
+                            resourceName: Resource::TYPE_ATTRIBUTE,
+                            resourceGroup: Transfer::GROUP_DATABASES,
+                            resourceId: $attribute['$id'],
+                            message: 'Unknown attribute type: ' . $attribute['type']
+                        );
                     }
 
                     $attributes[] = $attr;
