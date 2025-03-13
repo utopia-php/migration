@@ -637,7 +637,8 @@ class Appwrite extends Source
 
 
     /**
-     * @throws AppwriteException
+     * @param int $batchSize
+     * @throws Exception
      */
     private function exportDatabases(int $batchSize): void
     {
@@ -685,7 +686,8 @@ class Appwrite extends Source
     }
 
     /**
-     * @throws AppwriteException
+     * @param int $batchSize
+     * @throws Exception
      */
     private function exportCollections(int $batchSize): void
     {
@@ -913,7 +915,8 @@ class Appwrite extends Source
     }
 
     /**
-     * @throws AppwriteException
+     * @param int $batchSize
+     * @throws Exception
      */
     private function exportIndexes(int $batchSize): void
     {
@@ -964,7 +967,7 @@ class Appwrite extends Source
     }
 
     /**
-     * @throws AppwriteException
+     * @throws Exception
      */
     private function exportDocuments(int $batchSize): void
     {
@@ -1009,13 +1012,9 @@ class Appwrite extends Source
 
                 $queries[] = Query::select($selects);
 
-                $response = $this->database->listDocuments(
-                    $collection->getDatabase()->getId(),
-                    $collection->getId(),
-                    $queries
-                );
+                $response = $this->listDocuments($collection, $queries);
 
-                foreach ($response['documents'] as $document) {
+                foreach ($response as $document) {
                     // HACK: Handle many to many
                     if (! empty($manyToMany)) {
                         $stack = ['$id']; // Adding $id because we can't select only relations
@@ -1023,8 +1022,7 @@ class Appwrite extends Source
                             $stack[] = $relation.'.$id';
                         }
 
-                        $doc = $this->database->getDocument(
-                            $collection->getDatabase()->getId(),
+                        $doc = $this->db->getDocument(
                             $collection->getId(),
                             $document['$id'],
                             [Query::select($stack)]
@@ -1091,7 +1089,7 @@ class Appwrite extends Source
 
                 $this->callback($documents);
 
-                if (count($response['documents']) < $batchSize) {
+                if (count($response) < $batchSize) {
                     break;
                 }
             }
@@ -1215,6 +1213,51 @@ class Appwrite extends Source
         $queries[] = Query::equal('collectionInternalId', [$collection->getInternalId()]);
 
         return $this->db->find('indexes', $queries);
+
+    private function listDocuments(Collection $resource, array $queries = []): array
+    {
+        $database = $this->db->getDocument(
+            'databases',
+            $resource->getDatabase()->getId(),
+        );
+
+        if ($database->isEmpty()) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Database not found',
+            );
+        }
+
+        $collection = $this->db->getDocument(
+            'database_' . $database->getInternalId(),
+            $resource->getId(),
+        );
+
+        if ($collection->isEmpty()) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Collection not found',
+            );
+        }
+
+        $collectionId = "database_{$database->getInternalId()}_collection_{$collection->getInternalId()}";
+
+        try {
+            return $this->db->find($collectionId, $queries);
+        } catch (DatabaseException $e) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            );
+        }
     }
 
     /**
