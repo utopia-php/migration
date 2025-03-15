@@ -179,7 +179,7 @@ class DatabaseReader implements Reader
         $queries[] = Query::equal('collectionInternalId', [$collection->getInternalId()]);
 
         try {
-            return $this->dbForProject->find('attributes', $queries);
+            $attributes = $this->dbForProject->find('attributes', $queries);
         } catch (DatabaseException $e) {
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -190,6 +190,21 @@ class DatabaseReader implements Reader
                 previous: $e
             );
         }
+
+        foreach ($attributes as $attribute) {
+            if ($attribute['type'] !== UtopiaDatabase::VAR_RELATIONSHIP) {
+                continue;
+            }
+
+            $options = $attribute['options'];
+            foreach ($options as $key => $value) {
+                $attribute[$key] = $value;
+            }
+
+            unset($attribute['options']);
+        }
+
+        return $attributes;
     }
 
     public function listIndexes(Collection $resource, array $queries = []): array
