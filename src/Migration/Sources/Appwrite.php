@@ -64,7 +64,7 @@ class Appwrite extends Source
         protected string $project,
         protected string $endpoint,
         protected string $key,
-        protected DataSource $dataSource,
+        protected DataSource $dataSource = DataSource::API,
         protected ?UtopiaDatabase $dbForProject = null
     )
     {
