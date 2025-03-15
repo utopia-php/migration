@@ -47,7 +47,7 @@ class DatabaseReader implements Reader
                 $collections = $this->listCollections($dbResource);
 
                 foreach ($collections as $collection) {
-                    $collectionId = "database_{$database->getInternal()}_collection_{$collection->getInternalId()}";
+                    $collectionId = "database_{$database->getInternalId()}_collection_{$collection->getInternalId()}";
 
                     $report[Resource::TYPE_DOCUMENT] += $this->countResources($collectionId);
                 }
