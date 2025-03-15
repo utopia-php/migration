@@ -146,196 +146,11 @@ class Appwrite extends Source
             $resources = $this->getSupportedResources();
         }
 
-        // Auth
         try {
-            $scope = 'users.read';
-            if (\in_array(Resource::TYPE_USER, $resources)) {
-                $report[Resource::TYPE_USER] = $this->users->list()['total'];
-            }
-
-            $scope = 'teams.read';
-            if (\in_array(Resource::TYPE_TEAM, $resources)) {
-                $report[Resource::TYPE_TEAM] = $this->teams->list()['total'];
-            }
-
-            if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
-                $report[Resource::TYPE_MEMBERSHIP] = 0;
-                $teams = $this->teams->list()['teams'];
-                foreach ($teams as $team) {
-                    $report[Resource::TYPE_MEMBERSHIP] += $this->teams->listMemberships(
-                        $team['$id'],
-                        [Query::limit(1)]
-                    )['total'];
-                }
-            }
-
-            // Databases
-            $scope = 'databases.read';
-            if (\in_array(Resource::TYPE_DATABASE, $resources)) {
-                $report[Resource::TYPE_DATABASE] = $this->countResources('databases');
-            }
-
-            $scope = 'collections.read';
-            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
-                $report[Resource::TYPE_COLLECTION] = 0;
-                $databases = $this->listDatabases();
-                foreach ($databases as $database) {
-                    $collectionId = "database_{$database->getInternalId()}";
-
-                    $report[Resource::TYPE_COLLECTION] += $this->countResources($collectionId);
-                }
-            }
-
-            $scope = 'documents.read';
-            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
-                $report[Resource::TYPE_DOCUMENT] = 0;
-                $databases = $this->listDatabases();
-                foreach ($databases as $database) {
-                    $dbResource = new Database(
-                        $database->getId(),
-                        $database->getAttribute('name'),
-                        $database->getCreatedAt(),
-                        $database->getUpdatedAt(),
-                    );
-
-                    $collections = $this->listCollections($dbResource);
-
-                    foreach ($collections as $collection) {
-                        $collectionId = "database_{$database->getInternal()}_collection_{$collection->getInternalId()}";
-
-                        $report[Resource::TYPE_DOCUMENT] += $this->countResources($collectionId);
-                    }
-                }
-            }
-
-            $scope = 'attributes.read';
-            if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-                $report[Resource::TYPE_ATTRIBUTE] = 0;
-                $databases = $this->listDatabases();
-                foreach ($databases as $database) {
-                    $dbResource = new Database(
-                        $database->getId(),
-                        $database->getAttribute('name'),
-                        $database->getCreatedAt(),
-                        $database->getUpdatedAt(),
-                    );
-
-                    $collections = $this->listCollections($dbResource);
-
-                    foreach ($collections as $collection) {
-                        $report[Resource::TYPE_ATTRIBUTE] += $this->countResources('attributes', [
-                            Query::equal('databaseInternalId', [$database->getInternalId()]),
-                            Query::equal('collectionInternalId', [$collection->getInternalId()]),
-                        ]);
-                    }
-                }
-            }
-
-            $scope = 'indexes.read';
-            if (\in_array(Resource::TYPE_INDEX, $resources)) {
-                $report[Resource::TYPE_INDEX] = 0;
-                $databases = $this->listDatabases();
-                foreach ($databases as $database) {
-                    $dbResource = new Database(
-                        $database->getId(),
-                        $database->getAttribute('name'),
-                        $database->getCreatedAt(),
-                        $database->getUpdatedAt(),
-                    );
-
-                    $collections = $this->listCollections($dbResource);
-
-                    foreach ($collections as $collection) {
-                        $report[Resource::TYPE_INDEX] += $this->countResources('indexes', [
-                            Query::equal('databaseInternalId', [$database->getInternalId()]),
-                            Query::equal('collectionInternalId', [$collection->getInternalId()]),
-                        ]);
-                    }
-                }
-            }
-
-            // Storage
-            $scope = 'buckets.read';
-            if (\in_array(Resource::TYPE_BUCKET, $resources)) {
-                $report[Resource::TYPE_BUCKET] = $this->storage->listBuckets()['total'];
-            }
-
-            $scope = 'files.read';
-            if (\in_array(Resource::TYPE_FILE, $resources)) {
-                $report[Resource::TYPE_FILE] = 0;
-                $report['size'] = 0;
-                $buckets = [];
-                $lastBucket = null;
-
-                while (true) {
-                    $currentBuckets = $this->storage->listBuckets(
-                        $lastBucket
-                            ? [Query::cursorAfter($lastBucket)]
-                            : [Query::limit(20)]
-                    )['buckets'];
-
-                    $buckets = array_merge($buckets, $currentBuckets);
-                    $lastBucket = $buckets[count($buckets) - 1]['$id'] ?? null;
-
-                    if (count($currentBuckets) < 20) {
-                        break;
-                    }
-                }
-
-                foreach ($buckets as $bucket) {
-                    $files = [];
-                    $lastFile = null;
-
-                    while (true) {
-                        $currentFiles = $this->storage->listFiles(
-                            $bucket['$id'],
-                            $lastFile
-                                ? [Query::cursorAfter($lastFile)]
-                                : [Query::limit(20)]
-                        )['files'];
-
-                        $files = array_merge($files, $currentFiles);
-                        $lastFile = $files[count($files) - 1]['$id'] ?? null;
-
-                        if (count($currentFiles) < 20) {
-                            break;
-                        }
-                    }
-
-                    $report[Resource::TYPE_FILE] += count($files);
-                    foreach ($files as $file) {
-                        $report['size'] += $this->storage->getFile(
-                            $bucket['$id'],
-                            $file['$id']
-                        )['sizeOriginal'];
-                    }
-                }
-                $report['size'] = $report['size'] / 1000 / 1000; // MB
-            }
-
-            // Functions
-            $scope = 'functions.read';
-            if (\in_array(Resource::TYPE_FUNCTION, $resources)) {
-                $report[Resource::TYPE_FUNCTION] = $this->functions->list()['total'];
-            }
-
-            if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
-                $report[Resource::TYPE_DEPLOYMENT] = 0;
-                $functions = $this->functions->list()['functions'];
-                foreach ($functions as $function) {
-                    if (!empty($function['deployment'])) {
-                        $report[Resource::TYPE_DEPLOYMENT] += 1;
-                    }
-                }
-            }
-
-            if (\in_array(Resource::TYPE_ENVIRONMENT_VARIABLE, $resources)) {
-                $report[Resource::TYPE_ENVIRONMENT_VARIABLE] = 0;
-                $functions = $this->functions->list()['functions'];
-                foreach ($functions as $function) {
-                    $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += $this->functions->listVariables($function['$id'])['total'];
-                }
-            }
+            $this->reportAuth($resources, $report);
+            $this->reportDatabases($resources, $report);
+            $this->reportStorage($resources, $report);
+            $this->reportFunctions($resources, $report);
 
             $report['version'] = $this->call(
                 'GET',
@@ -345,15 +160,140 @@ class Appwrite extends Source
                     'X-Appwrite-Project' => '',
                 ]
             )['version'];
-
-            $this->previousReport = $report;
-
-            return $report;
         } catch (\Throwable $e) {
             if ($e->getCode() === 403) {
-                throw new \Exception("Missing scope: $scope.");
+                throw new \Exception("Missing required scopes.");
             } else {
                 throw new \Exception($e->getMessage(), previous: $e);
+            }
+        }
+
+        $this->previousReport = $report;
+
+        return $report;
+    }
+
+    /**
+     * @param array $resources
+     * @param array $report
+     * @throws AppwriteException
+     */
+    private function reportAuth(array $resources, array &$report): void
+    {
+        if (\in_array(Resource::TYPE_USER, $resources)) {
+            $report[Resource::TYPE_USER] = $this->users->list()['total'];
+        }
+
+        if (\in_array(Resource::TYPE_TEAM, $resources)) {
+            $report[Resource::TYPE_TEAM] = $this->teams->list()['total'];
+        }
+
+        if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
+            $report[Resource::TYPE_MEMBERSHIP] = 0;
+            $teams = $this->teams->list()['teams'];
+            foreach ($teams as $team) {
+                $report[Resource::TYPE_MEMBERSHIP] += $this->teams->listMemberships(
+                    $team['$id'],
+                    [Query::limit(1)]
+                )['total'];
+            }
+        }
+    }
+
+    /**
+     * @throws Exception
+     * @throws AppwriteException
+     */
+    private function reportDatabases(array $resources, array &$report): void
+    {
+        $this->database->report($resources, $report);
+    }
+
+    /**
+     * @param array $resources
+     * @param array $report
+     * @throws AppwriteException
+     */
+    private function reportStorage(array $resources, array &$report): void
+    {
+        if (\in_array(Resource::TYPE_BUCKET, $resources)) {
+            $report[Resource::TYPE_BUCKET] = $this->storage->listBuckets()['total'];
+        }
+
+        if (\in_array(Resource::TYPE_FILE, $resources)) {
+            $report[Resource::TYPE_FILE] = 0;
+            $report['size'] = 0;
+            $buckets = [];
+            $lastBucket = null;
+
+            while (true) {
+                $currentBuckets = $this->storage->listBuckets(
+                    $lastBucket
+                        ? [Query::cursorAfter($lastBucket)]
+                        : [Query::limit(20)]
+                )['buckets'];
+
+                $buckets = array_merge($buckets, $currentBuckets);
+                $lastBucket = $buckets[count($buckets) - 1]['$id'] ?? null;
+
+                if (count($currentBuckets) < 20) {
+                    break;
+                }
+            }
+
+            foreach ($buckets as $bucket) {
+                $files = [];
+                $lastFile = null;
+
+                while (true) {
+                    $currentFiles = $this->storage->listFiles(
+                        $bucket['$id'],
+                        $lastFile
+                            ? [Query::cursorAfter($lastFile)]
+                            : [Query::limit(20)]
+                    )['files'];
+
+                    $files = array_merge($files, $currentFiles);
+                    $lastFile = $files[count($files) - 1]['$id'] ?? null;
+
+                    if (count($currentFiles) < 20) {
+                        break;
+                    }
+                }
+
+                $report[Resource::TYPE_FILE] += count($files);
+                foreach ($files as $file) {
+                    $report['size'] += $this->storage->getFile(
+                        $bucket['$id'],
+                        $file['$id']
+                    )['sizeOriginal'];
+                }
+            }
+            $report['size'] = $report['size'] / 1000 / 1000; // MB
+        }
+    }
+
+    private function reportFunctions(array $resources, array &$report): void
+    {
+        if (\in_array(Resource::TYPE_FUNCTION, $resources)) {
+            $report[Resource::TYPE_FUNCTION] = $this->functions->list()['total'];
+        }
+
+        if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
+            $report[Resource::TYPE_DEPLOYMENT] = 0;
+            $functions = $this->functions->list()['functions'];
+            foreach ($functions as $function) {
+                if (!empty($function['deployment'])) {
+                    $report[Resource::TYPE_DEPLOYMENT] += 1;
+                }
+            }
+        }
+
+        if (\in_array(Resource::TYPE_ENVIRONMENT_VARIABLE, $resources)) {
+            $report[Resource::TYPE_ENVIRONMENT_VARIABLE] = 0;
+            $functions = $this->functions->list()['functions'];
+            foreach ($functions as $function) {
+                $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += $this->functions->listVariables($function['$id'])['total'];
             }
         }
     }
