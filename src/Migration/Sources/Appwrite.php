@@ -38,6 +38,7 @@ use Utopia\Migration\Resources\Functions\Func;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
+use Utopia\Migration\Sources\Appwrite\Reader;
 use Utopia\Migration\Transfer;
 
 class Appwrite extends Source
@@ -51,6 +52,8 @@ class Appwrite extends Source
     private Storage $storage;
 
     private Functions $functions;
+
+    private Reader $database;
 
     public function __construct(
         protected string $project,
