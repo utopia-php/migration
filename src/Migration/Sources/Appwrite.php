@@ -11,8 +11,6 @@ use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
-use Utopia\Database\Exception as DatabaseException;
-use Utopia\Database\Exception\Timeout;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -301,8 +299,8 @@ class Appwrite extends Source
     /**
      * Export Auth Resources
      *
-     * @param  int  $batchSize  Max 100
-     * @param  array<string>  $resources
+     * @param int $batchSize Max 100
+     * @param array<string> $resources
      */
     protected function exportGroupAuth(int $batchSize, array $resources): void
     {
@@ -386,7 +384,7 @@ class Appwrite extends Source
                     '',
                     $user['emailVerification'] ?? false,
                     $user['phoneVerification'] ?? false,
-                    ! $user['status'],
+                    !$user['status'],
                     $user['prefs'] ?? [],
                 );
 
@@ -599,7 +597,6 @@ class Appwrite extends Source
         }
     }
 
-
     /**
      * @param int $batchSize
      * @throws Exception
@@ -622,7 +619,7 @@ class Appwrite extends Source
                 $queries[] = Query::cursorAfter($lastDatabase);
             }
 
-            $response = $this->listDatabases($queries);
+            $response = $this->database->listDatabases($queries);
 
             foreach ($response as $database) {
                 $newDatabase = new Database(
@@ -669,7 +666,7 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastCollection);
                 }
 
-                $response = $this->listCollections($database, $queries);
+                $response = $this->database->listCollections($database, $queries);
 
                 foreach ($response as $collection) {
                     $newCollection = new Collection(
@@ -700,7 +697,6 @@ class Appwrite extends Source
         }
     }
 
-
     /**
      * @param int $batchSize
      * @throws Exception
@@ -720,7 +716,7 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastAttribute);
                 }
 
-                $response = $this->listAttributes($collection, $queries);
+                $response = $this->database->listAttributes($collection, $queries);
 
                 foreach ($response as $attribute) {
                     if (
@@ -899,7 +895,7 @@ class Appwrite extends Source
                     $queries[] = Query::cursorAfter($lastIndex);
                 }
 
-                $response = $this->listIndexes($collection, $queries);
+                $response = $this->database->listIndexes($collection, $queries);
 
                 foreach ($response['indexes'] as $index) {
                     $indexes[] = new Index(
@@ -976,18 +972,18 @@ class Appwrite extends Source
 
                 $queries[] = Query::select($selects);
 
-                $response = $this->listDocuments($collection, $queries);
+                $response = $this->database->listDocuments($collection, $queries);
 
                 foreach ($response as $document) {
                     // HACK: Handle many to many
-                    if (! empty($manyToMany)) {
+                    if (!empty($manyToMany)) {
                         $stack = ['$id']; // Adding $id because we can't select only relations
                         foreach ($manyToMany as $relation) {
-                            $stack[] = $relation.'.$id';
+                            $stack[] = $relation . '.$id';
                         }
 
-                        $doc = $this->db->getDocument(
-                            $collection->getId(),
+                        $doc = $this->database->getDocument(
+                            $collection,
                             $document['$id'],
                             [Query::select($stack)]
                         );
@@ -1604,7 +1600,7 @@ class Appwrite extends Source
         );
 
         // Content-Length header was missing, file is less than max buffer size.
-        if (! array_key_exists('Content-Length', $responseHeaders)) {
+        if (!array_key_exists('Content-Length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
