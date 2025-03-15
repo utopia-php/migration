@@ -897,7 +897,7 @@ class Appwrite extends Source
 
                 $response = $this->database->listIndexes($collection, $queries);
 
-                foreach ($response['indexes'] as $index) {
+                foreach ($response as $index) {
                     $indexes[] = new Index(
                         'unique()',
                         $index['key'],
