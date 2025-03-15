@@ -56,8 +56,10 @@ class Appwrite extends Source
         protected string $project,
         protected string $endpoint,
         protected string $key,
-        protected UtopiaDatabase $db
-    ) {
+        protected DataSource $dataSource,
+        protected ?UtopiaDatabase $dbForProject = null
+    )
+    {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
             ->setProject($project)
