@@ -5,12 +5,14 @@ namespace Utopia\Migration\Sources;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Query;
+use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Exception as DatabaseException;
+use Utopia\Database\Exception\Timeout;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -39,6 +41,8 @@ use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Appwrite\Reader;
+use Utopia\Migration\Sources\Appwrite\Reader\APIReader;
+use Utopia\Migration\Sources\Appwrite\Reader\DatabaseReader;
 use Utopia\Migration\Transfer;
 
 class Appwrite extends Source
@@ -55,6 +59,9 @@ class Appwrite extends Source
 
     private Reader $database;
 
+    /**
+     * @throws \Exception
+     */
     public function __construct(
         protected string $project,
         protected string $endpoint,
@@ -75,6 +82,18 @@ class Appwrite extends Source
 
         $this->headers['X-Appwrite-Project'] = $this->project;
         $this->headers['X-Appwrite-Key'] = $this->key;
+
+        switch ($this->dataSource) {
+            case DataSource::API:
+                $this->database = new APIReader(new Databases($this->client));
+                break;
+            case DataSource::DATABASE:
+                if (\is_null($dbForProject)) {
+                    throw new \Exception('Database is required for database source');
+                }
+                $this->database = new DatabaseReader($dbForProject);
+                break;
+        }
     }
 
     public static function getName(): string
