@@ -216,7 +216,7 @@ class MigrationCLI
                     $_ENV['SOURCE_APPWRITE_TEST_ENDPOINT'],
                     $_ENV['SOURCE_APPWRITE_TEST_KEY'],
                     DataSource::DATABASE,
-                    $this->getDatabase(),   
+                    $this->getDatabase(),
                 );
             case 'supabase':
                 return new Supabase(

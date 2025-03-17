@@ -2,9 +2,9 @@
 
 namespace Utopia\Migration\Sources\Appwrite\Reader;
 
-use Appwrite\Query;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Exception as DatabaseException;
+use Utopia\Database\Query;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Collection;
