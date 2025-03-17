@@ -969,7 +969,7 @@ class Appwrite extends Source
                 }
                 /** @var Attribute|Relationship $attribute */
 
-                $queries[] = Query::select($selects);
+                $queries[] = $this->database->querySelect($selects);
 
                 $response = $this->database->listDocuments($collection, $queries);
 
@@ -984,7 +984,7 @@ class Appwrite extends Source
                         $doc = $this->database->getDocument(
                             $collection,
                             $document['$id'],
-                            [Query::select($stack)]
+                            [$this->database->querySelect($stack)]
                         );
 
                         foreach ($manyToMany as $key) {
