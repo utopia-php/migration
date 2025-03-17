@@ -3,14 +3,21 @@
 namespace Utopia\Migration\Sources\Appwrite\Reader;
 
 use Utopia\Database\Database as UtopiaDatabase;
+use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Exception as DatabaseException;
 use Utopia\Database\Query;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
+use Utopia\Migration\Resources\Database\Attribute;
 use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Database;
+use Utopia\Migration\Resources\Database\Document;
+use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Sources\Appwrite\Reader;
 
+/**
+ * @implements Reader<Query>
+ */
 class DatabaseReader implements Reader
 {
     public function __construct(private readonly UtopiaDatabase $dbForProject)
@@ -341,6 +348,66 @@ class DatabaseReader implements Reader
             $documentId,
             $queries
         )->getArrayCopy();
+    }
+
+    /**
+     * @param array $attributes
+     * @return Query
+     */
+    public function querySelect(array $attributes): mixed
+    {
+        return Query::select($attributes);
+    }
+
+    /**
+     * @param string $attribute
+     * @param array $values
+     * @return Query
+     */
+    public function queryEqual(string $attribute, array $values): mixed
+    {
+        return Query::equal($attribute, $values);
+    }
+
+    /**
+     * @param Resource|string $resource
+     * @return Query
+     * @throws DatabaseException
+     * @throws Exception
+     */
+    public function queryCursorAfter(mixed $resource): mixed
+    {
+        if (\is_string($resource)) {
+            throw new \InvalidArgumentException('Querying with a cursor through the database requires a resource reference');
+        }
+
+        switch ($resource::class) {
+            case Database::class:
+                $document = $this->dbForProject->getDocument('databases', $resource->getId());
+                break;
+            case Collection::class:
+                $document = $this->dbForProject->getDocument('database_' . $resource->getDatabase()->getInternalId(), $resource->getId());
+                break;
+            case Attribute::class:
+                $document = $this->dbForProject->getDocument('attributes', $resource->getId());
+                break;
+            case Index::class:
+                $document = $this->dbForProject->getDocument('indexes', $resource->getId());
+                break;
+            case Document::class:
+                $document = $this->getDocument($resource->getCollection(), $resource->getId());
+                $document = new UtopiaDocument($document);
+                break;
+            default:
+                throw new \InvalidArgumentException('Unsupported resource type');
+        }
+
+        return Query::cursorAfter($document);
+    }
+
+    public function queryLimit(int $limit): mixed
+    {
+        return Query::limit($limit);
     }
 
     /**
