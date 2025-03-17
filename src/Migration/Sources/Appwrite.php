@@ -130,6 +130,17 @@ class Appwrite extends Source
     }
 
     /**
+     * @return int
+     */
+    public function getDatabasesBatchSize(): int
+    {
+        return match ($this->dataSource) {
+            DataSource::API => 500,
+            DataSource::DATABASE => 1000,
+        };
+    }
+
+    /**
      * @param array<string> $resources
      * @return array<string, mixed>
      *
@@ -1435,10 +1446,5 @@ class Appwrite extends Source
                 $end = $fileSize - 1;
             }
         }
-    }
-
-    public function getBatchSize(): int
-    {
-        return 500;
     }
 }
