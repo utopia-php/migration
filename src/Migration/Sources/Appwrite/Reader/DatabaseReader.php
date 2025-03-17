@@ -302,8 +302,38 @@ class DatabaseReader implements Reader
 
     public function getDocument(Collection $resource, string $documentId, array $queries = []): array
     {
-        return $this->dbForProject->getDocument(
+        $database = $this->dbForProject->getDocument(
+            'databases',
+            $resource->getDatabase()->getId(),
+        );
+
+        if ($database->isEmpty()) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Database not found',
+            );
+        }
+
+        $collection = $this->dbForProject->getDocument(
+            'database_' . $database->getInternalId(),
             $resource->getId(),
+        );
+
+        if ($collection->isEmpty()) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Collection not found',
+            );
+        }
+
+        $collectionId = "database_{$database->getInternalId()}_collection_{$collection->getInternalId()}";
+
+        return $this->dbForProject->getDocument(
+            $collectionId,
             $documentId,
             $queries
         )->getArrayCopy();
