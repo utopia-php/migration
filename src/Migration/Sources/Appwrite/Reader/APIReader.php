@@ -10,9 +10,12 @@ use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Sources\Appwrite\Reader;
 
+/**
+ * @implements Reader<Query>
+ */
 class APIReader implements Reader
 {
-    public function __construct(private Databases $database)
+    public function __construct(private readonly Databases $database)
     {
     }
 
@@ -160,5 +163,42 @@ class APIReader implements Reader
             $documentId,
             $queries
         );
+    }
+
+    /**
+     * @param array $attributes
+     * @return string
+     */
+    public function querySelect(array $attributes): mixed
+    {
+        return Query::select($attributes);
+    }
+
+    /**
+     * @param string $attribute
+     * @param array $values
+     * @return string
+     */
+    public function queryEqual(string $attribute, array $values): mixed
+    {
+        return Query::equal($attribute, $values);
+    }
+
+    /**
+     * @param Resource|string $resource
+     * @return string
+     */
+    public function queryCursorAfter(Resource|string $resource): mixed
+    {
+        if (!\is_string($resource)) {
+            throw new \InvalidArgumentException('Querying with a cursor through the API requires a string resource ID');
+        }
+
+        return Query::cursorAfter($resource);
+    }
+
+    public function queryLimit(int $limit): mixed
+    {
+        return Query::limit($limit);
     }
 }
