@@ -313,7 +313,7 @@ class MigrationCLI
             },
             function (mixed $value) {
                 if (is_null($value)) {
-                    return null;
+                    return;
                 }
 
                 return json_decode($value, true)['value'];
