@@ -66,8 +66,7 @@ class Appwrite extends Source
         protected string $key,
         protected DataSource $dataSource = DataSource::API,
         protected ?UtopiaDatabase $dbForProject = null
-    )
-    {
+    ) {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
             ->setProject($project)
@@ -606,17 +605,17 @@ class Appwrite extends Source
         $lastDatabase = null;
 
         while (true) {
-            $queries = [Query::limit($batchSize)];
+            $queries = [$this->database->queryLimit($batchSize)];
 
             if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_DATABASE) {
-                $queries[] = Query::equal('$id', $this->rootResourceId);
-                $queries[] = Query::limit(1);
+                $queries[] = $this->database->queryEqual('$id', [$this->rootResourceId]);
+                $queries[] = $this->database->queryLimit(1);
             }
 
             $databases = [];
 
             if ($lastDatabase) {
-                $queries[] = Query::cursorAfter($lastDatabase);
+                $queries[] = $this->database->queryCursorAfter($lastDatabase);
             }
 
             $response = $this->database->listDatabases($queries);
@@ -659,11 +658,11 @@ class Appwrite extends Source
 
             /** @var Database $database */
             while (true) {
-                $queries = [Query::limit($batchSize)];
+                $queries = [$this->database->queryLimit($batchSize)];
                 $collections = [];
 
                 if ($lastCollection) {
-                    $queries[] = Query::cursorAfter($lastCollection);
+                    $queries[] = $this->database->queryCursorAfter($lastCollection);
                 }
 
                 $response = $this->database->listCollections($database, $queries);
@@ -709,11 +708,11 @@ class Appwrite extends Source
             $lastAttribute = null;
 
             while (true) {
-                $queries = [Query::limit($batchSize)];
+                $queries = [$this->database->queryLimit($batchSize)];
                 $attributes = [];
 
                 if ($lastAttribute) {
-                    $queries[] = Query::cursorAfter($lastAttribute);
+                    $queries[] = $this->database->queryCursorAfter($lastAttribute);
                 }
 
                 $response = $this->database->listAttributes($collection, $queries);
@@ -888,11 +887,11 @@ class Appwrite extends Source
             $lastIndex = null;
 
             while (true) {
-                $queries = [Query::limit($batchSize)];
+                $queries = [$this->database->queryLimit($batchSize)];
                 $indexes = [];
 
                 if ($lastIndex) {
-                    $queries[] = Query::cursorAfter($lastIndex);
+                    $queries[] = $this->database->queryCursorAfter($lastIndex);
                 }
 
                 $response = $this->database->listIndexes($collection, $queries);
@@ -938,12 +937,12 @@ class Appwrite extends Source
             $lastDocument = null;
 
             while (true) {
-                $queries = [Query::limit($batchSize)];
+                $queries = [$this->database->queryLimit($batchSize)];
 
                 $documents = [];
 
                 if ($lastDocument) {
-                    $queries[] = Query::cursorAfter($lastDocument);
+                    $queries[] = $this->database->queryCursorAfter($lastDocument);
                 }
 
                 $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want relations flat!
