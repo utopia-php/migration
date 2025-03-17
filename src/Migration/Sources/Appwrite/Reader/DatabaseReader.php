@@ -287,7 +287,7 @@ class DatabaseReader implements Reader
         $collectionId = "database_{$database->getInternalId()}_collection_{$collection->getInternalId()}";
 
         try {
-            return $this->dbForProject->find($collectionId, $queries);
+            $documents = $this->dbForProject->find($collectionId, $queries);
         } catch (DatabaseException $e) {
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -298,6 +298,10 @@ class DatabaseReader implements Reader
                 previous: $e
             );
         }
+
+        return \array_map(function ($document) {
+            return $document->getArrayCopy();
+        }, $documents);
     }
 
     public function getDocument(Collection $resource, string $documentId, array $queries = []): array
