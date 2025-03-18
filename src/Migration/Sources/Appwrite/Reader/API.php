@@ -88,7 +88,7 @@ class API implements Reader
      */
     public function listDatabases(array $queries = []): array
     {
-        return $this->database->list($queries);
+        return $this->database->list($queries)['databases'];
     }
 
     /**
