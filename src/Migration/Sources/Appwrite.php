@@ -1020,7 +1020,7 @@ class Appwrite extends Source
                         $document,
                         $permissions
                     );
-                    
+
                     $documents[] = $document;
                     $lastDocument = $document;
                 }
