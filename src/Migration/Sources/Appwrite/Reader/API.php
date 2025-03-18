@@ -13,7 +13,7 @@ use Utopia\Migration\Sources\Appwrite\Reader;
 /**
  * @implements Reader<Query>
  */
-class APIReader implements Reader
+class API implements Reader
 {
     public function __construct(private readonly Databases $database)
     {
@@ -169,7 +169,7 @@ class APIReader implements Reader
      * @param array $attributes
      * @return string
      */
-    public function querySelect(array $attributes): mixed
+    public function querySelect(array $attributes): string
     {
         return Query::select($attributes);
     }
@@ -179,7 +179,7 @@ class APIReader implements Reader
      * @param array $values
      * @return string
      */
-    public function queryEqual(string $attribute, array $values): mixed
+    public function queryEqual(string $attribute, array $values): string
     {
         return Query::equal($attribute, $values);
     }
@@ -188,7 +188,7 @@ class APIReader implements Reader
      * @param Resource|string $resource
      * @return string
      */
-    public function queryCursorAfter(Resource|string $resource): mixed
+    public function queryCursorAfter(Resource|string $resource): string
     {
         if (!\is_string($resource)) {
             throw new \InvalidArgumentException('Querying with a cursor through the API requires a string resource ID');
@@ -197,7 +197,7 @@ class APIReader implements Reader
         return Query::cursorAfter($resource);
     }
 
-    public function queryLimit(int $limit): mixed
+    public function queryLimit(int $limit): string
     {
         return Query::limit($limit);
     }

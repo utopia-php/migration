@@ -39,8 +39,8 @@ use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Appwrite\Reader;
-use Utopia\Migration\Sources\Appwrite\Reader\APIReader;
-use Utopia\Migration\Sources\Appwrite\Reader\DatabaseReader;
+use Utopia\Migration\Sources\Appwrite\Reader\API as APIReader;
+use Utopia\Migration\Sources\Appwrite\Reader\Database as DatabaseReader;
 use Utopia\Migration\Transfer;
 
 class Appwrite extends Source

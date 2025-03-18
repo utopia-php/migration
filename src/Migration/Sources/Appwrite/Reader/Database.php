@@ -8,17 +8,17 @@ use Utopia\Database\Exception as DatabaseException;
 use Utopia\Database\Query;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
-use Utopia\Migration\Resources\Database\Database;
-use Utopia\Migration\Resources\Database\Document;
-use Utopia\Migration\Resources\Database\Index;
+use Utopia\Migration\Resources\Database\Attribute as AttributeResource;
+use Utopia\Migration\Resources\Database\Collection as CollectionResource;
+use Utopia\Migration\Resources\Database\Database as DatabaseResource;
+use Utopia\Migration\Resources\Database\Document as DocumentResource;
+use Utopia\Migration\Resources\Database\Index as IndexResource;
 use Utopia\Migration\Sources\Appwrite\Reader;
 
 /**
  * @implements Reader<Query>
  */
-class DatabaseReader implements Reader
+class Database implements Reader
 {
     public function __construct(private readonly UtopiaDatabase $dbForProject)
     {
@@ -44,7 +44,7 @@ class DatabaseReader implements Reader
             $report[Resource::TYPE_DOCUMENT] = 0;
             $databases = $this->listDatabases();
             foreach ($databases as $database) {
-                $dbResource = new Database(
+                $dbResource = new DatabaseResource(
                     $database->getId(),
                     $database->getAttribute('name'),
                     $database->getCreatedAt(),
@@ -65,7 +65,7 @@ class DatabaseReader implements Reader
             $report[Resource::TYPE_ATTRIBUTE] = 0;
             $databases = $this->listDatabases();
             foreach ($databases as $database) {
-                $dbResource = new Database(
+                $dbResource = new DatabaseResource(
                     $database->getId(),
                     $database->getAttribute('name'),
                     $database->getCreatedAt(),
@@ -87,7 +87,7 @@ class DatabaseReader implements Reader
             $report[Resource::TYPE_INDEX] = 0;
             $databases = $this->listDatabases();
             foreach ($databases as $database) {
-                $dbResource = new Database(
+                $dbResource = new DatabaseResource(
                     $database->getId(),
                     $database->getAttribute('name'),
                     $database->getCreatedAt(),
@@ -111,7 +111,7 @@ class DatabaseReader implements Reader
         return $this->dbForProject->find('databases', $queries);
     }
 
-    public function listCollections(Database $resource, array $queries = []): array
+    public function listCollections(DatabaseResource $resource, array $queries = []): array
     {
         try {
             $database = $this->dbForProject->getDocument('databases', $resource->getId());
@@ -152,7 +152,7 @@ class DatabaseReader implements Reader
         }
     }
 
-    public function listAttributes(Collection $resource, array $queries = []): array
+    public function listAttributes(CollectionResource $resource, array $queries = []): array
     {
         $database = $this->dbForProject->getDocument(
             'databases',
@@ -214,7 +214,7 @@ class DatabaseReader implements Reader
         return $attributes;
     }
 
-    public function listIndexes(Collection $resource, array $queries = []): array
+    public function listIndexes(CollectionResource $resource, array $queries = []): array
     {
         $database = $this->dbForProject->getDocument(
             'databases',
@@ -261,7 +261,7 @@ class DatabaseReader implements Reader
         }
     }
 
-    public function listDocuments(Collection $resource, array $queries = []): array
+    public function listDocuments(CollectionResource $resource, array $queries = []): array
     {
         $database = $this->dbForProject->getDocument(
             'databases',
@@ -311,7 +311,7 @@ class DatabaseReader implements Reader
         }, $documents);
     }
 
-    public function getDocument(Collection $resource, string $documentId, array $queries = []): array
+    public function getDocument(CollectionResource $resource, string $documentId, array $queries = []): array
     {
         $database = $this->dbForProject->getDocument(
             'databases',
@@ -354,7 +354,7 @@ class DatabaseReader implements Reader
      * @param array $attributes
      * @return Query
      */
-    public function querySelect(array $attributes): mixed
+    public function querySelect(array $attributes): Query
     {
         return Query::select($attributes);
     }
@@ -364,7 +364,7 @@ class DatabaseReader implements Reader
      * @param array $values
      * @return Query
      */
-    public function queryEqual(string $attribute, array $values): mixed
+    public function queryEqual(string $attribute, array $values): Query
     {
         return Query::equal($attribute, $values);
     }
@@ -375,26 +375,26 @@ class DatabaseReader implements Reader
      * @throws DatabaseException
      * @throws Exception
      */
-    public function queryCursorAfter(mixed $resource): mixed
+    public function queryCursorAfter(mixed $resource): Query
     {
         if (\is_string($resource)) {
             throw new \InvalidArgumentException('Querying with a cursor through the database requires a resource reference');
         }
 
         switch ($resource::class) {
-            case Database::class:
+            case DatabaseResource::class:
                 $document = $this->dbForProject->getDocument('databases', $resource->getId());
                 break;
-            case Collection::class:
+            case CollectionResource::class:
                 $document = $this->dbForProject->getDocument('database_' . $resource->getDatabase()->getInternalId(), $resource->getId());
                 break;
-            case Attribute::class:
+            case AttributeResource::class:
                 $document = $this->dbForProject->getDocument('attributes', $resource->getId());
                 break;
-            case Index::class:
+            case IndexResource::class:
                 $document = $this->dbForProject->getDocument('indexes', $resource->getId());
                 break;
-            case Document::class:
+            case DocumentResource::class:
                 $document = $this->getDocument($resource->getCollection(), $resource->getId());
                 $document = new UtopiaDocument($document);
                 break;
@@ -405,7 +405,7 @@ class DatabaseReader implements Reader
         return Query::cursorAfter($document);
     }
 
-    public function queryLimit(int $limit): mixed
+    public function queryLimit(int $limit): Query
     {
         return Query::limit($limit);
     }
