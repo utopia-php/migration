@@ -101,7 +101,7 @@ interface Reader
 
     /**
      * Return a query to limit the number of results
-     * 
+     *
      * @param int $limit
      * @return QueryType|string
      */
