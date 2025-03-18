@@ -386,7 +386,8 @@ class Database implements Reader
                 $document = $this->dbForProject->getDocument('databases', $resource->getId());
                 break;
             case CollectionResource::class:
-                $document = $this->dbForProject->getDocument('database_' . $resource->getDatabase()->getInternalId(), $resource->getId());
+                $database = $this->dbForProject->getDocument('databases', $resource->getDatabase()->getId());
+                $document = $this->dbForProject->getDocument('database_' . $database->getInternalId(), $resource->getId());
                 break;
             case AttributeResource::class:
                 $document = $this->dbForProject->getDocument('attributes', $resource->getId());
