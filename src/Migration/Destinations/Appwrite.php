@@ -438,6 +438,7 @@ class Appwrite extends Destination
             'databases',
             $resource->getCollection()->getDatabase()->getId(),
         );
+
         if ($database->isEmpty()) {
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -451,6 +452,7 @@ class Appwrite extends Destination
             'database_' . $database->getInternalId(),
             $resource->getCollection()->getId(),
         );
+
         if ($collection->isEmpty()) {
             throw new Exception(
                 resourceName: $resource->getName(),

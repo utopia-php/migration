@@ -8,14 +8,14 @@ use Utopia\Migration\Transfer;
 abstract class Attribute extends Resource
 {
     public const TYPE_STRING = 'string';
-    public const TYPE_INTEGER = 'int';
-    public const TYPE_FLOAT = 'float';
-    public const TYPE_BOOLEAN = 'bool';
-    public const TYPE_DATETIME = 'dateTime';
+    public const TYPE_INTEGER = 'integer';
+    public const TYPE_FLOAT = 'double';
+    public const TYPE_BOOLEAN = 'boolean';
+    public const TYPE_DATETIME = 'datetime';
     public const TYPE_EMAIL = 'email';
     public const TYPE_ENUM = 'enum';
-    public const TYPE_IP = 'IP';
-    public const TYPE_URL = 'URL';
+    public const TYPE_IP = 'ip';
+    public const TYPE_URL = 'url';
     public const TYPE_RELATIONSHIP = 'relationship';
 
     /**

@@ -12,11 +12,11 @@ class MockSource extends Source
 
     public function pushMockResource(Resource $resource): void
     {
-        if (!key_exists($resource->getGroup(), $this->mockResources)) {
+        if (!array_key_exists($resource->getGroup(), $this->mockResources)) {
             $this->mockResources[$resource->getGroup()] = [];
         }
 
-        if (!key_exists($resource->getName(), $this->mockResources[$resource->getGroup()])) {
+        if (!array_key_exists($resource->getName(), $this->mockResources[$resource->getGroup()])) {
             $this->mockResources[$resource->getGroup()][$resource->getName()] = [];
         }
 

@@ -213,7 +213,9 @@ class MigrationCLI
                 return new Appwrite(
                     $_ENV['SOURCE_APPWRITE_TEST_PROJECT'],
                     $_ENV['SOURCE_APPWRITE_TEST_ENDPOINT'],
-                    $_ENV['SOURCE_APPWRITE_TEST_KEY']
+                    $_ENV['SOURCE_APPWRITE_TEST_KEY'],
+                    Appwrite::SOURCE_DATABASE,
+                    $this->getDatabase(),
                 );
             case 'supabase':
                 return new Supabase(
@@ -361,21 +363,18 @@ class MigrationCLI
             }
         );
 
-        $database = new Database(
-            new MariaDB(new PDO(
-                $_ENV['DESTINATION_APPWRITE_TEST_DSN'],
-                $_ENV['DESTINATION_APPWRITE_TEST_USER'],
-                $_ENV['DESTINATION_APPWRITE_TEST_PASSWORD'],
-                [
-                    PDO::ATTR_TIMEOUT => 3,
-                    PDO::ATTR_PERSISTENT => true,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => true,
-                    PDO::ATTR_STRINGIFY_FETCHES => true
-                ],
-            )),
-            new Cache(new None())
-        );
+        $database = new Database(new MariaDB(new PDO(
+            $_ENV['DESTINATION_APPWRITE_TEST_DSN'],
+            $_ENV['DESTINATION_APPWRITE_TEST_USER'],
+            $_ENV['DESTINATION_APPWRITE_TEST_PASSWORD'],
+            [
+                PDO::ATTR_TIMEOUT => 3,
+                PDO::ATTR_PERSISTENT => true,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => true,
+                PDO::ATTR_STRINGIFY_FETCHES => true
+            ],
+        )), new Cache(new None()));
 
         $database
             ->setDatabase('appwrite')
