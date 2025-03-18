@@ -646,7 +646,7 @@ class Appwrite extends Source
                 break;
             }
 
-            $lastDatabase = $databases[count($databases) - 1]->getId();
+            $lastDatabase = $databases[count($databases) - 1];
 
             $this->callback($databases);
 
@@ -698,7 +698,7 @@ class Appwrite extends Source
 
                 $this->callback($collections);
 
-                $lastCollection = $collections[count($collections) - 1]->getId();
+                $lastCollection = $collections[count($collections) - 1];
 
                 if (count($collections) < $batchSize) {
                     break;
@@ -875,7 +875,7 @@ class Appwrite extends Source
 
                 $this->callback($attributes);
 
-                $lastAttribute = $attributes[count($attributes) - 1]->getId();
+                $lastAttribute = $attributes[count($attributes) - 1];
 
                 if (count($attributes) < $batchSize) {
                     break;
@@ -927,7 +927,7 @@ class Appwrite extends Source
 
                 $this->callback($indexes);
 
-                $lastIndex = $indexes[count($indexes) - 1]->getId();
+                $lastIndex = $indexes[count($indexes) - 1];
 
                 if (count($indexes) < $batchSize) {
                     break;
@@ -1014,14 +1014,15 @@ class Appwrite extends Source
                     unset($document['$collectionId']);
                     unset($document['$databaseId']);
 
-                    $documents[] = new Document(
+                    $document = new Document(
                         $id,
                         $collection,
                         $document,
                         $permissions
                     );
-
-                    $lastDocument = $id;
+                    
+                    $documents[] = $document;
+                    $lastDocument = $document;
                 }
 
                 $this->callback($documents);
