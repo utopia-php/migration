@@ -15,7 +15,6 @@ use Utopia\Migration\Destinations\Appwrite as DestinationsAppwrite;
 use Utopia\Migration\Destinations\Local;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Appwrite;
-use Utopia\Migration\Sources\DataSource;
 use Utopia\Migration\Sources\Firebase;
 use Utopia\Migration\Sources\NHost;
 use Utopia\Migration\Sources\Supabase;
@@ -215,7 +214,7 @@ class MigrationCLI
                     $_ENV['SOURCE_APPWRITE_TEST_PROJECT'],
                     $_ENV['SOURCE_APPWRITE_TEST_ENDPOINT'],
                     $_ENV['SOURCE_APPWRITE_TEST_KEY'],
-                    DataSource::DATABASE,
+                    Appwrite::SOURCE_DATABASE,
                     $this->getDatabase(),
                 );
             case 'supabase':

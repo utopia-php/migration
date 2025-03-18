@@ -45,6 +45,9 @@ use Utopia\Migration\Transfer;
 
 class Appwrite extends Source
 {
+    public const SOURCE_API = 'api';
+    public const SOURCE_DATABASE = 'database';
+
     protected Client $client;
 
     private Users $users;
@@ -64,7 +67,7 @@ class Appwrite extends Source
         protected string $project,
         protected string $endpoint,
         protected string $key,
-        protected DataSource $dataSource = DataSource::API,
+        protected string $source = self::SOURCE_API,
         protected ?UtopiaDatabase $dbForProject = null
     ) {
         $this->client = (new Client())
@@ -80,16 +83,18 @@ class Appwrite extends Source
         $this->headers['X-Appwrite-Project'] = $this->project;
         $this->headers['X-Appwrite-Key'] = $this->key;
 
-        switch ($this->dataSource) {
-            case DataSource::API:
+        switch ($this->source) {
+            case static::SOURCE_API:
                 $this->database = new APIReader(new Databases($this->client));
                 break;
-            case DataSource::DATABASE:
+            case static::SOURCE_DATABASE:
                 if (\is_null($dbForProject)) {
                     throw new \Exception('Database is required for database source');
                 }
                 $this->database = new DatabaseReader($dbForProject);
                 break;
+            default:
+                throw new \Exception('Unknown source');
         }
     }
 
@@ -134,9 +139,9 @@ class Appwrite extends Source
      */
     public function getDatabasesBatchSize(): int
     {
-        return match ($this->dataSource) {
-            DataSource::API => 500,
-            DataSource::DATABASE => 1000,
+        return match ($this->source) {
+            static::SOURCE_API => 500,
+            static::SOURCE_DATABASE => 1000,
         };
     }
 
