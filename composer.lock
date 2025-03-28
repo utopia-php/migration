@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c4f5c86faf6b05d520dd532752894cb9",
+    "content-hash": "debf6e30f1e56bf0f792191a28277302",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -191,16 +191,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v4.30.1",
+            "version": "v4.30.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "f29ba8a30dfd940efb3a8a75dc44446539101f24"
+                "reference": "a4c4d8565b40b9f76debc9dfeb221412eacb8ced"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/f29ba8a30dfd940efb3a8a75dc44446539101f24",
-                "reference": "f29ba8a30dfd940efb3a8a75dc44446539101f24",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/a4c4d8565b40b9f76debc9dfeb221412eacb8ced",
+                "reference": "a4c4d8565b40b9f76debc9dfeb221412eacb8ced",
                 "shasum": ""
             },
             "require": {
@@ -229,9 +229,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.30.1"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.30.2"
             },
-            "time": "2025-03-13T21:08:17+00:00"
+            "time": "2025-03-26T18:01:50+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -1920,16 +1920,16 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "0.63.0",
+            "version": "0.64.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "51ff0a6514e6eda44a6da016d838e7e55282e01a"
+                "reference": "3ec66840dc0bcd24ed1c8e0f6d90fd3a61316ff4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/51ff0a6514e6eda44a6da016d838e7e55282e01a",
-                "reference": "51ff0a6514e6eda44a6da016d838e7e55282e01a",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/3ec66840dc0bcd24ed1c8e0f6d90fd3a61316ff4",
+                "reference": "3ec66840dc0bcd24ed1c8e0f6d90fd3a61316ff4",
                 "shasum": ""
             },
             "require": {
@@ -1937,7 +1937,8 @@
                 "ext-pdo": "*",
                 "php": ">=8.1",
                 "utopia-php/cache": "0.12.*",
-                "utopia-php/framework": "0.33.*"
+                "utopia-php/framework": "0.33.*",
+                "utopia-php/pools": "0.8.*"
             },
             "require-dev": {
                 "fakerphp/faker": "1.23.*",
@@ -1969,9 +1970,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/0.63.0"
+                "source": "https://github.com/utopia-php/database/tree/0.64.0"
             },
-            "time": "2025-03-26T10:35:37+00:00"
+            "time": "2025-03-28T01:35:56+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -2066,6 +2067,58 @@
                 "source": "https://github.com/utopia-php/http/tree/0.33.19"
             },
             "time": "2025-03-06T11:37:49+00:00"
+        },
+        {
+            "name": "utopia-php/pools",
+            "version": "0.8.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/utopia-php/pools.git",
+                "reference": "60733929dc328e7ea47e800579c8bbf0d49df5ba"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/utopia-php/pools/zipball/60733929dc328e7ea47e800579c8bbf0d49df5ba",
+                "reference": "60733929dc328e7ea47e800579c8bbf0d49df5ba",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.3",
+                "utopia-php/telemetry": "0.1.*"
+            },
+            "require-dev": {
+                "laravel/pint": "1.*",
+                "phpstan/phpstan": "1.*",
+                "phpunit/phpunit": "11.*"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Utopia\\Pools\\": "src/Pools"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Team Appwrite",
+                    "email": "team@appwrite.io"
+                }
+            ],
+            "description": "A simple library to manage connection pools",
+            "keywords": [
+                "framework",
+                "php",
+                "pools",
+                "utopia"
+            ],
+            "support": {
+                "issues": "https://github.com/utopia-php/pools/issues",
+                "source": "https://github.com/utopia-php/pools/tree/0.8.0"
+            },
+            "time": "2025-03-19T10:22:03+00:00"
         },
         {
             "name": "utopia-php/storage",
