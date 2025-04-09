@@ -2,7 +2,6 @@
 
 namespace Utopia\Migration\Sources;
 
-use Utopia\CLI\Console;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Collection;
@@ -22,13 +21,13 @@ class Csv extends Source
      */
     public string $resourceId;
 
-    public Device $deviceForLocal;
+    public Device $deviceForCsvImports;
 
-    public function __construct(string $resourceId, string $filePath, Device $deviceForLocal)
+    public function __construct(string $resourceId, string $filePath, Device $deviceForCsvImports)
     {
         $this->filePath = $filePath;
         $this->resourceId = $resourceId;
-        $this->deviceForLocal = $deviceForLocal;
+        $this->deviceForCsvImports = $deviceForCsvImports;
     }
 
     public static function getName(): string
@@ -71,16 +70,13 @@ class Csv extends Source
             );
         } finally {
             // delete the temporary file!
-            // temporary logs.
-            Console::log('File exists: '.$this->deviceForLocal->exists($this->filePath));
-            $this->deviceForLocal->delete($this->filePath);
-            Console::log('File exists: '.$this->deviceForLocal->exists($this->filePath));
+            $this->deviceForCsvImports->delete($this->filePath);
         }
     }
 
     private function exportDocuments(int $batchSize): void
     {
-        if (! $this->deviceForLocal->exists($this->filePath)) {
+        if (! $this->deviceForCsvImports->exists($this->filePath)) {
             return;
         }
 
