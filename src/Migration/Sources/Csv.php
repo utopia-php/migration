@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Sources;
 
+use Utopia\CLI\Console;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Collection;
@@ -21,13 +22,13 @@ class Csv extends Source
      */
     public string $resourceId;
 
-    public Device $deviceForFiles;
+    public Device $deviceForLocal;
 
-    public function __construct(string $resourceId, string $filePath, Device $deviceForFiles)
+    public function __construct(string $resourceId, string $filePath, Device $deviceForLocal)
     {
-        $this->$filePath = $filePath;
+        $this->filePath = $filePath;
         $this->resourceId = $resourceId;
-        $this->deviceForFiles = $deviceForFiles;
+        $this->deviceForLocal = $deviceForLocal;
     }
 
     public static function getName(): string
@@ -68,48 +69,46 @@ class Csv extends Source
                     previous: $e
                 )
             );
+        } finally {
+            // delete the temporary file!
+            // temporary logs.
+            Console::log('File exists: '.$this->deviceForLocal->exists($this->filePath));
+            $this->deviceForLocal->delete($this->filePath);
+            Console::log('File exists: '.$this->deviceForLocal->exists($this->filePath));
         }
     }
 
     private function exportDocuments(int $batchSize): void
     {
-        if (! $this->deviceForFiles->exists($this->filePath)) {
+        if (! $this->deviceForLocal->exists($this->filePath)) {
+            return;
+        }
+
+        $stream = fopen($this->filePath, 'r');
+        if (! $stream) {
+            return;
+        }
+
+        $headers = fgetcsv($stream);
+        if (! is_array($headers) || count($headers) === 0) {
+            fclose($stream);
             return;
         }
 
         [$databaseId, $collectionId] = explode(':', $this->resourceId);
-
-        $csvFileSource = $this->deviceForFiles->read($this->filePath);
-
-        $file = fopen($csvFileSource, 'r');
-        if (! $file) {
-            return;
-        }
-
-        $headers = fgetcsv($file);
-        if (! is_array($headers)) {
-            fclose($file);
-            return;
-        }
+        // TODO: @itznotabug, @jake - do we need to check for permissions here or db handles it?
+        $collection = new Collection(new Database($databaseId, ''), '', $collectionId);
 
         $buffer = [];
 
-        while (($row = fgetcsv($file)) !== false) {
+        while (($row = fgetcsv($stream)) !== false) {
             $data = array_combine($headers, $row);
             if ($data === false) {
                 continue;
             }
 
             $docId = $data['$id'] ?? 'unique()';
-            $database = new Database($databaseId, '');
-            $collection = new Collection($database, '', $collectionId);
             $document = new Document($docId, $collection, $data);
-
-            echo "CSV Row:\n";
-            var_dump($data);
-
-            echo "Document:\n";
-            var_dump($document);
 
             $buffer[] = $document;
 
@@ -119,7 +118,7 @@ class Csv extends Source
             }
         }
 
-        fclose($file);
+        fclose($stream);
 
         if (! empty($buffer)) {
             $this->callback($buffer);
