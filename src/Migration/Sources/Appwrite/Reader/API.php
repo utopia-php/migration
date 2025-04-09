@@ -190,8 +190,8 @@ class API implements Reader
      */
     public function queryCursorAfter(Resource|string $resource): string
     {
-        if (!\is_string($resource)) {
-            throw new \InvalidArgumentException('Querying with a cursor through the API requires a string resource ID');
+        if ($resource instanceof Resource) {
+            $resource = $resource->getId();
         }
 
         return Query::cursorAfter($resource);
