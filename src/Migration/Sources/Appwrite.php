@@ -743,7 +743,7 @@ class Appwrite extends Source
 
                     switch ($attribute['type']) {
                         case Attribute::TYPE_STRING:
-                            $attr = match ($attribute['format']) {
+                            $attr = match ($attribute['format'] ?? '') {
                                 Attribute::TYPE_EMAIL => new Email(
                                     $attribute['key'],
                                     $collection,
