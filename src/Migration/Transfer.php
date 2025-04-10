@@ -129,8 +129,9 @@ class Transfer
                 }
             }
         }
-
-        foreach ($this->cache->getAll() as $resources) {
+        // document resources are having status counter inside the cache
+        foreach ($this->cache->getAll() as $resourceType => $resources) {
+            if($resourceType == Resource::TYPE_DOCUMENT) continue;
             foreach ($resources as $resource) {
                 if (isset($status[$resource->getName()])) {
                     $status[$resource->getName()][$resource->getStatus()]++;
@@ -140,6 +141,20 @@ class Transfer
                 }
             }
         }
+
+        if (isset($this->cache->getAll()[Resource::TYPE_DOCUMENT])) {
+            $documentsStatus = $this->cache->getAll()[Resource::TYPE_DOCUMENT];
+            $status[Resource::TYPE_DOCUMENT] = $documentsStatus;
+        } else {
+            $status[Resource::TYPE_DOCUMENT] = [];
+        }
+        // merging other statuses to the document resource if not present
+        $allDocumentStatus = [Resource::STATUS_PENDING,Resource::STATUS_SUCCESS,Resource::STATUS_ERROR,Resource::STATUS_SKIPPED,Resource::STATUS_PROCESSING,Resource::STATUS_WARNING];
+        foreach ($allDocumentStatus as $statusValue) {
+            if(!isset($status[Resource::TYPE_DOCUMENT][$statusValue])) {
+                $status[Resource::TYPE_DOCUMENT][$statusValue] = 0;
+        }
+    }
 
         // Process Destination Errors
         foreach ($this->destination->getErrors() as $error) {
