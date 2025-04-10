@@ -13,7 +13,7 @@ use Utopia\Migration\Resources\Storage\File;
 class Cache
 {
     /**
-     * @var array<string, array<string, Resource>> $cache
+     * @var array<string, array<string, Resource|int>> $cache
      */
     protected array $cache = [];
 
@@ -75,12 +75,17 @@ class Cache
      */
     public function update(Resource $resource): void
     {
-        if (! in_array($resource->getName(), $this->cache)) {
-            $this->add($resource);
+        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
+            $status = $resource->getStatus();
+            if (!isset($this->cache[$resource->getName()][$status])) {
+                $this->cache[$resource->getName()][$status] = 0;
+            }
+            $this->cache[$resource->getName()][$status]++;
+            return;
         }
 
-        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
-            return;
+        if (! in_array($resource->getName(), $this->cache)) {
+            $this->add($resource);
         }
 
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
