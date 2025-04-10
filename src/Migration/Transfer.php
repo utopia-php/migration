@@ -281,6 +281,9 @@ class Transfer
         $cache = $this->cache->getAll();
 
         foreach ($cache as $type => $resources) {
+            if ($type === Resource::TYPE_DOCUMENT) {
+                continue;
+            }
             foreach ($resources as $resource) {
                 if ($statusLevel && $resource->getStatus() !== $statusLevel) {
                     continue;
