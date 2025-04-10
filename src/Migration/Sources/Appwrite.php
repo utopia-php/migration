@@ -194,21 +194,60 @@ class Appwrite extends Source
     private function reportAuth(array $resources, array &$report): void
     {
         if (\in_array(Resource::TYPE_USER, $resources)) {
-            $report[Resource::TYPE_USER] = $this->users->list()['total'];
+            $report[Resource::TYPE_USER] = $this->users->list([
+                Query::limit(1)
+            ])['total'];
         }
 
         if (\in_array(Resource::TYPE_TEAM, $resources)) {
-            $report[Resource::TYPE_TEAM] = $this->teams->list()['total'];
+            $report[Resource::TYPE_TEAM] = $this->teams->list([
+                Query::limit(1)
+            ])['total'];
         }
 
         if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
             $report[Resource::TYPE_MEMBERSHIP] = 0;
-            $teams = $this->teams->list()['teams'];
+
+            $teams = [];
+            $last = null;
+
+            while (true) {
+                $current = $this->teams->list(
+                    $last
+                        ? [Query::cursorAfter($last), Query::limit($this->getAuthBatchSize())]
+                        : [Query::limit($this->getAuthBatchSize())]
+                )['teams'];
+
+                \array_push($teams, ...$current);
+
+                $last = $current[\count($current) - 1]['$id'] ?? null;
+
+                if (\count($teams) < $this->getAuthBatchSize()) {
+                    break;
+                }
+            }
+
             foreach ($teams as $team) {
-                $report[Resource::TYPE_MEMBERSHIP] += $this->teams->listMemberships(
-                    $team['$id'],
-                    [Query::limit(1)]
-                )['total'];
+                $memberships = [];
+                $last = null;
+
+                while (true) {
+                    $current = $this->teams->listMemberships(
+                        $team['$id'],
+                        $last
+                            ? [Query::cursorAfter($last), Query::limit($this->getAuthBatchSize())]
+                            : [Query::limit($this->getAuthBatchSize())]
+                    )['memberships'];
+
+                    \array_push($memberships, ...$current);
+                    $last = $memberships[\count($memberships) - 1]['$id'] ?? null;
+
+                    if (\count($current) < $this->getAuthBatchSize()) {
+                        break;
+                    }
+                }
+
+                $report[Resource::TYPE_MEMBERSHIP] += \count($memberships);
             }
         }
     }
