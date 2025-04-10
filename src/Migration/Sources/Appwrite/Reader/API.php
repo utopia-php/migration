@@ -25,7 +25,9 @@ class API implements Reader
     public function report(array $resources, array &$report): void
     {
         if (\in_array(Resource::TYPE_DATABASE, $resources)) {
-            $report[Resource::TYPE_DATABASE] = $this->database->list()['total'];
+            $report[Resource::TYPE_DATABASE] = $this->database->list([
+                Query::limit(1),
+            ])['total'];
         }
 
         if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
