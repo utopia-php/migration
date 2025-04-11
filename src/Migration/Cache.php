@@ -33,7 +33,9 @@ class Cache
         // if documents then storing the status counter only
         if ($resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
-            $this->cache[$resource->getName()][$status] = 0;
+            if (!isset($this->cache[$resource->getName()][$status]) || !is_int($this->cache[$resource->getName()][$status])) {
+                $this->cache[$resource->getName()][$status] = 0;
+            }
             return;
         }
 
