@@ -11,78 +11,96 @@ use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Sources\Appwrite\Reader;
 
 /**
- * @implements Reader<Query>
+ * @extends Reader<Query>
  */
-class API implements Reader
+class API extends Reader
 {
     public function __construct(private readonly Databases $database)
     {
     }
 
-    /**
-     * @throws AppwriteException
-     */
+    public function getBatchSize(): int
+    {
+
+    }
+
     public function report(array $resources, array &$report): void
     {
         if (\in_array(Resource::TYPE_DATABASE, $resources)) {
-            $report[Resource::TYPE_DATABASE] = $this->database->list([
-                Query::limit(1),
-            ])['total'];
+            $report[Resource::TYPE_DATABASE] = $this->database->list([Query::limit(1)])['total'];
         }
-
         if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
             $report[Resource::TYPE_COLLECTION] = 0;
-            $databases = $this->database->list()['databases'];
-            foreach ($databases as $database) {
-                $report[Resource::TYPE_COLLECTION] += $this->database->listCollections(
-                    $database['$id'],
-                    [Query::limit(1)]
-                )['total'];
-            }
         }
-
         if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
             $report[Resource::TYPE_DOCUMENT] = 0;
-            $databases = $this->database->list()['databases'];
-            foreach ($databases as $database) {
-                $collections = $this->database->listCollections($database['$id'])['collections'];
-                foreach ($collections as $collection) {
-                    $report[Resource::TYPE_DOCUMENT] += $this->database->listDocuments(
-                        $database['$id'],
-                        $collection['$id'],
-                        [Query::limit(1)]
-                    )['total'];
-                }
-            }
         }
-
         if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
             $report[Resource::TYPE_ATTRIBUTE] = 0;
-            $databases = $this->database->list()['databases'];
-            foreach ($databases as $database) {
-                $collections = $this->database->listCollections($database['$id'])['collections'];
-                foreach ($collections as $collection) {
-                    $report[Resource::TYPE_ATTRIBUTE] += $this->database->listAttributes(
-                        $database['$id'],
-                        $collection['$id']
-                    )['total'];
-                }
-            }
         }
-
         if (\in_array(Resource::TYPE_INDEX, $resources)) {
             $report[Resource::TYPE_INDEX] = 0;
-            $databases = $this->database->list()['databases'];
-            foreach ($databases as $database) {
-                $collections = $this->database->listCollections($database['$id'])['collections'];
-                foreach ($collections as $collection) {
-                    $report[Resource::TYPE_INDEX] += $this->database->listIndexes(
-                        $database['$id'],
-                        $collection['$id']
-                    )['total'];
+        }
+
+        $this->foreachDatabase(function($database) use ($resources, &$report) {
+            $databaseId = $database['$id'];
+
+            // Determine if we should use the fast count for collections.
+            $onlyCollectionNeeded = \in_array(Resource::TYPE_COLLECTION, $resources)
+                && !\in_array(Resource::TYPE_DOCUMENT, $resources)
+                && !\in_array(Resource::TYPE_ATTRIBUTE, $resources)
+                && !\in_array(Resource::TYPE_INDEX, $resources);
+
+            if ($onlyCollectionNeeded) {
+                // Fast count without fetching all collections
+                $report[Resource::TYPE_COLLECTION] += $this->database->listCollections(
+                    $databaseId,
+                    [Query::limit(1)]
+                )['total'];
+            } else {
+                $dbResource = new Database(
+                    $database->getId(),
+                    $database->getAttribute('name'),
+                    $database->getCreatedAt(),
+                    $database->getUpdatedAt(),
+                );
+
+                // For full details, iterate collections once per database
+                $collectionCount = 0;
+
+                $this->foreachCollection($dbResource, function($collection) use ($databaseId, $resources, &$report, &$collectionCount) {
+                    $collectionCount++;
+
+                    if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
+                        $report[Resource::TYPE_DOCUMENT] += $this->database->listDocuments(
+                            $databaseId,
+                            $collection['$id'],
+                            [Query::limit(1)]
+                        )['total'];
+                    }
+
+                    if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+                        $report[Resource::TYPE_ATTRIBUTE] += $this->database->listAttributes(
+                            $databaseId,
+                            $collection['$id'],
+                            [Query::limit(1)]
+                        )['total'];
+                    }
+
+                    if (\in_array(Resource::TYPE_INDEX, $resources)) {
+                        $report[Resource::TYPE_INDEX] += $this->database->listIndexes(
+                            $databaseId,
+                            $collection['$id'],
+                            [Query::limit(1)]
+                        )['total'];
+                    }
+                });
+
+                if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
+                    $report[Resource::TYPE_COLLECTION] += $collectionCount;
                 }
             }
-        }
+        });
     }
 
     /**
