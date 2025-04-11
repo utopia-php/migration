@@ -78,16 +78,21 @@ class Cache
      */
     public function update(Resource $resource): void
     {
-        if (! in_array($resource->getName(), $this->cache)) {
-            $this->add($resource);
-        }
         // if documents then updating the status counter only
         if ($resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
+            $name = $resource->getName();
+            if (!isset($this->cache[$name][$status])) {
+                $this->add($resource);
+            }
             if (is_int($this->cache[$resource->getName()][$status])) {
                 $this->cache[$resource->getName()][$status]++;
-                return;
             }
+            return;
+        }
+
+        if (! in_array($resource->getName(), $this->cache)) {
+            $this->add($resource);
         }
 
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
