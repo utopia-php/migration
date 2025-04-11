@@ -33,7 +33,7 @@ class API extends Reader
         $report[Resource::TYPE_INDEX] = 0;
 
         $databaseCount = 0;
-        $this->foreachDatabase(function($database) use ($resources, &$report, &$databaseCount) {
+        $this->foreachDatabase(function ($database) use ($resources, &$report, &$databaseCount) {
             $databaseCount++;
 
             $databaseId = $database['$id'];
@@ -60,7 +60,7 @@ class API extends Reader
 
                 // For full details, iterate collections once per database
                 $collectionCount = 0;
-                $this->foreachCollection($dbResource, function($collection) use ($databaseId, $resources, &$report, &$collectionCount) {
+                $this->foreachCollection($dbResource, function ($collection) use ($databaseId, $resources, &$report, &$collectionCount) {
                     $collectionCount++;
 
                     if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
