@@ -21,31 +21,24 @@ class API extends Reader
 
     public function getBatchSize(): int
     {
-
+        return 500;
     }
 
     public function report(array $resources, array &$report): void
     {
-        if (\in_array(Resource::TYPE_DATABASE, $resources)) {
-            $report[Resource::TYPE_DATABASE] = $this->database->list([Query::limit(1)])['total'];
-        }
-        if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
-            $report[Resource::TYPE_COLLECTION] = 0;
-        }
-        if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
-            $report[Resource::TYPE_DOCUMENT] = 0;
-        }
-        if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-            $report[Resource::TYPE_ATTRIBUTE] = 0;
-        }
-        if (\in_array(Resource::TYPE_INDEX, $resources)) {
-            $report[Resource::TYPE_INDEX] = 0;
-        }
+        $report[Resource::TYPE_DATABASE] = 0;
+        $report[Resource::TYPE_COLLECTION] = 0;
+        $report[Resource::TYPE_DOCUMENT] = 0;
+        $report[Resource::TYPE_ATTRIBUTE] = 0;
+        $report[Resource::TYPE_INDEX] = 0;
 
-        $this->foreachDatabase(function($database) use ($resources, &$report) {
+        $databaseCount = 0;
+        $this->foreachDatabase(function($database) use ($resources, &$report, &$databaseCount) {
+            $databaseCount++;
+
             $databaseId = $database['$id'];
 
-            // Determine if we should use the fast count for collections.
+            // Determine if we should use the fast count for collections
             $onlyCollectionNeeded = \in_array(Resource::TYPE_COLLECTION, $resources)
                 && !\in_array(Resource::TYPE_DOCUMENT, $resources)
                 && !\in_array(Resource::TYPE_ATTRIBUTE, $resources)
@@ -67,7 +60,6 @@ class API extends Reader
 
                 // For full details, iterate collections once per database
                 $collectionCount = 0;
-
                 $this->foreachCollection($dbResource, function($collection) use ($databaseId, $resources, &$report, &$collectionCount) {
                     $collectionCount++;
 
@@ -101,6 +93,10 @@ class API extends Reader
                 }
             }
         });
+
+        if (\in_array(Resource::TYPE_DATABASE, $resources)) {
+            $report[Resource::TYPE_DATABASE] = $databaseCount;
+        }
     }
 
     /**

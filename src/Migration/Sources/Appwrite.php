@@ -199,12 +199,6 @@ class Appwrite extends Source
             ])['total'];
         }
 
-        if (\in_array(Resource::TYPE_TEAM, $resources)) {
-            $report[Resource::TYPE_TEAM] = $this->teams->list([
-                Query::limit(1)
-            ])['total'];
-        }
-
         if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
             $report[Resource::TYPE_MEMBERSHIP] = 0;
 
@@ -216,6 +210,8 @@ class Appwrite extends Source
                         ? [Query::cursorAfter($lastTeam), Query::limit($this->getAuthBatchSize())]
                         : [Query::limit($this->getAuthBatchSize())]
                 )['teams'];
+
+                $report[Resource::TYPE_TEAM] += \count($teams);
 
                 foreach ($teams as $team) {
                     $lastMembership = null;
@@ -263,12 +259,6 @@ class Appwrite extends Source
      */
     private function reportStorage(array $resources, array &$report): void
     {
-        if (\in_array(Resource::TYPE_BUCKET, $resources)) {
-            $report[Resource::TYPE_BUCKET] = $this->storage->listBuckets([
-                Query::limit(1),
-            ])['total'];
-        }
-
         if (\in_array(Resource::TYPE_FILE, $resources)) {
             $report[Resource::TYPE_FILE] = 0;
             $report['size'] = 0;
@@ -280,6 +270,8 @@ class Appwrite extends Source
                         ? [Query::cursorAfter($lastBucket), Query::limit($this->getStorageBatchSize())]
                         : [Query::limit($this->getStorageBatchSize())]
                 )['buckets'];
+
+                $report[Resource::TYPE_BUCKET] += \count($buckets);
 
                 foreach ($buckets as $bucket) {
                     $lastFile = null;
@@ -322,12 +314,6 @@ class Appwrite extends Source
 
     private function reportFunctions(array $resources, array &$report): void
     {
-        if (\in_array(Resource::TYPE_FUNCTION, $resources)) {
-            $report[Resource::TYPE_FUNCTION] = $this->functions->list([
-                Query::limit(1),
-            ])['total'];
-        }
-
         if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
             $report[Resource::TYPE_DEPLOYMENT] = 0;
 
@@ -339,6 +325,8 @@ class Appwrite extends Source
                         ? [Query::cursorAfter($lastFunction), Query::limit($this->getFunctionsBatchSize())]
                         : [Query::limit($this->getFunctionsBatchSize())]
                 )['functions'];
+
+                $report[Resource::TYPE_FUNCTION] += \count($functions);
 
                 foreach ($functions as $function) {
                     if (!empty($function['deployment'])) {

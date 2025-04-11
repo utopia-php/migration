@@ -24,89 +24,71 @@ class Database extends Reader
     {
     }
 
+    public function getBatchSize(): int
+    {
+        return 1_000;
+    }
+
     public function report(array $resources, array &$report): void
     {
-        if (in_array(Resource::TYPE_DATABASE, $resources)) {
-            $report[Resource::TYPE_DATABASE] = $this->countResources('databases');
-        }
+        $report[Resource::TYPE_DATABASE] = 0;
+        $report[Resource::TYPE_COLLECTION] = 0;
+        $report[Resource::TYPE_DOCUMENT] = 0;
+        $report[Resource::TYPE_ATTRIBUTE] = 0;
+        $report[Resource::TYPE_INDEX] = 0;
 
-        // Determine if we need to fetch databases (for collection, document, attribute, or index resources).
-        $needsDatabases = \in_array(Resource::TYPE_COLLECTION, $resources)
-            || in_array(Resource::TYPE_DOCUMENT, $resources)
-            || in_array(Resource::TYPE_ATTRIBUTE, $resources)
-            || in_array(Resource::TYPE_INDEX, $resources);
+        $databaseCount = 0;
+        $this->foreachDatabase(function ($database) use (&$report, $resources, &$databaseCount) {
+            $databaseCount++;
 
-        $databases = [];
-        if ($needsDatabases) {
-            $this->foreachDatabase(function($db) use (&$databases) {
-                $databases[] = $db;
-            });
-        }
+            $dbResource = new DatabaseResource(
+                $database->getId(),
+                $database->getAttribute('name'),
+                $database->getCreatedAt(),
+                $database->getUpdatedAt()
+            );
 
-        // Process collections: count resources per database.
-        if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
-            $report[Resource::TYPE_COLLECTION] = 0;
+            $onlyCollectionNeeded = \in_array(Resource::TYPE_COLLECTION, $resources)
+                && !\in_array(Resource::TYPE_DOCUMENT, $resources)
+                && !\in_array(Resource::TYPE_ATTRIBUTE, $resources)
+                && !\in_array(Resource::TYPE_INDEX, $resources);
 
-            foreach ($databases as $database) {
+            if ($onlyCollectionNeeded) {
                 $report[Resource::TYPE_COLLECTION] += $this->countResources("database_{$database->getInternalId()}");
-            }
-        }
-
-        // If any of the document, attribute, or index reports are required, we need to retrieve collections.
-        $needsCollections = \in_array(Resource::TYPE_DOCUMENT, $resources)
-            || \in_array(Resource::TYPE_ATTRIBUTE, $resources)
-            || \in_array(Resource::TYPE_INDEX, $resources);
-
-        if ($needsCollections) {
-            if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
-                $report[Resource::TYPE_DOCUMENT] = 0;
-            }
-            if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-                $report[Resource::TYPE_ATTRIBUTE] = 0;
-            }
-            if (in_array(Resource::TYPE_INDEX, $resources)) {
-                $report[Resource::TYPE_INDEX] = 0;
+                return;
             }
 
-            foreach ($databases as $database) {
-                $dbResource = new DatabaseResource(
-                    $database->getId(),
-                    $database->getAttribute('name'),
-                    $database->getCreatedAt(),
-                    $database->getUpdatedAt()
-                );
+            $collectionCount = 0;
+            $this->foreachCollection($dbResource, function ($collection) use ($database, &$report, $resources, &$collectionCount) {
+                $collectionCount++;
 
-                // Retrieve all collections for this database
-                $collections = [];
-                $this->foreachCollection($dbResource, function($collection) use (&$collections) {
-                    $collections[] = $collection;
-                });
-
-                if (in_array(Resource::TYPE_DOCUMENT, $resources)) {
-                    foreach ($collections as $collection) {
-                        $collectionId = "database_{$database->getInternalId()}_collection_{$collection->getInternalId()}";
-                        $report[Resource::TYPE_DOCUMENT] += $this->countResources($collectionId);
-                    }
+                if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
+                    $collectionId = "database_{$database->getInternalId()}_collection_{$collection->getInternalId()}";
+                    $report[Resource::TYPE_DOCUMENT] += $this->countResources($collectionId);
                 }
 
-                if (in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-                    foreach ($collections as $collection) {
-                        $report[Resource::TYPE_ATTRIBUTE] += $this->countResources('attributes', [
-                            Query::equal('databaseInternalId', [$database->getInternalId()]),
-                            Query::equal('collectionInternalId', [$collection->getInternalId()]),
-                        ]);
-                    }
+                if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+                    $report[Resource::TYPE_ATTRIBUTE] += $this->countResources('attributes', [
+                        Query::equal('databaseInternalId', [$database->getInternalId()]),
+                        Query::equal('collectionInternalId', [$collection->getInternalId()]),
+                    ]);
                 }
 
-                if (in_array(Resource::TYPE_INDEX, $resources)) {
-                    foreach ($collections as $collection) {
-                        $report[Resource::TYPE_INDEX] += $this->countResources('indexes', [
-                            Query::equal('databaseInternalId', [$database->getInternalId()]),
-                            Query::equal('collectionInternalId', [$collection->getInternalId()]),
-                        ]);
-                    }
+                if (\in_array(Resource::TYPE_INDEX, $resources)) {
+                    $report[Resource::TYPE_INDEX] += $this->countResources('indexes', [
+                        Query::equal('databaseInternalId', [$database->getInternalId()]),
+                        Query::equal('collectionInternalId', [$collection->getInternalId()]),
+                    ]);
                 }
+            });
+
+            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
+                $report[Resource::TYPE_COLLECTION] += $collectionCount;
             }
+        });
+
+        if (\in_array(Resource::TYPE_DATABASE, $resources)) {
+            $report[Resource::TYPE_DATABASE] = $databaseCount;
         }
     }
 
