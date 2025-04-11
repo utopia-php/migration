@@ -2,23 +2,70 @@
 
 namespace Utopia\Migration\Sources\Appwrite;
 
+use Utopia\Database\Query;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Database;
+use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 
 /**
  * @template QueryType
  */
-interface Reader
+abstract class Reader
 {
+    /**
+     * Get the maximum batch size for the source
+     * @return int
+     */
+    abstract public function getBatchSize(): int;
+
     /**
      * Get information about the resources currently on the source
      *
      * @param array $resources
-     * @param array $report
-     * @return mixed
+     * @param array &$report
+     * @return void
      */
-    public function report(array $resources, array &$report);
+    abstract public function report(array $resources, array &$report): void;
+
+    public function foreachDatabase(callable $callback): void
+    {
+        $lastDatabase = null;
+        while (true) {
+            $databases = $this->listDatabases(
+                $lastDatabase
+                    ? [Query::cursorAfter($lastDatabase), Query::limit($this->getBatchSize())]
+                    : [Query::limit($this->getBatchSize())]
+            );
+            foreach ($databases as $database) {
+                $callback($database);
+            }
+            $lastDatabase = end($databases)['$id'] ?? null;
+            if (\count($databases) < $this->getBatchSize()) {
+                break;
+            }
+        }
+    }
+
+    public function foreachCollection(DatabaseResource $dbResource, callable $callback): void
+    {
+        $lastCollection = null;
+        while (true) {
+            $collections = $this->listCollections(
+                $dbResource,
+                $lastCollection
+                    ? [Query::cursorAfter($lastCollection), Query::limit($this->getBatchSize())]
+                    : [Query::limit($this->getBatchSize())]
+            );
+            foreach ($collections as $collection) {
+                $callback($collection);
+            }
+            $lastCollection = end($collections)['$id'] ?? null;
+            if (\count($collections) < $this->getBatchSize()) {
+                break;
+            }
+        }
+    }
 
     /**
      * List databases that match the given queries
@@ -26,7 +73,7 @@ interface Reader
      * @param array<QueryType> $queries
      * @return array
      */
-    public function listDatabases(array $queries = []): array;
+    abstract public function listDatabases(array $queries = []): array;
 
     /**
      * List collections that match the given queries
@@ -35,7 +82,7 @@ interface Reader
      * @param array $queries
      * @return array
      */
-    public function listCollections(Database $resource, array $queries = []): array;
+    abstract public function listCollections(Database $resource, array $queries = []): array;
 
     /**
      * List attributes that match the given queries
@@ -44,7 +91,7 @@ interface Reader
      * @param array<QueryType> $queries
      * @return array
      */
-    public function listAttributes(Collection $resource, array $queries = []): array;
+    abstract public function listAttributes(Collection $resource, array $queries = []): array;
 
     /**
      * List indexes that match the given queries
@@ -53,7 +100,7 @@ interface Reader
      * @param array<QueryType> $queries
      * @return array
      */
-    public function listIndexes(Collection $resource, array $queries = []): array;
+    abstract public function listIndexes(Collection $resource, array $queries = []): array;
 
     /**
      * List documents that match the given queries
@@ -62,7 +109,7 @@ interface Reader
      * @param array<QueryType> $queries
      * @return array
      */
-    public function listDocuments(Collection $resource, array $queries = []): array;
+    abstract public function listDocuments(Collection $resource, array $queries = []): array;
 
     /**
      * Get a document by its ID in the given collection
@@ -72,7 +119,7 @@ interface Reader
      * @param array $queries
      * @return array
      */
-    public function getDocument(Collection $resource, string $documentId, array $queries = []): array;
+    abstract public function getDocument(Collection $resource, string $documentId, array $queries = []): array;
 
     /**
      * Return a query to select the given attributes
@@ -80,7 +127,7 @@ interface Reader
      * @param array $attributes
      * @return QueryType|string
      */
-    public function querySelect(array $attributes): mixed;
+    abstract public function querySelect(array $attributes): mixed;
 
     /**
      * Return a query to filter the given attributes
@@ -89,7 +136,7 @@ interface Reader
      * @param array $values
      * @return QueryType|string
      */
-    public function queryEqual(string $attribute, array $values): mixed;
+    abstract public function queryEqual(string $attribute, array $values): mixed;
 
     /**
      * Return a query to paginate after the given resource
@@ -97,7 +144,7 @@ interface Reader
      * @param Resource|string $resource
      * @return QueryType|string
      */
-    public function queryCursorAfter(Resource|string $resource): mixed;
+    abstract public function queryCursorAfter(Resource|string $resource): mixed;
 
     /**
      * Return a query to limit the number of results
@@ -105,5 +152,5 @@ interface Reader
      * @param int $limit
      * @return QueryType|string
      */
-    public function queryLimit(int $limit): mixed;
+    abstract public function queryLimit(int $limit): mixed;
 }
