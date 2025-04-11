@@ -13,7 +13,7 @@ use Utopia\Migration\Resources\Storage\File;
 class Cache
 {
     /**
-     * @var array<string, array<string, Resource>> $cache
+     * @var array<string, array<string, Resource|int>> $cache
      */
     protected array $cache = [];
 
@@ -30,6 +30,15 @@ class Cache
      */
     public function add(Resource $resource): void
     {
+        // if documents then storing the status counter only
+        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
+            $status = $resource->getStatus();
+            if (!isset($this->cache[$resource->getName()][$status]) || !is_int($this->cache[$resource->getName()][$status])) {
+                $this->cache[$resource->getName()][$status] = 0;
+            }
+            return;
+        }
+
         if (! $resource->getInternalId()) {
             $resourceId = uniqid();
             if (isset($this->cache[$resource->getName()][$resourceId])) {
@@ -42,10 +51,6 @@ class Cache
         if ($resource->getName() == Resource::TYPE_FILE || $resource->getName() == Resource::TYPE_DEPLOYMENT) {
             /** @var File|Deployment $resource */
             $resource->setData(''); // Prevent Memory Leak
-        }
-
-        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
-            return;
         }
 
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
@@ -75,12 +80,21 @@ class Cache
      */
     public function update(Resource $resource): void
     {
-        if (! in_array($resource->getName(), $this->cache)) {
-            $this->add($resource);
+        // if documents then updating the status counter only
+        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
+            $status = $resource->getStatus();
+            $name = $resource->getName();
+            if (!isset($this->cache[$name][$status])) {
+                $this->add($resource);
+            }
+            if (is_int($this->cache[$resource->getName()][$status])) {
+                $this->cache[$resource->getName()][$status]++;
+            }
+            return;
         }
 
-        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
-            return;
+        if (! in_array($resource->getName(), $this->cache)) {
+            $this->add($resource);
         }
 
         $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
@@ -108,6 +122,24 @@ class Cache
      */
     public function remove(Resource $resource): void
     {
+        // if document resource we need to reduce the status counter
+        if ($resource->getName() === Resource::TYPE_DOCUMENT) {
+            $name = $resource->getName();
+            $status = $resource->getStatus();
+
+            if (isset($this->cache[$name][$status]) && is_int($this->cache[$name][$status])) {
+                $curStatusCounter = max($this->cache[$name][$status] - 1, 0);
+
+                if ($curStatusCounter === 0) {
+                    unset($this->cache[$name][$status]);
+                    return;
+                }
+
+                $this->cache[$name][$status] = $curStatusCounter;
+            }
+
+            return;
+        }
         if (! in_array($resource, $this->cache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
         }
