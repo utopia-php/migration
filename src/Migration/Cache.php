@@ -115,6 +115,24 @@ class Cache
      */
     public function remove(Resource $resource): void
     {
+        // if document resource we need to reduce the status counter
+        if ($resource->getName() === Resource::TYPE_DOCUMENT) {
+            $name = $resource->getName();
+            $status = $resource->getStatus();
+
+            if (isset($this->cache[$name][$status]) && is_int($this->cache[$name][$status])) {
+                $curStatusCounter = max($this->cache[$name][$status] - 1, 0);
+
+                if ($curStatusCounter === 0) {
+                    unset($this->cache[$name][$status]);
+                    return;
+                }
+
+                $this->cache[$name][$status] = $curStatusCounter;
+            }
+
+            return;
+        }
         if (! in_array($resource, $this->cache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
         }
