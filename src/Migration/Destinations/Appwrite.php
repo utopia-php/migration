@@ -64,6 +64,11 @@ class Appwrite extends Destination
     private array $documentBuffer = [];
 
     /**
+     * @var array<string, bool>
+     */
+    private array $created = [];
+
+    /**
      * @param string $project
      * @param string $endpoint
      * @param string $key
@@ -902,18 +907,21 @@ class Appwrite extends Destination
             );
         }
 
-        // Check if document has already been created
-        $exists = \array_key_exists(
-            $resource->getId(),
-            $this->cache->get(Resource::TYPE_DOCUMENT)
+        $hash = \md5(
+            $resource->getCollection()->getDatabase()->getId() .
+            $resource->getCollection()->getId() .
+            $resource->getId()
         );
 
-        if ($exists) {
+        // Check if document has already been created
+        if (isset($this->created[$hash])) {
             $resource->setStatus(
                 Resource::STATUS_SKIPPED,
                 'Document has already been created'
             );
             return false;
+        } else {
+            $this->created[$hash] = true;
         }
 
         $this->documentBuffer[] = new UtopiaDocument(\array_merge([
@@ -945,7 +953,7 @@ class Appwrite extends Destination
                             continue;
                         }
 
-                        /** @var \Utopia\Database\Document $attribute */
+                        /** @var UtopiaDocument $attribute */
                         $found = false;
                         foreach ($collection->getAttribute('attributes', []) as $attribute) {
                             if ($attribute->getAttribute('key') == $key) {
@@ -969,7 +977,6 @@ class Appwrite extends Destination
                 $this->documentBuffer = [];
             }
         }
-
 
         return true;
     }
