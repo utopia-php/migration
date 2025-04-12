@@ -255,7 +255,7 @@ class Csv extends Source
     {
         $database = $this->dbForProject->getDocument('databases', $databaseId);
         if ($database->isEmpty()) {
-            return new UtopiaDocument;
+            return new UtopiaDocument();
         }
 
         return $this->dbForProject->getDocument('database_'.$database->getInternalId(), $collectionId);
