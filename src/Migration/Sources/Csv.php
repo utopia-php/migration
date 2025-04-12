@@ -3,6 +3,7 @@
 namespace Utopia\Migration\Sources;
 
 use Utopia\Database\Database as UtopiaDatabase;
+use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Attribute;
@@ -29,6 +30,8 @@ class Csv extends Source
 
     private Reader $database;
 
+    private ?UtopiaDatabase $dbForProject;
+
     public function __construct(
         string $resourceId,
         string $filePath,
@@ -38,6 +41,8 @@ class Csv extends Source
         $this->filePath = $filePath;
         $this->resourceId = $resourceId;
         $this->deviceForCsvImports = $deviceForCsvImports;
+
+        $this->dbForProject = $dbForProject;
         $this->database = new DatabaseReader($dbForProject);
     }
 
@@ -58,6 +63,9 @@ class Csv extends Source
         return [];
     }
 
+    /**
+     * @throws \Exception
+     */
     protected function exportGroupAuth(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
@@ -86,7 +94,7 @@ class Csv extends Source
     }
 
     /**
-     * @throws Exception|\Utopia\Database\Exception
+     * @throws \Exception
      */
     private function exportDocuments(int $batchSize): void
     {
@@ -109,11 +117,13 @@ class Csv extends Source
         $lastAttribute = null;
 
         [$databaseId, $collectionId] = explode(':', $this->resourceId);
-        // TODO: @itznotabug, @jake - do we need to check for permissions here or db handles it?
-        $collection = new Collection(new Database($databaseId, ''), '', $collectionId);
+        $database = new Database($databaseId, '');
+        $collection = new Collection($database, '', $collectionId);
+
+        $collectionStructure = $this->getCollection($databaseId, $collectionId);
+        $hasDocumentSecurityEnabled = $collectionStructure->getAttribute('documentSecurity', false);
 
         while (true) {
-            // paginate over the attributes
             $queries = [$this->database->queryLimit($batchSize)];
             if ($lastAttribute) {
                 $queries[] = $this->database->queryCursorAfter($lastAttribute);
@@ -181,7 +191,6 @@ class Csv extends Source
                     continue;
                 }
 
-                // TODO: @itznotabug, @jake - should we support Relationships like these?
                 if (in_array($key, $manyToManyKeys, true)) {
                     $parsedData[$key] = str_contains($parsedValue, ',')
                         ? array_map('trim', explode(',', $parsedValue))
@@ -208,9 +217,20 @@ class Csv extends Source
                 }
             }
 
-            $docId = $parsedData['$id'] ?? 'unique()';
-            $document = new Document($docId, $collection, $parsedData);
+            $permissions = [];
+            $documentId = $parsedData['$id'] ?? 'unique()';
 
+            if ($hasDocumentSecurityEnabled && isset($parsedData['$permissions'])) {
+                $permissions = $this->parsePermissions($parsedData['$permissions']);
+            }
+
+            foreach ($parsedData as $key => $value) {
+                if (str_starts_with($key, '$')) {
+                    unset($parsedData[$key]);
+                }
+            }
+
+            $document = new Document($documentId, $collection, $parsedData, $permissions);
             $buffer[] = $document;
 
             if (count($buffer) === $batchSize) {
@@ -226,26 +246,91 @@ class Csv extends Source
         }
     }
 
+    /**
+     * Fast path function without the built-in `listCollections` for better performance!
+     *
+     * @throws \Exception
+     */
+    public function getCollection(string $databaseId, string $collectionId): UtopiaDocument
+    {
+        $database = $this->dbForProject->getDocument('databases', $databaseId);
+        if ($database->isEmpty()) {
+            return new UtopiaDocument;
+        }
+
+        return $this->dbForProject->getDocument('database_'.$database->getInternalId(), $collectionId);
+    }
+
+    /**
+     * Parses a stringified permission array into a string[].
+     *
+     * Example:
+     * ```
+     * "[read(\"user:user1234\"),read(\"user:user4321\")]"
+     * ```
+     * Into:
+     * ```
+     * [
+     *   "read(\"user:user1234\")",
+     *   "read(\"user:user4321\")"
+     * ]
+     * ```
+     *
+     * @param  string  $raw
+     * @return string[]
+     */
+    private function parsePermissions(string $raw): array
+    {
+        $raw = trim($raw, ' "[]');
+
+        if (empty($raw)) {
+            return [];
+        }
+
+        $parts = preg_split('/,(?![^(]*\))/', $raw);
+
+        return array_map(function ($item) {
+            $item = trim($item);
+
+            return str_replace('\"', '"', $item);
+        }, $parts);
+    }
+
+    /**
+     * @throws \Exception
+     */
     protected function exportGroupStorage(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
     }
 
+    /**
+     * @throws \Exception
+     */
     protected function exportBuckets(int $batchSize): void
     {
         throw new \Exception('Not Implemented');
     }
 
+    /**
+     * @throws \Exception
+     */
     private function exportFiles(int $batchSize): void
     {
         throw new \Exception('Not Implemented');
     }
 
+    /**
+     * @throws \Exception
+     */
     private function exportFile(File $file): void
     {
         throw new \Exception('Not Implemented');
     }
 
+    /**
+     * @throws \Exception
+     */
     protected function exportGroupFunctions(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
