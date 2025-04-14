@@ -130,10 +130,22 @@ class Transfer
             }
         }
 
-        foreach ($this->cache->getAll() as $resources) {
+        foreach ($this->cache->getAll() as $resourceType => $resources) {
             foreach ($resources as $resource) {
+                if ($resourceType === Resource::TYPE_DOCUMENT && is_string($resource)) {
+                    $documentStatus = $resource;
+                    $status[$resourceType][$documentStatus]++;
+
+                    if ($status[$resourceType]['pending'] > 0) {
+                        $status[$resourceType]['pending']--;
+                    }
+
+                    continue;
+                }
+
                 if (isset($status[$resource->getName()])) {
                     $status[$resource->getName()][$resource->getStatus()]++;
+
                     if ($status[$resource->getName()]['pending'] > 0) {
                         $status[$resource->getName()]['pending']--;
                     }
@@ -260,11 +272,28 @@ class Transfer
     public function getReport(string $statusLevel = ''): array
     {
         $report = [];
-
         $cache = $this->cache->getAll();
 
         foreach ($cache as $type => $resources) {
-            foreach ($resources as $resource) {
+            foreach ($resources as $id => $resource) {
+                if ($type === Resource::TYPE_DOCUMENT && is_string($resource)) {
+                    if ($statusLevel && $resource !== $statusLevel) {
+                        continue;
+                    }
+                    // no message for document is stored
+                    $report[] = [
+                        'resource' => $type,
+                        'id' => $id,
+                        'status' => $resource,
+                        'message' => '',
+                    ];
+                    continue;
+                }
+
+                if (!is_object($resource)) {
+                    continue;
+                }
+
                 if ($statusLevel && $resource->getStatus() !== $statusLevel) {
                     continue;
                 }
