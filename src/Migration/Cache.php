@@ -30,14 +30,6 @@ class Cache
      */
     public function add(Resource $resource): void
     {
-        // if documents then storing the status counter only
-        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
-            $status = $resource->getStatus();
-            $documentId = $resource->getInternalId();
-            $this->cache[$resource->getName()][$documentId] = $status;
-            return;
-        }
-
         if (! $resource->getInternalId()) {
             $resourceId = uniqid();
             if (isset($this->cache[$resource->getName()][$resourceId])) {
@@ -45,6 +37,13 @@ class Cache
                 // todo: $resourceId is not used?
             }
             $resource->setInternalId(uniqid());
+        }
+
+        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
+            $status = $resource->getStatus();
+            $documentId = $resource->getInternalId();
+            $this->cache[$resource->getName()][$documentId] = $status;
+            return;
         }
 
         if ($resource->getName() == Resource::TYPE_FILE || $resource->getName() == Resource::TYPE_DEPLOYMENT) {

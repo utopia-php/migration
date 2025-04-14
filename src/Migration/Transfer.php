@@ -129,25 +129,24 @@ class Transfer
                 }
             }
         }
-        
+
         foreach ($this->cache->getAll() as $resourceType => $resources) {
-            foreach ($resources as $resourceId => $resource) {
+            foreach ($resources as $resource) {
                 if ($resourceType === Resource::TYPE_DOCUMENT && is_string($resource)) {
                     $documentStatus = $resource;
                     $status[$resourceType][$documentStatus]++;
-                    
-                    if ($documentStatus === 'pending' && $status[$resourceType]['pending'] > 0) {
+
+                    if ($status[$resourceType]['pending'] > 0) {
                         $status[$resourceType]['pending']--;
                     }
-        
-                    continue; // Skip to next iteration
+
+                    continue;
                 }
-        
-                // For all other non-document resources
+
                 if (isset($status[$resource->getName()])) {
                     $status[$resource->getName()][$resource->getStatus()]++;
-        
-                    if ($resource->getStatus() === 'pending' && $status[$resource->getName()]['pending'] > 0) {
+
+                    if ($status[$resource->getName()]['pending'] > 0) {
                         $status[$resource->getName()]['pending']--;
                     }
                 }
@@ -270,46 +269,46 @@ class Transfer
      * @param  string  $statusLevel If no status level is provided, all status types will be returned.
      * @return array<array<string, mixed>>
      */
-public function getReport(string $statusLevel = ''): array
-{
-    $report = [];
-    $cache = $this->cache->getAll();
+    public function getReport(string $statusLevel = ''): array
+    {
+        $report = [];
+        $cache = $this->cache->getAll();
 
-    foreach ($cache as $type => $resources) {
-        foreach ($resources as $id => $resource) {
-            if ($type === Resource::TYPE_DOCUMENT && is_string($resource)) {
-                if ($statusLevel && $resource !== $statusLevel) {
+        foreach ($cache as $type => $resources) {
+            foreach ($resources as $id => $resource) {
+                if ($type === Resource::TYPE_DOCUMENT && is_string($resource)) {
+                    if ($statusLevel && $resource !== $statusLevel) {
+                        continue;
+                    }
+                    // no message for document is stored
+                    $report[] = [
+                        'resource' => $type,
+                        'id' => $id,
+                        'status' => $resource,
+                        'message' => '',
+                    ];
                     continue;
                 }
-                // no message for document is stored
+
+                if (!is_object($resource)) {
+                    continue;
+                }
+
+                if ($statusLevel && $resource->getStatus() !== $statusLevel) {
+                    continue;
+                }
+
                 $report[] = [
                     'resource' => $type,
-                    'id' => $id,
-                    'status' => $resource,
-                    'message' => '',
+                    'id' => $resource->getId(),
+                    'status' => $resource->getStatus(),
+                    'message' => $resource->getMessage(),
                 ];
-                continue;
             }
-
-            if (!is_object($resource)) {
-                continue;
-            }
-
-            if ($statusLevel && $resource->getStatus() !== $statusLevel) {
-                continue;
-            }
-
-            $report[] = [
-                'resource' => $type,
-                'id' => $resource->getId(),
-                'status' => $resource->getStatus(),
-                'message' => $resource->getMessage(),
-            ];
         }
-    }
 
-    return $report;
-}
+        return $report;
+    }
 
     /**
      * @throws \Exception
