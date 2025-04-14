@@ -26,7 +26,7 @@ class Csv extends Source
      */
     private string $resourceId;
 
-    private Device $deviceForCsvImports;
+    private Device $deviceForImports;
 
     private Reader $database;
 
@@ -35,12 +35,12 @@ class Csv extends Source
     public function __construct(
         string $resourceId,
         string $filePath,
-        Device $deviceForCsvImports,
+        Device $deviceForImports,
         ?UtopiaDatabase $dbForProject
     ) {
         $this->filePath = $filePath;
         $this->resourceId = $resourceId;
-        $this->deviceForCsvImports = $deviceForCsvImports;
+        $this->deviceForImports = $deviceForImports;
 
         $this->dbForProject = $dbForProject;
         $this->database = new DatabaseReader($dbForProject);
@@ -89,7 +89,7 @@ class Csv extends Source
             );
         } finally {
             // delete the temporary file!
-            $this->deviceForCsvImports->delete($this->filePath);
+            $this->deviceForImports->delete($this->filePath);
         }
     }
 
@@ -98,7 +98,7 @@ class Csv extends Source
      */
     private function exportDocuments(int $batchSize): void
     {
-        if (! $this->deviceForCsvImports->exists($this->filePath)) {
+        if (! $this->deviceForImports->exists($this->filePath)) {
             return;
         }
 
