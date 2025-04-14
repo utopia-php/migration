@@ -3,7 +3,6 @@
 namespace Utopia\Migration\Sources;
 
 use Utopia\Database\Database as UtopiaDatabase;
-use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Attribute;
@@ -30,8 +29,6 @@ class Csv extends Source
 
     private Reader $database;
 
-    private ?UtopiaDatabase $dbForProject;
-
     public function __construct(
         string $resourceId,
         string $filePath,
@@ -41,8 +38,6 @@ class Csv extends Source
         $this->filePath = $filePath;
         $this->resourceId = $resourceId;
         $this->deviceForImports = $deviceForImports;
-
-        $this->dbForProject = $dbForProject;
         $this->database = new DatabaseReader($dbForProject);
     }
 
@@ -113,15 +108,12 @@ class Csv extends Source
             return;
         }
 
-        $allAttributes = [];
+        $attributes = [];
         $lastAttribute = null;
 
         [$databaseId, $collectionId] = explode(':', $this->resourceId);
         $database = new Database($databaseId, '');
         $collection = new Collection($database, '', $collectionId);
-
-        $collectionStructure = $this->getCollection($databaseId, $collectionId);
-        $hasDocumentSecurityEnabled = $collectionStructure->getAttribute('documentSecurity', false);
 
         while (true) {
             $queries = [$this->database->queryLimit($batchSize)];
@@ -134,7 +126,7 @@ class Csv extends Source
                 break;
             }
 
-            $allAttributes = array_merge($allAttributes, $fetched);
+            array_push($attributes, ...$fetched);
             $lastAttribute = $fetched[count($fetched) - 1];
 
             if (count($fetched) < $batchSize) {
@@ -145,7 +137,7 @@ class Csv extends Source
         $attributeTypes = [];
         $manyToManyKeys = [];
 
-        foreach ($allAttributes as $attribute) {
+        foreach ($attributes as $attribute) {
             $key = $attribute['key'];
 
             if (
@@ -186,8 +178,6 @@ class Csv extends Source
                 $parsedValue = trim($value);
 
                 if ($parsedValue === '') {
-                    $parsedData[$key] = null;
-
                     continue;
                 }
 
@@ -220,15 +210,12 @@ class Csv extends Source
             $permissions = [];
             $documentId = $parsedData['$id'] ?? 'unique()';
 
-            if ($hasDocumentSecurityEnabled && isset($parsedData['$permissions'])) {
+            if (isset($parsedData['$permissions'])) {
                 $permissions = $this->parsePermissions($parsedData['$permissions']);
             }
 
-            foreach ($parsedData as $key => $value) {
-                if (str_starts_with($key, '$')) {
-                    unset($parsedData[$key]);
-                }
-            }
+            unset($parsedData['$id']);
+            unset($parsedData['$permissions']);
 
             $document = new Document($documentId, $collection, $parsedData, $permissions);
             $buffer[] = $document;
@@ -244,21 +231,6 @@ class Csv extends Source
         if (! empty($buffer)) {
             $this->callback($buffer);
         }
-    }
-
-    /**
-     * Fast path function without the built-in `listCollections` for better performance!
-     *
-     * @throws \Exception
-     */
-    public function getCollection(string $databaseId, string $collectionId): UtopiaDocument
-    {
-        $database = $this->dbForProject->getDocument('databases', $databaseId);
-        if ($database->isEmpty()) {
-            return new UtopiaDocument();
-        }
-
-        return $this->dbForProject->getDocument('database_'.$database->getInternalId(), $collectionId);
     }
 
     /**
