@@ -13,7 +13,7 @@ use Utopia\Migration\Resources\Storage\File;
 class Cache
 {
     /**
-     * @var array<string, array<string, Resource|int>> $cache
+     * @var array<string, array<string, Resource|string>> $cache
      */
     protected array $cache = [];
 
@@ -33,9 +33,8 @@ class Cache
         // if documents then storing the status counter only
         if ($resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
-            if (!isset($this->cache[$resource->getName()][$status]) || !is_int($this->cache[$resource->getName()][$status])) {
-                $this->cache[$resource->getName()][$status] = 0;
-            }
+            $documentId = $resource->getInternalId();
+            $this->cache[$resource->getName()][$documentId] = $status;
             return;
         }
 
@@ -82,13 +81,12 @@ class Cache
     {
         // if documents then updating the status counter only
         if ($resource->getName() == Resource::TYPE_DOCUMENT) {
-            $status = $resource->getStatus();
-            $name = $resource->getName();
-            if (!isset($this->cache[$name][$status])) {
+            $documentId = $resource->getInternalId();
+            if (!isset($this->cache[$resource->getName()][$documentId])) {
                 $this->add($resource);
-            }
-            if (is_int($this->cache[$resource->getName()][$status])) {
-                $this->cache[$resource->getName()][$status]++;
+            } else {
+                $status = $resource->getStatus();
+                $this->cache[$resource->getName()][$documentId] = $status;
             }
             return;
         }
@@ -122,23 +120,10 @@ class Cache
      */
     public function remove(Resource $resource): void
     {
-        // if document resource we need to reduce the status counter
         if ($resource->getName() === Resource::TYPE_DOCUMENT) {
-            $name = $resource->getName();
-            $status = $resource->getStatus();
-
-            if (isset($this->cache[$name][$status]) && is_int($this->cache[$name][$status])) {
-                $curStatusCounter = max($this->cache[$name][$status] - 1, 0);
-
-                if ($curStatusCounter === 0) {
-                    unset($this->cache[$name][$status]);
-                    return;
-                }
-
-                $this->cache[$name][$status] = $curStatusCounter;
+            if (! isset($this->cache[$resource->getName()][$resource->getInternalId()])) {
+                throw new \Exception('Resource does not exist in cache');
             }
-
-            return;
         }
         if (! in_array($resource, $this->cache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
@@ -165,7 +150,7 @@ class Cache
     /**
      * Get All Resources
      *
-     * @return array<string, array<string, Resource>>
+     * @return array<string, array<string, Resource|string>>
      */
     public function getAll(): array
     {

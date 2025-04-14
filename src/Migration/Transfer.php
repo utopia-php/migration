@@ -129,32 +129,28 @@ class Transfer
                 }
             }
         }
-        // document resources are having status counter inside the cache
+        
         foreach ($this->cache->getAll() as $resourceType => $resources) {
-            if ($resourceType == Resource::TYPE_DOCUMENT) {
-                continue;
-            }
-            foreach ($resources as $resource) {
+            foreach ($resources as $resourceId => $resource) {
+                if ($resourceType === Resource::TYPE_DOCUMENT && is_string($resource)) {
+                    $documentStatus = $resource;
+                    $status[$resourceType][$documentStatus]++;
+                    
+                    if ($documentStatus === 'pending' && $status[$resourceType]['pending'] > 0) {
+                        $status[$resourceType]['pending']--;
+                    }
+        
+                    continue; // Skip to next iteration
+                }
+        
+                // For all other non-document resources
                 if (isset($status[$resource->getName()])) {
                     $status[$resource->getName()][$resource->getStatus()]++;
-                    if ($status[$resource->getName()]['pending'] > 0) {
+        
+                    if ($resource->getStatus() === 'pending' && $status[$resource->getName()]['pending'] > 0) {
                         $status[$resource->getName()]['pending']--;
                     }
                 }
-            }
-        }
-
-        if (isset($this->cache->getAll()[Resource::TYPE_DOCUMENT])) {
-            $documentsStatus = $this->cache->getAll()[Resource::TYPE_DOCUMENT];
-            $status[Resource::TYPE_DOCUMENT] = $documentsStatus;
-        } else {
-            $status[Resource::TYPE_DOCUMENT] = [];
-        }
-        // merging other statuses to the document resource if not present
-        $allDocumentStatus = [Resource::STATUS_PENDING,Resource::STATUS_SUCCESS,Resource::STATUS_ERROR,Resource::STATUS_SKIPPED,Resource::STATUS_PROCESSING,Resource::STATUS_WARNING];
-        foreach ($allDocumentStatus as $statusValue) {
-            if (!isset($status[Resource::TYPE_DOCUMENT][$statusValue])) {
-                $status[Resource::TYPE_DOCUMENT][$statusValue] = 0;
             }
         }
 
@@ -274,32 +270,46 @@ class Transfer
      * @param  string  $statusLevel If no status level is provided, all status types will be returned.
      * @return array<array<string, mixed>>
      */
-    public function getReport(string $statusLevel = ''): array
-    {
-        $report = [];
+public function getReport(string $statusLevel = ''): array
+{
+    $report = [];
+    $cache = $this->cache->getAll();
 
-        $cache = $this->cache->getAll();
-
-        foreach ($cache as $type => $resources) {
-            if ($type === Resource::TYPE_DOCUMENT) {
-                continue;
-            }
-            foreach ($resources as $resource) {
-                if ($statusLevel && $resource->getStatus() !== $statusLevel) {
+    foreach ($cache as $type => $resources) {
+        foreach ($resources as $id => $resource) {
+            if ($type === Resource::TYPE_DOCUMENT && is_string($resource)) {
+                if ($statusLevel && $resource !== $statusLevel) {
                     continue;
                 }
-
+                // no message for document is stored
                 $report[] = [
                     'resource' => $type,
-                    'id' => $resource->getId(),
-                    'status' => $resource->getStatus(),
-                    'message' => $resource->getMessage(),
+                    'id' => $id,
+                    'status' => $resource,
+                    'message' => '',
                 ];
+                continue;
             }
-        }
 
-        return $report;
+            if (!is_object($resource)) {
+                continue;
+            }
+
+            if ($statusLevel && $resource->getStatus() !== $statusLevel) {
+                continue;
+            }
+
+            $report[] = [
+                'resource' => $type,
+                'id' => $resource->getId(),
+                'status' => $resource->getStatus(),
+                'message' => $resource->getMessage(),
+            ];
+        }
     }
+
+    return $report;
+}
 
     /**
      * @throws \Exception
