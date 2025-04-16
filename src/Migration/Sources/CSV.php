@@ -66,12 +66,8 @@ class CSV extends Source
         $file->setFlags(\SplFileObject::READ_CSV | \SplFileObject::SKIP_EMPTY);
 
         $file->seek(PHP_INT_MAX);
-        $rowCount = $file->key();
-
-        // Subtract to exclude header
-        if ($rowCount > 0) {
-            $rowCount--;
-        }
+        $rowCount = max(0, $file->key());
+        $rowCount = $rowCount > 0 ? $rowCount - 1 : 0;
 
         $report[Resource::TYPE_DOCUMENT] = $rowCount;
 
