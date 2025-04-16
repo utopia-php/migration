@@ -65,20 +65,12 @@ class CSV extends Source
         $file = new \SplFileObject($this->filePath, 'r');
         $file->setFlags(\SplFileObject::READ_CSV | \SplFileObject::SKIP_EMPTY);
 
-        if (! $file->eof()) {
-            $file->fgetcsv();
-        }
+        $file->seek(PHP_INT_MAX);
+        $rowCount = $file->key();
 
-        $rowCount = 0;
-        while (! $file->eof()) {
-            $row = $file->fgetcsv();
-
-            // check for blank lines
-            if ($row === [null] || $row === false) {
-                continue;
-            }
-
-            $rowCount++;
+        // Subtract to exclude header
+        if ($rowCount > 0) {
+            $rowCount--;
         }
 
         $report[Resource::TYPE_DOCUMENT] = $rowCount;
