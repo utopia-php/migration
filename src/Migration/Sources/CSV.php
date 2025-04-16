@@ -16,7 +16,7 @@ use Utopia\Migration\Sources\Appwrite\Reader\Database as DatabaseReader;
 use Utopia\Migration\Transfer;
 use Utopia\Storage\Device;
 
-class Csv extends Source
+class CSV extends Source
 {
     private string $filePath;
 
@@ -25,25 +25,25 @@ class Csv extends Source
      */
     private string $resourceId;
 
-    private Device $deviceForImports;
+    private Device $device;
 
     private Reader $database;
 
     public function __construct(
         string $resourceId,
         string $filePath,
-        Device $deviceForImports,
+        Device $device,
         ?UtopiaDatabase $dbForProject
     ) {
+        $this->device = $device;
         $this->filePath = $filePath;
         $this->resourceId = $resourceId;
-        $this->deviceForImports = $deviceForImports;
         $this->database = new DatabaseReader($dbForProject);
     }
 
     public static function getName(): string
     {
-        return 'Csv';
+        return 'CSV';
     }
 
     public static function getSupportedResources(): array
@@ -53,9 +53,26 @@ class Csv extends Source
         ];
     }
 
+    // called before the `exportGroupDatabases`.
     public function report(array $resources = []): array
     {
-        return [];
+        $report = [];
+
+        $this->withCsvStream(function ($stream) use (&$report) {
+            $headers = fgetcsv($stream);
+            if (! is_array($headers) || count($headers) === 0) {
+                return;
+            }
+
+            $rowCount = 0;
+            while (fgetcsv($stream) !== false) {
+                $rowCount++;
+            }
+
+            $report[Resource::TYPE_DOCUMENT] = $rowCount;
+        });
+
+        return $report;
     }
 
     /**
@@ -84,7 +101,7 @@ class Csv extends Source
             );
         } finally {
             // delete the temporary file!
-            $this->deviceForImports->delete($this->filePath);
+            $this->device->delete($this->filePath);
         }
     }
 
@@ -93,20 +110,6 @@ class Csv extends Source
      */
     private function exportDocuments(int $batchSize): void
     {
-        if (! $this->deviceForImports->exists($this->filePath)) {
-            return;
-        }
-
-        $stream = fopen($this->filePath, 'r');
-        if (! $stream) {
-            return;
-        }
-
-        $headers = fgetcsv($stream);
-        if (! is_array($headers) || count($headers) === 0) {
-            fclose($stream);
-            return;
-        }
 
         $attributes = [];
         $lastAttribute = null;
@@ -141,7 +144,6 @@ class Csv extends Source
             $key = $attribute['key'];
 
             if (
-                // Skip child-side relationships entirely
                 $attribute['type'] === Attribute::TYPE_RELATIONSHIP &&
                 ($attribute['side'] ?? '') === UtopiaDatabase::RELATION_SIDE_CHILD
             ) {
@@ -159,113 +161,64 @@ class Csv extends Source
             }
         }
 
-        $buffer = [];
-
-        while (($row = fgetcsv($stream)) !== false) {
-            $data = array_combine($headers, $row);
-            if ($data === false) {
-                continue;
+        $this->withCSVStream(function ($stream) use ($attributeTypes, $manyToManyKeys, $collection, $batchSize) {
+            $headers = fgetcsv($stream);
+            if (! is_array($headers) || count($headers) === 0) {
+                return;
             }
 
-            $parsedData = $data;
+            $buffer = [];
 
-            foreach ($data as $key => $value) {
-                if (! isset($attributeTypes[$key])) {
+            while (($row = fgetcsv($stream)) !== false) {
+                $data = array_combine($headers, $row);
+                if ($data === false) {
                     continue;
                 }
 
-                $type = $attributeTypes[$key];
-                $parsedValue = trim($value);
+                $parsedData = $data;
 
-                if ($parsedValue === '') {
-                    continue;
+                foreach ($data as $key => $value) {
+                    $parsedValue = trim($value);
+                    $type = $attributeTypes[$key];
+
+                    if (! isset($type) || $parsedValue === '') {
+                        continue;
+                    }
+
+                    if (in_array($key, $manyToManyKeys, true)) {
+                        $parsedData[$key] = str_contains($parsedValue, ',')
+                            ? array_map('trim', explode(',', $parsedValue))
+                            : [$parsedValue];
+
+                        continue;
+                    }
+
+                    $parsedData[$key] = match ($type) {
+                        Attribute::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
+                        Attribute::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
+                        Attribute::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
+                        default => $parsedValue,
+                    };
                 }
 
-                if (in_array($key, $manyToManyKeys, true)) {
-                    $parsedData[$key] = str_contains($parsedValue, ',')
-                        ? array_map('trim', explode(',', $parsedValue))
-                        : [$parsedValue];
+                $documentId = $parsedData['$id'] ?? 'unique()';
 
-                    continue;
-                }
+                // `$id`, `$permissions` in the doc can cause issues!
+                unset($parsedData['$id'], $parsedData['$permissions']);
 
-                switch ($type) {
-                    case Attribute::TYPE_INTEGER:
-                        $parsedData[$key] = is_numeric($parsedValue) ? (int) $parsedValue : null;
-                        break;
+                $document = new Document($documentId, $collection, $parsedData);
+                $buffer[] = $document;
 
-                    case Attribute::TYPE_FLOAT:
-                        $parsedData[$key] = is_numeric($parsedValue) ? (float) $parsedValue : null;
-                        break;
-
-                    case Attribute::TYPE_BOOLEAN:
-                        $parsedData[$key] = filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN);
-                        break;
-
-                    default:
-                        break;
+                if (count($buffer) === $batchSize) {
+                    $this->callback($buffer);
+                    $buffer = [];
                 }
             }
 
-            $permissions = [];
-            $documentId = $parsedData['$id'] ?? 'unique()';
-
-            if (isset($parsedData['$permissions'])) {
-                $permissions = $this->parsePermissions($parsedData['$permissions']);
-            }
-
-            unset($parsedData['$id']);
-            unset($parsedData['$permissions']);
-
-            $document = new Document($documentId, $collection, $parsedData, $permissions);
-            $buffer[] = $document;
-
-            if (count($buffer) === $batchSize) {
+            if (! empty($buffer)) {
                 $this->callback($buffer);
-                $buffer = [];
             }
-        }
-
-        fclose($stream);
-
-        if (! empty($buffer)) {
-            $this->callback($buffer);
-        }
-    }
-
-    /**
-     * Parses a stringified permission array into a string[].
-     *
-     * Example:
-     * ```
-     * "[read(\"user:user1234\"),read(\"user:user4321\")]"
-     * ```
-     * Into:
-     * ```
-     * [
-     *   "read(\"user:user1234\")",
-     *   "read(\"user:user4321\")"
-     * ]
-     * ```
-     *
-     * @param  string  $raw
-     * @return string[]
-     */
-    private function parsePermissions(string $raw): array
-    {
-        $raw = trim($raw, ' "[]');
-
-        if (empty($raw)) {
-            return [];
-        }
-
-        $parts = preg_split('/,(?![^(]*\))/', $raw);
-
-        return array_map(function ($item) {
-            $item = trim($item);
-
-            return str_replace('\"', '"', $item);
-        }, $parts);
+        });
     }
 
     /**
@@ -306,5 +259,23 @@ class Csv extends Source
     protected function exportGroupFunctions(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
+    }
+
+    private function withCsvStream(callable $fn): void
+    {
+        if (! $this->device->exists($this->filePath)) {
+            return;
+        }
+
+        $stream = fopen($this->filePath, 'r');
+        if (! $stream) {
+            return;
+        }
+
+        try {
+            $fn($stream);
+        } finally {
+            fclose($stream);
+        }
     }
 }
