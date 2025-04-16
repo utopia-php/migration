@@ -179,7 +179,7 @@ class CSV extends Source
 
                 foreach ($data as $key => $value) {
                     $parsedValue = trim($value);
-                    $type = $attributeTypes[$key];
+                    $type = $attributeTypes[$key] ?? null;
 
                     if (! isset($type) || $parsedValue === '') {
                         continue;
