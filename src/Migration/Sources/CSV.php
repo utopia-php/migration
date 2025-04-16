@@ -58,19 +58,30 @@ class CSV extends Source
     {
         $report = [];
 
-        $this->withCsvStream(function ($stream) use (&$report) {
-            $headers = fgetcsv($stream);
-            if (! is_array($headers) || count($headers) === 0) {
-                return;
+        if (! $this->device->exists($this->filePath)) {
+            return $report;
+        }
+
+        $file = new \SplFileObject($this->filePath, 'r');
+        $file->setFlags(\SplFileObject::READ_CSV | \SplFileObject::SKIP_EMPTY);
+
+        if (! $file->eof()) {
+            $file->fgetcsv();
+        }
+
+        $rowCount = 0;
+        while (! $file->eof()) {
+            $row = $file->fgetcsv();
+
+            // check for blank lines
+            if ($row === [null] || $row === false) {
+                continue;
             }
 
-            $rowCount = 0;
-            while (fgetcsv($stream) !== false) {
-                $rowCount++;
-            }
+            $rowCount++;
+        }
 
-            $report[Resource::TYPE_DOCUMENT] = $rowCount;
-        });
+        $report[Resource::TYPE_DOCUMENT] = $rowCount;
 
         return $report;
     }
