@@ -166,9 +166,15 @@ class CSV extends Source
                 return;
             }
 
+            $this->validateCSVHeaders($headers, $attributeTypes);
+
             $buffer = [];
 
             while (($row = fgetcsv($stream)) !== false) {
+                if (count($row) !== count($headers)) {
+                    throw new \Exception('CSV row does not match the number of header columns.');
+                }
+
                 $data = array_combine($headers, $row);
                 if ($data === false) {
                     continue;
@@ -275,6 +281,36 @@ class CSV extends Source
             $fn($stream);
         } finally {
             fclose($stream);
+        }
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function validateCSVHeaders(array $headers, array $attributeTypes): void
+    {
+        $expectedAttributes = array_keys($attributeTypes);
+
+        // Ignore keys like $id, $permissions, etc.
+        $filteredHeaders = array_filter($headers, fn ($key) => ! str_starts_with($key, '$'));
+
+        $extraAttributes = array_diff($filteredHeaders, $expectedAttributes);
+        $missingAttributes = array_diff($expectedAttributes, $filteredHeaders);
+
+        if (! empty($missingAttributes) || ! empty($extraAttributes)) {
+            $messages = [];
+
+            if (! empty($missingAttributes)) {
+                $label = count($missingAttributes) === 1 ? 'Missing attribute' : 'Missing attributes';
+                $messages[] = "{$label}: '".implode("', '", $missingAttributes)."'";
+            }
+
+            if (! empty($extraAttributes)) {
+                $label = count($extraAttributes) === 1 ? 'Unexpected attribute' : 'Unexpected attributes';
+                $messages[] = "{$label}: '".implode("', '", $extraAttributes)."'";
+            }
+
+            throw new \Exception('CSV header mismatch. '.implode(' | ', $messages));
         }
     }
 }
