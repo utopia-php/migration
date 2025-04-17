@@ -287,8 +287,10 @@ class CSV extends Source
     /**
      * @throws \Exception
      */
-    private function validateCSVHeaders(array $headers, array $expectedAttributes): void
+    private function validateCSVHeaders(array $headers, array $attributeTypes): void
     {
+        $expectedAttributes = array_keys($attributeTypes);
+
         // Ignore keys like $id, $permissions, etc.
         $filteredHeaders = array_filter($headers, fn ($key) => ! str_starts_with($key, '$'));
 
