@@ -160,13 +160,13 @@ class CSV extends Source
             }
         }
 
-        $this->withCSVStream(function ($stream) use ($attributes, $attributeTypes, $manyToManyKeys, $collection, $batchSize) {
+        $this->withCSVStream(function ($stream) use ($attributeTypes, $manyToManyKeys, $collection, $batchSize) {
             $headers = fgetcsv($stream);
             if (! is_array($headers) || count($headers) === 0) {
                 return;
             }
 
-            $this->validateCSVHeaders($headers, $attributes);
+            $this->validateCSVHeaders($headers, $attributeTypes);
 
             $buffer = [];
 
