@@ -7,15 +7,11 @@ use Utopia\Migration\Transfer;
 
 class Index extends Resource
 {
-    protected static string $timeStampFormatDb = 'Y-m-d H:i:s.v';
     public const TYPE_UNIQUE = 'unique';
 
     public const TYPE_FULLTEXT = 'fulltext';
 
     public const TYPE_KEY = 'key';
-
-    protected string $createdAt;
-    protected string $updatedAt;
 
     /**
      * @param string $id
@@ -25,7 +21,7 @@ class Index extends Resource
      * @param array<string> $attributes
      * @param array<int> $lengths
      * @param array<string> $orders
-     * @param string|null $createdAt
+     * @param string $createdAt
      * @param string $updatedAt
      */
     public function __construct(
@@ -36,14 +32,10 @@ class Index extends Resource
         private readonly array $attributes = [],
         private readonly array $lengths = [],
         private readonly array $orders = [],
-        ?string $createdAt = null,
-        ?string $updatedAt = null,
+        protected string $createdAt = "",
+        protected string $updatedAt = "",
     ) {
         $this->id = $id;
-        $date = new \DateTime();
-        $now = $date->format(self::$timeStampFormatDb);
-        $this->$createdAt = $createdAt ?? $now;
-        $this->$updatedAt = $updatedAt ?? $now;
     }
 
     /**

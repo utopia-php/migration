@@ -913,6 +913,12 @@ class Appwrite extends Source
                 $response = $this->database->listIndexes($collection, $queries);
 
                 foreach ($response as $index) {
+                    $createdAt = $index['$createdAt'];
+                    $updatedAt = $index['$updatedAt'];
+                    $formatDb = 'Y-m-d H:i:s.v';
+                    $date = new \DateTime();
+                    $now = $date->format($formatDb);
+
                     $indexes[] = new Index(
                         'unique()',
                         $index['key'],
@@ -921,8 +927,8 @@ class Appwrite extends Source
                         $index['attributes'],
                         [],
                         $index['orders'],
-                        $index['$createdAt'],
-                        $index['$updatedAt'],
+                        $createdAt ?? $now,
+                        $updatedAt ?? $now,
                     );
                 }
 
