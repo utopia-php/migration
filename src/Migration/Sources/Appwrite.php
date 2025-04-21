@@ -11,6 +11,7 @@ use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
+use Utopia\Database\DateTime as DbDateTime;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -921,8 +922,8 @@ class Appwrite extends Source
                         $index['attributes'],
                         [],
                         $index['orders'],
-                        $index['$createdAt'],
-                        $index['$updatedAt'],
+                        $index['$createdAt'] = empty($index['$createdAt']) ? DbDateTime::now() : $index['$createdAt'],
+                        $index['$updatedAt'] = empty($index['$updatedAt']) ? DbDateTime::now() : $index['$updatedAt'],
                     );
                 }
 
