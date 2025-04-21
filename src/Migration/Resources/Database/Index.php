@@ -32,8 +32,8 @@ class Index extends Resource
         private readonly array $attributes = [],
         private readonly array $lengths = [],
         private readonly array $orders = [],
-        protected string $createdAt = "",
-        protected string $updatedAt = "",
+        protected string $createdAt = '',
+        protected string $updatedAt = '',
     ) {
         $this->id = $id;
     }
