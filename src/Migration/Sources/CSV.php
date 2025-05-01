@@ -67,7 +67,6 @@ class CSV extends Source
 
         $file->seek(PHP_INT_MAX);
         $rowCount = max(0, $file->key());
-        $rowCount = $rowCount > 0 ? $rowCount - 1 : 0;
 
         $report[Resource::TYPE_DOCUMENT] = $rowCount;
 
