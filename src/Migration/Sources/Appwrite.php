@@ -195,21 +195,51 @@ class Appwrite extends Source
     private function reportAuth(array $resources, array &$report): void
     {
         if (\in_array(Resource::TYPE_USER, $resources)) {
-            $report[Resource::TYPE_USER] = $this->users->list()['total'];
-        }
-
-        if (\in_array(Resource::TYPE_TEAM, $resources)) {
-            $report[Resource::TYPE_TEAM] = $this->teams->list()['total'];
+            $report[Resource::TYPE_USER] = $this->users->list([
+                Query::limit(1)
+            ])['total'];
         }
 
         if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
             $report[Resource::TYPE_MEMBERSHIP] = 0;
-            $teams = $this->teams->list()['teams'];
-            foreach ($teams as $team) {
-                $report[Resource::TYPE_MEMBERSHIP] += $this->teams->listMemberships(
-                    $team['$id'],
-                    [Query::limit(1)]
-                )['total'];
+
+            $lastTeam = null;
+
+            while (true) {
+                $teams = $this->teams->list(
+                    $lastTeam
+                        ? [Query::cursorAfter($lastTeam), Query::limit($this->getAuthBatchSize())]
+                        : [Query::limit($this->getAuthBatchSize())]
+                )['teams'];
+
+                $report[Resource::TYPE_TEAM] += \count($teams);
+
+                foreach ($teams as $team) {
+                    $lastMembership = null;
+
+                    while (true) {
+                        $memberships = $this->teams->listMemberships(
+                            $team['$id'],
+                            $lastMembership
+                                ? [Query::cursorAfter($lastMembership), Query::limit($this->getAuthBatchSize())]
+                                : [Query::limit($this->getAuthBatchSize())]
+                        )['memberships'];
+
+                        $report[Resource::TYPE_MEMBERSHIP] += \count($memberships);
+
+                        $lastMembership = $memberships[\count($memberships) - 1]['$id'] ?? null;
+
+                        if (\count($memberships) < $this->getAuthBatchSize()) {
+                            break;
+                        }
+                    }
+                }
+
+                $lastTeam = $teams[\count($teams) - 1]['$id'] ?? null;
+
+                if (\count($teams) < $this->getAuthBatchSize()) {
+                    break;
+                }
             }
         }
     }
@@ -230,84 +260,112 @@ class Appwrite extends Source
      */
     private function reportStorage(array $resources, array &$report): void
     {
-        if (\in_array(Resource::TYPE_BUCKET, $resources)) {
-            $report[Resource::TYPE_BUCKET] = $this->storage->listBuckets()['total'];
-        }
-
         if (\in_array(Resource::TYPE_FILE, $resources)) {
             $report[Resource::TYPE_FILE] = 0;
             $report['size'] = 0;
-            $buckets = [];
             $lastBucket = null;
 
             while (true) {
-                $currentBuckets = $this->storage->listBuckets(
+                $buckets = $this->storage->listBuckets(
                     $lastBucket
-                        ? [Query::cursorAfter($lastBucket)]
-                        : [Query::limit(20)]
+                        ? [Query::cursorAfter($lastBucket), Query::limit($this->getStorageBatchSize())]
+                        : [Query::limit($this->getStorageBatchSize())]
                 )['buckets'];
 
-                $buckets = array_merge($buckets, $currentBuckets);
+                $report[Resource::TYPE_BUCKET] += \count($buckets);
+
+                foreach ($buckets as $bucket) {
+                    $lastFile = null;
+
+                    while (true) {
+                        $files = $this->storage->listFiles(
+                            $bucket['$id'],
+                            $lastFile
+                                ? [Query::cursorAfter($lastFile), Query::limit($this->getStorageBatchSize())]
+                                : [Query::limit($this->getStorageBatchSize())]
+                        )['files'];
+
+                        $report[Resource::TYPE_FILE] += \count($files);
+
+                        foreach ($files as $file) {
+                            $report['size'] += $file['sizeOriginal'];
+                        }
+
+                        $lastFile = $files[count($files) - 1]['$id'] ?? null;
+
+                        if (count($files) < $this->getStorageBatchSize()) {
+                            break;
+                        }
+                    }
+                }
+
                 $lastBucket = $buckets[count($buckets) - 1]['$id'] ?? null;
 
-                if (count($currentBuckets) < 20) {
+                if (\count($buckets) < $this->getStorageBatchSize()) {
                     break;
                 }
             }
 
-            foreach ($buckets as $bucket) {
-                $files = [];
-                $lastFile = null;
-
-                while (true) {
-                    $currentFiles = $this->storage->listFiles(
-                        $bucket['$id'],
-                        $lastFile
-                            ? [Query::cursorAfter($lastFile)]
-                            : [Query::limit(20)]
-                    )['files'];
-
-                    $files = array_merge($files, $currentFiles);
-                    $lastFile = $files[count($files) - 1]['$id'] ?? null;
-
-                    if (count($currentFiles) < 20) {
-                        break;
-                    }
-                }
-
-                $report[Resource::TYPE_FILE] += count($files);
-                foreach ($files as $file) {
-                    $report['size'] += $this->storage->getFile(
-                        $bucket['$id'],
-                        $file['$id']
-                    )['sizeOriginal'];
-                }
+            // Convert to MB
+            if (isset($report['size'])) {
+                $report['size'] = $report['size'] / 1000 / 1000;
             }
-            $report['size'] = $report['size'] / 1000 / 1000; // MB
         }
     }
 
     private function reportFunctions(array $resources, array &$report): void
     {
-        if (\in_array(Resource::TYPE_FUNCTION, $resources)) {
-            $report[Resource::TYPE_FUNCTION] = $this->functions->list()['total'];
-        }
-
         if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
             $report[Resource::TYPE_DEPLOYMENT] = 0;
-            $functions = $this->functions->list()['functions'];
-            foreach ($functions as $function) {
-                if (!empty($function['deployment'])) {
-                    $report[Resource::TYPE_DEPLOYMENT] += 1;
+
+            $lastFunction = null;
+
+            while (true) {
+                $functions = $this->functions->list(
+                    $lastFunction
+                        ? [Query::cursorAfter($lastFunction), Query::limit($this->getFunctionsBatchSize())]
+                        : [Query::limit($this->getFunctionsBatchSize())]
+                )['functions'];
+
+                $report[Resource::TYPE_FUNCTION] += \count($functions);
+
+                foreach ($functions as $function) {
+                    if (!empty($function['deployment'])) {
+                        $report[Resource::TYPE_DEPLOYMENT] += 1;
+                    }
+                }
+
+                $lastFunction = $functions[\count($functions) - 1]['$id'] ?? null;
+
+                if (\count($functions) < $this->getFunctionsBatchSize()) {
+                    break;
                 }
             }
         }
 
         if (\in_array(Resource::TYPE_ENVIRONMENT_VARIABLE, $resources)) {
             $report[Resource::TYPE_ENVIRONMENT_VARIABLE] = 0;
-            $functions = $this->functions->list()['functions'];
-            foreach ($functions as $function) {
-                $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += $this->functions->listVariables($function['$id'])['total'];
+
+            $lastFunction = null;
+
+            while (true) {
+                $functions = $this->functions->list(
+                    $lastFunction
+                        ? [Query::cursorAfter($lastFunction), Query::limit($this->getFunctionsBatchSize())]
+                        : [Query::limit($this->getFunctionsBatchSize())]
+                )['functions'];
+
+                foreach ($functions as $function) {
+                    $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += $this->functions->listVariables(
+                        $function['$id']
+                    )['total'];
+                }
+
+                $lastFunction = $functions[\count($functions) - 1]['$id'] ?? null;
+
+                if (\count($functions) < $this->getFunctionsBatchSize()) {
+                    break;
+                }
             }
         }
     }
