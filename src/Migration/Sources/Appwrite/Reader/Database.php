@@ -34,7 +34,7 @@ class Database implements Reader
             $report[Resource::TYPE_COLLECTION] = 0;
             $databases = $this->listDatabases();
             foreach ($databases as $database) {
-                $collectionId = "database_{$database->getInternalId()}";
+                $collectionId = "database_{$database->getSequence()}";
 
                 $report[Resource::TYPE_COLLECTION] += $this->countResources($collectionId);
             }
@@ -54,7 +54,7 @@ class Database implements Reader
                 $collections = $this->listCollections($dbResource);
 
                 foreach ($collections as $collection) {
-                    $collectionId = "database_{$database->getInternalId()}_collection_{$collection->getInternalId()}";
+                    $collectionId = "database_{$database->getSequence()}_collection_{$collection->getSequence()}";
 
                     $report[Resource::TYPE_DOCUMENT] += $this->countResources($collectionId);
                 }
@@ -76,8 +76,8 @@ class Database implements Reader
 
                 foreach ($collections as $collection) {
                     $report[Resource::TYPE_ATTRIBUTE] += $this->countResources('attributes', [
-                        Query::equal('databaseInternalId', [$database->getInternalId()]),
-                        Query::equal('collectionInternalId', [$collection->getInternalId()]),
+                        Query::equal('databaseInternalId', [$database->getSequence()]),
+                        Query::equal('collectionInternalId', [$collection->getSequence()]),
                     ]);
                 }
             }
@@ -98,8 +98,8 @@ class Database implements Reader
 
                 foreach ($collections as $collection) {
                     $report[Resource::TYPE_INDEX] += $this->countResources('indexes', [
-                        Query::equal('databaseInternalId', [$database->getInternalId()]),
-                        Query::equal('collectionInternalId', [$collection->getInternalId()]),
+                        Query::equal('databaseInternalId', [$database->getSequence()]),
+                        Query::equal('collectionInternalId', [$collection->getSequence()]),
                     ]);
                 }
             }
@@ -137,7 +137,7 @@ class Database implements Reader
 
         try {
             return $this->dbForProject->find(
-                'database_' . $database->getInternalId(),
+                'database_' . $database->getSequence(),
                 $queries
             );
         } catch (DatabaseException $e) {
@@ -169,7 +169,7 @@ class Database implements Reader
         }
 
         $collection = $this->dbForProject->getDocument(
-            'database_' . $database->getInternalId(),
+            'database_' . $database->getSequence(),
             $resource->getId(),
         );
 
@@ -182,8 +182,8 @@ class Database implements Reader
             );
         }
 
-        $queries[] = Query::equal('databaseInternalId', [$database->getInternalId()]);
-        $queries[] = Query::equal('collectionInternalId', [$collection->getInternalId()]);
+        $queries[] = Query::equal('databaseInternalId', [$database->getSequence()]);
+        $queries[] = Query::equal('collectionInternalId', [$collection->getSequence()]);
 
         try {
             $attributes = $this->dbForProject->find('attributes', $queries);
@@ -231,7 +231,7 @@ class Database implements Reader
         }
 
         $collection = $this->dbForProject->getDocument(
-            'database_' . $database->getInternalId(),
+            'database_' . $database->getSequence(),
             $resource->getId(),
         );
 
@@ -244,8 +244,8 @@ class Database implements Reader
             );
         }
 
-        $queries[] = Query::equal('databaseInternalId', [$database->getInternalId()]);
-        $queries[] = Query::equal('collectionInternalId', [$collection->getInternalId()]);
+        $queries[] = Query::equal('databaseInternalId', [$database->getSequence()]);
+        $queries[] = Query::equal('collectionInternalId', [$collection->getSequence()]);
 
         try {
             return $this->dbForProject->find('indexes', $queries);
@@ -278,7 +278,7 @@ class Database implements Reader
         }
 
         $collection = $this->dbForProject->getDocument(
-            'database_' . $database->getInternalId(),
+            'database_' . $database->getSequence(),
             $resource->getId(),
         );
 
@@ -291,7 +291,7 @@ class Database implements Reader
             );
         }
 
-        $collectionId = "database_{$database->getInternalId()}_collection_{$collection->getInternalId()}";
+        $collectionId = "database_{$database->getSequence()}_collection_{$collection->getSequence()}";
 
         try {
             $documents = $this->dbForProject->find($collectionId, $queries);
@@ -328,7 +328,7 @@ class Database implements Reader
         }
 
         $collection = $this->dbForProject->getDocument(
-            'database_' . $database->getInternalId(),
+            'database_' . $database->getSequence(),
             $resource->getId(),
         );
 
@@ -341,7 +341,7 @@ class Database implements Reader
             );
         }
 
-        $collectionId = "database_{$database->getInternalId()}_collection_{$collection->getInternalId()}";
+        $collectionId = "database_{$database->getSequence()}_collection_{$collection->getSequence()}";
 
         return $this->dbForProject->getDocument(
             $collectionId,
@@ -387,7 +387,7 @@ class Database implements Reader
                 break;
             case CollectionResource::class:
                 $database = $this->dbForProject->getDocument('databases', $resource->getDatabase()->getId());
-                $document = $this->dbForProject->getDocument('database_' . $database->getInternalId(), $resource->getId());
+                $document = $this->dbForProject->getDocument('database_' . $database->getSequence(), $resource->getId());
                 break;
             case AttributeResource::class:
                 $document = $this->dbForProject->getDocument('attributes', $resource->getId());

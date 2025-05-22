@@ -30,18 +30,18 @@ class Cache
      */
     public function add(Resource $resource): void
     {
-        if (! $resource->getInternalId()) {
+        if (! $resource->getSequence()) {
             $resourceId = uniqid();
             if (isset($this->cache[$resource->getName()][$resourceId])) {
                 $resourceId = uniqid();
                 // todo: $resourceId is not used?
             }
-            $resource->setInternalId(uniqid());
+            $resource->setSequence(uniqid());
         }
 
         if ($resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
-            $documentId = $resource->getInternalId();
+            $documentId = $resource->getSequence();
             $this->cache[$resource->getName()][$documentId] = $status;
             return;
         }
@@ -51,7 +51,7 @@ class Cache
             $resource->setData(''); // Prevent Memory Leak
         }
 
-        $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
+        $this->cache[$resource->getName()][$resource->getSequence()] = $resource;
     }
 
     /**
@@ -80,7 +80,7 @@ class Cache
     {
         // if documents then updating the status counter only
         if ($resource->getName() == Resource::TYPE_DOCUMENT) {
-            $documentId = $resource->getInternalId();
+            $documentId = $resource->getSequence();
             if (!isset($this->cache[$resource->getName()][$documentId])) {
                 $this->add($resource);
             } else {
@@ -94,7 +94,7 @@ class Cache
             $this->add($resource);
         }
 
-        $this->cache[$resource->getName()][$resource->getInternalId()] = $resource;
+        $this->cache[$resource->getName()][$resource->getSequence()] = $resource;
     }
 
     /**
@@ -120,7 +120,7 @@ class Cache
     public function remove(Resource $resource): void
     {
         if ($resource->getName() === Resource::TYPE_DOCUMENT) {
-            if (! isset($this->cache[$resource->getName()][$resource->getInternalId()])) {
+            if (! isset($this->cache[$resource->getName()][$resource->getSequence()])) {
                 throw new \Exception('Resource does not exist in cache');
             }
         }
@@ -128,7 +128,7 @@ class Cache
             throw new \Exception('Resource does not exist in cache');
         }
 
-        unset($this->cache[$resource->getName()][$resource->getInternalId()]);
+        unset($this->cache[$resource->getName()][$resource->getSequence()]);
     }
 
     /**
