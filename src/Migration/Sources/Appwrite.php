@@ -1407,7 +1407,7 @@ class Appwrite extends Source
                 $file,
                 $deployment['activate']
             );
-            $deployment->setInternalId($deployment->getId());
+            $deployment->setSequence($deployment->getId());
 
             $this->callback([$deployment]);
 
@@ -1427,13 +1427,13 @@ class Appwrite extends Source
             $deployment['activate']
         );
 
-        $deployment->setInternalId($deployment->getId());
+        $deployment->setSequence($deployment->getId());
 
         // Loop until the entire file is downloaded
         while ($start < $fileSize) {
             $chunkData = $this->call(
                 'GET',
-                "/functions/{$func->getId()}/deployments/{$deployment->getInternalId()}/download",
+                "/functions/{$func->getId()}/deployments/{$deployment->getSequence()}/download",
                 ['range' => "bytes=$start-$end"]
             );
 

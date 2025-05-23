@@ -271,7 +271,7 @@ class MigrationCLI
             },
             function (mixed $value, Document $document, Database $database) {
                 $attributes = $database->find('attributes', [
-                    Query::equal('collectionInternalId', [$document->getInternalId()]),
+                    Query::equal('collectionInternalId', [$document->getSequence()]),
                     Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
                     Query::limit($database->getLimitForAttributes()),
                 ]);
@@ -298,7 +298,7 @@ class MigrationCLI
             function (mixed $value, Document $document, Database $database) {
                 return $database
                     ->find('indexes', [
-                        Query::equal('collectionInternalId', [$document->getInternalId()]),
+                        Query::equal('collectionInternalId', [$document->getSequence()]),
                         Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
                         Query::limit($database->getLimitForIndexes()),
                     ]);

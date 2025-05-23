@@ -75,7 +75,7 @@ abstract class Resource implements \JsonSerializable
 
     protected string $originalId = '';
 
-    protected string $internalId = '';
+    protected string $sequence = '';
 
     protected string $createdAt = '';
     protected string $updatedAt = '';
@@ -117,14 +117,14 @@ abstract class Resource implements \JsonSerializable
         return $this;
     }
 
-    public function getInternalId(): string
+    public function getSequence(): string
     {
-        return $this->internalId;
+        return $this->sequence;
     }
 
-    public function setInternalId(string $internalId): self
+    public function setSequence(string $sequence): self
     {
-        $this->internalId = $internalId;
+        $this->sequence = $sequence;
 
         return $this;
     }

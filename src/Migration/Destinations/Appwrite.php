@@ -332,7 +332,7 @@ class Appwrite extends Destination
             'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
         ]));
 
-        $resource->setInternalId($database->getInternalId());
+        $resource->setSequence($database->getSequence());
 
         $attributes = \array_map(
             fn ($attr) => new UtopiaDocument($attr),
@@ -344,7 +344,7 @@ class Appwrite extends Destination
         );
 
         $this->database->createCollection(
-            'database_' . $database->getInternalId(),
+            'database_' . $database->getSequence(),
             $attributes,
             $indexes
         );
@@ -389,9 +389,9 @@ class Appwrite extends Destination
             );
         }
 
-        $collection = $this->database->createDocument('database_' . $database->getInternalId(), new UtopiaDocument([
+        $collection = $this->database->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
             '$id' => $resource->getId(),
-            'databaseInternalId' => $database->getInternalId(),
+            'databaseInternalId' => $database->getSequence(),
             'databaseId' => $resource->getDatabase()->getId(),
             '$permissions' => Permission::aggregate($resource->getPermissions()),
             'documentSecurity' => $resource->getDocumentSecurity(),
@@ -402,10 +402,10 @@ class Appwrite extends Destination
             '$updatedAt' => $resource->getUpdatedAt(),
         ]));
 
-        $resource->setInternalId($collection->getInternalId());
+        $resource->setSequence($collection->getSequence());
 
         $this->database->createCollection(
-            'database_' . $database->getInternalId() . '_collection_' . $resource->getInternalId(),
+            'database_' . $database->getSequence() . '_collection_' . $resource->getSequence(),
             permissions: $resource->getPermissions(),
             documentSecurity: $resource->getDocumentSecurity()
         );
@@ -449,7 +449,7 @@ class Appwrite extends Destination
         }
 
         $collection = $this->database->getDocument(
-            'database_' . $database->getInternalId(),
+            'database_' . $database->getSequence(),
             $resource->getCollection()->getId(),
         );
 
@@ -491,7 +491,7 @@ class Appwrite extends Destination
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP) {
             $resource->getOptions()['side'] = UtopiaDatabase::RELATION_SIDE_PARENT;
             $relatedCollection = $this->database->getDocument(
-                'database_' . $database->getInternalId(),
+                'database_' . $database->getSequence(),
                 $resource->getOptions()['relatedCollection']
             );
             if ($relatedCollection->isEmpty()) {
@@ -506,11 +506,11 @@ class Appwrite extends Destination
 
         try {
             $attribute = new UtopiaDocument([
-                '$id' => ID::custom($database->getInternalId() . '_' . $collection->getInternalId() . '_' . $resource->getKey()),
+                '$id' => ID::custom($database->getSequence() . '_' . $collection->getSequence() . '_' . $resource->getKey()),
                 'key' => $resource->getKey(),
-                'databaseInternalId' => $database->getInternalId(),
+                'databaseInternalId' => $database->getSequence(),
                 'databaseId' => $database->getId(),
-                'collectionInternalId' => $collection->getInternalId(),
+                'collectionInternalId' => $collection->getSequence(),
                 'collectionId' => $collection->getId(),
                 'type' => $type,
                 'status' => 'available',
@@ -545,13 +545,13 @@ class Appwrite extends Destination
                 message: 'Attribute limit exceeded',
             );
         } catch (\Throwable $e) {
-            $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $collection->getId());
-            $this->database->purgeCachedCollection('database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId());
+            $this->database->purgeCachedDocument('database_' . $database->getSequence(), $collection->getId());
+            $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $collection->getSequence());
             throw $e;
         }
 
-        $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $collection->getId());
-        $this->database->purgeCachedCollection('database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId());
+        $this->database->purgeCachedDocument('database_' . $database->getSequence(), $collection->getId());
+        $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $collection->getSequence());
         $options = $resource->getOptions();
 
         $twoWayKey = null;
@@ -564,11 +564,11 @@ class Appwrite extends Destination
 
             try {
                 $twoWayAttribute = new UtopiaDocument([
-                    '$id' => ID::custom($database->getInternalId() . '_' . $relatedCollection->getInternalId() . '_' . $twoWayKey),
+                    '$id' => ID::custom($database->getSequence() . '_' . $relatedCollection->getSequence() . '_' . $twoWayKey),
                     'key' => $twoWayKey,
-                    'databaseInternalId' => $database->getInternalId(),
+                    'databaseInternalId' => $database->getSequence(),
                     'databaseId' => $database->getId(),
-                    'collectionInternalId' => $relatedCollection->getInternalId(),
+                    'collectionInternalId' => $relatedCollection->getSequence(),
                     'collectionId' => $relatedCollection->getId(),
                     'type' => $type,
                     'status' => 'available',
@@ -605,8 +605,8 @@ class Appwrite extends Destination
                     message: 'Attribute limit exceeded',
                 );
             } catch (\Throwable $e) {
-                $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $relatedCollection->getId());
-                $this->database->purgeCachedCollection('database_' . $database->getInternalId() . '_collection_' . $relatedCollection->getInternalId());
+                $this->database->purgeCachedDocument('database_' . $database->getSequence(), $relatedCollection->getId());
+                $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $relatedCollection->getSequence());
                 throw $e;
             }
         }
@@ -615,8 +615,8 @@ class Appwrite extends Destination
             switch ($type) {
                 case UtopiaDatabase::VAR_RELATIONSHIP:
                     if (!$this->database->createRelationship(
-                        collection: 'database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId(),
-                        relatedCollection: 'database_' . $database->getInternalId() . '_collection_' . $relatedCollection->getInternalId(),
+                        collection: 'database_' . $database->getSequence() . '_collection_' . $collection->getSequence(),
+                        relatedCollection: 'database_' . $database->getSequence() . '_collection_' . $relatedCollection->getSequence(),
                         type: $options['relationType'],
                         twoWay: $options['twoWay'],
                         id: $resource->getKey(),
@@ -633,7 +633,7 @@ class Appwrite extends Destination
                     break;
                 default:
                     if (!$this->database->createAttribute(
-                        'database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId(),
+                        'database_' . $database->getSequence() . '_collection_' . $collection->getSequence(),
                         $resource->getKey(),
                         $type,
                         $resource->getSize(),
@@ -664,11 +664,11 @@ class Appwrite extends Destination
         }
 
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
-            $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $relatedCollection->getId());
+            $this->database->purgeCachedDocument('database_' . $database->getSequence(), $relatedCollection->getId());
         }
 
-        $this->database->purgeCachedDocument('database_' . $database->getInternalId(), $collection->getId());
-        $this->database->purgeCachedCollection('database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId());
+        $this->database->purgeCachedDocument('database_' . $database->getSequence(), $collection->getId());
+        $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $collection->getSequence());
 
         return true;
     }
@@ -693,7 +693,7 @@ class Appwrite extends Destination
         }
 
         $collection = $this->database->getDocument(
-            'database_' . $database->getInternalId(),
+            'database_' . $database->getSequence(),
             $resource->getCollection()->getId(),
         );
         if ($collection->isEmpty()) {
@@ -706,8 +706,8 @@ class Appwrite extends Destination
         }
 
         $count = $this->database->count('indexes', [
-            Query::equal('collectionInternalId', [$collection->getInternalId()]),
-            Query::equal('databaseInternalId', [$database->getInternalId()])
+            Query::equal('collectionInternalId', [$collection->getSequence()]),
+            Query::equal('databaseInternalId', [$database->getSequence()])
         ], $this->database->getLimitForIndexes());
 
         if ($count >= $this->database->getLimitForIndexes()) {
@@ -810,12 +810,12 @@ class Appwrite extends Destination
         }
 
         $index = new UtopiaDocument([
-            '$id' => ID::custom($database->getInternalId() . '_' . $collection->getInternalId() . '_' . $resource->getKey()),
+            '$id' => ID::custom($database->getSequence() . '_' . $collection->getSequence() . '_' . $resource->getKey()),
             'key' => $resource->getKey(),
             'status' => 'available', // processing, available, failed, deleting, stuck
-            'databaseInternalId' => $database->getInternalId(),
+            'databaseInternalId' => $database->getSequence(),
             'databaseId' => $database->getId(),
-            'collectionInternalId' => $collection->getInternalId(),
+            'collectionInternalId' => $collection->getSequence(),
             'collectionId' => $collection->getId(),
             'type' => $resource->getType(),
             'attributes' => $resource->getAttributes(),
@@ -844,7 +844,7 @@ class Appwrite extends Destination
 
         try {
             $result = $this->database->createIndex(
-                'database_' . $database->getInternalId() . '_collection_' . $collection->getInternalId(),
+                'database_' . $database->getSequence() . '_collection_' . $collection->getSequence(),
                 $resource->getKey(),
                 $resource->getType(),
                 $resource->getAttributes(),
@@ -872,7 +872,7 @@ class Appwrite extends Destination
         }
 
         $this->database->purgeCachedDocument(
-            'database_' . $database->getInternalId(),
+            'database_' . $database->getSequence(),
             $collection->getId()
         );
 
@@ -928,12 +928,12 @@ class Appwrite extends Destination
                     $resource->getCollection()->getDatabase()->getId(),
                 );
                 $collection = $this->database->getDocument(
-                    'database_' . $database->getInternalId(),
+                    'database_' . $database->getSequence(),
                     $resource->getCollection()->getId(),
                 );
 
-                $databaseInternalId = $database->getInternalId();
-                $collectionInternalId = $collection->getInternalId();
+                $databaseInternalId = $database->getSequence();
+                $collectionInternalId = $collection->getSequence();
 
                 /**
                  * This is in case an attribute was deleted from Appwrite attributes collection but was not deleted from the table
