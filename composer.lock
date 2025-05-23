@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7def39bcfecbe7a58ebb612527d5b7f5",
+    "content-hash": "96168d83e7f4bc9207d7ed55a9731f8a",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -1922,16 +1922,16 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "dev-feat-internal-to-sequence",
+            "version": "0.71.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "0f3617e23bef7c6f260d7f8f194031c2f096a154"
+                "reference": "cf463c0a5c64a4168fe56266ace4ae835d61c920"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/0f3617e23bef7c6f260d7f8f194031c2f096a154",
-                "reference": "0f3617e23bef7c6f260d7f8f194031c2f096a154",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/cf463c0a5c64a4168fe56266ace4ae835d61c920",
+                "reference": "cf463c0a5c64a4168fe56266ace4ae835d61c920",
                 "shasum": ""
             },
             "require": {
@@ -1972,9 +1972,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/feat-internal-to-sequence"
+                "source": "https://github.com/utopia-php/database/tree/0.71.0"
             },
-            "time": "2025-05-22T13:09:40+00:00"
+            "time": "2025-05-23T07:32:59+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -4550,18 +4550,9 @@
             "time": "2025-04-30T23:37:27+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "utopia-php/database",
-            "version": "dev-feat-internal-to-sequence",
-            "alias": "0.65.5",
-            "alias_normalized": "0.65.5.0"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "utopia-php/database": 20
-    },
+    "stability-flags": {},
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
