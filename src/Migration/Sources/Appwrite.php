@@ -1019,6 +1019,8 @@ class Appwrite extends Source
                     unset($document['$permissions']);
                     unset($document['$collectionId']);
                     unset($document['$databaseId']);
+                    unset($document['$sequence']);
+                    unset($document['$collection']);
 
                     $document = new Document(
                         $id,
