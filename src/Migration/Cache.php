@@ -41,8 +41,8 @@ class Cache
 
         if ($resource->getName() == Resource::TYPE_ROW) {
             $status = $resource->getStatus();
-            $documentId = $resource->getSequence();
-            $this->cache[$resource->getName()][$documentId] = $status;
+            $rowId = $resource->getSequence();
+            $this->cache[$resource->getName()][$rowId] = $status;
             return;
         }
 
@@ -78,14 +78,14 @@ class Cache
      */
     public function update(Resource $resource): void
     {
-        // if documents then updating the status counter only
+        // if rows then updating the status counter only
         if ($resource->getName() == Resource::TYPE_ROW) {
-            $documentId = $resource->getSequence();
-            if (!isset($this->cache[$resource->getName()][$documentId])) {
+            $rowId = $resource->getSequence();
+            if (!isset($this->cache[$resource->getName()][$rowId])) {
                 $this->add($resource);
             } else {
                 $status = $resource->getStatus();
-                $this->cache[$resource->getName()][$documentId] = $status;
+                $this->cache[$resource->getName()][$rowId] = $status;
             }
             return;
         }

@@ -685,7 +685,7 @@ class Appwrite extends Source
                 $response = $this->database->listTables($database, $queries);
 
                 foreach ($response as $table) {
-                    $newCollection = new Table(
+                    $newTable = new Table(
                         $database,
                         $table['name'],
                         $table['$id'],
@@ -695,7 +695,7 @@ class Appwrite extends Source
                         $table['$updatedAt'],
                     );
 
-                    $tables[] = $newCollection;
+                    $tables[] = $newTable;
                 }
 
                 if (empty($tables)) {
@@ -744,7 +744,7 @@ class Appwrite extends Source
 
                     switch ($column['type']) {
                         case Column::TYPE_STRING:
-                            $attr = match ($column['format'] ?? '') {
+                            $col = match ($column['format'] ?? '') {
                                 Column::TYPE_EMAIL => new Email(
                                     $column['key'],
                                     $table,
@@ -800,7 +800,7 @@ class Appwrite extends Source
 
                             break;
                         case Column::TYPE_BOOLEAN:
-                            $attr = new Boolean(
+                            $col = new Boolean(
                                 $column['key'],
                                 $table,
                                 required: $column['required'],
@@ -811,7 +811,7 @@ class Appwrite extends Source
                             );
                             break;
                         case Column::TYPE_INTEGER:
-                            $attr = new Integer(
+                            $col = new Integer(
                                 $column['key'],
                                 $table,
                                 required: $column['required'],
@@ -824,7 +824,7 @@ class Appwrite extends Source
                             );
                             break;
                         case Column::TYPE_FLOAT:
-                            $attr = new Decimal(
+                            $col = new Decimal(
                                 $column['key'],
                                 $table,
                                 required: $column['required'],
@@ -837,7 +837,7 @@ class Appwrite extends Source
                             );
                             break;
                         case Column::TYPE_RELATIONSHIP:
-                            $attr = new Relationship(
+                            $col = new Relationship(
                                 $column['key'],
                                 $table,
                                 relatedTable: $column['relatedCollection'],
@@ -851,7 +851,7 @@ class Appwrite extends Source
                             );
                             break;
                         case Column::TYPE_DATETIME:
-                            $attr = new DateTime(
+                            $col = new DateTime(
                                 $column['key'],
                                 $table,
                                 required: $column['required'],
@@ -863,7 +863,7 @@ class Appwrite extends Source
                             break;
                     }
 
-                    if (!isset($attr)) {
+                    if (!isset($col)) {
                         throw new Exception(
                             resourceName: Resource::TYPE_COLUMN,
                             resourceGroup: Transfer::GROUP_DATABASES,
@@ -872,7 +872,7 @@ class Appwrite extends Source
                         );
                     }
 
-                    $columns[] = $attr;
+                    $columns[] = $col;
                 }
 
                 if (empty($columns)) {
@@ -990,7 +990,7 @@ class Appwrite extends Source
 
                 $response = $this->database->listRows($table, $queries);
 
-                foreach ($response as $document) {
+                foreach ($response as $row) {
                     // HACK: Handle many to many
                     if (!empty($manyToMany)) {
                         $stack = ['$id']; // Adding $id because we can't select only relations
@@ -998,39 +998,39 @@ class Appwrite extends Source
                             $stack[] = $relation . '.$id';
                         }
 
-                        $doc = $this->database->getRow(
+                        $rowItem = $this->database->getRow(
                             $table,
-                            $document['$id'],
+                            $row['$id'],
                             [$this->database->querySelect($stack)]
                         );
 
                         foreach ($manyToMany as $key) {
-                            $document[$key] = [];
-                            foreach ($doc[$key] as $relationDocument) {
-                                $document[$key][] = $relationDocument['$id'];
+                            $row[$key] = [];
+                            foreach ($rowItem[$key] as $relatedRowItem) {
+                                $row[$key][] = $relatedRowItem['$id'];
                             }
                         }
                     }
 
-                    $id = $document['$id'];
-                    $permissions = $document['$permissions'];
+                    $id = $row['$id'];
+                    $permissions = $row['$permissions'];
 
-                    unset($document['$id']);
-                    unset($document['$permissions']);
-                    unset($document['$collectionId']);
-                    unset($document['$databaseId']);
-                    unset($document['$sequence']);
-                    unset($document['$collection']);
+                    unset($row['$id']);
+                    unset($row['$permissions']);
+                    unset($row['$collectionId']);
+                    unset($row['$databaseId']);
+                    unset($row['$sequence']);
+                    unset($row['$collection']);
 
-                    $document = new Row(
+                    $row = new Row(
                         $id,
                         $table,
-                        $document,
+                        $row,
                         $permissions
                     );
 
-                    $rows[] = $document;
-                    $lastRow = $document;
+                    $rows[] = $row;
+                    $lastRow = $row;
                 }
 
                 $this->callback($rows);
@@ -1455,11 +1455,5 @@ class Appwrite extends Source
                 $end = $fileSize - 1;
             }
         }
-    }
-
-
-    private function mapCollectionToTable()
-    {
-
     }
 }

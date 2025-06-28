@@ -169,12 +169,12 @@ class CSV extends Source
 
             $buffer = [];
 
-            while (($row = fgetcsv($stream)) !== false) {
-                if (count($row) !== count($headers)) {
+            while (($csvRowItem = fgetcsv($stream)) !== false) {
+                if (count($csvRowItem) !== count($headers)) {
                     throw new \Exception('CSV row does not match the number of header columns.');
                 }
 
-                $data = array_combine($headers, $row);
+                $data = array_combine($headers, $csvRowItem);
                 if ($data === false) {
                     continue;
                 }
@@ -205,13 +205,13 @@ class CSV extends Source
                     };
                 }
 
-                $documentId = $parsedData['$id'] ?? 'unique()';
+                $rowId = $parsedData['$id'] ?? 'unique()';
 
                 // `$id`, `$permissions` in the doc can cause issues!
                 unset($parsedData['$id'], $parsedData['$permissions']);
 
-                $document = new Row($documentId, $table, $parsedData);
-                $buffer[] = $document;
+                $row = new Row($rowId, $table, $parsedData);
+                $buffer[] = $row;
 
                 if (count($buffer) === $batchSize) {
                     $this->callback($buffer);
@@ -286,27 +286,27 @@ class CSV extends Source
     /**
      * @throws \Exception
      */
-    private function validateCSVHeaders(array $headers, array $attributeTypes): void
+    private function validateCSVHeaders(array $headers, array $columnTypes): void
     {
-        $expectedAttributes = array_keys($attributeTypes);
+        $expectedColumns = array_keys($columnTypes);
 
         // Ignore keys like $id, $permissions, etc.
         $filteredHeaders = array_filter($headers, fn ($key) => ! str_starts_with($key, '$'));
 
-        $extraAttributes = array_diff($filteredHeaders, $expectedAttributes);
-        $missingAttributes = array_diff($expectedAttributes, $filteredHeaders);
+        $extraColumns = array_diff($filteredHeaders, $expectedColumns);
+        $missingColumns = array_diff($expectedColumns, $filteredHeaders);
 
-        if (! empty($missingAttributes) || ! empty($extraAttributes)) {
+        if (! empty($missingColumns) || ! empty($extraColumns)) {
             $messages = [];
 
-            if (! empty($missingAttributes)) {
-                $label = count($missingAttributes) === 1 ? 'Missing column' : 'Missing columns';
-                $messages[] = "{$label}: '".implode("', '", $missingAttributes)."'";
+            if (! empty($missingColumns)) {
+                $label = count($missingColumns) === 1 ? 'Missing column' : 'Missing columns';
+                $messages[] = "{$label}: '".implode("', '", $missingColumns)."'";
             }
 
-            if (! empty($extraAttributes)) {
-                $label = count($extraAttributes) === 1 ? 'Unexpected column' : 'Unexpected columns';
-                $messages[] = "{$label}: '".implode("', '", $extraAttributes)."'";
+            if (! empty($extraColumns)) {
+                $label = count($extraColumns) === 1 ? 'Unexpected column' : 'Unexpected columns';
+                $messages[] = "{$label}: '".implode("', '", $extraColumns)."'";
             }
 
             throw new \Exception('CSV header mismatch. '.implode(' | ', $messages));

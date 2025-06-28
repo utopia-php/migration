@@ -133,8 +133,8 @@ class Transfer
         foreach ($this->cache->getAll() as $resourceType => $resources) {
             foreach ($resources as $resource) {
                 if ($resourceType === Resource::TYPE_ROW && is_string($resource)) {
-                    $documentStatus = $resource;
-                    $status[$resourceType][$documentStatus]++;
+                    $rowStatus = $resource;
+                    $status[$resourceType][$rowStatus]++;
 
                     if ($status[$resourceType]['pending'] > 0) {
                         $status[$resourceType]['pending']--;
@@ -280,7 +280,7 @@ class Transfer
                     if ($statusLevel && $resource !== $statusLevel) {
                         continue;
                     }
-                    // no message for document is stored
+                    // no message for row is stored
                     $report[] = [
                         'resource' => $type,
                         'id' => $id,

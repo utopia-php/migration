@@ -498,7 +498,7 @@ class Firebase extends Source
 
         // Transfer Documents and Calculate Schemas
         while (true) {
-            $documents = [];
+            $rows = [];
 
             $result = $this->call('GET', $resourceURL, [
                 'Content-Type' => 'application/json',
@@ -522,7 +522,7 @@ class Firebase extends Source
                     }
                 }
 
-                $documents[] = $this->convertRow($table, $row, $rowSchema);
+                $rows[] = $this->convertRow($table, $row, $rowSchema);
             }
 
             // Transfer Rows
@@ -544,7 +544,7 @@ class Firebase extends Source
                     $this->callback(array_values($columnsToCreate));
                 }
 
-                $this->callback($documents);
+                $this->callback($rows);
             }
 
             if (count($result['documents']) < $batchSize) {
@@ -590,10 +590,10 @@ class Firebase extends Source
         }
     }
 
-    private function convertRow(Table $table, array $document, array $rowSchema): Row
+    private function convertRow(Table $table, array $row, array $rowSchema): Row
     {
         $data = [];
-        foreach ($document['fields'] as $key => $field) {
+        foreach ($row['fields'] as $key => $field) {
             $value = $this->calculateValue($field);
 
             if ($rowSchema[$key]->getType() === Column::TYPE_STRING && is_array($value)) {
@@ -605,7 +605,7 @@ class Firebase extends Source
             $data[$key] = $value;
         }
 
-        $rowId = explode('/', $document['name']);
+        $rowId = explode('/', $row['name']);
         $rowId = end($rowId);
         // Strip non-alphanumeric except underscore and hyphen
         $rowId = preg_replace("/[^A-Za-z0-9\_\-]/", '', $rowId);

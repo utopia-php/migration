@@ -308,8 +308,8 @@ class Database implements Reader
             );
         }
 
-        return \array_map(function ($document) {
-            return $document->getArrayCopy();
+        return \array_map(function ($row) {
+            return $row->getArrayCopy();
         }, $rows);
     }
 
