@@ -50,7 +50,7 @@ class Relationship extends Column
      *         permissions: ?array<string>
      *     },
      *     options: array{
-     *         relatedTable: string,
+     *         relatedCollection: string,
      *         relationType: string,
      *         twoWay: bool,
      *         twoWayKey: ?string,

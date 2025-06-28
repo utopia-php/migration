@@ -194,29 +194,29 @@ class SupabaseTest extends Base
         $this->assertEquals('public', $foundDatabase->getDatabaseName());
         $this->assertEquals('public', $foundDatabase->getId());
 
-        // Find Known Collections
-        $collections = $state['source']->cache->get(Resource::TYPE_TABLE);
-        $this->assertGreaterThan(0, count($collections));
+        // Find Known Tables
+        $tables = $state['source']->cache->get(Resource::TYPE_TABLE);
+        $this->assertGreaterThan(0, count($tables));
 
-        $foundCollection = null;
+        $foundTable = null;
 
-        foreach ($collections as $collection) {
+        foreach ($tables as $table) {
             /** @var Table $table */
-            if ($collection->getDatabase()->getDatabaseName() === 'public' && $collection->getTableName() === 'test') {
-                $foundCollection = $collection;
+            if ($table->getDatabase()->getDatabaseName() === 'public' && $table->getTableName() === 'test') {
+                $foundTable = $table;
 
                 break;
             }
         }
 
-        if (! $foundCollection) {
-            $this->fail('Collection "test" not found');
+        if (! $foundTable) {
+            $this->fail('Table "test" not found');
         }
 
-        $this->assertEquals('success', $foundCollection->getStatus());
-        $this->assertEquals('test', $foundCollection->getTableName());
-        $this->assertEquals('public', $foundCollection->getDatabase()->getDatabaseName());
-        $this->assertEquals('public', $foundCollection->getDatabase()->getId());
+        $this->assertEquals('success', $foundTable->getStatus());
+        $this->assertEquals('test', $foundTable->getTableName());
+        $this->assertEquals('public', $foundTable->getDatabase()->getDatabaseName());
+        $this->assertEquals('public', $foundTable->getDatabase()->getId());
 
         // Find Known Documents
         $documents = $state['source']->cache->get(Resource::TYPE_ROW);
@@ -245,27 +245,27 @@ class SupabaseTest extends Base
     #[Depends('testValidateDatabaseTransfer')]
     public function testDatabaseFunctionalDefaultsWarn($state): void
     {
-        // Find known collection
-        $collections = $state['source']->cache->get(Resource::TYPE_TABLE);
-        $foundCollection = null;
+        // Find known table
+        $tables = $state['source']->cache->get(Resource::TYPE_TABLE);
+        $foundTable = null;
 
-        foreach ($collections as $collection) {
+        foreach ($tables as $table) {
             /** @var Table $table */
-            if ($collection->getTableName() === 'FunctionalDefaultTestTable') {
-                $foundCollection = $collection;
+            if ($table->getTableName() === 'FunctionalDefaultTestTable') {
+                $foundTable = $table;
             }
 
             break;
         }
 
-        if (! $foundCollection) {
-            $this->fail('Collection "FunctionalDefaultTestTable" not found');
+        if (! $foundTable) {
+            $this->fail('Table "FunctionalDefaultTestTable" not found');
         }
 
-        $this->assertEquals('warning', $foundCollection->getStatus());
-        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getTableName());
-        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getId());
-        $this->assertEquals('public', $foundCollection->getDatabase()->getId());
+        $this->assertEquals('warning', $foundTable->getStatus());
+        $this->assertEquals('FunctionalDefaultTestTable', $foundTable->getTableName());
+        $this->assertEquals('FunctionalDefaultTestTable', $foundTable->getId());
+        $this->assertEquals('public', $foundTable->getDatabase()->getId());
     }
 
     #[Depends('testValidateDestinationErrors')]
