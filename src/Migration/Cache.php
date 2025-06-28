@@ -39,7 +39,7 @@ class Cache
             $resource->setSequence(uniqid());
         }
 
-        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
+        if ($resource->getName() == Resource::TYPE_ROW) {
             $status = $resource->getStatus();
             $documentId = $resource->getSequence();
             $this->cache[$resource->getName()][$documentId] = $status;
@@ -79,7 +79,7 @@ class Cache
     public function update(Resource $resource): void
     {
         // if documents then updating the status counter only
-        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
+        if ($resource->getName() == Resource::TYPE_ROW) {
             $documentId = $resource->getSequence();
             if (!isset($this->cache[$resource->getName()][$documentId])) {
                 $this->add($resource);
@@ -119,7 +119,7 @@ class Cache
      */
     public function remove(Resource $resource): void
     {
-        if ($resource->getName() === Resource::TYPE_DOCUMENT) {
+        if ($resource->getName() === Resource::TYPE_ROW) {
             if (! isset($this->cache[$resource->getName()][$resource->getSequence()])) {
                 throw new \Exception('Resource does not exist in cache');
             }

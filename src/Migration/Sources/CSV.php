@@ -5,10 +5,10 @@ namespace Utopia\Migration\Sources;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Database;
-use Utopia\Migration\Resources\Database\Document;
+use Utopia\Migration\Resources\Database\Row;
+use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Appwrite\Reader;
@@ -49,7 +49,7 @@ class CSV extends Source
     public static function getSupportedResources(): array
     {
         return [
-            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ROW,
         ];
     }
 
@@ -68,7 +68,7 @@ class CSV extends Source
         $file->seek(PHP_INT_MAX);
         $rowCount = max(0, $file->key());
 
-        $report[Resource::TYPE_DOCUMENT] = $rowCount;
+        $report[Resource::TYPE_ROW] = $rowCount;
 
         return $report;
     }
@@ -84,13 +84,13 @@ class CSV extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         try {
-            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
-                $this->exportDocuments($batchSize);
+            if (\in_array(Resource::TYPE_ROW, $resources)) {
+                $this->exportRows($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
-                    Resource::TYPE_DOCUMENT,
+                    Resource::TYPE_ROW,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
                     code: $e->getCode(),
@@ -106,66 +106,66 @@ class CSV extends Source
     /**
      * @throws \Exception
      */
-    private function exportDocuments(int $batchSize): void
+    private function exportRows(int $batchSize): void
     {
 
-        $attributes = [];
-        $lastAttribute = null;
+        $columns = [];
+        $lastColumn = null;
 
-        [$databaseId, $collectionId] = explode(':', $this->resourceId);
+        [$databaseId, $tableId] = explode(':', $this->resourceId);
         $database = new Database($databaseId, '');
-        $collection = new Collection($database, '', $collectionId);
+        $table = new Table($database, '', $tableId);
 
         while (true) {
             $queries = [$this->database->queryLimit($batchSize)];
-            if ($lastAttribute) {
-                $queries[] = $this->database->queryCursorAfter($lastAttribute);
+            if ($lastColumn) {
+                $queries[] = $this->database->queryCursorAfter($lastColumn);
             }
 
-            $fetched = $this->database->listAttributes($collection, $queries);
+            $fetched = $this->database->listColumns($table, $queries);
             if (empty($fetched)) {
                 break;
             }
 
-            array_push($attributes, ...$fetched);
-            $lastAttribute = $fetched[count($fetched) - 1];
+            array_push($columns, ...$fetched);
+            $lastColumn = $fetched[count($fetched) - 1];
 
             if (count($fetched) < $batchSize) {
                 break;
             }
         }
 
-        $attributeTypes = [];
+        $columnTypes = [];
         $manyToManyKeys = [];
 
-        foreach ($attributes as $attribute) {
-            $key = $attribute['key'];
+        foreach ($columns as $column) {
+            $key = $column['key'];
 
             if (
-                $attribute['type'] === Attribute::TYPE_RELATIONSHIP &&
-                ($attribute['side'] ?? '') === UtopiaDatabase::RELATION_SIDE_CHILD
+                $column['type'] === Column::TYPE_RELATIONSHIP &&
+                ($column['side'] ?? '') === UtopiaDatabase::RELATION_SIDE_CHILD
             ) {
                 continue;
             }
 
-            $attributeTypes[$key] = $attribute['type'];
+            $columnTypes[$key] = $column['type'];
 
             if (
-                $attribute['type'] === Attribute::TYPE_RELATIONSHIP &&
-                ($attribute['relationType'] ?? '') === 'manyToMany' &&
-                ($attribute['side'] ?? '') === 'parent'
+                $column['type'] === Column::TYPE_RELATIONSHIP &&
+                ($column['relationType'] ?? '') === 'manyToMany' &&
+                ($column['side'] ?? '') === 'parent'
             ) {
                 $manyToManyKeys[] = $key;
             }
         }
 
-        $this->withCSVStream(function ($stream) use ($attributeTypes, $manyToManyKeys, $collection, $batchSize) {
+        $this->withCSVStream(function ($stream) use ($columnTypes, $manyToManyKeys, $table, $batchSize) {
             $headers = fgetcsv($stream);
             if (! is_array($headers) || count($headers) === 0) {
                 return;
             }
 
-            $this->validateCSVHeaders($headers, $attributeTypes);
+            $this->validateCSVHeaders($headers, $columnTypes);
 
             $buffer = [];
 
@@ -183,7 +183,7 @@ class CSV extends Source
 
                 foreach ($data as $key => $value) {
                     $parsedValue = trim($value);
-                    $type = $attributeTypes[$key] ?? null;
+                    $type = $columnTypes[$key] ?? null;
 
                     if (! isset($type) || $parsedValue === '') {
                         continue;
@@ -198,9 +198,9 @@ class CSV extends Source
                     }
 
                     $parsedData[$key] = match ($type) {
-                        Attribute::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
-                        Attribute::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
-                        Attribute::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
+                        Column::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
+                        Column::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
+                        Column::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
                         default => $parsedValue,
                     };
                 }
@@ -210,7 +210,7 @@ class CSV extends Source
                 // `$id`, `$permissions` in the doc can cause issues!
                 unset($parsedData['$id'], $parsedData['$permissions']);
 
-                $document = new Document($documentId, $collection, $parsedData);
+                $document = new Row($documentId, $table, $parsedData);
                 $buffer[] = $document;
 
                 if (count($buffer) === $batchSize) {
@@ -300,12 +300,12 @@ class CSV extends Source
             $messages = [];
 
             if (! empty($missingAttributes)) {
-                $label = count($missingAttributes) === 1 ? 'Missing attribute' : 'Missing attributes';
+                $label = count($missingAttributes) === 1 ? 'Missing column' : 'Missing columns';
                 $messages[] = "{$label}: '".implode("', '", $missingAttributes)."'";
             }
 
             if (! empty($extraAttributes)) {
-                $label = count($extraAttributes) === 1 ? 'Unexpected attribute' : 'Unexpected attributes';
+                $label = count($extraAttributes) === 1 ? 'Unexpected column' : 'Unexpected columns';
                 $messages[] = "{$label}: '".implode("', '", $extraAttributes)."'";
             }
 

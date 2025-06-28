@@ -63,11 +63,11 @@ class MockSource extends Source
     public static function getSupportedResources(): array
     {
         return [
-            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_COLUMN,
             Resource::TYPE_BUCKET,
-            Resource::TYPE_COLLECTION,
+            Resource::TYPE_TABLE,
             Resource::TYPE_DATABASE,
-            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ROW,
             Resource::TYPE_FILE,
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,

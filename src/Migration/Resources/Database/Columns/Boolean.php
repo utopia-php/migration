@@ -1,40 +1,27 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attributes;
+namespace Utopia\Migration\Resources\Database\Columns;
 
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
-class Integer extends Attribute
+class Boolean extends Column
 {
     public function __construct(
         string $key,
-        Collection $collection,
-        bool $required = false,
-        ?int $default = null,
-        bool $array = false,
-        ?int $min = null,
-        ?int $max = null,
-        bool $signed = true,
+        Table $table,
+        bool   $required = false,
+        ?bool  $default = null,
+        bool   $array = false,
         string $createdAt = '',
         string $updatedAt = ''
     ) {
-        $min ??= PHP_INT_MIN;
-        $max ??= PHP_INT_MAX;
-        $size = $max > 2147483647 ? 8 : 4;
-
         parent::__construct(
             $key,
-            $collection,
-            size: $size,
+            $table,
             required: $required,
             default: $default,
             array: $array,
-            signed: $signed,
-            formatOptions: [
-                'min' => $min,
-                'max' => $max,
-            ],
             createdAt: $createdAt,
             updatedAt: $updatedAt
         );
@@ -55,11 +42,7 @@ class Integer extends Attribute
      *     },
      *     required: bool,
      *     array: bool,
-     *     default: ?int,
-     *     formatOptions: array{
-     *         min: ?int,
-     *         max: ?int
-     *     },
+     *     default: ?bool,
      *     createdAt: string,
      *     updatedAt: string,
      * } $array
@@ -69,12 +52,10 @@ class Integer extends Attribute
     {
         return new self(
             $array['key'],
-            Collection::fromArray($array['collection']),
+            Table::fromArray($array['collection']),
             required: $array['required'],
             default: $array['default'],
             array: $array['array'],
-            min: $array['formatOptions']['min'] ?? null,
-            max: $array['formatOptions']['max'] ?? null,
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );
@@ -82,16 +63,6 @@ class Integer extends Attribute
 
     public function getType(): string
     {
-        return Attribute::TYPE_INTEGER;
-    }
-
-    public function getMin(): ?int
-    {
-        return (int)$this->formatOptions['min'];
-    }
-
-    public function getMax(): ?int
-    {
-        return (int)$this->formatOptions['max'];
+        return Column::TYPE_BOOLEAN;
     }
 }

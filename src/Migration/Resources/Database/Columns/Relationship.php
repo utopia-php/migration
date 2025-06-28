@@ -1,30 +1,30 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attributes;
+namespace Utopia\Migration\Resources\Database\Columns;
 
 use Utopia\Database\Database;
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
-class Relationship extends Attribute
+class Relationship extends Column
 {
     public function __construct(
-        string $key,
-        Collection $collection,
-        string $relatedCollection,
-        string $relationType,
-        bool $twoWay = false,
+        string  $key,
+        Table   $table,
+        string  $relatedTable,
+        string  $relationType,
+        bool    $twoWay = false,
         ?string $twoWayKey = null,
-        string $onDelete = Database::RELATION_MUTATE_RESTRICT,
-        string $side = Database::RELATION_SIDE_PARENT,
-        string $createdAt = '',
-        string $updatedAt = ''
+        string  $onDelete = Database::RELATION_MUTATE_RESTRICT,
+        string  $side = Database::RELATION_SIDE_PARENT,
+        string  $createdAt = '',
+        string  $updatedAt = ''
     ) {
         parent::__construct(
             $key,
-            $collection,
+            $table,
             options: [
-                'relatedCollection' => $relatedCollection,
+                'relatedTable' => $relatedTable,
                 'relationType' => $relationType,
                 'twoWay' => $twoWay,
                 'twoWayKey' => $twoWayKey,
@@ -50,7 +50,7 @@ class Relationship extends Attribute
      *         permissions: ?array<string>
      *     },
      *     options: array{
-     *         relatedCollection: string,
+     *         relatedTable: string,
      *         relationType: string,
      *         twoWay: bool,
      *         twoWayKey: ?string,
@@ -66,8 +66,8 @@ class Relationship extends Attribute
     {
         return new self(
             $array['key'],
-            Collection::fromArray($array['collection']),
-            relatedCollection: $array['options']['relatedCollection'],
+            Table::fromArray($array['collection']),
+            relatedTable: $array['options']['relatedCollection'],
             relationType: $array['options']['relationType'],
             twoWay: $array['options']['twoWay'],
             twoWayKey: $array['options']['twoWayKey'],
@@ -80,10 +80,10 @@ class Relationship extends Attribute
 
     public function getType(): string
     {
-        return Attribute::TYPE_RELATIONSHIP;
+        return Column::TYPE_RELATIONSHIP;
     }
 
-    public function getRelatedCollection(): string
+    public function getRelatedTable(): string
     {
         return $this->options['relatedCollection'];
     }

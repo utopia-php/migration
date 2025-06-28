@@ -6,9 +6,8 @@ use PHPUnit\Framework\Attributes\Depends;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\User;
-use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Database;
-use Utopia\Migration\Resources\Database\Document;
+use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
@@ -196,14 +195,14 @@ class SupabaseTest extends Base
         $this->assertEquals('public', $foundDatabase->getId());
 
         // Find Known Collections
-        $collections = $state['source']->cache->get(Resource::TYPE_COLLECTION);
+        $collections = $state['source']->cache->get(Resource::TYPE_TABLE);
         $this->assertGreaterThan(0, count($collections));
 
         $foundCollection = null;
 
         foreach ($collections as $collection) {
-            /** @var Collection $collection */
-            if ($collection->getDatabase()->getDatabaseName() === 'public' && $collection->getCollectionName() === 'test') {
+            /** @var Table $table */
+            if ($collection->getDatabase()->getDatabaseName() === 'public' && $collection->getTableName() === 'test') {
                 $foundCollection = $collection;
 
                 break;
@@ -215,19 +214,19 @@ class SupabaseTest extends Base
         }
 
         $this->assertEquals('success', $foundCollection->getStatus());
-        $this->assertEquals('test', $foundCollection->getCollectionName());
+        $this->assertEquals('test', $foundCollection->getTableName());
         $this->assertEquals('public', $foundCollection->getDatabase()->getDatabaseName());
         $this->assertEquals('public', $foundCollection->getDatabase()->getId());
 
         // Find Known Documents
-        $documents = $state['source']->cache->get(Resource::TYPE_DOCUMENT);
+        $documents = $state['source']->cache->get(Resource::TYPE_ROW);
         //        $this->assertGreaterThan(0, count($documents));
         //
         //        $foundDocument = null;
         //
         //        foreach ($documents as $document) {
         //            /** @var Document $document */
-        //            if ($document->getCollection()->getDatabase()->getDatabaseName() === 'public' && $document->getCollection()->getCollectionName() === 'test') {
+        //            if ($document->getTable()->getDatabase()->getDatabaseName() === 'public' && $document->getTable()->getCollectionName() === 'test') {
         //                $foundDocument = $document;
         //            }
         //
@@ -247,12 +246,12 @@ class SupabaseTest extends Base
     public function testDatabaseFunctionalDefaultsWarn($state): void
     {
         // Find known collection
-        $collections = $state['source']->cache->get(Resource::TYPE_COLLECTION);
+        $collections = $state['source']->cache->get(Resource::TYPE_TABLE);
         $foundCollection = null;
 
         foreach ($collections as $collection) {
-            /** @var Collection $collection */
-            if ($collection->getCollectionName() === 'FunctionalDefaultTestTable') {
+            /** @var Table $table */
+            if ($collection->getTableName() === 'FunctionalDefaultTestTable') {
                 $foundCollection = $collection;
             }
 
@@ -264,7 +263,7 @@ class SupabaseTest extends Base
         }
 
         $this->assertEquals('warning', $foundCollection->getStatus());
-        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getCollectionName());
+        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getTableName());
         $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getId());
         $this->assertEquals('public', $foundCollection->getDatabase()->getId());
     }

@@ -52,10 +52,10 @@ class Local extends Destination
 
             // Database
             Resource::TYPE_DATABASE,
-            Resource::TYPE_COLLECTION,
-            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_TABLE,
+            Resource::TYPE_COLUMN,
             Resource::TYPE_INDEX,
-            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ROW,
 
             // Storage
             Resource::TYPE_BUCKET,

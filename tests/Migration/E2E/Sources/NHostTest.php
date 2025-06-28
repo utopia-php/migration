@@ -6,8 +6,8 @@ use PHPUnit\Framework\Attributes\Depends;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\User;
-use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Database;
+use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
@@ -214,12 +214,12 @@ class NHostTest extends Base
         $this->assertEquals('public', $foundDatabase->getId());
 
         // Find known collection
-        $collections = $state['source']->cache->get(Resource::TYPE_COLLECTION);
+        $collections = $state['source']->cache->get(Resource::TYPE_TABLE);
         $foundCollection = null;
 
         foreach ($collections as $collection) {
-            /** @var Collection $collection */
-            if ($collection->getCollectionName() === 'TestTable') {
+            /** @var Table $table */
+            if ($collection->getTableName() === 'TestTable') {
                 $foundCollection = $collection;
 
                 break;
@@ -231,7 +231,7 @@ class NHostTest extends Base
         }
 
         $this->assertEquals('success', $foundCollection->getStatus());
-        $this->assertEquals('TestTable', $foundCollection->getCollectionName());
+        $this->assertEquals('TestTable', $foundCollection->getTableName());
         $this->assertEquals('TestTable', $foundCollection->getId());
         $this->assertEquals('public', $foundCollection->getDatabase()->getId());
 
@@ -242,12 +242,12 @@ class NHostTest extends Base
     public function testDatabaseFunctionalDefaultsWarn($state): void
     {
         // Find known collection
-        $collections = $state['source']->cache->get(Resource::TYPE_COLLECTION);
+        $collections = $state['source']->cache->get(Resource::TYPE_TABLE);
         $foundCollection = null;
 
         foreach ($collections as $collection) {
-            /** @var Collection $collection */
-            if ($collection->getCollectionName() === 'FunctionalDefaultTestTable') {
+            /** @var Table $table */
+            if ($collection->getTableName() === 'FunctionalDefaultTestTable') {
                 $foundCollection = $collection;
             }
 
@@ -259,7 +259,7 @@ class NHostTest extends Base
         }
 
         $this->assertEquals('warning', $foundCollection->getStatus());
-        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getCollectionName());
+        $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getTableName());
         $this->assertEquals('FunctionalDefaultTestTable', $foundCollection->getId());
         $this->assertEquals('public', $foundCollection->getDatabase()->getId());
     }

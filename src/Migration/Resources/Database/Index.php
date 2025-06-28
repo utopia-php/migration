@@ -16,24 +16,24 @@ class Index extends Resource
     /**
      * @param string $id
      * @param string $key
-     * @param Collection $collection
+     * @param Table $table
      * @param string $type
-     * @param array<string> $attributes
+     * @param array<string> $columns
      * @param array<int> $lengths
      * @param array<string> $orders
      * @param string $createdAt
      * @param string $updatedAt
      */
     public function __construct(
-        string $id,
+        string                  $id,
         private readonly string $key,
-        private readonly Collection $collection,
+        private readonly Table  $table,
         private readonly string $type = '',
-        private readonly array $attributes = [],
-        private readonly array $lengths = [],
-        private readonly array $orders = [],
-        protected string $createdAt = '',
-        protected string $updatedAt = '',
+        private readonly array  $columns = [],
+        private readonly array  $lengths = [],
+        private readonly array  $orders = [],
+        protected string        $createdAt = '',
+        protected string        $updatedAt = '',
     ) {
         $this->id = $id;
     }
@@ -65,7 +65,7 @@ class Index extends Resource
         return new self(
             $array['id'],
             $array['key'],
-            Collection::fromArray($array['collection']),
+            Table::fromArray($array['collection']),
             $array['type'],
             $array['attributes'],
             $array['lengths'] ?? [],
@@ -83,9 +83,9 @@ class Index extends Resource
         return [
             'id' => $this->getId(),
             'key' => $this->key,
-            'collection' => $this->collection,
+            'table' => $this->table,
             'type' => $this->type,
-            'attributes' => $this->attributes,
+            'columns' => $this->columns,
             'lengths' => $this->lengths,
             'orders' => $this->orders,
             'createdAt' => $this->createdAt,
@@ -108,9 +108,9 @@ class Index extends Resource
         return $this->key;
     }
 
-    public function getCollection(): Collection
+    public function getTable(): Table
     {
-        return $this->collection;
+        return $this->table;
     }
 
     public function getType(): string
@@ -121,9 +121,9 @@ class Index extends Resource
     /**
      * @return array<string>
      */
-    public function getAttributes(): array
+    public function getColumns(): array
     {
-        return $this->attributes;
+        return $this->columns;
     }
 
     /**

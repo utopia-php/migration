@@ -1,32 +1,38 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attributes;
+namespace Utopia\Migration\Resources\Database\Columns;
 
-use Utopia\Database\Database;
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
-class Text extends Attribute
+class Decimal extends Column
 {
     public function __construct(
         string $key,
-        Collection $collection,
-        bool $required = false,
-        ?string $default = null,
-        bool $array = false,
-        int $size = Database::LENGTH_KEY,
-        string $format = '',
+        Table $table,
+        bool   $required = false,
+        ?float $default = null,
+        bool   $array = false,
+        ?float $min = null,
+        ?float $max = null,
+        bool   $signed = true,
         string $createdAt = '',
         string $updatedAt = ''
     ) {
+        $min ??= PHP_FLOAT_MIN;
+        $max ??= PHP_FLOAT_MAX;
+
         parent::__construct(
             $key,
-            $collection,
-            size: $size,
+            $table,
             required: $required,
             default: $default,
             array: $array,
-            format: $format,
+            signed: $signed,
+            formatOptions: [
+                'min' => $min,
+                'max' => $max,
+            ],
             createdAt: $createdAt,
             updatedAt: $updatedAt
         );
@@ -46,10 +52,12 @@ class Text extends Attribute
      *         permissions: ?array<string>
      *     },
      *     required: bool,
-     *     default: ?string,
      *     array: bool,
-     *     size: int,
-     *     format: string,
+     *     default: ?float,
+     *     formatOptions: array{
+     *         min: ?float,
+     *         max: ?float
+     *     },
      *     createdAt: string,
      *     updatedAt: string,
      * } $array
@@ -59,12 +67,12 @@ class Text extends Attribute
     {
         return new self(
             $array['key'],
-            Collection::fromArray($array['collection']),
+            Table::fromArray($array['collection']),
             required: $array['required'],
-            default: $array['default'] ?? null,
+            default: $array['default'],
             array: $array['array'],
-            size: $array['size'],
-            format: $array['format'],
+            min: $array['formatOptions']['min'],
+            max: $array['formatOptions']['max'],
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );
@@ -72,16 +80,16 @@ class Text extends Attribute
 
     public function getType(): string
     {
-        return Attribute::TYPE_STRING;
+        return Column::TYPE_FLOAT;
     }
 
-    public function getSize(): int
+    public function getMin(): ?float
     {
-        return $this->size;
+        return (float)$this->formatOptions['min'];
     }
 
-    public function getFormat(): string
+    public function getMax(): ?float
     {
-        return $this->format;
+        return (float)$this->formatOptions['max'];
     }
 }

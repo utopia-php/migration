@@ -5,22 +5,23 @@ namespace Utopia\Migration\Resources\Database;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
-class Collection extends Resource
+class Table extends Resource
 {
     /**
      * @param Database $database
      * @param string $name
      * @param string $id
-     * @param bool $documentSecurity
+     * @param bool $rowSecurity
      * @param array<string> $permissions
      * @param string $createdAt
      * @param string $updatedAt
+     * @param bool $enabled
      */
     public function __construct(
         private readonly Database $database,
         private readonly string $name,
         string $id,
-        private readonly bool $documentSecurity = false,
+        private readonly bool $rowSecurity = false,
         array $permissions = [],
         protected string $createdAt = '',
         protected string $updatedAt = '',
@@ -35,13 +36,14 @@ class Collection extends Resource
      *     database: array{
      *        id: string,
      *        name: string,
- *         },
+     *     },
      *     name: string,
      *     id: string,
      *     documentSecurity: bool,
      *     permissions: ?array<string>,
      *     createdAt: string,
-     *     updatedAt: string
+     *     updatedAt: string,
+     *     enabled: bool
      * } $array
      */
     public static function fromArray(array $array): self
@@ -50,7 +52,7 @@ class Collection extends Resource
             Database::fromArray($array['database']),
             name: $array['name'],
             id: $array['id'],
-            documentSecurity: $array['documentSecurity'],
+            rowSecurity: $array['documentSecurity'],
             permissions: $array['permissions'] ?? [],
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
@@ -67,7 +69,7 @@ class Collection extends Resource
             'database' => $this->database,
             'id' => $this->id,
             'name' => $this->name,
-            'documentSecurity' => $this->documentSecurity,
+            'rowSecurity' => $this->rowSecurity,
             'permissions' => $this->permissions,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
@@ -77,7 +79,7 @@ class Collection extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_COLLECTION;
+        return Resource::TYPE_TABLE;
     }
 
     public function getGroup(): string
@@ -90,14 +92,14 @@ class Collection extends Resource
         return $this->database;
     }
 
-    public function getCollectionName(): string
+    public function getTableName(): string
     {
         return $this->name;
     }
 
-    public function getDocumentSecurity(): bool
+    public function getRowSecurity(): bool
     {
-        return $this->documentSecurity;
+        return $this->rowSecurity;
     }
 
     public function getEnabled(): bool

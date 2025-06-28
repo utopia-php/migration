@@ -36,10 +36,10 @@ class Transfer
 
     public const GROUP_DATABASES_RESOURCES = [
         Resource::TYPE_DATABASE,
-        Resource::TYPE_COLLECTION,
+        Resource::TYPE_TABLE,
         Resource::TYPE_INDEX,
-        Resource::TYPE_ATTRIBUTE,
-        Resource::TYPE_DOCUMENT
+        Resource::TYPE_COLUMN,
+        Resource::TYPE_ROW
     ];
 
     public const GROUP_SETTINGS_RESOURCES = [];
@@ -54,10 +54,10 @@ class Transfer
         Resource::TYPE_ENVIRONMENT_VARIABLE,
         Resource::TYPE_DEPLOYMENT,
         Resource::TYPE_DATABASE,
-        Resource::TYPE_COLLECTION,
+        Resource::TYPE_TABLE,
         Resource::TYPE_INDEX,
-        Resource::TYPE_ATTRIBUTE,
-        Resource::TYPE_DOCUMENT,
+        Resource::TYPE_COLUMN,
+        Resource::TYPE_ROW,
     ];
 
     public const ROOT_RESOURCES = [
@@ -132,7 +132,7 @@ class Transfer
 
         foreach ($this->cache->getAll() as $resourceType => $resources) {
             foreach ($resources as $resource) {
-                if ($resourceType === Resource::TYPE_DOCUMENT && is_string($resource)) {
+                if ($resourceType === Resource::TYPE_ROW && is_string($resource)) {
                     $documentStatus = $resource;
                     $status[$resourceType][$documentStatus]++;
 
@@ -276,7 +276,7 @@ class Transfer
 
         foreach ($cache as $type => $resources) {
             foreach ($resources as $id => $resource) {
-                if ($type === Resource::TYPE_DOCUMENT && is_string($resource)) {
+                if ($type === Resource::TYPE_ROW && is_string($resource)) {
                     if ($statusLevel && $resource !== $statusLevel) {
                         continue;
                     }

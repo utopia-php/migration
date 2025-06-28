@@ -1,27 +1,32 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attributes;
+namespace Utopia\Migration\Resources\Database\Columns;
 
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Database\Database;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
-class Boolean extends Attribute
+class Text extends Column
 {
     public function __construct(
-        string $key,
-        Collection $collection,
-        bool $required = false,
-        ?bool $default = null,
-        bool $array = false,
-        string $createdAt = '',
-        string $updatedAt = ''
+        string  $key,
+        Table   $table,
+        bool    $required = false,
+        ?string $default = null,
+        bool    $array = false,
+        int     $size = Database::LENGTH_KEY,
+        string  $format = '',
+        string  $createdAt = '',
+        string  $updatedAt = ''
     ) {
         parent::__construct(
             $key,
-            $collection,
+            $table,
+            size: $size,
             required: $required,
             default: $default,
             array: $array,
+            format: $format,
             createdAt: $createdAt,
             updatedAt: $updatedAt
         );
@@ -41,8 +46,10 @@ class Boolean extends Attribute
      *         permissions: ?array<string>
      *     },
      *     required: bool,
+     *     default: ?string,
      *     array: bool,
-     *     default: ?bool,
+     *     size: int,
+     *     format: string,
      *     createdAt: string,
      *     updatedAt: string,
      * } $array
@@ -52,10 +59,12 @@ class Boolean extends Attribute
     {
         return new self(
             $array['key'],
-            Collection::fromArray($array['collection']),
+            Table::fromArray($array['collection']),
             required: $array['required'],
-            default: $array['default'],
+            default: $array['default'] ?? null,
             array: $array['array'],
+            size: $array['size'],
+            format: $array['format'],
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );
@@ -63,6 +72,16 @@ class Boolean extends Attribute
 
     public function getType(): string
     {
-        return Attribute::TYPE_BOOLEAN;
+        return Column::TYPE_STRING;
+    }
+
+    public function getSize(): int
+    {
+        return $this->size;
+    }
+
+    public function getFormat(): string
+    {
+        return $this->format;
     }
 }

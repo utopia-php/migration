@@ -6,15 +6,15 @@ use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\User;
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Attributes\Boolean;
-use Utopia\Migration\Resources\Database\Attributes\DateTime;
-use Utopia\Migration\Resources\Database\Attributes\Decimal;
-use Utopia\Migration\Resources\Database\Attributes\Integer;
-use Utopia\Migration\Resources\Database\Attributes\Text;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Columns\Boolean;
+use Utopia\Migration\Resources\Database\Columns\DateTime;
+use Utopia\Migration\Resources\Database\Columns\Decimal;
+use Utopia\Migration\Resources\Database\Columns\Integer;
+use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Database;
-use Utopia\Migration\Resources\Database\Document;
+use Utopia\Migration\Resources\Database\Row;
+use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
@@ -126,9 +126,9 @@ class Firebase extends Source
 
             // Database
             Resource::TYPE_DATABASE,
-            Resource::TYPE_COLLECTION,
-            Resource::TYPE_ATTRIBUTE,
-            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_TABLE,
+            Resource::TYPE_COLUMN,
+            Resource::TYPE_ROW,
 
             // Storage
             Resource::TYPE_BUCKET,
@@ -295,13 +295,13 @@ class Firebase extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
-                $this->exportDB($batchSize, in_array(Resource::TYPE_DOCUMENT, $resources), $database);
+            if (\in_array(Resource::TYPE_TABLE, $resources)) {
+                $this->exportDB($batchSize, in_array(Resource::TYPE_ROW, $resources), $database);
             }
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
-                    Resource::TYPE_COLLECTION,
+                    Resource::TYPE_TABLE,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
                     code: $e->getCode(),
@@ -311,14 +311,14 @@ class Firebase extends Source
         }
     }
 
-    private function exportDB(int $batchSize, bool $pushDocuments, Database $database): void
+    private function exportDB(int $batchSize, bool $pushRows, Database $database): void
     {
         $baseURL = "https://firestore.googleapis.com/v1/projects/{$this->projectID}/databases/(default)/documents";
 
+        $allTables = [];
         $nextPageToken = null;
-        $allCollections = [];
         while (true) {
-            $collections = [];
+            $tables = [];
 
             try {
                 $result = $this->call('POST', $baseURL.':listCollectionIds', [
@@ -333,7 +333,7 @@ class Firebase extends Source
                 }
             } catch (\Exception $e) {
                 if ($e->getCode() == 403) {
-                    $errorMessage = new Collection($database, 'firestore', 'firestore');
+                    $errorMessage = new Table($database, 'firestore', 'firestore');
 
                     $errorMessage->setStatus(Resource::STATUS_ERROR);
                     $errorMessage->setMessage($e->getMessage());
@@ -345,20 +345,20 @@ class Firebase extends Source
             }
 
             // Transfer Collections
-            foreach ($result['collectionIds'] as $collection) {
-                $collections[] = new Collection($database, $collection, $collection);
+            foreach ($result['collectionIds'] as $table) {
+                $tables[] = new Table($database, $table, $table);
             }
 
-            if (count($collections) !== 0) {
-                $allCollections = array_merge($allCollections, $collections);
-                $this->callback($collections);
+            if (count($tables) !== 0) {
+                $allTables = array_merge($allTables, $tables);
+                $this->callback($tables);
             } else {
                 return;
             }
 
-            // Transfer Documents and Calculate Schema
-            foreach ($collections as $collection) {
-                $this->exportCollection($collection, $batchSize, $pushDocuments);
+            // Transfer Row and Calculate Schema
+            foreach ($tables as $table) {
+                $this->exportTable($table, $batchSize, $pushRows);
             }
 
             if (count($result['collectionIds']) < $batchSize) {
@@ -372,12 +372,12 @@ class Firebase extends Source
     /**
      * @throws \Exception
      */
-    private function convertAttribute(Collection $collection, string $key, array $field, bool $array = false): Attribute
+    private function convertColumn(Table $column, string $key, array $field, bool $array = false): Column
     {
         if (array_key_exists('booleanValue', $field)) {
             return new Boolean(
                 $key,
-                $collection,
+                $column,
                 required:false,
                 default: null,
                 array: $array,
@@ -385,7 +385,7 @@ class Firebase extends Source
         } elseif (array_key_exists('bytesValue', $field)) {
             return new Text(
                 $key,
-                $collection,
+                $column,
                 required: false,
                 default: null,
                 array: $array,
@@ -394,7 +394,7 @@ class Firebase extends Source
         } elseif (array_key_exists('doubleValue', $field)) {
             return new Decimal(
                 $key,
-                $collection,
+                $column,
                 required: false,
                 default: null,
                 array: $array,
@@ -402,7 +402,7 @@ class Firebase extends Source
         } elseif (array_key_exists('integerValue', $field)) {
             return new Integer(
                 $key,
-                $collection,
+                $column,
                 required: false,
                 default: null,
                 array: $array,
@@ -410,7 +410,7 @@ class Firebase extends Source
         } elseif (array_key_exists('mapValue', $field)) {
             return new Text(
                 $key,
-                $collection,
+                $column,
                 required: false,
                 default: null,
                 array: $array,
@@ -419,7 +419,7 @@ class Firebase extends Source
         } elseif (array_key_exists('nullValue', $field)) {
             return new Text(
                 $key,
-                $collection,
+                $column,
                 required: false,
                 default: null,
                 array: $array,
@@ -428,7 +428,7 @@ class Firebase extends Source
         } elseif (array_key_exists('referenceValue', $field)) {
             return new Text(
                 $key,
-                $collection,
+                $column,
                 required: false,
                 default: null,
                 array: $array,
@@ -437,7 +437,7 @@ class Firebase extends Source
         } elseif (array_key_exists('stringValue', $field)) {
             return new Text(
                 $key,
-                $collection,
+                $column,
                 required: false,
                 default: null,
                 array: $array,
@@ -446,7 +446,7 @@ class Firebase extends Source
         } elseif (array_key_exists('timestampValue', $field)) {
             return new DateTime(
                 $key,
-                $collection,
+                $column,
                 required: false,
                 default: null,
                 array: $array,
@@ -454,28 +454,28 @@ class Firebase extends Source
         } elseif (array_key_exists('geoPointValue', $field)) {
             return new Text(
                 $key,
-                $collection,
+                $column,
                 required: false,
                 default: null,
                 array: $array,
                 size: 1000000,
             );
         } elseif (array_key_exists('arrayValue', $field)) {
-            return $this->calculateArrayType($collection, $key, $field['arrayValue']);
+            return $this->calculateArrayType($column, $key, $field['arrayValue']);
         } else {
             throw new \Exception('Unknown field type');
         }
     }
 
-    private function calculateArrayType(Collection $collection, string $key, array $data): Attribute
+    private function calculateArrayType(Table $table, string $key, array $data): Column
     {
         $isSameType = true;
         $previousType = null;
 
         foreach ($data['values'] as $field) {
             if (! $previousType) {
-                $previousType = $this->convertAttribute($collection, $key, $field, true);
-            } elseif ($previousType->getName() != ($this->convertAttribute($collection, $key, $field))->getName()) {
+                $previousType = $this->convertColumn($table, $key, $field, true);
+            } elseif ($previousType->getName() != ($this->convertColumn($table, $key, $field))->getName()) {
                 $isSameType = false;
                 break;
             }
@@ -484,18 +484,17 @@ class Firebase extends Source
         if ($isSameType) {
             return $previousType;
         } else {
-            return new Text($key, $collection, false, true, true, 1000000);
+            return new Text($key, $table, false, true, true, 1000000);
         }
     }
 
-    private function exportCollection(Collection $collection, int $batchSize, bool $transferDocuments): void
+    private function exportTable(Table $table, int $batchSize, bool $transferRows): void
     {
-        $resourceURL = 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases/'.$collection->getDatabase()->getOriginalId().'/documents/'.$collection->getId();
+        $resourceURL = 'https://firestore.googleapis.com/v1/projects/'.$this->projectID.'/databases/'.$table->getDatabase()->getOriginalId().'/documents/'.$table->getId();
 
         $nextPageToken = null;
 
-        $documentSchema = [];
-        $createdSchema = [];
+        $rowSchema = [];
 
         // Transfer Documents and Calculate Schemas
         while (true) {
@@ -512,37 +511,37 @@ class Firebase extends Source
                 break;
             }
 
-            foreach ($result['documents'] as $document) {
-                if (! isset($document['fields'])) {
+            foreach ($result['documents'] as $row) {
+                if (! isset($row['fields'])) {
                     continue; //TODO: Transfer Empty Documents
                 }
 
-                foreach ($document['fields'] as $key => $field) {
-                    if (! isset($documentSchema[$key])) {
-                        $documentSchema[$key] = $this->convertAttribute($collection, $key, $field);
+                foreach ($row['fields'] as $key => $field) {
+                    if (! isset($rowSchema[$key])) {
+                        $rowSchema[$key] = $this->convertColumn($table, $key, $field);
                     }
                 }
 
-                $documents[] = $this->convertDocument($collection, $document, $documentSchema);
+                $documents[] = $this->convertRow($table, $row, $rowSchema);
             }
 
-            // Transfer Documents
-            if ($transferDocuments) {
-                $cachedAtrributes = $this->cache->get(Attribute::getName());
+            // Transfer Rows
+            if ($transferRows) {
+                $cachedColumns = $this->cache->get(Column::getName());
 
-                $attributesToCreate = $documentSchema;
+                $columnsToCreate = $rowSchema;
 
-                foreach ($documentSchema as $key => $attribute) {
-                    foreach ($cachedAtrributes as $cachedAttribute) {
-                        /** @var Attribute $cachedAttribute */
-                        if ($cachedAttribute->getKey() == $attribute->getKey() && $cachedAttribute->getCollection()->getId() == $attribute->getCollection()->getId()) {
-                            unset($attributesToCreate[$key]);
+                foreach ($rowSchema as $key => $column) {
+                    foreach ($cachedColumns as $cachedColumn) {
+                        /** @var Column $cachedColumn */
+                        if ($cachedColumn->getKey() == $column->getKey() && $cachedColumn->getTable()->getId() == $column->getTable()->getId()) {
+                            unset($columnsToCreate[$key]);
                         }
                     }
                 }
 
-                if (count($attributesToCreate) > 0) {
-                    $this->callback(array_values($attributesToCreate));
+                if (count($columnsToCreate) > 0) {
+                    $this->callback(array_values($columnsToCreate));
                 }
 
                 $this->callback($documents);
@@ -591,13 +590,13 @@ class Firebase extends Source
         }
     }
 
-    private function convertDocument(Collection $collection, array $document, array $documentSchema): Document
+    private function convertRow(Table $table, array $document, array $rowSchema): Row
     {
         $data = [];
         foreach ($document['fields'] as $key => $field) {
             $value = $this->calculateValue($field);
 
-            if ($documentSchema[$key]->getType() === Attribute::TYPE_STRING && is_array($value)) {
+            if ($rowSchema[$key]->getType() === Column::TYPE_STRING && is_array($value)) {
                 $value = array_map(function ($item) {
                     return strval($item);
                 }, $value);
@@ -606,13 +605,13 @@ class Firebase extends Source
             $data[$key] = $value;
         }
 
-        $documentId = explode('/', $document['name']);
-        $documentId = end($documentId);
+        $rowId = explode('/', $document['name']);
+        $rowId = end($rowId);
         // Strip non-alphanumeric except underscore and hyphen
-        $documentId = preg_replace("/[^A-Za-z0-9\_\-]/", '', $documentId);
-        $documentId = strtolower($documentId);
+        $rowId = preg_replace("/[^A-Za-z0-9\_\-]/", '', $rowId);
+        $rowId = strtolower($rowId);
 
-        return new Document($documentId, $collection, $data, []);
+        return new Row($rowId, $table, $data, []);
     }
 
     protected function exportGroupStorage(int $batchSize, array $resources): void

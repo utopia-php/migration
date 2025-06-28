@@ -5,19 +5,19 @@ namespace Utopia\Migration\Resources\Database;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
-class Document extends Resource
+class Row extends Resource
 {
     /**
      * @param string $id
-     * @param Collection $collection
+     * @param Table $table
      * @param array<string, mixed> $data
      * @param array<string> $permissions
      */
     public function __construct(
-        string $id,
-        private readonly Collection $collection,
+        string                 $id,
+        private readonly Table $table,
         private readonly array $data = [],
-        array $permissions = []
+        array                  $permissions = []
     ) {
         $this->id = $id;
         $this->permissions = $permissions;
@@ -44,7 +44,7 @@ class Document extends Resource
     {
         return new self(
             $array['id'],
-            Collection::fromArray($array['collection']),
+            Table::fromArray($array['collection']),
             $array['data'],
             $array['permissions'] ?? []
         );
@@ -57,7 +57,7 @@ class Document extends Resource
     {
         return [
             'id' => $this->id,
-            'collection' => $this->collection,
+            'table' => $this->table,
             'data' => $this->data,
             'permissions' => $this->permissions,
         ];
@@ -65,7 +65,7 @@ class Document extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_DOCUMENT;
+        return Resource::TYPE_ROW;
     }
 
     public function getGroup(): string
@@ -73,9 +73,9 @@ class Document extends Resource
         return Transfer::GROUP_DATABASES;
     }
 
-    public function getCollection(): Collection
+    public function getTable(): Table
     {
-        return $this->collection;
+        return $this->table;
     }
 
     /**

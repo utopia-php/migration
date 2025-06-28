@@ -1,36 +1,40 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attributes;
+namespace Utopia\Migration\Resources\Database\Columns;
 
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
-class DateTime extends Attribute
+class Enum extends Column
 {
+    /**
+     * @param array<string> $elements
+     */
     public function __construct(
-        string $key,
-        Collection $collection,
-        bool $required = false,
+        string  $key,
+        Table   $table,
+        array   $elements,
+        bool    $required = false,
         ?string $default = null,
-        bool $array = false,
-        string $createdAt = '',
-        string $updatedAt = ''
+        bool    $array = false,
+        int     $size = 256,
+        string  $createdAt = '',
+        string  $updatedAt = ''
     ) {
         parent::__construct(
             $key,
-            $collection,
+            $table,
+            size: $size,
             required: $required,
             default: $default,
             array: $array,
-            filters: ['datetime'],
+            format: 'enum',
+            formatOptions: [
+                'elements' => $elements,
+            ],
             createdAt: $createdAt,
             updatedAt: $updatedAt
         );
-    }
-
-    public function getType(): string
-    {
-        return Attribute::TYPE_DATETIME;
     }
 
     /**
@@ -46,9 +50,13 @@ class DateTime extends Attribute
      *         documentSecurity: bool,
      *         permissions: ?array<string>
      *     },
+     *     size: int,
      *     required: bool,
-     *     array: bool,
      *     default: ?string,
+     *     array: bool,
+     *     formatOptions: array{
+     *         elements: array<string>
+     *     },
      *     createdAt: string,
      *     updatedAt: string,
      * } $array
@@ -58,12 +66,27 @@ class DateTime extends Attribute
     {
         return new self(
             $array['key'],
-            Collection::fromArray($array['collection']),
+            Table::fromArray($array['collection']),
+            elements: $array['formatOptions']['elements'],
             required: $array['required'],
             default: $array['default'],
             array: $array['array'],
+            size: $array['size'],
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );
+    }
+
+    public function getType(): string
+    {
+        return Column::TYPE_ENUM;
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function getElements(): array
+    {
+        return (array)$this->formatOptions['elements'];
     }
 }
