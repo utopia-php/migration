@@ -61,6 +61,7 @@ class API implements Reader
         foreach ($databases as $database) {
             $databaseId = $database['$id'];
 
+            /* $tablesResponse = $this->tables->list(...); */
             $tablesResponse = $this->database->listCollections($databaseId);
             $tables = $tablesResponse['collections'];
 
@@ -76,6 +77,7 @@ class API implements Reader
                     $tableId = $table['$id'];
 
                     if (in_array(Resource::TYPE_ROW, $resources)) {
+                        /* $rowsResponse = $this->tables->listRows(...) */
                         $rowsResponse = $this->database->listDocuments(
                             $databaseId,
                             $tableId,
@@ -85,11 +87,13 @@ class API implements Reader
                     }
 
                     if (in_array(Resource::TYPE_COLUMN, $resources)) {
+                        /* $columnsResponse = $this->tables->listColumns(...); */
                         $columnsResponse = $this->database->listAttributes($databaseId, $tableId);
                         $report[Resource::TYPE_COLUMN] += $columnsResponse['total'];
                     }
 
                     if (in_array(Resource::TYPE_INDEX, $resources)) {
+                        /* $columnsResponse = $this->tables->listIndexes(...); */
                         $indexesResponse = $this->database->listIndexes($databaseId, $tableId);
                         $report[Resource::TYPE_INDEX] += $indexesResponse['total'];
                     }
@@ -113,7 +117,7 @@ class API implements Reader
      */
     public function listTables(Database $resource, array $queries = []): array
     {
-        /* $this->tables->list(...) */
+        /* $this->tables->list(...)['tables'] */
         return $this->database->listCollections(
             $resource->getId(),
             $queries
@@ -128,7 +132,7 @@ class API implements Reader
      */
     public function listColumns(Table $resource, array $queries = []): array
     {
-        /* $this->tables->listColumns(...) */
+        /* $this->tables->listColumns(...)['columns'] */
         return $this->database->listAttributes(
             $resource->getDatabase()->getId(),
             $resource->getId(),
@@ -144,7 +148,7 @@ class API implements Reader
      */
     public function listIndexes(Table $resource, array $queries = []): array
     {
-        /* $this->tables->listIndexes(...) */
+        /* $this->tables->listIndexes(...)['indexes'] */
         return $this->database->listIndexes(
             $resource->getDatabase()->getId(),
             $resource->getId(),
@@ -161,7 +165,7 @@ class API implements Reader
      */
     public function listRows(Table $resource, array $queries = []): array
     {
-        /* $this->tables->listRows(...) */
+        /* $this->tables->listRows(...)['rows'] */
         return $this->database->listDocuments(
             $resource->getDatabase()->getId(),
             $resource->getId(),

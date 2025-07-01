@@ -41,7 +41,7 @@ class Decimal extends Column
     /**
      * @param array{
      *     key: string,
-     *     collection: array{
+     *     collection?: array{
      *         database: array{
      *             id: string,
      *             name: string,
@@ -49,6 +49,16 @@ class Decimal extends Column
      *         name: string,
      *         id: string,
      *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     table?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         rowSecurity: bool,
      *         permissions: ?array<string>
      *     },
      *     required: bool,
@@ -67,7 +77,7 @@ class Decimal extends Column
     {
         return new self(
             $array['key'],
-            Table::fromArray($array['collection']),
+            Table::fromArray($array['table'] ?? $array['collection']),
             required: $array['required'],
             default: $array['default'],
             array: $array['array'],

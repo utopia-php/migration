@@ -26,7 +26,7 @@ class Row extends Resource
     /**
      * @param array{
      *     id: string,
-     *     collection: array{
+     *     collection?: array{
      *         database: array{
      *             id: string,
      *             name: string,
@@ -34,6 +34,16 @@ class Row extends Resource
      *         name: string,
      *         id: string,
      *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     table?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         rowSecurity: bool,
      *         permissions: ?array<string>
      *     },
      *     data: array<string, mixed>,
@@ -44,7 +54,7 @@ class Row extends Resource
     {
         return new self(
             $array['id'],
-            Table::fromArray($array['collection']),
+            Table::fromArray($array['table'] ?? $array['collection']),
             $array['data'],
             $array['permissions'] ?? []
         );

@@ -39,7 +39,7 @@ class Relationship extends Column
     /**
      * @param array{
      *     key: string,
-     *     collection: array{
+     *     collection?: array{
      *         database: array{
      *             id: string,
      *             name: string,
@@ -47,6 +47,16 @@ class Relationship extends Column
      *         name: string,
      *         id: string,
      *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     table?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         rowSecurity: bool,
      *         permissions: ?array<string>
      *     },
      *     options: array{
@@ -66,8 +76,8 @@ class Relationship extends Column
     {
         return new self(
             $array['key'],
-            Table::fromArray($array['collection']),
-            relatedTable: $array['options']['relatedCollection'],
+            Table::fromArray($array['table'] ?? $array['collection']),
+            relatedTable: $array['options']['relatedTable'] ?? $array['options']['relatedCollection'],
             relationType: $array['options']['relationType'],
             twoWay: $array['options']['twoWay'],
             twoWayKey: $array['options']['twoWayKey'],
@@ -85,7 +95,7 @@ class Relationship extends Column
 
     public function getRelatedTable(): string
     {
-        return $this->options['relatedCollection'];
+        return $this->options['relatedTable'] ?? $this->options['relatedCollection'];
     }
 
     public function getRelationType(): string

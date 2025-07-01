@@ -42,7 +42,7 @@ class Index extends Resource
      * @param array{
      *     id: string,
      *     key: string,
-     *     collection: array{
+     *     collection?: array{
      *         database: array{
      *             id: string,
      *             name: string,
@@ -52,8 +52,19 @@ class Index extends Resource
      *         documentSecurity: bool,
      *         permissions: ?array<string>
      *     },
+     *     table?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         rowSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
      *     type: string,
-     *     attributes: array<string>,
+     *     columns?: array<string>,
+     *     attributes?: array<string>,
      *     lengths: ?array<int>,
      *     orders: ?array<string>,
      *     createdAt: string,
@@ -65,9 +76,9 @@ class Index extends Resource
         return new self(
             $array['id'],
             $array['key'],
-            Table::fromArray($array['collection']),
+            Table::fromArray($array['table'] ?? $array['collection']),
             $array['type'],
-            $array['attributes'],
+            $array['columns'] ?? $array['attributes'],
             $array['lengths'] ?? [],
             $array['orders'] ?? [],
             createdAt: $array['createdAt'] ?? '',

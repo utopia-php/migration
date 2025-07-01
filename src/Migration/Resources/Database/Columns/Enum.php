@@ -40,7 +40,7 @@ class Enum extends Column
     /**
      * @param array{
      *     key: string,
-     *     collection: array{
+     *     collection?: array{
      *         database: array{
      *             id: string,
      *             name: string,
@@ -48,6 +48,16 @@ class Enum extends Column
      *         name: string,
      *         id: string,
      *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     table?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         rowSecurity: bool,
      *         permissions: ?array<string>
      *     },
      *     size: int,
@@ -66,7 +76,7 @@ class Enum extends Column
     {
         return new self(
             $array['key'],
-            Table::fromArray($array['collection']),
+            Table::fromArray($array['table'] ?? $array['collection']),
             elements: $array['formatOptions']['elements'],
             required: $array['required'],
             default: $array['default'],
