@@ -93,7 +93,7 @@ class API implements Reader
                     }
 
                     if (in_array(Resource::TYPE_INDEX, $resources)) {
-                        /* $columnsResponse = $this->tables->listIndexes(...); */
+                        /* $indexesResponse = $this->tables->listIndexes(...); */
                         $indexesResponse = $this->database->listIndexes($databaseId, $tableId);
                         $report[Resource::TYPE_INDEX] += $indexesResponse['total'];
                     }
