@@ -305,6 +305,7 @@ class CSV extends Source
     /**
      * @param callable(resource $stream): void $callback
      * @return void
+     * @throws \Exception
      */
     private function withCsvStream(callable $callback): void
     {
@@ -313,11 +314,19 @@ class CSV extends Source
         }
 
         if ($this->device->getType() !== Storage::DEVICE_LOCAL) {
-            $this->device->transfer(
-                $this->filePath,
-                $this->filePath,
-                new Device\Local('/'),
-            );
+            try {
+                $success = $this->device->transfer(
+                    $this->filePath,
+                    $this->filePath,
+                    new Device\Local('/'),
+                );
+            } catch (\Exception) {
+                $success = false;
+            }
+
+            if (!$success) {
+                throw new \Exception('Failed to transfer CSV file from device to local storage.');
+            }
         }
 
         $stream = \fopen($this->filePath, 'r');
