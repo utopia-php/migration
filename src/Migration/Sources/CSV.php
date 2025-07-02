@@ -320,12 +320,12 @@ class CSV extends Source
                     $this->filePath,
                     new Device\Local('/'),
                 );
-            } catch (\Exception) {
+            } catch (\Exception $e) {
                 $success = false;
             }
 
             if (!$success) {
-                throw new \Exception('Failed to transfer CSV file from device to local storage.');
+                throw new \Exception('Failed to transfer CSV file from device to local storage.', previous: $e ?? null);
             }
         }
 
