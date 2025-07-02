@@ -4,7 +4,7 @@ namespace Utopia\Migration\Sources;
 
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
-use Utopia\Migration\Resource;
+use Utopia\Migration\Resource as UtopiaResource;
 use Utopia\Migration\Resources\Database\Attribute;
 use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Database;
@@ -15,6 +15,7 @@ use Utopia\Migration\Sources\Appwrite\Reader;
 use Utopia\Migration\Sources\Appwrite\Reader\Database as DatabaseReader;
 use Utopia\Migration\Transfer;
 use Utopia\Storage\Device;
+use Utopia\Storage\Storage;
 
 class CSV extends Source
 {
@@ -49,7 +50,7 @@ class CSV extends Source
     public static function getSupportedResources(): array
     {
         return [
-            Resource::TYPE_DOCUMENT,
+            UtopiaResource::TYPE_DOCUMENT,
         ];
     }
 
@@ -68,7 +69,7 @@ class CSV extends Source
         $file->seek(PHP_INT_MAX);
         $rowCount = max(0, $file->key());
 
-        $report[Resource::TYPE_DOCUMENT] = $rowCount;
+        $report[UtopiaResource::TYPE_DOCUMENT] = $rowCount;
 
         return $report;
     }
@@ -84,13 +85,13 @@ class CSV extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         try {
-            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
+            if (\in_array(UtopiaResource::TYPE_DOCUMENT, $resources)) {
                 $this->exportDocuments($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
-                    Resource::TYPE_DOCUMENT,
+                    UtopiaResource::TYPE_DOCUMENT,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
                     code: $e->getCode(),
@@ -301,21 +302,42 @@ class CSV extends Source
         throw new \Exception('Not Implemented');
     }
 
-    private function withCsvStream(callable $fn): void
+    /**
+     * @param callable(resource $stream): void $callback
+     * @return void
+     * @throws \Exception
+     */
+    private function withCsvStream(callable $callback): void
     {
-        if (! $this->device->exists($this->filePath)) {
+        if (!$this->device->exists($this->filePath)) {
             return;
         }
 
-        $stream = fopen($this->filePath, 'r');
-        if (! $stream) {
+        if ($this->device->getType() !== Storage::DEVICE_LOCAL) {
+            try {
+                $success = $this->device->transfer(
+                    $this->filePath,
+                    $this->filePath,
+                    new Device\Local('/'),
+                );
+            } catch (\Exception $e) {
+                $success = false;
+            }
+
+            if (!$success) {
+                throw new \Exception('Failed to transfer CSV file from device to local storage.', previous: $e ?? null);
+            }
+        }
+
+        $stream = \fopen($this->filePath, 'r');
+        if (!$stream) {
             return;
         }
 
         try {
-            $fn($stream);
+            $callback($stream);
         } finally {
-            fclose($stream);
+            \fclose($stream);
         }
     }
 
