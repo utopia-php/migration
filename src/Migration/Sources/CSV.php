@@ -39,6 +39,9 @@ class CSV extends Source
         $this->filePath = $filePath;
         $this->resourceId = $resourceId;
         $this->database = new DatabaseReader($dbForProject);
+
+        // full path
+        $this->filePath = str_ireplace($device->getRoot(), $device->getRoot() . DIRECTORY_SEPARATOR, $filePath);
     }
 
     public static function getName(): string
