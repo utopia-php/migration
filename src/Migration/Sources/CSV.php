@@ -30,6 +30,8 @@ class CSV extends Source
 
     private Reader $database;
 
+    private bool $downloaded = false;
+
     public function __construct(
         string $resourceId,
         string $filePath,
@@ -55,13 +57,22 @@ class CSV extends Source
     }
 
     // called before the `exportGroupDatabases`.
+
+    /**
+     * @throws \Exception
+     */
     public function report(array $resources = []): array
     {
         $report = [];
 
-        if (! $this->device->exists($this->filePath)) {
+        if (!$this->device->exists($this->filePath)) {
             return $report;
         }
+
+        $this->downloadToLocal(
+            $this->device,
+            $this->filePath,
+        );
 
         $file = new \SplFileObject($this->filePath, 'r');
         $file->setFlags(\SplFileObject::READ_CSV | \SplFileObject::SKIP_EMPTY);
@@ -313,20 +324,11 @@ class CSV extends Source
             return;
         }
 
-        if ($this->device->getType() !== Storage::DEVICE_LOCAL) {
-            try {
-                $success = $this->device->transfer(
-                    $this->filePath,
-                    $this->filePath,
-                    new Device\Local('/'),
-                );
-            } catch (\Exception $e) {
-                $success = false;
-            }
-
-            if (!$success) {
-                throw new \Exception('Failed to transfer CSV file from device to local storage.', previous: $e ?? null);
-            }
+        if (!$this->downloaded) {
+            $this->downloadToLocal(
+                $this->device,
+                $this->filePath,
+            );
         }
 
         $stream = \fopen($this->filePath, 'r');
@@ -369,5 +371,35 @@ class CSV extends Source
 
             throw new \Exception('CSV header mismatch. '.implode(' | ', $messages));
         }
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function downloadToLocal(
+        Device $device,
+        string $filePath
+    ): void {
+        if ($this->downloaded
+            || $device->getType() === Storage::DEVICE_LOCAL
+        ) {
+            return;
+        }
+
+        try {
+            $success = $device->transfer(
+                $filePath,
+                $filePath,
+                new Device\Local('/'),
+            );
+        } catch (\Exception $e) {
+            $success = false;
+        }
+
+        if (!$success) {
+            throw new \Exception('Failed to transfer CSV file from device to local storage.', previous: $e ?? null);
+        }
+
+        $this->downloaded = true;
     }
 }
