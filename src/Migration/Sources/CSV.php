@@ -232,12 +232,14 @@ class CSV extends Source
                         continue;
                     }
 
-                    $parsedData[$key] = match ($type) {
-                        Attribute::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
-                        Attribute::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
-                        Attribute::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
-                        default => $parsedValue,
-                    };
+                    if ($parsedValue !== '') {
+                        $parsedData[$key] = match ($type) {
+                            Attribute::TYPE_INTEGER => is_numeric($parsedValue) ? (int)$parsedValue : null,
+                            Attribute::TYPE_FLOAT => is_numeric($parsedValue) ? (float)$parsedValue : null,
+                            Attribute::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
+                            default => $parsedValue,
+                        };
+                    }
                 }
 
                 $documentId = $parsedData['$id'] ?? 'unique()';
