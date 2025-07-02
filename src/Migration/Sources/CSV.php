@@ -194,32 +194,41 @@ class CSV extends Source
                     $parsedValue = trim($value);
                     $type = $attributeTypes[$key] ?? null;
 
-                    if (! isset($type) || $parsedValue === '') {
+                    if (! isset($type)) {
                         continue;
                     }
 
                     if (in_array($key, $manyToManyKeys, true)) {
-                        $parsedData[$key] = str_contains($parsedValue, ',')
-                            ? array_map('trim', explode(',', $parsedValue))
-                            : [$parsedValue];
-
+                        $parsedData[$key] = $parsedValue === ''
+                            ? []
+                            : array_values(
+                                array_filter(
+                                    array_map(
+                                        'trim',
+                                        explode(',', $parsedValue)
+                                    )
+                                )
+                            );
                         continue;
                     }
 
                     if (in_array($key, $arrayKeys, true)) {
-                        $arrayValues = str_contains($parsedValue, ',')
-                            ? array_map('trim', explode(',', $parsedValue))
-                            : [$parsedValue];
+                        if ($parsedValue === '') {
+                            $parsedData[$key] = [];
+                        } else {
+                            $arrayValues = str_contains($parsedValue, ',')
+                                ? array_map('trim', explode(',', $parsedValue))
+                                : [$parsedValue];
 
-                        $parsedData[$key] = array_map(function($item) use ($type) {
-                            return match ($type) {
-                                Attribute::TYPE_INTEGER => is_numeric($item) ? (int) $item : null,
-                                Attribute::TYPE_FLOAT => is_numeric($item) ? (float) $item : null,
-                                Attribute::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN),
-                                default => $item,
-                            };
-                        }, $arrayValues);
-
+                            $parsedData[$key] = array_map(function ($item) use ($type) {
+                                return match ($type) {
+                                    Attribute::TYPE_INTEGER => is_numeric($item) ? (int) $item : null,
+                                    Attribute::TYPE_FLOAT => is_numeric($item) ? (float) $item : null,
+                                    Attribute::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN),
+                                    default => $item,
+                                };
+                            }, $arrayValues);
+                        }
                         continue;
                     }
 
