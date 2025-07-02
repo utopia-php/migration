@@ -216,9 +216,8 @@ class CSV extends Source
                         if ($parsedValue === '') {
                             $parsedData[$key] = [];
                         } else {
-                            $arrayValues = str_contains($parsedValue, ',')
-                                ? array_map('trim', explode(',', $parsedValue))
-                                : [$parsedValue];
+                            $arrayValues = str_getcsv($parsedValue);
+                            $arrayValues = array_map('trim', $arrayValues);
 
                             $parsedData[$key] = array_map(function ($item) use ($type) {
                                 return match ($type) {
