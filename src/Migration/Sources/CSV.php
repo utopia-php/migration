@@ -135,31 +135,40 @@ class CSV extends Source
             }
         }
 
+        $arrayKeys = [];
         $attributeTypes = [];
         $manyToManyKeys = [];
 
         foreach ($attributes as $attribute) {
             $key = $attribute['key'];
+            $type = $attribute['type'];
+            $isArray = $attribute['array'] ?? false;
+            $relationSide = $attribute['side'] ?? '';
+            $relationType = $attribute['relationType'] ?? '';
 
             if (
-                $attribute['type'] === Attribute::TYPE_RELATIONSHIP &&
-                ($attribute['side'] ?? '') === UtopiaDatabase::RELATION_SIDE_CHILD
+                $type === Attribute::TYPE_RELATIONSHIP &&
+                $relationSide === UtopiaDatabase::RELATION_SIDE_CHILD
             ) {
                 continue;
             }
 
-            $attributeTypes[$key] = $attribute['type'];
+            $attributeTypes[$key] = $type;
 
             if (
-                $attribute['type'] === Attribute::TYPE_RELATIONSHIP &&
-                ($attribute['relationType'] ?? '') === 'manyToMany' &&
-                ($attribute['side'] ?? '') === 'parent'
+                $type === Attribute::TYPE_RELATIONSHIP &&
+                $relationType === 'manyToMany' &&
+                $relationSide === 'parent'
             ) {
                 $manyToManyKeys[] = $key;
             }
+
+            if ($isArray && $type !== Attribute::TYPE_RELATIONSHIP) {
+                $arrayKeys[] = $key;
+            }
         }
 
-        $this->withCSVStream(function ($stream) use ($attributeTypes, $manyToManyKeys, $collection, $batchSize) {
+        $this->withCSVStream(function ($stream) use ($attributeTypes, $manyToManyKeys, $arrayKeys, $collection, $batchSize) {
             $headers = fgetcsv($stream);
             if (! is_array($headers) || count($headers) === 0) {
                 return;
@@ -185,24 +194,51 @@ class CSV extends Source
                     $parsedValue = trim($value);
                     $type = $attributeTypes[$key] ?? null;
 
-                    if (! isset($type) || $parsedValue === '') {
+                    if (! isset($type)) {
                         continue;
                     }
 
                     if (in_array($key, $manyToManyKeys, true)) {
-                        $parsedData[$key] = str_contains($parsedValue, ',')
-                            ? array_map('trim', explode(',', $parsedValue))
-                            : [$parsedValue];
-
+                        $parsedData[$key] = $parsedValue === ''
+                            ? []
+                            : array_values(
+                                array_filter(
+                                    array_map(
+                                        'trim',
+                                        explode(',', $parsedValue)
+                                    )
+                                )
+                            );
                         continue;
                     }
 
-                    $parsedData[$key] = match ($type) {
-                        Attribute::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
-                        Attribute::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
-                        Attribute::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
-                        default => $parsedValue,
-                    };
+                    if (in_array($key, $arrayKeys, true)) {
+                        if ($parsedValue === '') {
+                            $parsedData[$key] = [];
+                        } else {
+                            $arrayValues = str_getcsv($parsedValue);
+                            $arrayValues = array_map('trim', $arrayValues);
+
+                            $parsedData[$key] = array_map(function ($item) use ($type) {
+                                return match ($type) {
+                                    Attribute::TYPE_INTEGER => is_numeric($item) ? (int) $item : null,
+                                    Attribute::TYPE_FLOAT => is_numeric($item) ? (float) $item : null,
+                                    Attribute::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN),
+                                    default => $item,
+                                };
+                            }, $arrayValues);
+                        }
+                        continue;
+                    }
+
+                    if ($parsedValue !== '') {
+                        $parsedData[$key] = match ($type) {
+                            Attribute::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
+                            Attribute::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
+                            Attribute::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
+                            default => $parsedValue,
+                        };
+                    }
                 }
 
                 $documentId = $parsedData['$id'] ?? 'unique()';
