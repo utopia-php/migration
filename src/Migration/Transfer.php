@@ -2,6 +2,8 @@
 
 namespace Utopia\Migration;
 
+use Utopia\CLI\Console;
+
 class Transfer
 {
     public const GROUP_GENERAL = 'general';
@@ -237,6 +239,15 @@ class Transfer
         }
 
         $this->resources = $computedResources;
+
+        Console::log(json_encode([
+            'stage' => 'transfer#run',
+            'resources' => $resources,
+            'rootResourceId' => $rootResourceId,
+            'rootResourceType' => $rootResourceType,
+            'computedResources' => $computedResources
+        ], JSON_PRETTY_PRINT));
+
 
         $this->destination->run(
             $computedResources,

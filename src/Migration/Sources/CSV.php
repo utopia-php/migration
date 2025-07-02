@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Sources;
 
+use Utopia\CLI\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
@@ -59,6 +60,11 @@ class CSV extends Source
         $report = [];
 
         if (! $this->device->exists($this->filePath)) {
+            Console::log(json_encode([
+                'stage' => 'csv#report',
+                'status' => "exiting, file doesn't exist." . ", path: " . $this->filePath
+            ], JSON_PRETTY_PRINT));
+
             return $report;
         }
 
@@ -69,6 +75,8 @@ class CSV extends Source
         $rowCount = max(0, $file->key());
 
         $report[Resource::TYPE_DOCUMENT] = $rowCount;
+
+        Console::log(json_encode(['stage' => 'csv#report', 'report' => $report], JSON_PRETTY_PRINT));
 
         return $report;
     }
@@ -83,11 +91,23 @@ class CSV extends Source
 
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
+        Console::log(json_encode([
+            'stage' => 'csv#exportGroupDatabases',
+            'resources' => $resources,
+            'hasDocumentInScope' => in_array(Resource::TYPE_DOCUMENT, $resources)
+        ], JSON_PRETTY_PRINT));
+
         try {
             if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
                 $this->exportDocuments($batchSize);
             }
         } catch (\Throwable $e) {
+            Console::log(json_encode([
+                'stage' => 'csv#exportGroupDatabases',
+                'status' => 'error',
+                'trace' => $e->getTraceAsString(),
+            ], JSON_PRETTY_PRINT));
+
             $this->addError(
                 new Exception(
                     Resource::TYPE_DOCUMENT,
@@ -116,6 +136,12 @@ class CSV extends Source
         $database = new Database($databaseId, '');
         $collection = new Collection($database, '', $collectionId);
 
+        Console::log(json_encode([
+            'stage' => 'csv#exportDocuments',
+            'databaseId' => $databaseId,
+            'collectionId' => $collectionId,
+        ], JSON_PRETTY_PRINT));
+
         while (true) {
             $queries = [$this->database->queryLimit($batchSize)];
             if ($lastAttribute) {
@@ -137,6 +163,11 @@ class CSV extends Source
 
         $attributeTypes = [];
         $manyToManyKeys = [];
+
+        Console::log(json_encode([
+            'stage' => 'csv#exportDocuments',
+            'attributes' => $attributes,
+        ], JSON_PRETTY_PRINT));
 
         foreach ($attributes as $attribute) {
             $key = $attribute['key'];
@@ -215,12 +246,23 @@ class CSV extends Source
 
                 if (count($buffer) === $batchSize) {
                     $this->callback($buffer);
+
+                    Console::log(json_encode([
+                        'stage' => 'csv#withCSVStream#callback',
+                        'buffer' => $buffer,
+                    ], JSON_PRETTY_PRINT));
+
                     $buffer = [];
                 }
             }
 
             if (! empty($buffer)) {
                 $this->callback($buffer);
+
+                Console::log(json_encode([
+                    'stage' => 'csv#withCSVStream#callback#2',
+                    'buffer' => $buffer,
+                ], JSON_PRETTY_PRINT));
             }
         });
     }
@@ -295,6 +337,12 @@ class CSV extends Source
 
         $extraAttributes = array_diff($filteredHeaders, $expectedAttributes);
         $missingAttributes = array_diff($expectedAttributes, $filteredHeaders);
+
+        Console::log(json_encode([
+            'stage' => 'csv#validateCSVHeaders',
+            'missingAttributes' => $missingAttributes,
+            'extraAttributes' => $extraAttributes,
+        ], JSON_PRETTY_PRINT));
 
         if (! empty($missingAttributes) || ! empty($extraAttributes)) {
             $messages = [];

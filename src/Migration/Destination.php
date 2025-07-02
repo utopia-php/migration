@@ -2,6 +2,8 @@
 
 namespace Utopia\Migration;
 
+use Utopia\CLI\Console;
+
 abstract class Destination extends Target
 {
     /**
@@ -34,6 +36,8 @@ abstract class Destination extends Target
         string $rootResourceId = '',
         string $rootResourceType = '',
     ): void {
+        Console::log(json_encode(['stage' => 'destination#run'], JSON_PRETTY_PRINT));
+
         $this->source->run(
             $resources,
             function (array $resources) use ($callback) {

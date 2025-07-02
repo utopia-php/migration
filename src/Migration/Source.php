@@ -2,6 +2,8 @@
 
 namespace Utopia\Migration;
 
+use Utopia\CLI\Console;
+
 abstract class Source extends Target
 {
     protected static int $defaultBatchSize = 100;
@@ -54,6 +56,8 @@ abstract class Source extends Target
      */
     public function run(array $resources, callable $callback, string $rootResourceId = '', string $rootResourceType = ''): void
     {
+        Console::log(json_encode(['stage' => 'source#run'], JSON_PRETTY_PRINT));
+
         $this->rootResourceId = $rootResourceId;
         $this->rootResourceType = $rootResourceType;
 
@@ -63,10 +67,26 @@ abstract class Source extends Target
                 /** @var Resource $resource */
                 if (!in_array($resource->getName(), $resources)) {
                     $resource->setStatus(Resource::STATUS_SKIPPED);
+                    Console::log(json_encode([
+                        'stage' => 'transferCallback#1',
+                        'resource' => [
+                            'data' => $resource,
+                            'status' => 'skipped',
+                        ]
+                    ], JSON_PRETTY_PRINT));
                 } else {
                     $prunedResources[] = $resource;
+                    Console::log(json_encode([
+                        'stage' => 'transferCallback#2',
+                        'prunedResource' => $resource
+                    ], JSON_PRETTY_PRINT));
                 }
             }
+
+            Console::log(json_encode([
+                'stage' => 'transferCallback#3',
+                'status' => '$callback($returnedResources)'
+            ], JSON_PRETTY_PRINT));
 
             $callback($returnedResources);
             $this->cache->addAll($prunedResources);
@@ -98,6 +118,12 @@ abstract class Source extends Target
                 }
             }
         }
+
+        Console::log(json_encode([
+            'stage' => 'source#exportResources',
+            'groups' => $groups,
+            'resources' => $resources,
+        ], JSON_PRETTY_PRINT));
 
         if (empty($groups)) {
             return;
