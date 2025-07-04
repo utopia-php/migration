@@ -32,6 +32,11 @@ class CSV extends Source
 
     private bool $downloaded = false;
 
+    // caching
+    private ?array $cachedAttributes = null;
+
+    private ?array $attributeMetadata = null;
+
     public function __construct(
         string $resourceId,
         string $filePath,
@@ -120,73 +125,19 @@ class CSV extends Source
      */
     private function exportDocuments(int $batchSize): void
     {
+        $this->loadAndCacheAttributes($batchSize);
 
-        $attributes = [];
-        $lastAttribute = null;
+        [$databaseId, $collectionId] = explode(":", $this->resourceId);
+        $database = new Database($databaseId, "");
+        $collection = new Collection($database, "", $collectionId);
 
-        [$databaseId, $collectionId] = explode(':', $this->resourceId);
-        $database = new Database($databaseId, '');
-        $collection = new Collection($database, '', $collectionId);
-
-        while (true) {
-            $queries = [$this->database->queryLimit($batchSize)];
-            if ($lastAttribute) {
-                $queries[] = $this->database->queryCursorAfter($lastAttribute);
-            }
-
-            $fetched = $this->database->listAttributes($collection, $queries);
-            if (empty($fetched)) {
-                break;
-            }
-
-            array_push($attributes, ...$fetched);
-            $lastAttribute = $fetched[count($fetched) - 1];
-
-            if (count($fetched) < $batchSize) {
-                break;
-            }
-        }
-
-        $arrayKeys = [];
-        $attributeTypes = [];
-        $manyToManyKeys = [];
-
-        foreach ($attributes as $attribute) {
-            $key = $attribute['key'];
-            $type = $attribute['type'];
-            $isArray = $attribute['array'] ?? false;
-            $relationSide = $attribute['side'] ?? '';
-            $relationType = $attribute['relationType'] ?? '';
-
-            if (
-                $type === Attribute::TYPE_RELATIONSHIP &&
-                $relationSide === UtopiaDatabase::RELATION_SIDE_CHILD
-            ) {
-                continue;
-            }
-
-            $attributeTypes[$key] = $type;
-
-            if (
-                $type === Attribute::TYPE_RELATIONSHIP &&
-                $relationType === 'manyToMany' &&
-                $relationSide === 'parent'
-            ) {
-                $manyToManyKeys[] = $key;
-            }
-
-            if ($isArray && $type !== Attribute::TYPE_RELATIONSHIP) {
-                $arrayKeys[] = $key;
-            }
-        }
-
-        $this->withCSVStream(function ($stream) use ($attributeTypes, $manyToManyKeys, $arrayKeys, $collection, $batchSize) {
+        $this->withCsvStream(function ($stream) use ($batchSize, $collection) {
             $headers = fgetcsv($stream);
             if (! is_array($headers) || count($headers) === 0) {
                 return;
             }
 
-            $this->validateCSVHeaders($headers, $attributeTypes);
+            $this->validateCSVHeaders($headers, array_column($this->attributeMetadata, 'type'));
 
             $buffer = [];
 
@@ -200,59 +151,7 @@ class CSV extends Source
                     continue;
                 }
 
-                $parsedData = $data;
-
-                foreach ($data as $key => $value) {
-                    $parsedValue = trim($value);
-                    $type = $attributeTypes[$key] ?? null;
-
-                    if (! isset($type)) {
-                        continue;
-                    }
-
-                    if (in_array($key, $manyToManyKeys, true)) {
-                        $parsedData[$key] = $parsedValue === ''
-                            ? []
-                            : array_values(
-                                array_filter(
-                                    array_map(
-                                        'trim',
-                                        explode(',', $parsedValue)
-                                    )
-                                )
-                            );
-                        continue;
-                    }
-
-                    if (in_array($key, $arrayKeys, true)) {
-                        if ($parsedValue === '') {
-                            $parsedData[$key] = [];
-                        } else {
-                            $arrayValues = str_getcsv($parsedValue);
-                            $arrayValues = array_map('trim', $arrayValues);
-
-                            $parsedData[$key] = array_map(function ($item) use ($type) {
-                                return match ($type) {
-                                    Attribute::TYPE_INTEGER => is_numeric($item) ? (int) $item : null,
-                                    Attribute::TYPE_FLOAT => is_numeric($item) ? (float) $item : null,
-                                    Attribute::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN),
-                                    default => $item,
-                                };
-                            }, $arrayValues);
-                        }
-                        continue;
-                    }
-
-                    if ($parsedValue !== '') {
-                        $parsedData[$key] = match ($type) {
-                            Attribute::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
-                            Attribute::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
-                            Attribute::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
-                            default => $parsedValue,
-                        };
-                    }
-                }
-
+                $parsedData = $this->parseRow($data);
                 $documentId = $parsedData['$id'] ?? 'unique()';
 
                 // `$id`, `$permissions` in the doc can cause issues!
@@ -311,6 +210,159 @@ class CSV extends Source
     protected function exportGroupFunctions(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
+    }
+
+    /**
+     * @param int $batchSize
+     * @return void
+     * @throws Exception
+     * @throws \Utopia\Database\Exception
+     */
+    private function loadAndCacheAttributes(int $batchSize): void
+    {
+        if ($this->cachedAttributes !== null) {
+            return;
+        }
+
+        [ $databaseId, $collectionId ] = explode(":", $this->resourceId);
+
+        $database = new Database($databaseId, "");
+        $collection = new Collection($database, "", $collectionId);
+
+        $attributes = [];
+        $lastAttribute = null;
+
+        while (true) {
+            $queries = [$this->database->queryLimit($batchSize)];
+            if ($lastAttribute) {
+                $queries[] = $this->database->queryCursorAfter($lastAttribute);
+            }
+
+            $fetched = $this->database->listAttributes($collection, $queries);
+            if (empty($fetched)) {
+                break;
+            }
+
+            array_push($attributes, ...$fetched);
+            $lastAttribute = $fetched[count($fetched) - 1];
+
+            if (count($fetched) < $batchSize) {
+                break;
+            }
+        }
+
+        $this->cachedAttributes = $attributes;
+        $this->preprocessAttributes();
+    }
+
+    /**
+     * @return void
+     */
+    private function preprocessAttributes(): void
+    {
+        $this->attributeMetadata = [];
+
+        foreach ($this->cachedAttributes as $attribute) {
+            $key = $attribute["key"];
+            $type = $attribute["type"];
+            $isArray = $attribute["array"] ?? false;
+            $relationSide = $attribute["side"] ?? "";
+            $relationType = $attribute["relationType"] ?? "";
+
+            if (
+                $type === Attribute::TYPE_RELATIONSHIP &&
+                $relationSide === UtopiaDatabase::RELATION_SIDE_CHILD
+            ) {
+                continue;
+            }
+
+            $this->attributeMetadata[$key] = [
+                "type" => $type,
+                "isArray" => $isArray && $type !== Attribute::TYPE_RELATIONSHIP,
+                "isManyToMany" =>
+                    $type === Attribute::TYPE_RELATIONSHIP &&
+                    $relationType === "manyToMany" &&
+                    $relationSide === "parent",
+            ];
+        }
+    }
+
+    /**
+     * @param array $data
+     * @return array
+     */
+    private function parseRow(array $data): array
+    {
+        $parsedData = [];
+
+        foreach ($data as $key => $value) {
+            $parsedValue = trim($value);
+
+            if (!isset($this->attributeMetadata[$key])) {
+                continue;
+            }
+
+            $metadata = $this->attributeMetadata[$key];
+            $type = $metadata["type"];
+
+            if ($metadata["isManyToMany"]) {
+                $parsedData[$key] = $parsedValue === ''
+                    ? []
+                    : array_values(
+                        array_filter(
+                            array_map(
+                                'trim',
+                                explode(',', $parsedValue)
+                            )
+                        )
+                    );
+                continue;
+            }
+
+            // array attributes
+            if ($metadata["isArray"]) {
+                if ($parsedValue === "") {
+                    $parsedData[$key] = [];
+                } else {
+                    $arrayValues = str_getcsv($parsedValue);
+                    $arrayValues = array_map('trim', $arrayValues);
+                    $parsedData[$key] = $this->convertScalars($arrayValues, $type, true);
+                }
+                continue;
+            }
+
+            // normal attributes
+            if ($parsedValue !== "") {
+                $parsedData[$key] = $this->convertScalars($parsedValue, $type);
+            } else {
+                $parsedData[$key] = $parsedValue;
+            }
+        }
+
+        return $parsedData;
+    }
+
+    private function convertScalars(mixed $value, string $type, bool $isArray = false): mixed
+    {
+        $values = is_array($value) ? $value : [$value];
+
+        $converted = match ($type) {
+            Attribute::TYPE_INTEGER => array_map(
+                fn ($v) => ($v = trim($v)) !== '' && is_numeric($v) ? (int) $v : null,
+                $values
+            ),
+            Attribute::TYPE_FLOAT => array_map(
+                fn ($v) => ($v = trim($v)) !== '' && is_numeric($v) ? (float) $v : null,
+                $values
+            ),
+            Attribute::TYPE_BOOLEAN => array_map(
+                fn ($v) => filter_var(trim($v), FILTER_VALIDATE_BOOLEAN),
+                $values
+            ),
+            default => array_map('trim', $values),
+        };
+
+        return $isArray ? $converted : $converted[0];
     }
 
     /**
