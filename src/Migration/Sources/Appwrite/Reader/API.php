@@ -40,7 +40,7 @@ class API implements Reader
         }
 
         foreach ($relevantResources as $resourceType) {
-            if (in_array($resourceType, $resources)) {
+            if (Resource::isSupported($resourceType, $resources)) {
                 $report[$resourceType] = 0;
             }
         }

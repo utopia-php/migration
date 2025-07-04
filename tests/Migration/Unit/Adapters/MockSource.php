@@ -116,7 +116,7 @@ class MockSource extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         foreach (Transfer::GROUP_DATABASES_RESOURCES as $resource) {
-            if (!\in_array($resource, $resources)) {
+            if (!Resource::isSupported($resource, $resources)) {
                 continue;
             }
 

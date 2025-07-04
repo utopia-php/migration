@@ -96,7 +96,7 @@ class CSV extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         try {
-            if (\in_array(UtopiaResource::TYPE_ROW, $resources)) {
+            if (UtopiaResource::isSupported(UtopiaResource::TYPE_ROW, $resources)) {
                 $this->exportRows($batchSize);
             }
         } catch (\Throwable $e) {

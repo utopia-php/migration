@@ -32,19 +32,14 @@ class Database implements Reader
             Resource::TYPE_ROW,
             Resource::TYPE_COLUMN,
             Resource::TYPE_INDEX,
-
-            // legacy
-            Resource::TYPE_DOCUMENT,
-            Resource::TYPE_ATTRIBUTE,
-            Resource::TYPE_COLLECTION,
         ];
 
-        if (empty(array_intersect($resources, $relevantResources))) {
+        if (!Resource::isSupported($relevantResources, $resources)) {
             return null;
         }
 
         foreach ($relevantResources as $resourceType) {
-            if (in_array($resourceType, $resources)) {
+            if (Resource::isSupported($resourceType, $resources)) {
                 $report[$resourceType] = 0;
             }
         }
