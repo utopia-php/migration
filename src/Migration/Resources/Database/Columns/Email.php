@@ -1,25 +1,25 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attributes;
+namespace Utopia\Migration\Resources\Database\Columns;
 
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
 class Email extends Text
 {
     public function __construct(
-        string $key,
-        Collection $collection,
-        bool $required = false,
+        string  $key,
+        Table   $table,
+        bool    $required = false,
         ?string $default = null,
-        bool $array = false,
-        int $size = 254,
-        string $createdAt = '',
-        string $updatedAt = ''
+        bool    $array = false,
+        int     $size = 254,
+        string  $createdAt = '',
+        string  $updatedAt = ''
     ) {
         parent::__construct(
             $key,
-            $collection,
+            $table,
             required: $required,
             default: $default,
             array: $array,
@@ -32,6 +32,6 @@ class Email extends Text
 
     public function getType(): string
     {
-        return Attribute::TYPE_EMAIL;
+        return Column::TYPE_EMAIL;
     }
 }

@@ -63,11 +63,11 @@ class MockSource extends Source
     public static function getSupportedResources(): array
     {
         return [
-            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_COLUMN,
             Resource::TYPE_BUCKET,
-            Resource::TYPE_COLLECTION,
+            Resource::TYPE_TABLE,
             Resource::TYPE_DATABASE,
-            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ROW,
             Resource::TYPE_FILE,
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
@@ -77,6 +77,11 @@ class MockSource extends Source
             Resource::TYPE_ENVIRONMENT_VARIABLE,
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
+
+            // legacy
+            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_COLLECTION,
         ];
     }
 
@@ -111,7 +116,7 @@ class MockSource extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         foreach (Transfer::GROUP_DATABASES_RESOURCES as $resource) {
-            if (!\in_array($resource, $resources)) {
+            if (!Resource::isSupported($resource, $resources)) {
                 continue;
             }
 

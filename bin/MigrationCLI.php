@@ -215,7 +215,7 @@ class MigrationCLI
                     $_ENV['SOURCE_APPWRITE_TEST_ENDPOINT'],
                     $_ENV['SOURCE_APPWRITE_TEST_KEY'],
                     Appwrite::SOURCE_DATABASE,
-                    $this->getDatabase(),
+                    $this->getDatabase('source'),
                 );
             case 'supabase':
                 return new Supabase(
@@ -252,7 +252,7 @@ class MigrationCLI
                     $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
                     $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
                     $_ENV['DESTINATION_APPWRITE_TEST_KEY'],
-                    $this->getDatabase(),
+                    $this->getDatabase('destination'),
                     self::STRUCTURE
                 );
             case 'local':
@@ -262,7 +262,7 @@ class MigrationCLI
         }
     }
 
-    public function getDatabase(): Database
+    public function getDatabase(string $type): Database
     {
         Database::addFilter(
             'subQueryAttributes',
@@ -277,12 +277,21 @@ class MigrationCLI
                 ]);
 
                 foreach ($attributes as $attribute) {
-                    if ($attribute->getAttribute('type') === Database::VAR_RELATIONSHIP) {
-                        $options = $attribute->getAttribute('options');
-                        foreach ($options as $key => $value) {
-                            $attribute->setAttribute($key, $value);
-                        }
-                        $attribute->removeAttribute('options');
+                    $attributeType = $attribute->getAttribute('type');
+
+                    switch ($attributeType) {
+                        case Database::VAR_RELATIONSHIP:
+                            $options = $attribute->getAttribute('options');
+                            foreach ($options as $key => $value) {
+                                $attribute->setAttribute($key, $value);
+                            }
+                            $attribute->removeAttribute('options');
+                            break;
+
+                        case Database::VAR_STRING:
+                            $filters = $attribute->getAttribute('filters', []);
+                            $attribute->setAttribute('encrypt', in_array('encrypt', $filters));
+                            break;
                     }
                 }
 
@@ -363,10 +372,16 @@ class MigrationCLI
             }
         );
 
+        $prefix = match ($type) {
+            'source' => 'SOURCE_APPWRITE_TEST_',
+            'destination' => 'DESTINATION_APPWRITE_TEST_',
+            default => throw new Exception('Invalid type for database'),
+        };
+
         $database = new Database(new MariaDB(new PDO(
-            $_ENV['DESTINATION_APPWRITE_TEST_DSN'],
-            $_ENV['DESTINATION_APPWRITE_TEST_USER'],
-            $_ENV['DESTINATION_APPWRITE_TEST_PASSWORD'],
+            $_ENV[$prefix . 'DSN'],
+            $_ENV[$prefix . 'USER'],
+            $_ENV[$prefix . 'PASSWORD'],
             [
                 PDO::ATTR_TIMEOUT => 3,
                 PDO::ATTR_PERSISTENT => true,
@@ -378,7 +393,7 @@ class MigrationCLI
 
         $database
             ->setDatabase('appwrite')
-            ->setNamespace('_' . $_ENV['DESTINATION_APPWRITE_TEST_NAMESPACE']);
+            ->setNamespace('_' . $_ENV[$prefix . 'NAMESPACE']);
 
         return $database;
     }

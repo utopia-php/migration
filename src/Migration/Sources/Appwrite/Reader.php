@@ -3,8 +3,8 @@
 namespace Utopia\Migration\Sources\Appwrite;
 
 use Utopia\Migration\Resource;
-use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Database;
+use Utopia\Migration\Resources\Database\Table;
 
 /**
  * @template QueryType
@@ -18,7 +18,7 @@ interface Reader
      * @param array $report
      * @return mixed
      */
-    public function report(array $resources, array &$report);
+    public function report(array $resources, array &$report): mixed;
 
     /**
      * List databases that match the given queries
@@ -35,61 +35,61 @@ interface Reader
      * @param array $queries
      * @return array
      */
-    public function listCollections(Database $resource, array $queries = []): array;
+    public function listTables(Database $resource, array $queries = []): array;
 
     /**
      * List attributes that match the given queries
      *
-     * @param Collection $resource
+     * @param Table $resource
      * @param array<QueryType> $queries
      * @return array
      */
-    public function listAttributes(Collection $resource, array $queries = []): array;
+    public function listColumns(Table $resource, array $queries = []): array;
 
     /**
      * List indexes that match the given queries
      *
-     * @param Collection $resource
+     * @param Table $resource
      * @param array<QueryType> $queries
      * @return array
      */
-    public function listIndexes(Collection $resource, array $queries = []): array;
+    public function listIndexes(Table $resource, array $queries = []): array;
 
     /**
      * List documents that match the given queries
      *
-     * @param Collection $resource
+     * @param Table $resource
      * @param array<QueryType> $queries
      * @return array
      */
-    public function listDocuments(Collection $resource, array $queries = []): array;
+    public function listRows(Table $resource, array $queries = []): array;
 
     /**
      * Get a document by its ID in the given collection
      *
-     * @param Collection $resource
-     * @param string $documentId
+     * @param Table $resource
+     * @param string $rowId
      * @param array $queries
      * @return array
      */
-    public function getDocument(Collection $resource, string $documentId, array $queries = []): array;
+    public function getRow(Table $resource, string $rowId, array $queries = []): array;
 
     /**
      * Return a query to select the given attributes
      *
-     * @param array $attributes
+     * @param array $columns
      * @return QueryType|string
      */
-    public function querySelect(array $attributes): mixed;
+    public function querySelect(array $columns): mixed;
 
     /**
      * Return a query to filter the given attributes
      *
-     * @param string $attribute
+     * @param string $column
      * @param array $values
      * @return QueryType|string
      */
-    public function queryEqual(string $attribute, array $values): mixed;
+    public function queryEqual(string $column, array $values): mixed;
 
     /**
      * Return a query to paginate after the given resource

@@ -1,27 +1,27 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attributes;
+namespace Utopia\Migration\Resources\Database\Columns;
 
 use Utopia\Database\Database;
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
-class Text extends Attribute
+class Text extends Column
 {
     public function __construct(
-        string $key,
-        Collection $collection,
-        bool $required = false,
+        string  $key,
+        Table   $table,
+        bool    $required = false,
         ?string $default = null,
-        bool $array = false,
-        int $size = Database::LENGTH_KEY,
-        string $format = '',
-        string $createdAt = '',
-        string $updatedAt = ''
+        bool    $array = false,
+        int     $size = Database::LENGTH_KEY,
+        string  $format = '',
+        string  $createdAt = '',
+        string  $updatedAt = ''
     ) {
         parent::__construct(
             $key,
-            $collection,
+            $table,
             size: $size,
             required: $required,
             default: $default,
@@ -35,7 +35,7 @@ class Text extends Attribute
     /**
      * @param array{
      *     key: string,
-     *     collection: array{
+     *     collection?: array{
      *         database: array{
      *             id: string,
      *             name: string,
@@ -43,6 +43,16 @@ class Text extends Attribute
      *         name: string,
      *         id: string,
      *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     table?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         rowSecurity: bool,
      *         permissions: ?array<string>
      *     },
      *     required: bool,
@@ -59,7 +69,7 @@ class Text extends Attribute
     {
         return new self(
             $array['key'],
-            Collection::fromArray($array['collection']),
+            Table::fromArray($array['table'] ?? $array['collection']),
             required: $array['required'],
             default: $array['default'] ?? null,
             array: $array['array'],
@@ -72,7 +82,7 @@ class Text extends Attribute
 
     public function getType(): string
     {
-        return Attribute::TYPE_STRING;
+        return Column::TYPE_STRING;
     }
 
     public function getSize(): int
