@@ -4,7 +4,7 @@ namespace Utopia\Migration\Sources;
 
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
-use Utopia\Migration\Resource;
+use Utopia\Migration\Resource as UtopiaResource;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Row;
@@ -15,6 +15,7 @@ use Utopia\Migration\Sources\Appwrite\Reader;
 use Utopia\Migration\Sources\Appwrite\Reader\Database as DatabaseReader;
 use Utopia\Migration\Transfer;
 use Utopia\Storage\Device;
+use Utopia\Storage\Storage;
 
 class CSV extends Source
 {
@@ -28,6 +29,8 @@ class CSV extends Source
     private Device $device;
 
     private Reader $database;
+
+    private bool $downloaded = false;
 
     public function __construct(
         string $resourceId,
@@ -49,18 +52,27 @@ class CSV extends Source
     public static function getSupportedResources(): array
     {
         return [
-            Resource::TYPE_ROW,
+            UtopiaResource::TYPE_ROW,
         ];
     }
 
     // called before the `exportGroupDatabases`.
+
+    /**
+     * @throws \Exception
+     */
     public function report(array $resources = []): array
     {
         $report = [];
 
-        if (! $this->device->exists($this->filePath)) {
+        if (!$this->device->exists($this->filePath)) {
             return $report;
         }
+
+        $this->downloadToLocal(
+            $this->device,
+            $this->filePath,
+        );
 
         $file = new \SplFileObject($this->filePath, 'r');
         $file->setFlags(\SplFileObject::READ_CSV | \SplFileObject::SKIP_EMPTY);
@@ -68,7 +80,7 @@ class CSV extends Source
         $file->seek(PHP_INT_MAX);
         $rowCount = max(0, $file->key());
 
-        $report[Resource::TYPE_ROW] = $rowCount;
+        $report[UtopiaResource::TYPE_ROW] = $rowCount;
 
         return $report;
     }
@@ -84,13 +96,13 @@ class CSV extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         try {
-            if (\in_array(Resource::TYPE_ROW, $resources)) {
+            if (\in_array(UtopiaResource::TYPE_ROW, $resources)) {
                 $this->exportRows($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
-                    Resource::TYPE_ROW,
+                    UtopiaResource::TYPE_ROW,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
                     code: $e->getCode(),
@@ -135,31 +147,40 @@ class CSV extends Source
             }
         }
 
+        $arrayKeys = [];
         $columnTypes = [];
         $manyToManyKeys = [];
 
         foreach ($columns as $column) {
             $key = $column['key'];
+            $type = $column['type'];
+            $isArray = $column['array'] ?? false;
+            $relationSide = $column['side'] ?? '';
+            $relationType = $column['relationType'] ?? '';
 
             if (
-                $column['type'] === Column::TYPE_RELATIONSHIP &&
-                ($column['side'] ?? '') === UtopiaDatabase::RELATION_SIDE_CHILD
+                $type === Column::TYPE_RELATIONSHIP &&
+                $relationSide === UtopiaDatabase::RELATION_SIDE_CHILD
             ) {
                 continue;
             }
 
-            $columnTypes[$key] = $column['type'];
+            $columnTypes[$key] = $type;
 
             if (
-                $column['type'] === Column::TYPE_RELATIONSHIP &&
-                ($column['relationType'] ?? '') === 'manyToMany' &&
-                ($column['side'] ?? '') === 'parent'
+                $type === Column::TYPE_RELATIONSHIP &&
+                $relationType === 'manyToMany' &&
+                $relationSide === 'parent'
             ) {
                 $manyToManyKeys[] = $key;
             }
+
+            if ($isArray && $type !== Column::TYPE_RELATIONSHIP) {
+                $arrayKeys[] = $key;
+            }
         }
 
-        $this->withCSVStream(function ($stream) use ($columnTypes, $manyToManyKeys, $table, $batchSize) {
+        $this->withCSVStream(function ($stream) use ($columnTypes, $manyToManyKeys, $arrayKeys, $table, $batchSize) {
             $headers = fgetcsv($stream);
             if (! is_array($headers) || count($headers) === 0) {
                 return;
@@ -185,24 +206,51 @@ class CSV extends Source
                     $parsedValue = trim($value);
                     $type = $columnTypes[$key] ?? null;
 
-                    if (! isset($type) || $parsedValue === '') {
+                    if (! isset($type)) {
                         continue;
                     }
 
                     if (in_array($key, $manyToManyKeys, true)) {
-                        $parsedData[$key] = str_contains($parsedValue, ',')
-                            ? array_map('trim', explode(',', $parsedValue))
-                            : [$parsedValue];
-
+                        $parsedData[$key] = $parsedValue === ''
+                            ? []
+                            : array_values(
+                                array_filter(
+                                    array_map(
+                                        'trim',
+                                        explode(',', $parsedValue)
+                                    )
+                                )
+                            );
                         continue;
                     }
 
-                    $parsedData[$key] = match ($type) {
-                        Column::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
-                        Column::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
-                        Column::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
-                        default => $parsedValue,
-                    };
+                    if (in_array($key, $arrayKeys, true)) {
+                        if ($parsedValue === '') {
+                            $parsedData[$key] = [];
+                        } else {
+                            $arrayValues = str_getcsv($parsedValue);
+                            $arrayValues = array_map('trim', $arrayValues);
+
+                            $parsedData[$key] = array_map(function ($item) use ($type) {
+                                return match ($type) {
+                                    Column::TYPE_INTEGER => is_numeric($item) ? (int) $item : null,
+                                    Column::TYPE_FLOAT => is_numeric($item) ? (float) $item : null,
+                                    Column::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN),
+                                    default => $item,
+                                };
+                            }, $arrayValues);
+                        }
+                        continue;
+                    }
+
+                    if ($parsedValue !== '') {
+                        $parsedData[$key] = match ($type) {
+                            Column::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
+                            Column::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
+                            Column::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
+                            default => $parsedValue,
+                        };
+                    }
                 }
 
                 $rowId = $parsedData['$id'] ?? 'unique()';
@@ -265,21 +313,33 @@ class CSV extends Source
         throw new \Exception('Not Implemented');
     }
 
-    private function withCsvStream(callable $fn): void
+    /**
+     * @param callable(resource $stream): void $callback
+     * @return void
+     * @throws \Exception
+     */
+    private function withCsvStream(callable $callback): void
     {
-        if (! $this->device->exists($this->filePath)) {
+        if (!$this->device->exists($this->filePath)) {
             return;
         }
 
-        $stream = fopen($this->filePath, 'r');
-        if (! $stream) {
+        if (!$this->downloaded) {
+            $this->downloadToLocal(
+                $this->device,
+                $this->filePath,
+            );
+        }
+
+        $stream = \fopen($this->filePath, 'r');
+        if (!$stream) {
             return;
         }
 
         try {
-            $fn($stream);
+            $callback($stream);
         } finally {
-            fclose($stream);
+            \fclose($stream);
         }
     }
 
@@ -311,5 +371,35 @@ class CSV extends Source
 
             throw new \Exception('CSV header mismatch. '.implode(' | ', $messages));
         }
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function downloadToLocal(
+        Device $device,
+        string $filePath
+    ): void {
+        if ($this->downloaded
+            || $device->getType() === Storage::DEVICE_LOCAL
+        ) {
+            return;
+        }
+
+        try {
+            $success = $device->transfer(
+                $filePath,
+                $filePath,
+                new Device\Local('/'),
+            );
+        } catch (\Exception $e) {
+            $success = false;
+        }
+
+        if (!$success) {
+            throw new \Exception('Failed to transfer CSV file from device to local storage.', previous: $e ?? null);
+        }
+
+        $this->downloaded = true;
     }
 }
