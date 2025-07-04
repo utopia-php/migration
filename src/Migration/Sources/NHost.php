@@ -89,6 +89,11 @@ class NHost extends Source
             Resource::TYPE_INDEX,
             Resource::TYPE_ROW,
 
+            // LEGACY
+            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_COLLECTION,
+
             // Storage
             Resource::TYPE_BUCKET,
             Resource::TYPE_FILE,
@@ -130,7 +135,7 @@ class NHost extends Source
             $report[Resource::TYPE_DATABASE] = 1;
         }
 
-        if (\in_array(Resource::TYPE_TABLE, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -141,7 +146,7 @@ class NHost extends Source
             $report[Resource::TYPE_TABLE] = $statement->fetchColumn();
         }
 
-        if (\in_array(Resource::TYPE_COLUMN, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -163,7 +168,7 @@ class NHost extends Source
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
         }
 
-        if (\in_array(Resource::TYPE_ROW, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -295,7 +300,7 @@ class NHost extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_TABLE, $resources)) {
+            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
                 $this->exportTables($batchSize);
             }
         } catch (\Throwable $e) {
@@ -311,7 +316,7 @@ class NHost extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_COLUMN, $resources)) {
+            if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
                 $this->exportColumns($batchSize);
             }
         } catch (\Throwable $e) {
@@ -327,7 +332,7 @@ class NHost extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_ROW, $resources)) {
+            if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
                 $this->exportRows($batchSize);
             }
         } catch (\Throwable $e) {

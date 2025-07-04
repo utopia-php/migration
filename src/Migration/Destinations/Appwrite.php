@@ -114,6 +114,11 @@ class Appwrite extends Destination
             Resource::TYPE_INDEX,
             Resource::TYPE_ROW,
 
+            // legacy
+            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_COLLECTION,
+
             // Storage
             Resource::TYPE_BUCKET,
             Resource::TYPE_FILE,
@@ -272,10 +277,12 @@ class Appwrite extends Destination
                 $success = $this->createDatabase($resource);
                 break;
             case Resource::TYPE_TABLE:
+            case Resource::TYPE_COLLECTION:
                 /** @var Table $resource */
                 $success = $this->createTable($resource);
                 break;
             case Resource::TYPE_COLUMN:
+            case Resource::TYPE_ATTRIBUTE:
                 /** @var Column $resource */
                 $success = $this->createColumn($resource);
                 break;
@@ -284,6 +291,7 @@ class Appwrite extends Destination
                 $success = $this->createIndex($resource);
                 break;
             case Resource::TYPE_ROW:
+            case Resource::TYPE_DOCUMENT:
                 /** @var Row $resource */
                 $success = $this->createRow($resource, $isLast);
                 break;

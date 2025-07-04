@@ -130,6 +130,11 @@ class Firebase extends Source
             Resource::TYPE_COLUMN,
             Resource::TYPE_ROW,
 
+            // legacy
+            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_COLLECTION,
+
             // Storage
             Resource::TYPE_BUCKET,
             Resource::TYPE_FILE,
@@ -295,8 +300,9 @@ class Firebase extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_TABLE, $resources)) {
-                $this->exportDB($batchSize, in_array(Resource::TYPE_ROW, $resources), $database);
+            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
+                $hasInResources = Resource::isSupported(Resource::TYPE_ROW, $resources);
+                $this->exportDB($batchSize, $hasInResources, $database);
             }
         } catch (\Throwable $e) {
             $this->addError(

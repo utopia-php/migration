@@ -31,7 +31,12 @@ class Database implements Reader
             Resource::TYPE_TABLE,
             Resource::TYPE_ROW,
             Resource::TYPE_COLUMN,
-            Resource::TYPE_INDEX
+            Resource::TYPE_INDEX,
+
+            // legacy
+            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_COLLECTION,
         ];
 
         if (empty(array_intersect($resources, $relevantResources))) {
@@ -61,11 +66,11 @@ class Database implements Reader
             $databaseSequence = $database->getSequence();
             $tableId = "database_{$databaseSequence}";
 
-            if (in_array(Resource::TYPE_TABLE, $resources)) {
+            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
                 $report[Resource::TYPE_TABLE] += $this->countResources($tableId);
             }
 
-            if (!array_intersect($resources, [Resource::TYPE_ROW, Resource::TYPE_COLUMN, Resource::TYPE_INDEX])) {
+            if (!Resource::isSupported([Resource::TYPE_ROW, Resource::TYPE_COLUMN, Resource::TYPE_INDEX], $resources)) {
                 continue;
             }
 
@@ -85,7 +90,7 @@ class Database implements Reader
             foreach ($tables as $table) {
                 $tableSequence = $table->getSequence();
 
-                if (in_array(Resource::TYPE_ROW, $resources)) {
+                if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
                     $rowTableId = "database_{$databaseSequence}_collection_{$tableSequence}";
                     $report[Resource::TYPE_ROW] += $this->countResources($rowTableId);
                 }
@@ -95,7 +100,7 @@ class Database implements Reader
                     Query::equal('collectionInternalId', [$tableSequence]),
                 ];
 
-                if (in_array(Resource::TYPE_COLUMN, $resources)) {
+                if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
                     $report[Resource::TYPE_COLUMN] += $this->countResources('attributes', $commonQueries);
                 }
 

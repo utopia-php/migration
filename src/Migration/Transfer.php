@@ -39,7 +39,12 @@ class Transfer
         Resource::TYPE_TABLE,
         Resource::TYPE_INDEX,
         Resource::TYPE_COLUMN,
-        Resource::TYPE_ROW
+        Resource::TYPE_ROW,
+
+        // legacy
+        Resource::TYPE_DOCUMENT,
+        Resource::TYPE_ATTRIBUTE,
+        Resource::TYPE_COLLECTION,
     ];
 
     public const GROUP_SETTINGS_RESOURCES = [];
@@ -58,6 +63,11 @@ class Transfer
         Resource::TYPE_INDEX,
         Resource::TYPE_COLUMN,
         Resource::TYPE_ROW,
+
+        // legacy
+        Resource::TYPE_DOCUMENT,
+        Resource::TYPE_ATTRIBUTE,
+        Resource::TYPE_COLLECTION,
     ];
 
     public const ROOT_RESOURCES = [

@@ -264,7 +264,7 @@ class Supabase extends NHost
             $report[Resource::TYPE_DATABASE] = 1;
         }
 
-        if (\in_array(Resource::TYPE_TABLE, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -275,7 +275,7 @@ class Supabase extends NHost
             $report[Resource::TYPE_TABLE] = $statement->fetchColumn();
         }
 
-        if (\in_array(Resource::TYPE_COLUMN, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -297,7 +297,7 @@ class Supabase extends NHost
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
         }
 
-        if (\in_array(Resource::TYPE_ROW, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 

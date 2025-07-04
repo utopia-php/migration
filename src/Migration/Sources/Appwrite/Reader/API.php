@@ -35,7 +35,7 @@ class API implements Reader
             Resource::TYPE_INDEX
         ];
 
-        if (empty(array_intersect($resources, $relevantResources))) {
+        if (!Resource::isSupported($relevantResources, $resources)) {
             return null;
         }
 
@@ -65,18 +65,15 @@ class API implements Reader
             $tablesResponse = $this->database->listCollections($databaseId);
             $tables = $tablesResponse['collections'];
 
-            if (in_array(Resource::TYPE_TABLE, $resources)) {
+            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
                 $report[Resource::TYPE_TABLE] += $tablesResponse['total'];
             }
 
-            if (in_array(Resource::TYPE_ROW, $resources) ||
-                in_array(Resource::TYPE_COLUMN, $resources) ||
-                in_array(Resource::TYPE_INDEX, $resources)) {
-
+            if (Resource::isSupported([Resource::TYPE_ROW, Resource::TYPE_COLUMN, Resource::TYPE_INDEX], $resources)) {
                 foreach ($tables as $table) {
                     $tableId = $table['$id'];
 
-                    if (in_array(Resource::TYPE_ROW, $resources)) {
+                    if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
                         /* $rowsResponse = $this->tables->listRows(...) */
                         $rowsResponse = $this->database->listDocuments(
                             $databaseId,
@@ -86,7 +83,7 @@ class API implements Reader
                         $report[Resource::TYPE_ROW] += $rowsResponse['total'];
                     }
 
-                    if (in_array(Resource::TYPE_COLUMN, $resources)) {
+                    if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
                         /* $columnsResponse = $this->tables->listColumns(...); */
                         $columnsResponse = $this->database->listAttributes($databaseId, $tableId);
                         $report[Resource::TYPE_COLUMN] += $columnsResponse['total'];

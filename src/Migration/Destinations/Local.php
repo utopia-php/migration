@@ -57,6 +57,11 @@ class Local extends Destination
             Resource::TYPE_INDEX,
             Resource::TYPE_ROW,
 
+            // legacy
+            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_COLLECTION,
+
             // Storage
             Resource::TYPE_BUCKET,
             Resource::TYPE_FILE,

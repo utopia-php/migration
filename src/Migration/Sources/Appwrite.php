@@ -122,6 +122,11 @@ class Appwrite extends Source
             Resource::TYPE_INDEX,
             Resource::TYPE_ROW,
 
+            // legacy
+            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_COLLECTION,
+
             // Storage
             Resource::TYPE_BUCKET,
             Resource::TYPE_FILE,
@@ -541,7 +546,7 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_TABLE, $resources)) {
+            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
                 $this->exportTables($batchSize);
             }
         } catch (\Throwable $e) {
@@ -559,7 +564,7 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_COLUMN, $resources)) {
+            if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
                 $this->exportColumns($batchSize);
             }
         } catch (\Throwable $e) {
@@ -595,7 +600,7 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_ROW, $resources)) {
+            if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
                 $this->exportRows($batchSize);
             }
         } catch (\Throwable $e) {
@@ -720,6 +725,7 @@ class Appwrite extends Source
     private function exportColumns(int $batchSize): void
     {
         $tables = $this->cache->get(Table::getName());
+
         /** @var Table[] $tables */
         foreach ($tables as $table) {
             $lastColumn = null;
