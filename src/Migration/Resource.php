@@ -59,7 +59,7 @@ abstract class Resource implements \JsonSerializable
     public const TYPE_ATTRIBUTE = 'attribute';
     public const TYPE_COLLECTION = 'collection';
 
-    private const TYPE_COMPATIBILITY_MAP = [
+    private const TYPE_MAP = [
         Resource::TYPE_ROW    => Resource::TYPE_DOCUMENT,
         Resource::TYPE_COLUMN => Resource::TYPE_ATTRIBUTE,
         Resource::TYPE_TABLE  => Resource::TYPE_COLLECTION,
@@ -116,8 +116,8 @@ abstract class Resource implements \JsonSerializable
 
         foreach ($types as $type) {
             $allTypes[] = $type;
-            if (isset(self::TYPE_COMPATIBILITY_MAP[$type])) {
-                $allTypes[] = self::TYPE_COMPATIBILITY_MAP[$type];
+            if (isset(self::TYPE_MAP[$type])) {
+                $allTypes[] = self::TYPE_MAP[$type];
             }
         }
 
