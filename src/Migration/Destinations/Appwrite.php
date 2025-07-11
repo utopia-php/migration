@@ -1284,7 +1284,6 @@ class Appwrite extends Destination
                     'deno-1.24' => Runtime::DENO124(),
                     'deno-1.35' => Runtime::DENO135(),
                     'deno-1.40' => Runtime::DENO140(),
-                    'dotnet-3.1' => Runtime::DOTNET31(),
                     'dotnet-6.0' => Runtime::DOTNET60(),
                     'dotnet-7.0' => Runtime::DOTNET70(),
                     'java-8.0' => Runtime::JAVA80(),
