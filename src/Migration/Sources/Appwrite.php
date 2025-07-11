@@ -297,7 +297,7 @@ class Appwrite extends Source
             $report[Resource::TYPE_DEPLOYMENT] = 0;
             $functions = $this->functions->list()['functions'];
             foreach ($functions as $function) {
-                if (!empty($function['deployment'])) {
+                if (!empty($function['deploymentId'])) {
                     $report[Resource::TYPE_DEPLOYMENT] += 1;
                 }
             }
@@ -1291,7 +1291,7 @@ class Appwrite extends Source
                 $function['events'],
                 $function['schedule'],
                 $function['timeout'],
-                $function['deployment'],
+                $function['deploymentId'],
                 $function['entrypoint']
             );
 
