@@ -1,24 +1,24 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attributes;
+namespace Utopia\Migration\Resources\Database\Columns;
 
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
-class Boolean extends Attribute
+class Boolean extends Column
 {
     public function __construct(
         string $key,
-        Collection $collection,
-        bool $required = false,
-        ?bool $default = null,
-        bool $array = false,
+        Table $table,
+        bool   $required = false,
+        ?bool  $default = null,
+        bool   $array = false,
         string $createdAt = '',
         string $updatedAt = ''
     ) {
         parent::__construct(
             $key,
-            $collection,
+            $table,
             required: $required,
             default: $default,
             array: $array,
@@ -30,7 +30,7 @@ class Boolean extends Attribute
     /**
      * @param array{
      *     key: string,
-     *     collection: array{
+     *     collection?: array{
      *         database: array{
      *             id: string,
      *             name: string,
@@ -38,6 +38,16 @@ class Boolean extends Attribute
      *         name: string,
      *         id: string,
      *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     table?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         rowSecurity: bool,
      *         permissions: ?array<string>
      *     },
      *     required: bool,
@@ -52,7 +62,7 @@ class Boolean extends Attribute
     {
         return new self(
             $array['key'],
-            Collection::fromArray($array['collection']),
+            Table::fromArray($array['table'] ?? $array['collection']),
             required: $array['required'],
             default: $array['default'],
             array: $array['array'],
@@ -63,6 +73,6 @@ class Boolean extends Attribute
 
     public function getType(): string
     {
-        return Attribute::TYPE_BOOLEAN;
+        return Column::TYPE_BOOLEAN;
     }
 }

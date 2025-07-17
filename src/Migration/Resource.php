@@ -26,11 +26,11 @@ abstract class Resource implements \JsonSerializable
     // Master Resources
     public const TYPE_BUCKET = 'bucket';
 
-    public const TYPE_COLLECTION = 'collection';
+    public const TYPE_TABLE = 'table';
 
     public const TYPE_DATABASE = 'database';
 
-    public const TYPE_DOCUMENT = 'document';
+    public const TYPE_ROW = 'row';
 
     public const TYPE_FILE = 'file';
 
@@ -46,7 +46,7 @@ abstract class Resource implements \JsonSerializable
 
     // Children (Resources that are created by other resources)
 
-    public const TYPE_ATTRIBUTE = 'attribute';
+    public const TYPE_COLUMN = 'column';
 
     public const TYPE_DEPLOYMENT = 'deployment';
 
@@ -54,12 +54,23 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
 
+    // legacy terminologies
+    public const TYPE_DOCUMENT = 'document';
+    public const TYPE_ATTRIBUTE = 'attribute';
+    public const TYPE_COLLECTION = 'collection';
+
+    private const TYPE_MAP = [
+        Resource::TYPE_ROW    => Resource::TYPE_DOCUMENT,
+        Resource::TYPE_COLUMN => Resource::TYPE_ATTRIBUTE,
+        Resource::TYPE_TABLE  => Resource::TYPE_COLLECTION,
+    ];
+
     public const ALL_RESOURCES = [
-        self::TYPE_ATTRIBUTE,
+        self::TYPE_COLUMN,
         self::TYPE_BUCKET,
-        self::TYPE_COLLECTION,
+        self::TYPE_TABLE,
         self::TYPE_DATABASE,
-        self::TYPE_DOCUMENT,
+        self::TYPE_ROW,
         self::TYPE_FILE,
         self::TYPE_FUNCTION,
         self::TYPE_DEPLOYMENT,
@@ -69,6 +80,11 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_ENVIRONMENT_VARIABLE,
         self::TYPE_TEAM,
         self::TYPE_MEMBERSHIP,
+
+        // legacy
+        self::TYPE_DOCUMENT,
+        self::TYPE_ATTRIBUTE,
+        self::TYPE_COLLECTION,
     ];
 
     protected string $id = '';
@@ -92,6 +108,21 @@ abstract class Resource implements \JsonSerializable
     abstract public static function getName(): string;
 
     abstract public function getGroup(): string;
+
+    public static function isSupported(string|array $types, array $resources): bool
+    {
+        $allTypes = [];
+        $types = (array) $types;
+
+        foreach ($types as $type) {
+            $allTypes[] = $type;
+            if (isset(self::TYPE_MAP[$type])) {
+                $allTypes[] = self::TYPE_MAP[$type];
+            }
+        }
+
+        return (bool) \array_intersect($resources, $allTypes);
+    }
 
     public function getId(): string
     {

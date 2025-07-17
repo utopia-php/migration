@@ -264,7 +264,7 @@ class Supabase extends NHost
             $report[Resource::TYPE_DATABASE] = 1;
         }
 
-        if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -272,10 +272,10 @@ class Supabase extends NHost
                 throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
             }
 
-            $report[Resource::TYPE_COLLECTION] = $statement->fetchColumn();
+            $report[Resource::TYPE_TABLE] = $statement->fetchColumn();
         }
 
-        if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -283,7 +283,7 @@ class Supabase extends NHost
                 throw new \Exception('Failed to access columns table. Error: '.$statement->errorInfo()[2]);
             }
 
-            $report[Resource::TYPE_ATTRIBUTE] = $statement->fetchColumn();
+            $report[Resource::TYPE_COLUMN] = $statement->fetchColumn();
         }
 
         if (\in_array(Resource::TYPE_INDEX, $resources)) {
@@ -297,7 +297,7 @@ class Supabase extends NHost
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
         }
 
-        if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
             $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -305,7 +305,7 @@ class Supabase extends NHost
                 throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
             }
 
-            $report[Resource::TYPE_DOCUMENT] = $statement->fetchColumn();
+            $report[Resource::TYPE_ROW] = $statement->fetchColumn();
         }
 
         // Storage

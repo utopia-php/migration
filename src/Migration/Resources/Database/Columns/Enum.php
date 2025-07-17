@@ -1,29 +1,29 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attributes;
+namespace Utopia\Migration\Resources\Database\Columns;
 
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
-class Enum extends Attribute
+class Enum extends Column
 {
     /**
      * @param array<string> $elements
      */
     public function __construct(
-        string $key,
-        Collection $collection,
-        array $elements,
-        bool $required = false,
+        string  $key,
+        Table   $table,
+        array   $elements,
+        bool    $required = false,
         ?string $default = null,
-        bool $array = false,
-        int $size = 256,
-        string $createdAt = '',
-        string $updatedAt = ''
+        bool    $array = false,
+        int     $size = 256,
+        string  $createdAt = '',
+        string  $updatedAt = ''
     ) {
         parent::__construct(
             $key,
-            $collection,
+            $table,
             size: $size,
             required: $required,
             default: $default,
@@ -40,7 +40,7 @@ class Enum extends Attribute
     /**
      * @param array{
      *     key: string,
-     *     collection: array{
+     *     collection?: array{
      *         database: array{
      *             id: string,
      *             name: string,
@@ -48,6 +48,16 @@ class Enum extends Attribute
      *         name: string,
      *         id: string,
      *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     table?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         rowSecurity: bool,
      *         permissions: ?array<string>
      *     },
      *     size: int,
@@ -66,7 +76,7 @@ class Enum extends Attribute
     {
         return new self(
             $array['key'],
-            Collection::fromArray($array['collection']),
+            Table::fromArray($array['table'] ?? $array['collection']),
             elements: $array['formatOptions']['elements'],
             required: $array['required'],
             default: $array['default'],
@@ -79,7 +89,7 @@ class Enum extends Attribute
 
     public function getType(): string
     {
-        return Attribute::TYPE_ENUM;
+        return Column::TYPE_ENUM;
     }
 
     /**

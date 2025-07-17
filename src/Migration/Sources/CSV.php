@@ -5,10 +5,10 @@ namespace Utopia\Migration\Sources;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource as UtopiaResource;
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Database;
-use Utopia\Migration\Resources\Database\Document;
+use Utopia\Migration\Resources\Database\Row;
+use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Appwrite\Reader;
@@ -52,7 +52,7 @@ class CSV extends Source
     public static function getSupportedResources(): array
     {
         return [
-            UtopiaResource::TYPE_DOCUMENT,
+            UtopiaResource::TYPE_ROW,
         ];
     }
 
@@ -80,7 +80,7 @@ class CSV extends Source
         $file->seek(PHP_INT_MAX);
         $rowCount = max(0, $file->key());
 
-        $report[UtopiaResource::TYPE_DOCUMENT] = $rowCount;
+        $report[UtopiaResource::TYPE_ROW] = $rowCount;
 
         return $report;
     }
@@ -96,13 +96,13 @@ class CSV extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         try {
-            if (\in_array(UtopiaResource::TYPE_DOCUMENT, $resources)) {
-                $this->exportDocuments($batchSize);
+            if (UtopiaResource::isSupported(UtopiaResource::TYPE_ROW, $resources)) {
+                $this->exportRows($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
-                    UtopiaResource::TYPE_DOCUMENT,
+                    UtopiaResource::TYPE_ROW,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
                     code: $e->getCode(),
@@ -118,29 +118,29 @@ class CSV extends Source
     /**
      * @throws \Exception
      */
-    private function exportDocuments(int $batchSize): void
+    private function exportRows(int $batchSize): void
     {
 
-        $attributes = [];
-        $lastAttribute = null;
+        $columns = [];
+        $lastColumn = null;
 
-        [$databaseId, $collectionId] = explode(':', $this->resourceId);
+        [$databaseId, $tableId] = explode(':', $this->resourceId);
         $database = new Database($databaseId, '');
-        $collection = new Collection($database, '', $collectionId);
+        $table = new Table($database, '', $tableId);
 
         while (true) {
             $queries = [$this->database->queryLimit($batchSize)];
-            if ($lastAttribute) {
-                $queries[] = $this->database->queryCursorAfter($lastAttribute);
+            if ($lastColumn) {
+                $queries[] = $this->database->queryCursorAfter($lastColumn);
             }
 
-            $fetched = $this->database->listAttributes($collection, $queries);
+            $fetched = $this->database->listColumns($table, $queries);
             if (empty($fetched)) {
                 break;
             }
 
-            array_push($attributes, ...$fetched);
-            $lastAttribute = $fetched[count($fetched) - 1];
+            array_push($columns, ...$fetched);
+            $lastColumn = $fetched[count($fetched) - 1];
 
             if (count($fetched) < $batchSize) {
                 break;
@@ -148,54 +148,54 @@ class CSV extends Source
         }
 
         $arrayKeys = [];
-        $attributeTypes = [];
+        $columnTypes = [];
         $manyToManyKeys = [];
 
-        foreach ($attributes as $attribute) {
-            $key = $attribute['key'];
-            $type = $attribute['type'];
-            $isArray = $attribute['array'] ?? false;
-            $relationSide = $attribute['side'] ?? '';
-            $relationType = $attribute['relationType'] ?? '';
+        foreach ($columns as $column) {
+            $key = $column['key'];
+            $type = $column['type'];
+            $isArray = $column['array'] ?? false;
+            $relationSide = $column['side'] ?? '';
+            $relationType = $column['relationType'] ?? '';
 
             if (
-                $type === Attribute::TYPE_RELATIONSHIP &&
+                $type === Column::TYPE_RELATIONSHIP &&
                 $relationSide === UtopiaDatabase::RELATION_SIDE_CHILD
             ) {
                 continue;
             }
 
-            $attributeTypes[$key] = $type;
+            $columnTypes[$key] = $type;
 
             if (
-                $type === Attribute::TYPE_RELATIONSHIP &&
+                $type === Column::TYPE_RELATIONSHIP &&
                 $relationType === 'manyToMany' &&
                 $relationSide === 'parent'
             ) {
                 $manyToManyKeys[] = $key;
             }
 
-            if ($isArray && $type !== Attribute::TYPE_RELATIONSHIP) {
+            if ($isArray && $type !== Column::TYPE_RELATIONSHIP) {
                 $arrayKeys[] = $key;
             }
         }
 
-        $this->withCSVStream(function ($stream) use ($attributeTypes, $manyToManyKeys, $arrayKeys, $collection, $batchSize) {
+        $this->withCSVStream(function ($stream) use ($columnTypes, $manyToManyKeys, $arrayKeys, $table, $batchSize) {
             $headers = fgetcsv($stream);
             if (! is_array($headers) || count($headers) === 0) {
                 return;
             }
 
-            $this->validateCSVHeaders($headers, $attributeTypes);
+            $this->validateCSVHeaders($headers, $columnTypes);
 
             $buffer = [];
 
-            while (($row = fgetcsv($stream)) !== false) {
-                if (count($row) !== count($headers)) {
+            while (($csvRowItem = fgetcsv($stream)) !== false) {
+                if (count($csvRowItem) !== count($headers)) {
                     throw new \Exception('CSV row does not match the number of header columns.');
                 }
 
-                $data = array_combine($headers, $row);
+                $data = array_combine($headers, $csvRowItem);
                 if ($data === false) {
                     continue;
                 }
@@ -204,7 +204,7 @@ class CSV extends Source
 
                 foreach ($data as $key => $value) {
                     $parsedValue = trim($value);
-                    $type = $attributeTypes[$key] ?? null;
+                    $type = $columnTypes[$key] ?? null;
 
                     if (! isset($type)) {
                         continue;
@@ -233,9 +233,9 @@ class CSV extends Source
 
                             $parsedData[$key] = array_map(function ($item) use ($type) {
                                 return match ($type) {
-                                    Attribute::TYPE_INTEGER => is_numeric($item) ? (int) $item : null,
-                                    Attribute::TYPE_FLOAT => is_numeric($item) ? (float) $item : null,
-                                    Attribute::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN),
+                                    Column::TYPE_INTEGER => is_numeric($item) ? (int) $item : null,
+                                    Column::TYPE_FLOAT => is_numeric($item) ? (float) $item : null,
+                                    Column::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN),
                                     default => $item,
                                 };
                             }, $arrayValues);
@@ -245,21 +245,21 @@ class CSV extends Source
 
                     if ($parsedValue !== '') {
                         $parsedData[$key] = match ($type) {
-                            Attribute::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
-                            Attribute::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
-                            Attribute::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
+                            Column::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
+                            Column::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
+                            Column::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
                             default => $parsedValue,
                         };
                     }
                 }
 
-                $documentId = $parsedData['$id'] ?? 'unique()';
+                $rowId = $parsedData['$id'] ?? 'unique()';
 
                 // `$id`, `$permissions` in the doc can cause issues!
                 unset($parsedData['$id'], $parsedData['$permissions']);
 
-                $document = new Document($documentId, $collection, $parsedData);
-                $buffer[] = $document;
+                $row = new Row($rowId, $table, $parsedData);
+                $buffer[] = $row;
 
                 if (count($buffer) === $batchSize) {
                     $this->callback($buffer);
@@ -346,27 +346,27 @@ class CSV extends Source
     /**
      * @throws \Exception
      */
-    private function validateCSVHeaders(array $headers, array $attributeTypes): void
+    private function validateCSVHeaders(array $headers, array $columnTypes): void
     {
-        $expectedAttributes = array_keys($attributeTypes);
+        $expectedColumns = array_keys($columnTypes);
 
         // Ignore keys like $id, $permissions, etc.
         $filteredHeaders = array_filter($headers, fn ($key) => ! str_starts_with($key, '$'));
 
-        $extraAttributes = array_diff($filteredHeaders, $expectedAttributes);
-        $missingAttributes = array_diff($expectedAttributes, $filteredHeaders);
+        $extraColumns = array_diff($filteredHeaders, $expectedColumns);
+        $missingColumns = array_diff($expectedColumns, $filteredHeaders);
 
-        if (! empty($missingAttributes) || ! empty($extraAttributes)) {
+        if (! empty($missingColumns) || ! empty($extraColumns)) {
             $messages = [];
 
-            if (! empty($missingAttributes)) {
-                $label = count($missingAttributes) === 1 ? 'Missing attribute' : 'Missing attributes';
-                $messages[] = "{$label}: '".implode("', '", $missingAttributes)."'";
+            if (! empty($missingColumns)) {
+                $label = count($missingColumns) === 1 ? 'Missing column' : 'Missing columns';
+                $messages[] = "{$label}: '".implode("', '", $missingColumns)."'";
             }
 
-            if (! empty($extraAttributes)) {
-                $label = count($extraAttributes) === 1 ? 'Unexpected attribute' : 'Unexpected attributes';
-                $messages[] = "{$label}: '".implode("', '", $extraAttributes)."'";
+            if (! empty($extraColumns)) {
+                $label = count($extraColumns) === 1 ? 'Unexpected column' : 'Unexpected columns';
+                $messages[] = "{$label}: '".implode("', '", $extraColumns)."'";
             }
 
             throw new \Exception('CSV header mismatch. '.implode(' | ', $messages));

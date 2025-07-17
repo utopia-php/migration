@@ -36,10 +36,15 @@ class Transfer
 
     public const GROUP_DATABASES_RESOURCES = [
         Resource::TYPE_DATABASE,
-        Resource::TYPE_COLLECTION,
+        Resource::TYPE_TABLE,
         Resource::TYPE_INDEX,
+        Resource::TYPE_COLUMN,
+        Resource::TYPE_ROW,
+
+        // legacy
+        Resource::TYPE_DOCUMENT,
         Resource::TYPE_ATTRIBUTE,
-        Resource::TYPE_DOCUMENT
+        Resource::TYPE_COLLECTION,
     ];
 
     public const GROUP_SETTINGS_RESOURCES = [];
@@ -54,10 +59,15 @@ class Transfer
         Resource::TYPE_ENVIRONMENT_VARIABLE,
         Resource::TYPE_DEPLOYMENT,
         Resource::TYPE_DATABASE,
-        Resource::TYPE_COLLECTION,
+        Resource::TYPE_TABLE,
         Resource::TYPE_INDEX,
-        Resource::TYPE_ATTRIBUTE,
+        Resource::TYPE_COLUMN,
+        Resource::TYPE_ROW,
+
+        // legacy
         Resource::TYPE_DOCUMENT,
+        Resource::TYPE_ATTRIBUTE,
+        Resource::TYPE_COLLECTION,
     ];
 
     public const ROOT_RESOURCES = [
@@ -132,9 +142,9 @@ class Transfer
 
         foreach ($this->cache->getAll() as $resourceType => $resources) {
             foreach ($resources as $resource) {
-                if ($resourceType === Resource::TYPE_DOCUMENT && is_string($resource)) {
-                    $documentStatus = $resource;
-                    $status[$resourceType][$documentStatus]++;
+                if ($resourceType === Resource::TYPE_ROW && is_string($resource)) {
+                    $rowStatus = $resource;
+                    $status[$resourceType][$rowStatus]++;
 
                     if ($status[$resourceType]['pending'] > 0) {
                         $status[$resourceType]['pending']--;
@@ -276,11 +286,11 @@ class Transfer
 
         foreach ($cache as $type => $resources) {
             foreach ($resources as $id => $resource) {
-                if ($type === Resource::TYPE_DOCUMENT && is_string($resource)) {
+                if ($type === Resource::TYPE_ROW && is_string($resource)) {
                     if ($statusLevel && $resource !== $statusLevel) {
                         continue;
                     }
-                    // no message for document is stored
+                    // no message for row is stored
                     $report[] = [
                         'resource' => $type,
                         'id' => $id,

@@ -5,7 +5,7 @@ namespace Utopia\Migration\Resources\Database;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
-abstract class Attribute extends Resource
+abstract class Column extends Resource
 {
     public const TYPE_STRING = 'string';
     public const TYPE_INTEGER = 'integer';
@@ -20,7 +20,7 @@ abstract class Attribute extends Resource
 
     /**
      * @param string $key
-     * @param Collection $collection
+     * @param Table $table
      * @param int $size
      * @param bool $required
      * @param mixed|null $default
@@ -30,20 +30,22 @@ abstract class Attribute extends Resource
      * @param array<string, mixed> $formatOptions
      * @param array<string> $filters
      * @param array<string, mixed> $options
+     * @param string $createdAt
+     * @param string $updatedAt
      */
     public function __construct(
         protected readonly string $key,
-        protected readonly Collection $collection,
-        protected readonly int $size = 0,
-        protected readonly bool $required = false,
-        protected readonly mixed $default = null,
-        protected readonly bool $array = false,
-        protected readonly bool $signed = false,
+        protected readonly Table  $table,
+        protected readonly int    $size = 0,
+        protected readonly bool   $required = false,
+        protected readonly mixed  $default = null,
+        protected readonly bool   $array = false,
+        protected readonly bool   $signed = false,
         protected readonly string $format = '',
-        protected readonly array $formatOptions = [],
-        protected readonly array $filters = [],
-        protected array $options = [],
-        protected string $createdAt = '',
+        protected readonly array  $formatOptions = [],
+        protected readonly array  $filters = [],
+        protected array           $options = [],
+        protected string          $createdAt = '',
         protected string $updatedAt = '',
     ) {
     }
@@ -55,7 +57,7 @@ abstract class Attribute extends Resource
     {
         return [
             'key' => $this->key,
-            'collection' => $this->collection,
+            'table' => $this->table,
             'type' => $this->getType(),
             'size' => $this->size,
             'required' => $this->required,
@@ -73,7 +75,7 @@ abstract class Attribute extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_ATTRIBUTE;
+        return Resource::TYPE_COLUMN;
     }
 
     abstract public function getType(): string;
@@ -88,9 +90,9 @@ abstract class Attribute extends Resource
         return $this->key;
     }
 
-    public function getCollection(): Collection
+    public function getTable(): Table
     {
-        return $this->collection;
+        return $this->table;
     }
 
     public function getSize(): int

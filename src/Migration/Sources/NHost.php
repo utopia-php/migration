@@ -7,16 +7,16 @@ use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\User;
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Attributes\Boolean;
-use Utopia\Migration\Resources\Database\Attributes\DateTime;
-use Utopia\Migration\Resources\Database\Attributes\Decimal;
-use Utopia\Migration\Resources\Database\Attributes\Integer;
-use Utopia\Migration\Resources\Database\Attributes\Text;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Columns\Boolean;
+use Utopia\Migration\Resources\Database\Columns\DateTime;
+use Utopia\Migration\Resources\Database\Columns\Decimal;
+use Utopia\Migration\Resources\Database\Columns\Integer;
+use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Database;
-use Utopia\Migration\Resources\Database\Document;
 use Utopia\Migration\Resources\Database\Index;
+use Utopia\Migration\Resources\Database\Row;
+use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
@@ -84,10 +84,15 @@ class NHost extends Source
 
             // Database
             Resource::TYPE_DATABASE,
-            Resource::TYPE_COLLECTION,
-            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_TABLE,
+            Resource::TYPE_COLUMN,
             Resource::TYPE_INDEX,
+            Resource::TYPE_ROW,
+
+            // LEGACY
             Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ATTRIBUTE,
+            Resource::TYPE_COLLECTION,
 
             // Storage
             Resource::TYPE_BUCKET,
@@ -130,7 +135,7 @@ class NHost extends Source
             $report[Resource::TYPE_DATABASE] = 1;
         }
 
-        if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -138,10 +143,10 @@ class NHost extends Source
                 throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
             }
 
-            $report[Resource::TYPE_COLLECTION] = $statement->fetchColumn();
+            $report[Resource::TYPE_TABLE] = $statement->fetchColumn();
         }
 
-        if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -149,7 +154,7 @@ class NHost extends Source
                 throw new \Exception('Failed to access columns table. Error: '.$statement->errorInfo()[2]);
             }
 
-            $report[Resource::TYPE_ATTRIBUTE] = $statement->fetchColumn();
+            $report[Resource::TYPE_COLUMN] = $statement->fetchColumn();
         }
 
         if (\in_array(Resource::TYPE_INDEX, $resources)) {
@@ -163,7 +168,7 @@ class NHost extends Source
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
         }
 
-        if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
+        if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
             $statement = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = \'public\'');
             $statement->execute();
 
@@ -171,7 +176,7 @@ class NHost extends Source
                 throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
             }
 
-            $report[Resource::TYPE_DOCUMENT] = $statement->fetchColumn();
+            $report[Resource::TYPE_ROW] = $statement->fetchColumn();
         }
 
         // Storage
@@ -295,13 +300,13 @@ class NHost extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
-                $this->exportCollections($batchSize);
+            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
+                $this->exportTables($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
-                    Resource::TYPE_COLLECTION,
+                    Resource::TYPE_TABLE,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
                     code: $e->getCode(),
@@ -311,13 +316,13 @@ class NHost extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-                $this->exportAttributes($batchSize);
+            if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
+                $this->exportColumns($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
-                    Resource::TYPE_ATTRIBUTE,
+                    Resource::TYPE_COLUMN,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
                     code: $e->getCode(),
@@ -327,13 +332,13 @@ class NHost extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
-                $this->exportDocuments($batchSize);
+            if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
+                $this->exportRows($batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
-                    Resource::TYPE_DOCUMENT,
+                    Resource::TYPE_ROW,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
                     code: $e->getCode(),
@@ -367,7 +372,7 @@ class NHost extends Source
         $this->callback([$transferDatabase]);
     }
 
-    private function exportCollections(int $batchSize): void
+    private function exportTables(int $batchSize): void
     {
         $databases = $this->cache->get(Database::getName());
         $db = $this->getDatabase();
@@ -388,54 +393,54 @@ class NHost extends Source
 
                 $offset += $batchSize;
 
-                $transferCollections = [];
+                $transferTables = [];
 
                 foreach ($tables as $table) {
-                    $transferCollections[] = new Collection($database, $table['table_name'], $table['table_name']);
+                    $transferTables[] = new Table($database, $table['table_name'], $table['table_name']);
                 }
 
-                $this->callback($transferCollections);
+                $this->callback($transferTables);
             }
         }
     }
 
-    private function exportAttributes(int $batchSize): void
+    private function exportColumns(int $batchSize): void
     {
-        $collections = $this->cache->get(Collection::getName());
+        $tables = $this->cache->get(Table::getName());
         $db = $this->getDatabase();
 
-        foreach ($collections as $collection) {
-            /** @var Collection $collection */
+        foreach ($tables as $table) {
+            /** @var Table $table */
             $statement = $db->prepare('SELECT * FROM information_schema."columns" where "table_name" = :tableName');
-            $statement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
+            $statement->bindValue(':tableName', $table->getTableName());
             $statement->execute();
-            $databaseCollection = $statement->fetchAll(\PDO::FETCH_ASSOC);
+            $databaseTable = $statement->fetchAll(\PDO::FETCH_ASSOC);
 
-            $attributes = [];
+            $columns = [];
 
-            foreach ($databaseCollection as $column) {
-                $attributes[] = $this->convertAttribute($column, $collection);
+            foreach ($databaseTable as $column) {
+                $columns[] = $this->convertColumn($column, $table);
             }
 
-            $this->callback($attributes);
+            $this->callback($columns);
         }
     }
 
     private function exportIndexes(int $batchSize): void
     {
-        $collections = $this->cache->get(Collection::getName());
+        $tables = $this->cache->get(Table::getName());
         $db = $this->getDatabase();
 
-        foreach ($collections as $collection) {
-            /** @var Collection $collection */
+        foreach ($tables as $table) {
+            /** @var Table $table */
             $indexStatement = $db->prepare('SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :tableName');
-            $indexStatement->bindValue(':tableName', $collection->getCollectionName(), \PDO::PARAM_STR);
+            $indexStatement->bindValue(':tableName', $table->getTableName());
             $indexStatement->execute();
 
             $databaseIndexes = $indexStatement->fetchAll(\PDO::FETCH_ASSOC);
             $indexes = [];
             foreach ($databaseIndexes as $index) {
-                $result = $this->convertIndex($index, $collection);
+                $result = $this->convertIndex($index, $table);
 
                 if ($result) {
                     $indexes[] = $result;
@@ -446,64 +451,64 @@ class NHost extends Source
         }
     }
 
-    private function exportDocuments(int $batchSize): void
+    private function exportRows(int $batchSize): void
     {
         $databases = $this->cache->get(Database::getName());
-        $collections = $this->cache->get(Collection::getName());
+        $tables = $this->cache->get(Table::getName());
         $db = $this->getDatabase();
 
         foreach ($databases as $database) {
             /** @var Database $database */
-            $collections = array_filter($collections, function (Collection $collection) use ($database) {
-                return $collection->getDatabase()->getId() === $database->getId();
+            $tables = array_filter($tables, function (Table $table) use ($database) {
+                return $table->getDatabase()->getId() === $database->getId();
             });
 
-            foreach ($collections as $collection) {
-                /** @var Collection $collection */
-                $total = $db->query('SELECT COUNT(*) FROM '.$collection->getDatabase()->getDatabaseName().'."'.$collection->getCollectionName().'"')->fetchColumn();
+            foreach ($tables as $table) {
+                /** @var Table $table */
+                $total = $db->query('SELECT COUNT(*) FROM '.$table->getDatabase()->getDatabaseName().'."'.$table->getTableName().'"')->fetchColumn();
 
                 $offset = 0;
 
                 while ($offset < $total) {
-                    $statement = $db->prepare('SELECT row_to_json(t) FROM (SELECT * FROM '.$collection->getDatabase()->getDatabaseName().'."'.$collection->getCollectionName().'" LIMIT :limit OFFSET :offset) t;');
+                    $statement = $db->prepare('SELECT row_to_json(t) FROM (SELECT * FROM '.$table->getDatabase()->getDatabaseName().'."'.$table->getTableName().'" LIMIT :limit OFFSET :offset) t;');
                     $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
                     $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
                     $statement->execute();
 
-                    $documents = $statement->fetchAll(\PDO::FETCH_ASSOC);
+                    $rows = $statement->fetchAll(\PDO::FETCH_ASSOC);
 
                     $offset += $batchSize;
 
-                    $transferDocuments = [];
+                    $transferRows = [];
 
-                    $attributes = $this->cache->get(Attribute::getName());
-                    $collectionAttributes = array_filter($attributes, function (Attribute $attribute) use ($collection) {
-                        return $attribute->getCollection()->getId() === $collection->getId();
+                    $columns = $this->cache->get(Column::getName());
+                    $tableColumns = array_filter($columns, function (Column $column) use ($table) {
+                        return $column->getTable()->getId() === $table->getId();
                     });
 
-                    foreach ($documents as $document) {
-                        $data = json_decode($document['row_to_json'], true);
+                    foreach ($rows as $row) {
+                        $data = json_decode($row['row_to_json'], true);
 
                         $processedData = [];
-                        foreach ($collectionAttributes as $attribute) {
-                            /** @var Attribute $attribute */
-                            if (! $attribute->isArray() && \is_array($data[$attribute->getKey()])) {
-                                $processedData[$attribute->getKey()] = json_encode($data[$attribute->getKey()]);
+                        foreach ($tableColumns as $column) {
+                            /** @var Column $column */
+                            if (! $column->isArray() && \is_array($data[$column->getKey()])) {
+                                $processedData[$column->getKey()] = json_encode($data[$column->getKey()]);
                             } else {
-                                $processedData[$attribute->getKey()] = $data[$attribute->getKey()];
+                                $processedData[$column->getKey()] = $data[$column->getKey()];
                             }
                         }
 
-                        $transferDocuments[] = new Document('unique()', $collection, $processedData);
+                        $transferRows[] = new Row('unique()', $table, $processedData);
                     }
 
-                    $this->callback($transferDocuments);
+                    $this->callback($transferRows);
                 }
             }
         }
     }
 
-    private function convertAttribute(array $column, Collection $collection): Attribute
+    private function convertColumn(array $column, Table $table): Column
     {
         $isArray = $column['data_type'] === 'ARRAY';
 
@@ -513,7 +518,7 @@ class NHost extends Source
             case 'bool':
                 return new Boolean(
                     $column['column_name'],
-                    $collection,
+                    $table,
                     required: $column['is_nullable'] === 'NO',
                     default: $column['column_default'],
                     array: $isArray,
@@ -522,20 +527,20 @@ class NHost extends Source
             case 'int2':
                 if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
                     $this->addWarning(new Warning(
-                        Resource::TYPE_COLLECTION,
+                        Resource::TYPE_TABLE,
                         Transfer::GROUP_DATABASES,
-                        'Functional default values are not supported. Default value for attribute '.$column['column_name'].' will be set to null.',
-                        $collection->getId()
+                        'Functional default values are not supported. Default value for column '.$column['column_name'].' will be set to null.',
+                        $table->getId()
                     ));
 
-                    $collection->setStatus(Resource::STATUS_WARNING);
+                    $table->setStatus(Resource::STATUS_WARNING);
 
                     $column['column_default'] = null;
                 }
 
                 return new Integer(
                     $column['column_name'],
-                    $collection,
+                    $table,
                     required: $column['is_nullable'] === 'NO',
                     default:$column['column_default'],
                     array: $isArray,
@@ -546,20 +551,20 @@ class NHost extends Source
             case 'int4':
                 if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
                     $this->addWarning(new Warning(
-                        Resource::TYPE_COLLECTION,
+                        Resource::TYPE_TABLE,
                         Transfer::GROUP_DATABASES,
-                        'Functional default values are not supported. Default value for attribute '.$column['column_name'].' will be set to null.',
-                        $collection->getId()
+                        'Functional default values are not supported. Default value for column '.$column['column_name'].' will be set to null.',
+                        $table->getId()
                     ));
 
-                    $collection->setStatus(Resource::STATUS_WARNING);
+                    $table->setStatus(Resource::STATUS_WARNING);
 
                     $column['column_default'] = null;
                 }
 
                 return new Integer(
                     $column['column_name'],
-                    $collection,
+                    $table,
                     required: $column['is_nullable'] === 'NO',
                     default: $column['column_default'],
                     array: $isArray,
@@ -571,19 +576,19 @@ class NHost extends Source
             case 'numeric':
                 if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
                     $this->addWarning(new Warning(
-                        Resource::TYPE_COLLECTION,
+                        Resource::TYPE_TABLE,
                         Transfer::GROUP_DATABASES,
-                        'Functional default values are not supported. Default value for attribute '.$column['column_name'].' will be set to null.',
-                        $collection->getId()
+                        'Functional default values are not supported. Default value for column '.$column['column_name'].' will be set to null.',
+                        $table->getId()
                     ));
-                    $collection->setStatus(Resource::STATUS_WARNING);
+                    $table->setStatus(Resource::STATUS_WARNING);
 
                     $column['column_default'] = null;
                 }
 
                 return new Integer(
                     $column['column_name'],
-                    $collection,
+                    $table,
                     required: $column['is_nullable'] === 'NO',
                     default: $column['column_default'],
                     array: $isArray,
@@ -596,20 +601,20 @@ class NHost extends Source
             case 'money':
                 if (! is_numeric($column['column_default']) && ! is_null($column['column_default'])) {
                     $this->addWarning(new Warning(
-                        Resource::TYPE_COLLECTION,
+                        Resource::TYPE_TABLE,
                         Transfer::GROUP_DATABASES,
-                        'Functional default values are not supported. Default value for attribute '.$column['column_name'].' will be set to null.',
-                        $collection->getId()
+                        'Functional default values are not supported. Default value for column '.$column['column_name'].' will be set to null.',
+                        $table->getId()
                     ));
 
-                    $collection->setStatus(Resource::STATUS_WARNING);
+                    $table->setStatus(Resource::STATUS_WARNING);
 
                     $column['column_default'] = null;
                 }
 
                 return new Decimal(
                     $column['column_name'],
-                    $collection,
+                    $table,
                     required: $column['is_nullable'] === 'NO',
                     default: $column['column_default'],
                     array: $isArray,
@@ -626,7 +631,7 @@ class NHost extends Source
             case 'interval':
                 return new DateTime(
                     $column['column_name'],
-                    $collection,
+                    $table,
                     required: $column['is_nullable'] === 'NO',
                     default: null,
                     array: $isArray,
@@ -635,7 +640,7 @@ class NHost extends Source
                 // Strings and Objects
                 return new Text(
                     $column['column_name'],
-                    $collection,
+                    $table,
                     required: $column['is_nullable'] === 'NO',
                     default: $column['column_default'],
                     array: $isArray,
@@ -644,7 +649,7 @@ class NHost extends Source
         }
     }
 
-    private function convertIndex(array $index, Collection $collection): Index|false
+    private function convertIndex(array $index, Table $table): Index|false
     {
         $pattern = "/CREATE (?<type>\w+)? INDEX (?<name>\w+) ON (?<table>\w+\.\w+) USING (?<method>\w+) \((?<columns>\w+)\)/";
 
@@ -666,23 +671,23 @@ class NHost extends Source
                 $type = Index::TYPE_KEY;
             }
 
-            $attributes = [];
+            $columns = [];
             $order = [];
 
             $targets = explode(',', $matches['columns']);
 
             foreach ($targets as $target) {
-                if (\strpos($target, ' ') !== false) {
+                if (str_contains($target, ' ')) {
                     $target = \explode(' ', $target);
-                    $attributes[] = $target[0];
+                    $columns[] = $target[0];
                     $order[] = $target[1];
                 } else {
-                    $attributes[] = $target;
+                    $columns[] = $target;
                     $order[] = 'ASC';
                 }
             }
 
-            return new Index($matches['name'], $matches['name'], $collection, $type, $attributes, $order);
+            return new Index($matches['name'], $matches['name'], $table, $type, $columns, $order);
         } else {
             return false;
         }
@@ -769,7 +774,7 @@ class NHost extends Source
                 $statement = $db->prepare('SELECT * FROM storage.files WHERE bucket_id=:bucketId order by created_at LIMIT :limit OFFSET :offset');
                 $statement->bindValue(':limit', $batchSize, \PDO::PARAM_INT);
                 $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
-                $statement->bindValue(':bucketId', $bucket->getId(), \PDO::PARAM_STR);
+                $statement->bindValue(':bucketId', $bucket->getId());
                 $statement->execute();
 
                 $files = $statement->fetchAll(\PDO::FETCH_ASSOC);

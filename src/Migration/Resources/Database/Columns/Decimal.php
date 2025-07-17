@@ -1,32 +1,30 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attributes;
+namespace Utopia\Migration\Resources\Database\Columns;
 
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
-class Integer extends Attribute
+class Decimal extends Column
 {
     public function __construct(
         string $key,
-        Collection $collection,
-        bool $required = false,
-        ?int $default = null,
-        bool $array = false,
-        ?int $min = null,
-        ?int $max = null,
-        bool $signed = true,
+        Table $table,
+        bool   $required = false,
+        ?float $default = null,
+        bool   $array = false,
+        ?float $min = null,
+        ?float $max = null,
+        bool   $signed = true,
         string $createdAt = '',
         string $updatedAt = ''
     ) {
-        $min ??= PHP_INT_MIN;
-        $max ??= PHP_INT_MAX;
-        $size = $max > 2147483647 ? 8 : 4;
+        $min ??= PHP_FLOAT_MIN;
+        $max ??= PHP_FLOAT_MAX;
 
         parent::__construct(
             $key,
-            $collection,
-            size: $size,
+            $table,
             required: $required,
             default: $default,
             array: $array,
@@ -43,7 +41,7 @@ class Integer extends Attribute
     /**
      * @param array{
      *     key: string,
-     *     collection: array{
+     *     collection?: array{
      *         database: array{
      *             id: string,
      *             name: string,
@@ -53,12 +51,22 @@ class Integer extends Attribute
      *         documentSecurity: bool,
      *         permissions: ?array<string>
      *     },
+     *     table?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         rowSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
      *     required: bool,
      *     array: bool,
-     *     default: ?int,
+     *     default: ?float,
      *     formatOptions: array{
-     *         min: ?int,
-     *         max: ?int
+     *         min: ?float,
+     *         max: ?float
      *     },
      *     createdAt: string,
      *     updatedAt: string,
@@ -69,12 +77,12 @@ class Integer extends Attribute
     {
         return new self(
             $array['key'],
-            Collection::fromArray($array['collection']),
+            Table::fromArray($array['table'] ?? $array['collection']),
             required: $array['required'],
             default: $array['default'],
             array: $array['array'],
-            min: $array['formatOptions']['min'] ?? null,
-            max: $array['formatOptions']['max'] ?? null,
+            min: $array['formatOptions']['min'],
+            max: $array['formatOptions']['max'],
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );
@@ -82,16 +90,16 @@ class Integer extends Attribute
 
     public function getType(): string
     {
-        return Attribute::TYPE_INTEGER;
+        return Column::TYPE_FLOAT;
     }
 
-    public function getMin(): ?int
+    public function getMin(): ?float
     {
-        return (int)$this->formatOptions['min'];
+        return (float)$this->formatOptions['min'];
     }
 
-    public function getMax(): ?int
+    public function getMax(): ?float
     {
-        return (int)$this->formatOptions['max'];
+        return (float)$this->formatOptions['max'];
     }
 }
