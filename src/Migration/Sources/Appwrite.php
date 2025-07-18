@@ -205,21 +205,44 @@ class Appwrite extends Source
             $resources
         ));
 
-        if ($needTeams) {
-            // If memberships are needed,
-            // fetch all teams else just 1 for `total`
-            $teams = \in_array(Resource::TYPE_MEMBERSHIP, $resources)
-                ? $this->teams->list()
-                // TODO: Jake, why no cursorAfter here?
-                : $this->teams->list([Query::limit(1)]);
-        } else {
-            $teams = ['total' => 0, 'teams' => []];
-        }
+        $pageLimit = 20;
+        $teams = ['total' => 0, 'teams' => []];
 
         if (\in_array(Resource::TYPE_USER, $resources)) {
             $report[Resource::TYPE_USER] = $this->users->list(
                 [Query::limit(1)]
             )['total'];
+        }
+
+        if ($needTeams) {
+            if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
+                $allTeams = [];
+                $lastTeam = null;
+
+                while (true) {
+                    $params = $lastTeam
+                        // TODO: should we use offset here?
+                        // this, realistically, shouldn't be too much ig
+                        ? [Query::cursorAfter($lastTeam)]
+                        : [Query::limit($pageLimit)];
+
+                    $teamList = $this->teams->list($params);
+
+                    $totalTeams = $teamList['total'];
+                    $currentTeams = $teamList['teams'];
+
+                    $allTeams = array_merge($allTeams, $currentTeams);
+                    $lastTeam = $currentTeams[count($currentTeams) - 1]['$id'] ?? null;
+
+                    if (count($currentTeams) < $pageLimit) {
+                        break;
+                    }
+                }
+                $teams = ['total' => $totalTeams, 'teams' => $allTeams];
+            } else {
+                $teamList = $this->teams->list([Query::limit(1)]);
+                $teams = ['total' => $teamList['total'], 'teams' => []];
+            }
         }
 
         if (\in_array(Resource::TYPE_TEAM, $resources)) {
@@ -289,7 +312,7 @@ class Appwrite extends Source
                     $files = $this->storage->listFiles(
                         $bucket['$id'],
                         $lastFile
-                            ? [Query::cursorAfter($lastFile), Query::limit($pageLimit)]
+                            ? [Query::cursorAfter($lastFile)]
                             : [Query::limit($pageLimit)]
                     )['files'];
 
@@ -333,7 +356,7 @@ class Appwrite extends Source
             $lastFunction = null;
             while (true) {
                 $params = $lastFunction
-                    ? [Query::cursorAfter($lastFunction), Query::limit($pageLimit)]
+                    ? [Query::cursorAfter($lastFunction)]
                     : [Query::limit($pageLimit)];
 
                 $funcList = $this->functions->list($params);
