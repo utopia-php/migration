@@ -180,7 +180,7 @@ class CSV extends Source
             }
         }
 
-        $this->withCSVStream(function ($stream) use ($columnTypes, $manyToManyKeys, $arrayKeys, $table, $batchSize) {
+        $this->withCSVStream(function ($stream, $delimiter) use ($columnTypes, $manyToManyKeys, $arrayKeys, $table, $batchSize) {
             $headers = fgetcsv($stream);
             if (! is_array($headers) || count($headers) === 0) {
                 return;
@@ -190,7 +190,7 @@ class CSV extends Source
 
             $buffer = [];
 
-            while (($csvRowItem = fgetcsv($stream)) !== false) {
+            while (($csvRowItem = fgetcsv(stream: $stream, separator: $delimiter)) !== false) {
                 if (count($csvRowItem) !== count($headers)) {
                     throw new \Exception('CSV row does not match the number of header columns.');
                 }
@@ -314,7 +314,7 @@ class CSV extends Source
     }
 
     /**
-     * @param callable(resource $stream): void $callback
+     * @param callable(resource $stream, string $delimiter): void $callback
      * @return void
      * @throws \Exception
      */
@@ -336,8 +336,10 @@ class CSV extends Source
             return;
         }
 
+        $delimiter = $this->delimiter($stream);
+
         try {
-            $callback($stream);
+            $callback($stream, $delimiter);
         } finally {
             \fclose($stream);
         }
@@ -401,5 +403,117 @@ class CSV extends Source
         }
 
         $this->downloaded = true;
+    }
+
+    /**
+     * @param resource $stream
+     * @return string
+     */
+    private function delimiter($stream): string
+    {
+        /**
+         * widely used options, from here -
+         *
+         * https://stackoverflow.com/a/15946087/6819340
+         */
+        $delimiters = [',', ';', "\t", '|'];
+
+        $sampleLines = [];
+
+        for ($i = 0; $i < 5 && !feof($stream); $i++) {
+            $line = fgets($stream);
+            if ($line === false) {
+                break;
+            }
+
+            $line = trim($line);
+
+            // empty line, skip for sampling
+            if (empty($line)) {
+                $i--;
+                continue;
+            }
+
+            $sampleLines[] = $line;
+        }
+
+        /**
+         * reset to top again because we need to process
+         * the same file later again if everything goes OK here!
+         */
+        rewind($stream);
+
+        if (empty($sampleLines)) {
+            return ',';
+        }
+
+        $delimiterScores = [];
+
+        foreach ($delimiters as $delimiter) {
+            $columnCounts = [];
+            $totalFields = 0;
+            $usableFields = 0;
+
+            foreach ($sampleLines as $line) {
+                // delimiter doesn't exist
+                if (!str_contains($line, $delimiter)) {
+                    $fields = [$line];
+                } else {
+                    $fields = str_getcsv($line, $delimiter);
+                }
+
+                $fieldCount = count($fields);
+                $columnCounts[] = $fieldCount;
+                $totalFields += $fieldCount;
+
+                // Count fields that make some sense i.e.
+                // longer than 1 char or single alphanumeric
+                foreach ($fields as $field) {
+                    $trimmed = trim($field);
+                    if (strlen($trimmed) > 1) {
+                        $usableFields++;
+                    }
+                }
+            }
+
+            $sampleCount = count($columnCounts);
+            $avgColumns = $totalFields / $sampleCount;
+
+            // short-circuit
+            // if the delimiter doesn't split anything
+            if ($avgColumns <= 1) {
+                $delimiterScores[$delimiter] = 0;
+                continue;
+            }
+
+            // check consistency
+            if ($sampleCount <= 1) {
+                $consistencyScore = 1.0;
+            } else {
+                $variance = 0;
+                foreach ($columnCounts as $count) {
+                    $variance += pow($count - $avgColumns, 2);
+                }
+
+                // oof, math!
+                $stddev = sqrt($variance / $sampleCount);
+                $coefficientOfVariation = $stddev / $avgColumns;
+
+                // lower variance = higher score
+                $consistencyScore = 1.0 / (1.0 + $coefficientOfVariation * 2);
+            }
+
+            $qualityScore = $totalFields > 0 ? $usableFields / $totalFields : 0.0;
+
+            $delimiterScores[$delimiter] = $consistencyScore * $qualityScore;
+        }
+
+        // sort as per score
+        arsort($delimiterScores);
+
+        // get the first
+        $bestDelimiter = key($delimiterScores);
+
+        return ($bestDelimiter && $delimiterScores[$bestDelimiter] > 0) ? $bestDelimiter : ',';
     }
 }
