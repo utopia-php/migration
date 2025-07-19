@@ -1374,7 +1374,7 @@ class Appwrite extends Source
                 $function['events'],
                 $function['schedule'],
                 $function['timeout'],
-                $function['deploymentId'],
+                $function['deploymentId'] ?? '',
                 $function['entrypoint']
             );
 
