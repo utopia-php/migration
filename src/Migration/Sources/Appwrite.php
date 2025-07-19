@@ -205,7 +205,7 @@ class Appwrite extends Source
             $resources
         ));
 
-        $pageLimit = 20;
+        $pageLimit = 25;
         $teams = ['total' => 0, 'teams' => []];
 
         if (\in_array(Resource::TYPE_USER, $resources)) {
@@ -283,7 +283,7 @@ class Appwrite extends Source
             ])['total'];
         }
 
-        $pageLimit = 20;
+        $pageLimit = 25;
 
         if (\in_array(Resource::TYPE_FILE, $resources)) {
             $report[Resource::TYPE_FILE] = 0;
@@ -336,7 +336,7 @@ class Appwrite extends Source
 
     private function reportFunctions(array $resources, array &$report): void
     {
-        $pageLimit = 20;
+        $pageLimit = 25;
         $needVarsOrDeployments = (
             \in_array(Resource::TYPE_DEPLOYMENT, $resources) ||
             \in_array(Resource::TYPE_ENVIRONMENT_VARIABLE, $resources)
