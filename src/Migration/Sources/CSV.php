@@ -172,11 +172,11 @@ class CSV extends Source
                 $relationType === 'manyToMany' &&
                 $relationSide === 'parent'
             ) {
-                $manyToManyKeys[] = $key;
+                $manyToManyKeys[$key] = true;
             }
 
             if ($isArray && $type !== Column::TYPE_RELATIONSHIP) {
-                $arrayKeys[] = $key;
+                $arrayKeys[$key] = true;
             }
         }
 
@@ -210,7 +210,7 @@ class CSV extends Source
                         continue;
                     }
 
-                    if (in_array($key, $manyToManyKeys, true)) {
+                    if (isset($manyToManyKeys[$key])) {
                         $parsedData[$key] = $parsedValue === ''
                             ? []
                             : array_values(
@@ -224,7 +224,7 @@ class CSV extends Source
                         continue;
                     }
 
-                    if (in_array($key, $arrayKeys, true)) {
+                    if (isset($arrayKeys[$key])) {
                         if ($parsedValue === '') {
                             $parsedData[$key] = [];
                         } else {
