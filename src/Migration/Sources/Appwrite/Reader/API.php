@@ -62,6 +62,7 @@ class API implements Reader
             $databaseId = $database['$id'];
 
             /* $tablesResponse = $this->tables->list(...); */
+            // TODO: add pagination.
             $tablesResponse = $this->database->listCollections($databaseId);
             $tables = $tablesResponse['collections'];
 
@@ -73,6 +74,16 @@ class API implements Reader
                 foreach ($tables as $table) {
                     $tableId = $table['$id'];
 
+                    if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
+                        // a table already returns a list of attributes
+                        $report[Resource::TYPE_COLUMN] += count($table['columns'] ?? $table['attributes'] ?? []);
+                    }
+
+                    if (in_array(Resource::TYPE_INDEX, $resources)) {
+                        // a table already returns a list of indexes
+                        $report[Resource::TYPE_INDEX] += count($table['indexes'] ?? []);
+                    }
+
                     if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
                         /* $rowsResponse = $this->tables->listRows(...) */
                         $rowsResponse = $this->database->listDocuments(
@@ -80,19 +91,8 @@ class API implements Reader
                             $tableId,
                             [Query::limit(1)]
                         );
+
                         $report[Resource::TYPE_ROW] += $rowsResponse['total'];
-                    }
-
-                    if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
-                        /* $columnsResponse = $this->tables->listColumns(...); */
-                        $columnsResponse = $this->database->listAttributes($databaseId, $tableId);
-                        $report[Resource::TYPE_COLUMN] += $columnsResponse['total'];
-                    }
-
-                    if (in_array(Resource::TYPE_INDEX, $resources)) {
-                        /* $indexesResponse = $this->tables->listIndexes(...); */
-                        $indexesResponse = $this->database->listIndexes($databaseId, $tableId);
-                        $report[Resource::TYPE_INDEX] += $indexesResponse['total'];
                     }
                 }
             }
