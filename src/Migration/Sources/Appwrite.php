@@ -199,18 +199,59 @@ class Appwrite extends Source
      */
     private function reportAuth(array $resources, array &$report): void
     {
+        // check if we need to fetch teams!
+        $needTeams = !empty(array_intersect(
+            [Resource::TYPE_TEAM, Resource::TYPE_MEMBERSHIP],
+            $resources
+        ));
+
+        $pageLimit = 25;
+        $teams = ['total' => 0, 'teams' => []];
+
         if (\in_array(Resource::TYPE_USER, $resources)) {
-            $report[Resource::TYPE_USER] = $this->users->list()['total'];
+            $report[Resource::TYPE_USER] = $this->users->list(
+                [Query::limit(1)]
+            )['total'];
+        }
+
+        if ($needTeams) {
+            if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
+                $allTeams = [];
+                $lastTeam = null;
+
+                while (true) {
+                    $params = $lastTeam
+                        // TODO: should we use offset here?
+                        // this, realistically, shouldn't be too much ig
+                        ? [Query::cursorAfter($lastTeam)]
+                        : [Query::limit($pageLimit)];
+
+                    $teamList = $this->teams->list($params);
+
+                    $totalTeams = $teamList['total'];
+                    $currentTeams = $teamList['teams'];
+
+                    $allTeams = array_merge($allTeams, $currentTeams);
+                    $lastTeam = $currentTeams[count($currentTeams) - 1]['$id'] ?? null;
+
+                    if (count($currentTeams) < $pageLimit) {
+                        break;
+                    }
+                }
+                $teams = ['total' => $totalTeams, 'teams' => $allTeams];
+            } else {
+                $teamList = $this->teams->list([Query::limit(1)]);
+                $teams = ['total' => $teamList['total'], 'teams' => []];
+            }
         }
 
         if (\in_array(Resource::TYPE_TEAM, $resources)) {
-            $report[Resource::TYPE_TEAM] = $this->teams->list()['total'];
+            $report[Resource::TYPE_TEAM] = $teams['total'];
         }
 
         if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
             $report[Resource::TYPE_MEMBERSHIP] = 0;
-            $teams = $this->teams->list()['teams'];
-            foreach ($teams as $team) {
+            foreach ($teams['teams'] as $team) {
                 $report[Resource::TYPE_MEMBERSHIP] += $this->teams->listMemberships(
                     $team['$id'],
                     [Query::limit(1)]
@@ -236,8 +277,13 @@ class Appwrite extends Source
     private function reportStorage(array $resources, array &$report): void
     {
         if (\in_array(Resource::TYPE_BUCKET, $resources)) {
-            $report[Resource::TYPE_BUCKET] = $this->storage->listBuckets()['total'];
+            // just fetch one bucket for the `total`
+            $report[Resource::TYPE_BUCKET] = $this->storage->listBuckets([
+                Query::limit(1)
+            ])['total'];
         }
+
+        $pageLimit = 25;
 
         if (\in_array(Resource::TYPE_FILE, $resources)) {
             $report[Resource::TYPE_FILE] = 0;
@@ -249,58 +295,89 @@ class Appwrite extends Source
                 $currentBuckets = $this->storage->listBuckets(
                     $lastBucket
                         ? [Query::cursorAfter($lastBucket)]
-                        : [Query::limit(20)]
+                        : [Query::limit($pageLimit)]
                 )['buckets'];
 
                 $buckets = array_merge($buckets, $currentBuckets);
                 $lastBucket = $buckets[count($buckets) - 1]['$id'] ?? null;
 
-                if (count($currentBuckets) < 20) {
+                if (count($currentBuckets) < $pageLimit) {
                     break;
                 }
             }
 
             foreach ($buckets as $bucket) {
-                $files = [];
                 $lastFile = null;
-
                 while (true) {
-                    $currentFiles = $this->storage->listFiles(
+                    $files = $this->storage->listFiles(
                         $bucket['$id'],
                         $lastFile
                             ? [Query::cursorAfter($lastFile)]
-                            : [Query::limit(20)]
+                            : [Query::limit($pageLimit)]
                     )['files'];
 
-                    $files = array_merge($files, $currentFiles);
+                    $report[Resource::TYPE_FILE] += count($files);
+                    foreach ($files as $file) {
+                        // already includes the `sizeOriginal`
+                        $report['size'] += $file['sizeOriginal'] ?? 0;
+                    }
+
                     $lastFile = $files[count($files) - 1]['$id'] ?? null;
 
-                    if (count($currentFiles) < 20) {
+                    if (count($files) < $pageLimit) {
                         break;
                     }
                 }
-
-                $report[Resource::TYPE_FILE] += count($files);
-                foreach ($files as $file) {
-                    $report['size'] += $this->storage->getFile(
-                        $bucket['$id'],
-                        $file['$id']
-                    )['sizeOriginal'];
-                }
             }
+
             $report['size'] = $report['size'] / 1000 / 1000; // MB
         }
     }
 
     private function reportFunctions(array $resources, array &$report): void
     {
+        $pageLimit = 25;
+        $needVarsOrDeployments = (
+            \in_array(Resource::TYPE_DEPLOYMENT, $resources) ||
+            \in_array(Resource::TYPE_ENVIRONMENT_VARIABLE, $resources)
+        );
+
+        $functions = [];
+        $totalFunctions = 0;
+
+        if (!$needVarsOrDeployments && \in_array(Resource::TYPE_FUNCTION, $resources)) {
+            // Only function count needed, short-circuit
+            $funcList = $this->functions->list([Query::limit(1)]);
+            $report[Resource::TYPE_FUNCTION] = $funcList['total'];
+            return;
+        }
+
+        if ($needVarsOrDeployments) {
+            $lastFunction = null;
+            while (true) {
+                $params = $lastFunction
+                    ? [Query::cursorAfter($lastFunction)]
+                    : [Query::limit($pageLimit)];
+
+                $funcList = $this->functions->list($params);
+
+                $totalFunctions = $funcList['total'];
+                $currentFunctions = $funcList['functions'];
+                $functions = array_merge($functions, $currentFunctions);
+
+                $lastFunction = $currentFunctions[count($currentFunctions) - 1]['$id'] ?? null;
+                if (count($currentFunctions) < $pageLimit) {
+                    break;
+                }
+            }
+        }
+
         if (\in_array(Resource::TYPE_FUNCTION, $resources)) {
-            $report[Resource::TYPE_FUNCTION] = $this->functions->list()['total'];
+            $report[Resource::TYPE_FUNCTION] = $totalFunctions;
         }
 
         if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
             $report[Resource::TYPE_DEPLOYMENT] = 0;
-            $functions = $this->functions->list()['functions'];
             foreach ($functions as $function) {
                 if (!empty($function['deploymentId'])) {
                     $report[Resource::TYPE_DEPLOYMENT] += 1;
@@ -310,9 +387,9 @@ class Appwrite extends Source
 
         if (\in_array(Resource::TYPE_ENVIRONMENT_VARIABLE, $resources)) {
             $report[Resource::TYPE_ENVIRONMENT_VARIABLE] = 0;
-            $functions = $this->functions->list()['functions'];
             foreach ($functions as $function) {
-                $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += $this->functions->listVariables($function['$id'])['total'];
+                // function model contains `vars`, we don't need to fetch the list again.
+                $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += count($function['vars'] ?? []);
             }
         }
     }
@@ -1297,7 +1374,7 @@ class Appwrite extends Source
                 $function['events'],
                 $function['schedule'],
                 $function['timeout'],
-                $function['deploymentId'],
+                $function['deploymentId'] ?? '',
                 $function['entrypoint']
             );
 

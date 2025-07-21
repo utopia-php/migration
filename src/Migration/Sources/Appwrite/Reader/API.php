@@ -61,18 +61,46 @@ class API implements Reader
         foreach ($databases as $database) {
             $databaseId = $database['$id'];
 
-            /* $tablesResponse = $this->tables->list(...); */
-            $tablesResponse = $this->database->listCollections($databaseId);
-            $tables = $tablesResponse['collections'];
+            $tables = [];
+            $pageLimit = 25;
+            $lastTable = null;
+
+            while (true) {
+                /* $currentTables = $this->tables->list(...); */
+                $currentTables = $this->database->listCollections(
+                    $databaseId,
+                    $lastTable
+                        ? [Query::cursorAfter($lastTable)]
+                        : [Query::limit($pageLimit)]
+                )['collections']; /* ['tables'] */
+
+                $tables = array_merge($tables, $currentTables);
+                $lastTable = $tables[count($tables) - 1]['$id'] ?? null;
+
+                if (count($currentTables) < $pageLimit) {
+                    break;
+                }
+            }
 
             if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
-                $report[Resource::TYPE_TABLE] += $tablesResponse['total'];
+                $report[Resource::TYPE_TABLE] += count($tables);
             }
 
             if (Resource::isSupported([Resource::TYPE_ROW, Resource::TYPE_COLUMN, Resource::TYPE_INDEX], $resources)) {
                 foreach ($tables as $table) {
                     $tableId = $table['$id'];
 
+                    if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
+                        // a table already returns a list of attributes
+                        $report[Resource::TYPE_COLUMN] += count($table['columns'] ?? $table['attributes'] ?? []);
+                    }
+
+                    if (in_array(Resource::TYPE_INDEX, $resources)) {
+                        // a table already returns a list of indexes
+                        $report[Resource::TYPE_INDEX] += count($table['indexes'] ?? []);
+                    }
+
+                    // this one's a bit heavy if the number of tables are high!
                     if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
                         /* $rowsResponse = $this->tables->listRows(...) */
                         $rowsResponse = $this->database->listDocuments(
@@ -80,19 +108,8 @@ class API implements Reader
                             $tableId,
                             [Query::limit(1)]
                         );
+
                         $report[Resource::TYPE_ROW] += $rowsResponse['total'];
-                    }
-
-                    if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
-                        /* $columnsResponse = $this->tables->listColumns(...); */
-                        $columnsResponse = $this->database->listAttributes($databaseId, $tableId);
-                        $report[Resource::TYPE_COLUMN] += $columnsResponse['total'];
-                    }
-
-                    if (in_array(Resource::TYPE_INDEX, $resources)) {
-                        /* $indexesResponse = $this->tables->listIndexes(...); */
-                        $indexesResponse = $this->database->listIndexes($databaseId, $tableId);
-                        $report[Resource::TYPE_INDEX] += $indexesResponse['total'];
                     }
                 }
             }
