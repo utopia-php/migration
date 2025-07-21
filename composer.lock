@@ -1912,16 +1912,16 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "0.71.9",
+            "version": "0.72.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "eb2f759020bba617e99dd67973a9bd949b47f54e"
+                "reference": "276fffbf889a455fefd5f3dcda89f249a92fd5e2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/eb2f759020bba617e99dd67973a9bd949b47f54e",
-                "reference": "eb2f759020bba617e99dd67973a9bd949b47f54e",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/276fffbf889a455fefd5f3dcda89f249a92fd5e2",
+                "reference": "276fffbf889a455fefd5f3dcda89f249a92fd5e2",
                 "shasum": ""
             },
             "require": {
@@ -1962,9 +1962,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/0.71.9"
+                "source": "https://github.com/utopia-php/database/tree/0.72.0"
             },
-            "time": "2025-07-02T16:37:41+00:00"
+            "time": "2025-07-21T03:45:49+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -2722,16 +2722,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "1.12.27",
+            "version": "1.12.28",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "3a6e423c076ab39dfedc307e2ac627ef579db162"
+                "reference": "fcf8b71aeab4e1a1131d1783cef97b23a51b87a9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/3a6e423c076ab39dfedc307e2ac627ef579db162",
-                "reference": "3a6e423c076ab39dfedc307e2ac627ef579db162",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/fcf8b71aeab4e1a1131d1783cef97b23a51b87a9",
+                "reference": "fcf8b71aeab4e1a1131d1783cef97b23a51b87a9",
                 "shasum": ""
             },
             "require": {
@@ -2776,7 +2776,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-21T20:51:45+00:00"
+            "time": "2025-07-17T17:15:39+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -4557,7 +4557,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

@@ -841,7 +841,8 @@ class Appwrite extends Destination
         $validator = new IndexValidator(
             $tableColumns,
             $this->database->getAdapter()->getMaxIndexLength(),
-            $this->database->getAdapter()->getInternalIndexesKeys()
+            $this->database->getAdapter()->getInternalIndexesKeys(),
+            $this->database->getAdapter()->getSupportForIndexArray(),
         );
 
         if (!$validator->isValid($index)) {
