@@ -1002,7 +1002,7 @@ class Appwrite extends Source
                         $index['key'],
                         $table,
                         $index['type'],
-                        $index['columns'],
+                        $index['columns'] ?? $index['attributes'],
                         [],
                         $index['orders'],
                         $index['$createdAt'] = empty($index['$createdAt']) ? UtopiaDateTime::now() : $index['$createdAt'],
