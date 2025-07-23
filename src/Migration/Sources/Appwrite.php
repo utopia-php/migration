@@ -923,7 +923,7 @@ class Appwrite extends Source
                             $col = new Relationship(
                                 $column['key'],
                                 $table,
-                                relatedTable: $column['relatedCollection'],
+                                relatedTable: $column['relatedTable'] ?? $column['relatedCollection'],
                                 relationType: $column['relationType'],
                                 twoWay: $column['twoWay'],
                                 twoWayKey: $column['twoWayKey'],
@@ -998,13 +998,13 @@ class Appwrite extends Source
 
                 foreach ($response as $index) {
                     $indexes[] = new Index(
-                        'unique()',
+                        $index['$id'],
                         $index['key'],
                         $table,
                         $index['type'],
                         $index['columns'] ?? $index['attributes'],
-                        [],
-                        $index['orders'],
+                        $index['lengths'] ?? [],
+                        $index['orders'] ?? [],
                         $index['$createdAt'] = empty($index['$createdAt']) ? UtopiaDateTime::now() : $index['$createdAt'],
                         $index['$updatedAt'] = empty($index['$updatedAt']) ? UtopiaDateTime::now() : $index['$updatedAt'],
                     );

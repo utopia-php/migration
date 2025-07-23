@@ -24,7 +24,7 @@ class Relationship extends Column
             $key,
             $table,
             options: [
-                'relatedTable' => $relatedTable,
+                'relatedCollection' => $relatedTable,
                 'relationType' => $relationType,
                 'twoWay' => $twoWay,
                 'twoWayKey' => $twoWayKey,
