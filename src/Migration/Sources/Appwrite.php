@@ -998,12 +998,12 @@ class Appwrite extends Source
 
                 foreach ($response as $index) {
                     $indexes[] = new Index(
-                        'unique()',
+                        $index['$id'],
                         $index['key'],
                         $table,
                         $index['type'],
                         $index['columns'] ?? $index['attributes'],
-                        [],
+                        $index['lengths'],
                         $index['orders'],
                         $index['$createdAt'] = empty($index['$createdAt']) ? UtopiaDateTime::now() : $index['$createdAt'],
                         $index['$updatedAt'] = empty($index['$updatedAt']) ? UtopiaDateTime::now() : $index['$updatedAt'],
