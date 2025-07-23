@@ -74,34 +74,33 @@ class API implements Reader
                         : [Query::limit($pageLimit)]
                 )['collections']; /* ['tables'] */
 
-                $tables = array_merge($tables, $currentTables);
+                $tables = \array_merge($tables, $currentTables);
                 $lastTable = $tables[count($tables) - 1]['$id'] ?? null;
 
-                if (count($currentTables) < $pageLimit) {
+                if (\count($currentTables) < $pageLimit) {
                     break;
                 }
             }
 
-            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
-                $report[Resource::TYPE_TABLE] += count($tables);
+            if (Resource::isSupported([Resource::TYPE_TABLE, Resource::TYPE_COLLECTION], $resources)) {
+                $report[Resource::TYPE_TABLE] += \count($tables);
             }
 
             if (Resource::isSupported([Resource::TYPE_ROW, Resource::TYPE_COLUMN, Resource::TYPE_INDEX], $resources)) {
                 foreach ($tables as $table) {
                     $tableId = $table['$id'];
 
-                    if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
+                    if (Resource::isSupported([Resource::TYPE_COLUMN, Resource::TYPE_ATTRIBUTE], $resources)) {
                         // a table already returns a list of attributes
                         $report[Resource::TYPE_COLUMN] += count($table['columns'] ?? $table['attributes'] ?? []);
                     }
 
-                    if (in_array(Resource::TYPE_INDEX, $resources)) {
-                        // a table already returns a list of indexes
-                        $report[Resource::TYPE_INDEX] += count($table['indexes'] ?? []);
+                    if (\in_array(Resource::TYPE_INDEX, $resources)) {
+                        // A table already returns a list of indexes
+                        $report[Resource::TYPE_INDEX] += \count($table['indexes'] ?? []);
                     }
 
-                    // this one's a bit heavy if the number of tables are high!
-                    if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
+                    if (Resource::isSupported([Resource::TYPE_ROW, Resource::TYPE_DOCUMENT], $resources)) {
                         /* $rowsResponse = $this->tables->listRows(...) */
                         $rowsResponse = $this->database->listDocuments(
                             $databaseId,
