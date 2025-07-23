@@ -82,7 +82,7 @@ class API implements Reader
                 }
             }
 
-            if (Resource::isSupported([Resource::TYPE_TABLE, Resource::TYPE_COLLECTION], $resources)) {
+            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
                 $report[Resource::TYPE_TABLE] += \count($tables);
             }
 
@@ -90,7 +90,7 @@ class API implements Reader
                 foreach ($tables as $table) {
                     $tableId = $table['$id'];
 
-                    if (Resource::isSupported([Resource::TYPE_COLUMN, Resource::TYPE_ATTRIBUTE], $resources)) {
+                    if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
                         // a table already returns a list of attributes
                         $report[Resource::TYPE_COLUMN] += count($table['columns'] ?? $table['attributes'] ?? []);
                     }
@@ -100,7 +100,7 @@ class API implements Reader
                         $report[Resource::TYPE_INDEX] += \count($table['indexes'] ?? []);
                     }
 
-                    if (Resource::isSupported([Resource::TYPE_ROW, Resource::TYPE_DOCUMENT], $resources)) {
+                    if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
                         /* $rowsResponse = $this->tables->listRows(...) */
                         $rowsResponse = $this->database->listDocuments(
                             $databaseId,
