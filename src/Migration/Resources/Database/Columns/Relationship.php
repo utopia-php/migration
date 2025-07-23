@@ -77,7 +77,7 @@ class Relationship extends Column
         return new self(
             $array['key'],
             Table::fromArray($array['table'] ?? $array['collection']),
-            relatedTable: $array['options']['relatedCollection'],
+            relatedTable: $array['options']['relatedTable'] ?? $array['options']['relatedCollection'],
             relationType: $array['options']['relationType'],
             twoWay: $array['options']['twoWay'],
             twoWayKey: $array['options']['twoWayKey'],
@@ -95,7 +95,7 @@ class Relationship extends Column
 
     public function getRelatedTable(): string
     {
-        return $this->options['relatedCollection'];
+        return $this->options['relatedTable'] ?? $this->options['relatedCollection'];
     }
 
     public function getRelationType(): string

@@ -923,7 +923,7 @@ class Appwrite extends Source
                             $col = new Relationship(
                                 $column['key'],
                                 $table,
-                                relatedTable: $column['relatedCollection'],
+                                relatedTable: $column['relatedTable'] ?? $column['relatedCollection'],
                                 relationType: $column['relationType'],
                                 twoWay: $column['twoWay'],
                                 twoWayKey: $column['twoWayKey'],
