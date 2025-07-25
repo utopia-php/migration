@@ -178,7 +178,7 @@ class Cache
                 throw new \Exception('Resource does not exist in cache');
             }
         }
-        if (! in_array($resource, $this->cache[$resource->getName()])) {
+        if (! in_array($resource, $this->cache[$key])) {
             throw new \Exception('Resource does not exist in cache');
         }
 
