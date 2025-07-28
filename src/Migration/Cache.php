@@ -27,11 +27,11 @@ class Cache
     }
 
     /**
- * Get cache key from resource
- *
- * @param Resource $resource
- * @return string
- */
+     * Get cache key from resource
+     *
+     * @param Resource $resource
+     * @return string
+    */
     public function resolveResourceCacheKey(Resource $resource): string
     {
         if (! $resource->getSequence()) {
