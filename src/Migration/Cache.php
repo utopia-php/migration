@@ -27,11 +27,11 @@ class Cache
     }
 
     /**
- * Get cache key from resource
- *
- * @param Resource $resource
- * @return string
- */
+     * Get cache key for a resource
+     *
+     * @param Resource $resource
+     * @return string
+     */
     public function getResourceCacheKey(Resource $resource): string
     {
         $resourceName = $resource->getName();
