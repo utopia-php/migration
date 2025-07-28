@@ -32,7 +32,7 @@ class Cache
  * @param Resource $resource
  * @return string
  */
-    public function getResourceCacheKey(Resource $resource): string
+    public function resolveResourceCacheKey(Resource $resource): string
     {
         if (! $resource->getSequence()) {
             $resource->setSequence(uniqid());
@@ -88,7 +88,7 @@ class Cache
      */
     public function add(Resource $resource): void
     {
-        $key = $this->getResourceCacheKey($resource);
+        $key = $this->resolveResourceCacheKey($resource);
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
             $this->cache[$resource->getName()][$key] = $status;
@@ -127,7 +127,7 @@ class Cache
      */
     public function update(Resource $resource): void
     {
-        $key = $this->getResourceCacheKey($resource);
+        $key = $this->resolveResourceCacheKey($resource);
         // if rows then updating the status counter only
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
             if (!isset($this->cache[$resource->getName()][$key])) {
@@ -168,7 +168,7 @@ class Cache
      */
     public function remove(Resource $resource): void
     {
-        $key = $this->getResourceCacheKey($resource);
+        $key = $this->resolveResourceCacheKey($resource);
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
             if (! isset($this->cache[$resource->getName()][$key])) {
                 throw new \Exception('Resource does not exist in cache');
