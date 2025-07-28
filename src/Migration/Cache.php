@@ -79,7 +79,6 @@ class Cache
         return $joinedKey;
     }
 
-
     /**
      * Add Resource
      *
