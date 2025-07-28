@@ -34,6 +34,10 @@ class Cache
  */
     public function getResourceCacheKey(Resource $resource): string
     {
+        if (! $resource->getSequence()) {
+            $resource->setSequence(uniqid());
+        }
+
         $resourceName = $resource->getName();
         $keys = [];
 
@@ -84,14 +88,6 @@ class Cache
      */
     public function add(Resource $resource): void
     {
-        if (! $resource->getSequence()) {
-            $resourceId = uniqid();
-            if (isset($this->cache[$resource->getName()][$resourceId])) {
-                $resourceId = uniqid();
-                // todo: $resourceId is not used?
-            }
-            $resource->setSequence(uniqid());
-        }
         $key = $this->getResourceCacheKey($resource);
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
