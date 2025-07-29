@@ -2,10 +2,10 @@
 
 namespace Utopia\Migration;
 
-use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Attribute;
+use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Document;
 use Utopia\Migration\Resources\Database\Index;
-use Utopia\Migration\Resources\Database\Row;
-use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Storage\File;
 
@@ -42,19 +42,16 @@ class Cache
         $keys = [];
 
         switch ($resourceName) {
-            case Resource::TYPE_TABLE:
             case Resource::TYPE_COLLECTION:
-                /** @var Table $resource */
+                /** @var Collection $resource */
                 $keys[] = $resource->getDatabase()->getSequence();
                 break;
 
-            case Resource::TYPE_ROW:
             case Resource::TYPE_DOCUMENT:
-            case Resource::TYPE_COLUMN:
             case Resource::TYPE_ATTRIBUTE:
             case Resource::TYPE_INDEX:
-                /** @var Row|Column|Index $resource */
-                $table = $resource->getTable();
+                /** @var Document|Attribute|Index $resource */
+                $table = $resource->getCollection();
                 $keys[] = $table->getDatabase()->getSequence();
                 $keys[] = $table->getSequence();
                 break;
@@ -75,8 +72,7 @@ class Cache
 
         $keys[] = $resource->getSequence();
 
-        $joinedKey = implode('_', $keys);
-        return $joinedKey;
+        return \implode('_', $keys);
     }
 
     /**
@@ -88,7 +84,7 @@ class Cache
     public function add(Resource $resource): void
     {
         $key = $this->resolveResourceCacheKey($resource);
-        if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
+        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
             $this->cache[$resource->getName()][$key] = $status;
             return;
@@ -128,7 +124,7 @@ class Cache
     {
         $key = $this->resolveResourceCacheKey($resource);
         // if rows then updating the status counter only
-        if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
+        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
             if (!isset($this->cache[$resource->getName()][$key])) {
                 $this->add($resource);
             } else {
@@ -168,7 +164,7 @@ class Cache
     public function remove(Resource $resource): void
     {
         $key = $this->resolveResourceCacheKey($resource);
-        if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
+        if ($resource->getName() == Resource::TYPE_DOCUMENT) {
             if (! isset($this->cache[$resource->getName()][$key])) {
                 throw new \Exception('Resource does not exist in cache');
             }
