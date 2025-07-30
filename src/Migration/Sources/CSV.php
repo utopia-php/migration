@@ -180,6 +180,9 @@ class CSV extends Source
             }
         }
 
+        $manyToManyKeys = \array_flip($manyToManyKeys);
+        $arrayKeys = \array_flip($arrayKeys);
+
         $this->withCSVStream(function ($stream) use ($attributeTypes, $manyToManyKeys, $arrayKeys, $collection, $batchSize) {
             $headers = fgetcsv($stream);
             if (! is_array($headers) || count($headers) === 0) {
@@ -210,7 +213,7 @@ class CSV extends Source
                         continue;
                     }
 
-                    if (in_array($key, $manyToManyKeys, true)) {
+                    if (isset($manyToManyKeys[$key])) {
                         $parsedData[$key] = $parsedValue === ''
                             ? []
                             : array_values(
@@ -224,7 +227,7 @@ class CSV extends Source
                         continue;
                     }
 
-                    if (in_array($key, $arrayKeys, true)) {
+                    if (isset($arrayKeys[$key])) {
                         if ($parsedValue === '') {
                             $parsedData[$key] = [];
                         } else {
