@@ -75,8 +75,7 @@ class Cache
 
         $keys[] = $resource->getSequence();
 
-        $joinedKey = implode('_', $keys);
-        return $joinedKey;
+        return \implode('_', $keys);
     }
 
     /**
@@ -173,7 +172,7 @@ class Cache
                 throw new \Exception('Resource does not exist in cache');
             }
         }
-        if (! in_array($resource, $this->cache[$key])) {
+        if (! in_array($resource, $this->cache[$resource->getName()])) {
             throw new \Exception('Resource does not exist in cache');
         }
 
