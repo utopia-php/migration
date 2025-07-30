@@ -19,6 +19,13 @@ use Utopia\Storage\Storage;
 
 class CSV extends Source
 {
+    private const ALLOWED_INTERNALS = [
+        '$id' => true,
+        '$permissions' => true,
+        '$createdAt' => true,
+        '$updatedAt' => true,
+    ];
+
     private string $filePath;
 
     /**
@@ -120,7 +127,6 @@ class CSV extends Source
      */
     private function exportDocuments(int $batchSize): void
     {
-
         $attributes = [];
         $lastAttribute = null;
 
@@ -147,7 +153,9 @@ class CSV extends Source
             }
         }
 
-        $arrayKeys = ['$permissions'];
+        $arrayKeys = [
+            '$permissions' => true,
+        ];
         $attributeTypes = [];
         $manyToManyKeys = [];
 
@@ -206,8 +214,11 @@ class CSV extends Source
                     $parsedValue = trim($value);
                     $type = $attributeTypes[$key] ?? null;
 
-                    if (! isset($type)) {
-                        continue;
+                    if (!isset($type) && $key !== '$permissions') {
+                        if (isset(self::ALLOWED_INTERNALS[$key])) {
+                            continue;
+                        }
+                        throw new \Exception('Unexpected attribute in CSV: '.$key);
                     }
 
                     if (isset($manyToManyKeys[$key])) {
@@ -216,7 +227,7 @@ class CSV extends Source
                             : array_values(
                                 array_filter(
                                     array_map(
-                                        'trim',
+                                        trim(...),
                                         explode(',', $parsedValue)
                                     )
                                 )
@@ -229,7 +240,12 @@ class CSV extends Source
                             $parsedData[$key] = [];
                         } else {
                             $arrayValues = str_getcsv($parsedValue);
-                            $arrayValues = array_map('trim', $arrayValues);
+                            $arrayValues = array_map(trim(...), $arrayValues);
+
+                            // Special handling for permissions to unescape quotes
+                            if ($key === '$permissions') {
+                                $arrayValues = array_map(stripslashes(...), $arrayValues);
+                            }
 
                             $parsedData[$key] = array_map(function ($item) use ($type) {
                                 return match ($type) {
@@ -254,8 +270,21 @@ class CSV extends Source
                 }
 
                 $documentId = $parsedData['$id'] ?? 'unique()';
+                $permissions = $parsedData['$permissions'] ?? [];
 
-                $document = new Document($documentId, $collection, $parsedData);
+                if (!empty($permissions)) {
+                    print_r($permissions);
+                }
+
+                unset($parsedData['$id'], $parsedData['$permissions']);
+
+                $document = new Document(
+                    $documentId,
+                    $collection,
+                    $parsedData,
+                    $permissions,
+                );
+
                 $buffer[] = $document;
 
                 if (count($buffer) === $batchSize) {
