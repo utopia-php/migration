@@ -147,7 +147,7 @@ class CSV extends Source
             }
         }
 
-        $arrayKeys = [];
+        $arrayKeys = ['$permissions'];
         $attributeTypes = [];
         $manyToManyKeys = [];
 
@@ -182,7 +182,7 @@ class CSV extends Source
         
         $this->withCSVStream(function ($stream) use ($attributeTypes, $manyToManyKeys, $arrayKeys, $collection, $batchSize) {
             $headers = fgetcsv($stream);
-            if (! is_array($headers) || count($headers) === 0) {
+            if (!is_array($headers) || count($headers) === 0) {
                 return;
             }
 
