@@ -255,9 +255,6 @@ class CSV extends Source
 
                 $documentId = $parsedData['$id'] ?? 'unique()';
 
-                // `$id`, `$permissions` in the doc can cause issues!
-                unset($parsedData['$id'], $parsedData['$permissions']);
-
                 $document = new Document($documentId, $collection, $parsedData);
                 $buffer[] = $document;
 
@@ -348,25 +345,22 @@ class CSV extends Source
      */
     private function validateCSVHeaders(array $headers, array $attributeTypes): void
     {
-        $expectedAttributes = array_keys($attributeTypes);
-
-        // Ignore keys like $id, $permissions, etc.
-        $filteredHeaders = array_filter($headers, fn ($key) => ! str_starts_with($key, '$'));
-
-        $extraAttributes = array_diff($filteredHeaders, $expectedAttributes);
-        $missingAttributes = array_diff($expectedAttributes, $filteredHeaders);
+        $internalAttributes = ['$id', '$permissions', '$createdAt', '$updatedAt'];
+        $expectedAttributes = \array_keys($attributeTypes);
+        $extraAttributes = \array_diff($headers, $expectedAttributes, $internalAttributes);
+        $missingAttributes = \array_diff($expectedAttributes, $headers);
 
         if (! empty($missingAttributes) || ! empty($extraAttributes)) {
             $messages = [];
 
             if (! empty($missingAttributes)) {
                 $label = count($missingAttributes) === 1 ? 'Missing attribute' : 'Missing attributes';
-                $messages[] = "{$label}: '".implode("', '", $missingAttributes)."'";
+                $messages[] = "$label: '".implode("', '", $missingAttributes)."'";
             }
 
             if (! empty($extraAttributes)) {
                 $label = count($extraAttributes) === 1 ? 'Unexpected attribute' : 'Unexpected attributes';
-                $messages[] = "{$label}: '".implode("', '", $extraAttributes)."'";
+                $messages[] = "$label: '".implode("', '", $extraAttributes)."'";
             }
 
             throw new \Exception('CSV header mismatch. '.implode(' | ', $messages));
