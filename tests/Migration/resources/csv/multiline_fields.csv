@@ -1,0 +1,7 @@
+id,description,notes
+1,"This is a 
+multiline description
+with line breaks","Simple note"
+2,"Another multiline
+field with multiple
+line breaks here","Another note"

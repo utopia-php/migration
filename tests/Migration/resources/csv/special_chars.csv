@@ -1,0 +1,6 @@
+name,description,unicode_field
+"Test User","Description with ""quotes"" and commas, inside","测试用户"
+"Another User","Multi-line
+description","用户二"
+"Third User","Tabs	and newlines
+here","Пользователь"

@@ -1,0 +1,4 @@
+name,email,department
+"Smith, John",john@example.com,IT
+"Doe; Jane",jane@example.com,HR
+"Johnson| Bob",bob@example.com,Sales

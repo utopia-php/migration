@@ -1,0 +1,4 @@
+id,name,email,age,tags,permissions
+1,"John Smith","john@example.com",25,"[""developer"",""admin""]","[""read"",""write""]"
+2,"Jane Doe","jane@example.com",30,"[""designer""]","[""read""]"
+3,"Bob Johnson","bob@example.com",35,"[""manager"",""lead""]","[""read"",""write"",""delete""]"
