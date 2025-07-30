@@ -172,17 +172,14 @@ class CSV extends Source
                 $relationType === 'manyToMany' &&
                 $relationSide === 'parent'
             ) {
-                $manyToManyKeys[] = $key;
+                $manyToManyKeys[$key] = true;
             }
 
             if ($isArray && $type !== Attribute::TYPE_RELATIONSHIP) {
-                $arrayKeys[] = $key;
+                $arrayKeys[$key] = true;
             }
         }
-
-        $manyToManyKeys = \array_flip($manyToManyKeys);
-        $arrayKeys = \array_flip($arrayKeys);
-
+        
         $this->withCSVStream(function ($stream) use ($attributeTypes, $manyToManyKeys, $arrayKeys, $collection, $batchSize) {
             $headers = fgetcsv($stream);
             if (! is_array($headers) || count($headers) === 0) {
