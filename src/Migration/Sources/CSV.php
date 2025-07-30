@@ -19,6 +19,13 @@ use Utopia\Storage\Storage;
 
 class CSV extends Source
 {
+    private const ALLOWED_INTERNALS = [
+        '$id' => true,
+        '$permissions' => true,
+        '$createdAt' => true,
+        '$updatedAt' => true,
+    ];
+
     private string $filePath;
 
     /**
@@ -120,7 +127,6 @@ class CSV extends Source
      */
     private function exportDocuments(int $batchSize): void
     {
-
         $attributes = [];
         $lastAttribute = null;
 
@@ -147,7 +153,9 @@ class CSV extends Source
             }
         }
 
-        $arrayKeys = [];
+        $arrayKeys = [
+            '$permissions' => true,
+        ];
         $attributeTypes = [];
         $manyToManyKeys = [];
 
@@ -172,17 +180,17 @@ class CSV extends Source
                 $relationType === 'manyToMany' &&
                 $relationSide === 'parent'
             ) {
-                $manyToManyKeys[] = $key;
+                $manyToManyKeys[$key] = true;
             }
 
             if ($isArray && $type !== Attribute::TYPE_RELATIONSHIP) {
-                $arrayKeys[] = $key;
+                $arrayKeys[$key] = true;
             }
         }
 
         $this->withCSVStream(function ($stream) use ($attributeTypes, $manyToManyKeys, $arrayKeys, $collection, $batchSize) {
             $headers = fgetcsv($stream);
-            if (! is_array($headers) || count($headers) === 0) {
+            if (!is_array($headers) || count($headers) === 0) {
                 return;
             }
 
@@ -206,17 +214,20 @@ class CSV extends Source
                     $parsedValue = trim($value);
                     $type = $attributeTypes[$key] ?? null;
 
-                    if (! isset($type)) {
-                        continue;
+                    if (!isset($type) && $key !== '$permissions') {
+                        if (isset(self::ALLOWED_INTERNALS[$key])) {
+                            continue;
+                        }
+                        throw new \Exception('Unexpected attribute in CSV: '.$key);
                     }
 
-                    if (in_array($key, $manyToManyKeys, true)) {
+                    if (isset($manyToManyKeys[$key])) {
                         $parsedData[$key] = $parsedValue === ''
                             ? []
                             : array_values(
                                 array_filter(
                                     array_map(
-                                        'trim',
+                                        trim(...),
                                         explode(',', $parsedValue)
                                     )
                                 )
@@ -224,12 +235,17 @@ class CSV extends Source
                         continue;
                     }
 
-                    if (in_array($key, $arrayKeys, true)) {
+                    if (isset($arrayKeys[$key])) {
                         if ($parsedValue === '') {
                             $parsedData[$key] = [];
                         } else {
                             $arrayValues = str_getcsv($parsedValue);
-                            $arrayValues = array_map('trim', $arrayValues);
+                            $arrayValues = array_map(trim(...), $arrayValues);
+
+                            // Special handling for permissions to unescape quotes
+                            if ($key === '$permissions') {
+                                $arrayValues = array_map(stripslashes(...), $arrayValues);
+                            }
 
                             $parsedData[$key] = array_map(function ($item) use ($type) {
                                 return match ($type) {
@@ -254,11 +270,21 @@ class CSV extends Source
                 }
 
                 $documentId = $parsedData['$id'] ?? 'unique()';
+                $permissions = $parsedData['$permissions'] ?? [];
 
-                // `$id`, `$permissions` in the doc can cause issues!
+                if (!empty($permissions)) {
+                    print_r($permissions);
+                }
+
                 unset($parsedData['$id'], $parsedData['$permissions']);
 
-                $document = new Document($documentId, $collection, $parsedData);
+                $document = new Document(
+                    $documentId,
+                    $collection,
+                    $parsedData,
+                    $permissions,
+                );
+
                 $buffer[] = $document;
 
                 if (count($buffer) === $batchSize) {
@@ -348,25 +374,22 @@ class CSV extends Source
      */
     private function validateCSVHeaders(array $headers, array $attributeTypes): void
     {
-        $expectedAttributes = array_keys($attributeTypes);
-
-        // Ignore keys like $id, $permissions, etc.
-        $filteredHeaders = array_filter($headers, fn ($key) => ! str_starts_with($key, '$'));
-
-        $extraAttributes = array_diff($filteredHeaders, $expectedAttributes);
-        $missingAttributes = array_diff($expectedAttributes, $filteredHeaders);
+        $internalAttributes = ['$id', '$permissions', '$createdAt', '$updatedAt'];
+        $expectedAttributes = \array_keys($attributeTypes);
+        $extraAttributes = \array_diff($headers, $expectedAttributes, $internalAttributes);
+        $missingAttributes = \array_diff($expectedAttributes, $headers);
 
         if (! empty($missingAttributes) || ! empty($extraAttributes)) {
             $messages = [];
 
             if (! empty($missingAttributes)) {
                 $label = count($missingAttributes) === 1 ? 'Missing attribute' : 'Missing attributes';
-                $messages[] = "{$label}: '".implode("', '", $missingAttributes)."'";
+                $messages[] = "$label: '".implode("', '", $missingAttributes)."'";
             }
 
             if (! empty($extraAttributes)) {
                 $label = count($extraAttributes) === 1 ? 'Unexpected attribute' : 'Unexpected attributes';
-                $messages[] = "{$label}: '".implode("', '", $extraAttributes)."'";
+                $messages[] = "$label: '".implode("', '", $extraAttributes)."'";
             }
 
             throw new \Exception('CSV header mismatch. '.implode(' | ', $messages));
