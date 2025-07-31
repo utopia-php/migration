@@ -19,6 +19,13 @@ use Utopia\Storage\Storage;
 
 class CSV extends Source
 {
+    private const ALLOWED_INTERNALS = [
+        '$id' => true,
+        '$permissions' => true,
+        '$createdAt' => true,
+        '$updatedAt' => true,
+    ];
+
     private string $filePath;
 
     /**
@@ -120,7 +127,6 @@ class CSV extends Source
      */
     private function exportRows(int $batchSize): void
     {
-
         $columns = [];
         $lastColumn = null;
 
@@ -147,7 +153,9 @@ class CSV extends Source
             }
         }
 
-        $arrayKeys = [];
+        $arrayKeys = [
+            '$permissions' => true,
+        ];
         $columnTypes = [];
         $manyToManyKeys = [];
 
@@ -182,7 +190,7 @@ class CSV extends Source
 
         $this->withCSVStream(function ($stream, $delimiter) use ($columnTypes, $manyToManyKeys, $arrayKeys, $table, $batchSize) {
             $headers = fgetcsv($stream);
-            if (! is_array($headers) || count($headers) === 0) {
+            if (!is_array($headers) || count($headers) === 0) {
                 return;
             }
 
@@ -206,8 +214,11 @@ class CSV extends Source
                     $parsedValue = trim($value);
                     $type = $columnTypes[$key] ?? null;
 
-                    if (! isset($type)) {
-                        continue;
+                    if (!isset($type) && $key !== '$permissions') {
+                        if (isset(self::ALLOWED_INTERNALS[$key])) {
+                            continue;
+                        }
+                        throw new \Exception('Unexpected attribute in CSV: '.$key);
                     }
 
                     if (isset($manyToManyKeys[$key])) {
@@ -216,7 +227,7 @@ class CSV extends Source
                             : array_values(
                                 array_filter(
                                     array_map(
-                                        'trim',
+                                        trim(...),
                                         explode(',', $parsedValue)
                                     )
                                 )
@@ -229,7 +240,12 @@ class CSV extends Source
                             $parsedData[$key] = [];
                         } else {
                             $arrayValues = str_getcsv($parsedValue);
-                            $arrayValues = array_map('trim', $arrayValues);
+                            $arrayValues = array_map(trim(...), $arrayValues);
+
+                            // Special handling for permissions to unescape quotes
+                            if ($key === '$permissions') {
+                                $arrayValues = array_map(stripslashes(...), $arrayValues);
+                            }
 
                             $parsedData[$key] = array_map(function ($item) use ($type) {
                                 return match ($type) {
@@ -254,11 +270,18 @@ class CSV extends Source
                 }
 
                 $rowId = $parsedData['$id'] ?? 'unique()';
+                $permissions = $parsedData['$permissions'] ?? [];
 
-                // `$id`, `$permissions` in the doc can cause issues!
+
                 unset($parsedData['$id'], $parsedData['$permissions']);
 
-                $row = new Row($rowId, $table, $parsedData);
+                $row = new Row(
+                    $rowId,
+                    $table,
+                    $parsedData,
+                    $permissions,
+                );
+
                 $buffer[] = $row;
 
                 if (count($buffer) === $batchSize) {
@@ -350,25 +373,22 @@ class CSV extends Source
      */
     private function validateCSVHeaders(array $headers, array $columnTypes): void
     {
-        $expectedColumns = array_keys($columnTypes);
-
-        // Ignore keys like $id, $permissions, etc.
-        $filteredHeaders = array_filter($headers, fn ($key) => ! str_starts_with($key, '$'));
-
-        $extraColumns = array_diff($filteredHeaders, $expectedColumns);
-        $missingColumns = array_diff($expectedColumns, $filteredHeaders);
+        $internalColumns = ['$id', '$permissions', '$createdAt', '$updatedAt'];
+        $expectedColumns = \array_keys($columnTypes);
+        $extraColumns = \array_diff($headers, $expectedColumns, $internalColumns);
+        $missingColumns = \array_diff($expectedColumns, $headers);
 
         if (! empty($missingColumns) || ! empty($extraColumns)) {
             $messages = [];
 
             if (! empty($missingColumns)) {
-                $label = count($missingColumns) === 1 ? 'Missing column' : 'Missing columns';
-                $messages[] = "{$label}: '".implode("', '", $missingColumns)."'";
+                $label = count($missingColumns) === 1 ? 'Missing attribute' : 'Missing attributes';
+                $messages[] = "$label: '".implode("', '", $missingColumns)."'";
             }
 
             if (! empty($extraColumns)) {
-                $label = count($extraColumns) === 1 ? 'Unexpected column' : 'Unexpected columns';
-                $messages[] = "{$label}: '".implode("', '", $extraColumns)."'";
+                $label = count($extraColumns) === 1 ? 'Unexpected attribute' : 'Unexpected attributes';
+                $messages[] = "$label: '".implode("', '", $extraColumns)."'";
             }
 
             throw new \Exception('CSV header mismatch. '.implode(' | ', $messages));
