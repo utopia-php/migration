@@ -218,7 +218,7 @@ class CSV extends Source
                         if (isset(self::ALLOWED_INTERNALS[$key])) {
                             continue;
                         }
-                        throw new \Exception('Unexpected attribute in CSV: '.$key);
+                        throw new \Exception('Unexpected column in CSV: '.$key);
                     }
 
                     if (isset($manyToManyKeys[$key])) {
@@ -382,12 +382,12 @@ class CSV extends Source
             $messages = [];
 
             if (! empty($missingColumns)) {
-                $label = count($missingColumns) === 1 ? 'Missing attribute' : 'Missing attributes';
+                $label = count($missingColumns) === 1 ? 'Missing column' : 'Missing columns';
                 $messages[] = "$label: '".implode("', '", $missingColumns)."'";
             }
 
             if (! empty($extraColumns)) {
-                $label = count($extraColumns) === 1 ? 'Unexpected attribute' : 'Unexpected attributes';
+                $label = count($extraColumns) === 1 ? 'Unexpected column' : 'Unexpected columns';
                 $messages[] = "$label: '".implode("', '", $extraColumns)."'";
             }
 
