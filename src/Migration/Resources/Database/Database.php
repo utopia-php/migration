@@ -46,7 +46,7 @@ class Database extends Resource
             updatedAt: $array['updatedAt'] ?? '',
             enabled: $array['enabled'] ?? true,
             originalId: $array['originalId'] ?? '',
-            type: $array['type'] ?? 'sql',
+            type: $array['type'] ?? 'legacy',
         );
     }
 
