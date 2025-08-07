@@ -157,17 +157,17 @@ class CSV extends Source
         $arrayKeys = [
             '$permissions' => true,
         ];
-        $columnTypes = [];
-        $requiredColumns = [];
+        $attributeTypes = [];
+        $requiredAttributes = [];
         $manyToManyKeys = [];
 
-        foreach ($columns as $column) {
-            $key = $column['key'];
-            $type = $column['type'];
-            $isArray = $column['array'] ?? false;
-            $isRequired = $column['required'] ?? false;
-            $relationSide = $column['side'] ?? '';
-            $relationType = $column['relationType'] ?? '';
+        foreach ($attributes as $attribute) {
+            $key = $attribute['key'];
+            $type = $attribute['type'];
+            $isArray = $attribute['array'] ?? false;
+            $isRequired = $attribute['required'] ?? false;
+            $relationSide = $attribute['side'] ?? '';
+            $relationType = $attribute['relationType'] ?? '';
 
             if (
                 $type === Attribute::TYPE_RELATIONSHIP &&
@@ -176,9 +176,9 @@ class CSV extends Source
                 continue;
             }
 
-            $columnTypes[$key] = $type;
+            $attributeTypes[$key] = $type;
             if ($isRequired) {
-                $requiredColumns[$key] = true;
+                $requiredAttributes[$key] = true;
             }
 
             if (
@@ -194,22 +194,22 @@ class CSV extends Source
             }
         }
 
-        $this->withCSVStream(function ($stream, $delimiter) use ($columnTypes, $requiredColumns, $manyToManyKeys, $arrayKeys, $table, $batchSize) {
+        $this->withCSVStream(function ($stream, $delimiter) use ($attributeTypes, $requiredAttributes, $manyToManyKeys, $arrayKeys, $collection, $batchSize) {
             $headers = fgetcsv($stream);
             if (!is_array($headers) || count($headers) === 0) {
                 return;
             }
 
-            $this->validateCSVHeaders($headers, $columnTypes, $requiredColumns);
+            $this->validateCSVHeaders($headers, $attributeTypes, $requiredAttributes);
 
             $buffer = [];
 
-            while (($row = fgetcsv($stream)) !== false) {
-                if (count($row) !== count($headers)) {
-                    throw new \Exception('CSV row does not match the number of header columns.');
+            while (($csvDocumentItem = fgetcsv(stream: $stream, separator: $delimiter)) !== false) {
+                if (count($csvDocumentItem) !== count($headers)) {
+                    throw new \Exception('CSV document does not match the number of header attributes.');
                 }
 
-                $data = array_combine($headers, $row);
+                $data = \array_combine($headers, $csvDocumentItem);
                 if ($data === false) {
                     continue;
                 }
@@ -224,7 +224,7 @@ class CSV extends Source
                         if (isset(self::ALLOWED_INTERNALS[$key])) {
                             continue;
                         }
-                        // Skip unknown columns instead of throwing an error
+                        // Skip unknown attributes instead of throwing an error
                         // (they were already reported in header validation)
                         continue;
                     }
@@ -260,7 +260,7 @@ class CSV extends Source
                             }
 
                             if (!is_array($arrayValues)) {
-                                throw new \Exception("Invalid array format for column '$key': $parsedValue");
+                                throw new \Exception("Invalid array format for attribute '$key': $parsedValue");
                             }
 
                             $parsedData[$key] = array_map(function ($item) use ($type) {
@@ -279,17 +279,17 @@ class CSV extends Source
                     // Empty string in CSV ("") = empty string result
                     if ($parsedValue === '') {
                         $parsedData[$key] = match ($type) {
-                            Column::TYPE_INTEGER, Column::TYPE_FLOAT => null,
-                            Column::TYPE_BOOLEAN => null,
-                            Column::TYPE_DATETIME => null,
-                            Column::TYPE_RELATIONSHIP => null,
+                            Attribute::TYPE_INTEGER, Attribute::TYPE_FLOAT => null,
+                            Attribute::TYPE_BOOLEAN => null,
+                            Attribute::TYPE_DATETIME => null,
+                            Attribute::TYPE_RELATIONSHIP => null,
                             default => '', // Text fields: empty string from CSV becomes empty string
                         };
                     } else {
                         $parsedData[$key] = match ($type) {
-                            Column::TYPE_INTEGER => \is_numeric($parsedValue) ? (int) $parsedValue : null,
-                            Column::TYPE_FLOAT => \is_numeric($parsedValue) ? (float) $parsedValue : null,
-                            Column::TYPE_BOOLEAN => \filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
+                            Attribute::TYPE_INTEGER => \is_numeric($parsedValue) ? (int) $parsedValue : null,
+                            Attribute::TYPE_FLOAT => \is_numeric($parsedValue) ? (float) $parsedValue : null,
+                            Attribute::TYPE_BOOLEAN => \filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
                             default => $parsedValue,
                         };
                     }
@@ -394,38 +394,38 @@ class CSV extends Source
     /**
      * @throws \Exception
      */
-    private function validateCSVHeaders(array $headers, array $columnTypes, array $requiredColumns): void
+    private function validateCSVHeaders(array $headers, array $attributeTypes, array $requiredAttributes): void
     {
-        $internalColumns = ['$id', '$permissions', '$createdAt', '$updatedAt'];
-        $allKnownColumns = \array_keys($columnTypes);
+        $internalAttributes = ['$id', '$permissions', '$createdAt', '$updatedAt'];
+        $allKnownAttributes = \array_keys($attributeTypes);
 
-        // Only validate that required columns are present
-        $missingRequiredColumns = [];
-        foreach (\array_keys($requiredColumns) as $requiredColumn) {
-            if (!\in_array($requiredColumn, $headers)) {
-                $missingRequiredColumns[] = $requiredColumn;
+        // Only validate that required attributes are present
+        $missingRequiredAttributes = [];
+        foreach (\array_keys($requiredAttributes) as $requiredAttribute) {
+            if (!\in_array($requiredAttribute, $headers)) {
+                $missingRequiredAttributes[] = $requiredAttribute;
             }
         }
 
-        // Check for completely unknown columns (not in schema and not internal)
-        $unknownColumns = \array_diff($headers, $allKnownColumns, $internalColumns);
+        // Check for completely unknown attributes (not in schema and not internal)
+        $unknownAttributes = \array_diff($headers, $allKnownAttributes, $internalAttributes);
 
         $messages = [];
 
-        if (!empty($missingRequiredColumns)) {
-            $label = \count($missingRequiredColumns) === 1 ? 'Missing required column' : 'Missing required columns';
-            $messages[] = "$label: '".\implode("', '", $missingRequiredColumns)."'";
+        if (!empty($missingRequiredAttributes)) {
+            $label = \count($missingRequiredAttributes) === 1 ? 'Missing required attribute' : 'Missing required attributes';
+            $messages[] = "$label: '".\implode("', '", $missingRequiredAttributes)."'";
         }
-        if (!empty($unknownColumns)) {
-            $label = \count($unknownColumns) === 1 ? 'Unknown column' : 'Unknown columns';
-            $messages[] = "$label: '".\implode("', '", $unknownColumns)."' (will be ignored)";
+        if (!empty($unknownAttributes)) {
+            $label = \count($unknownAttributes) === 1 ? 'Unknown attribute' : 'Unknown attributes';
+            $messages[] = "$label: '".\implode("', '", $unknownAttributes)."' (will be ignored)";
         }
-        if (!empty($missingRequiredColumns)) {
+        if (!empty($missingRequiredAttributes)) {
             throw new \Exception('CSV header validation failed: '. \implode(', ', $messages));
         }
 
-        // If there are unknown columns but no missing required columns, just log a warning
-        if (!empty($unknownColumns)) {
+        // If there are unknown attributes but no missing required attributes, just log a warning
+        if (!empty($unknownAttributes)) {
             Console::warning(\implode(', ', $messages));
         }
     }
