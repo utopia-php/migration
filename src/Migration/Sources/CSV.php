@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Sources;
 
+use Utopia\CLI\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource as UtopiaResource;
@@ -157,12 +158,14 @@ class CSV extends Source
             '$permissions' => true,
         ];
         $columnTypes = [];
+        $requiredColumns = [];
         $manyToManyKeys = [];
 
         foreach ($columns as $column) {
             $key = $column['key'];
             $type = $column['type'];
             $isArray = $column['array'] ?? false;
+            $isRequired = $column['required'] ?? false;
             $relationSide = $column['side'] ?? '';
             $relationType = $column['relationType'] ?? '';
 
@@ -174,6 +177,9 @@ class CSV extends Source
             }
 
             $columnTypes[$key] = $type;
+            if ($isRequired) {
+                $requiredColumns[$key] = true;
+            }
 
             if (
                 $type === Column::TYPE_RELATIONSHIP &&
@@ -188,13 +194,13 @@ class CSV extends Source
             }
         }
 
-        $this->withCSVStream(function ($stream, $delimiter) use ($columnTypes, $manyToManyKeys, $arrayKeys, $table, $batchSize) {
+        $this->withCSVStream(function ($stream, $delimiter) use ($columnTypes, $requiredColumns, $manyToManyKeys, $arrayKeys, $table, $batchSize) {
             $headers = fgetcsv($stream);
             if (!is_array($headers) || count($headers) === 0) {
                 return;
             }
 
-            $this->validateCSVHeaders($headers, $columnTypes);
+            $this->validateCSVHeaders($headers, $columnTypes, $requiredColumns);
 
             $buffer = [];
 
@@ -218,7 +224,9 @@ class CSV extends Source
                         if (isset(self::ALLOWED_INTERNALS[$key])) {
                             continue;
                         }
-                        throw new \Exception('Unexpected column in CSV: '.$key);
+                        // Skip unknown columns instead of throwing an error
+                        // (they were already reported in header validation)
+                        continue;
                     }
 
                     if (isset($manyToManyKeys[$key])) {
@@ -239,8 +247,8 @@ class CSV extends Source
                         if ($parsedValue === '') {
                             $parsedData[$key] = [];
                         } else {
-                            $arrayValues = str_getcsv($parsedValue);
-                            $arrayValues = array_map(trim(...), $arrayValues);
+                                $arrayValues = str_getcsv($parsedValue);
+                                $arrayValues = array_map(trim(...), $arrayValues);
 
                             // Special handling for permissions to unescape quotes
                             if ($key === '$permissions') {
@@ -266,12 +274,11 @@ class CSV extends Source
                             Column::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
                             default => $parsedValue,
                         };
-                    }
+                        }
                 }
 
                 $rowId = $parsedData['$id'] ?? 'unique()';
                 $permissions = $parsedData['$permissions'] ?? [];
-
 
                 unset($parsedData['$id'], $parsedData['$permissions']);
 
@@ -371,27 +378,39 @@ class CSV extends Source
     /**
      * @throws \Exception
      */
-    private function validateCSVHeaders(array $headers, array $columnTypes): void
+    private function validateCSVHeaders(array $headers, array $columnTypes, array $requiredColumns): void
     {
         $internalColumns = ['$id', '$permissions', '$createdAt', '$updatedAt'];
-        $expectedColumns = \array_keys($columnTypes);
-        $extraColumns = \array_diff($headers, $expectedColumns, $internalColumns);
-        $missingColumns = \array_diff($expectedColumns, $headers);
+        $allKnownColumns = \array_keys($columnTypes);
 
-        if (! empty($missingColumns) || ! empty($extraColumns)) {
-            $messages = [];
-
-            if (! empty($missingColumns)) {
-                $label = count($missingColumns) === 1 ? 'Missing column' : 'Missing columns';
-                $messages[] = "$label: '".implode("', '", $missingColumns)."'";
+        // Only validate that required columns are present
+        $missingRequiredColumns = [];
+        foreach ($requiredColumns as $requiredColumn) {
+            if (!\in_array($requiredColumn, $headers)) {
+                $missingRequiredColumns[] = $requiredColumn;
             }
+        }
 
-            if (! empty($extraColumns)) {
-                $label = count($extraColumns) === 1 ? 'Unexpected column' : 'Unexpected columns';
-                $messages[] = "$label: '".implode("', '", $extraColumns)."'";
-            }
+        // Check for completely unknown columns (not in schema and not internal)
+        $unknownColumns = \array_diff($headers, $allKnownColumns, $internalColumns);
 
-            throw new \Exception('CSV header mismatch. '.implode(' | ', $messages));
+        $messages = [];
+
+        if (!empty($missingRequiredColumns)) {
+            $label = \count($missingRequiredColumns) === 1 ? 'Missing required column' : 'Missing required columns';
+            $messages[] = "$label: '".\implode("', '", $missingRequiredColumns)."'";
+        }
+        if (!empty($unknownColumns)) {
+            $label = \count($unknownColumns) === 1 ? 'Unknown column' : 'Unknown columns';
+            $messages[] = "$label: '".\implode("', '", $unknownColumns)."' (will be ignored)";
+        }
+        if (!empty($missingRequiredColumns)) {
+            throw new \Exception('CSV header validation failed: '. \implode(', ', $messages));
+        }
+
+        // If there are unknown columns but no missing required columns, just log a warning
+        if (!empty($unknownColumns)) {
+            Console::warning(\implode(', ', $messages));
         }
     }
 
