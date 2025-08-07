@@ -1349,49 +1349,66 @@ class Appwrite extends Source
     private function exportFunctions(int $batchSize): void
     {
         $this->functions = new Functions($this->client);
+        /**
+         * @var Func|null $lastFunction
+         */
+        $lastFunction = null;
+        while (true) {
+            $queries = [Query::limit($batchSize)];
 
-        $queries = [];
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_FUNCTION) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
 
-        if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_FUNCTION) {
-            $queries[] = Query::equal('$id', $this->rootResourceId);
-            $queries[] = Query::limit(1);
-        }
+            if ($lastFunction) {
+                $queries[] = Query::cursorAfter($lastFunction->getId());
+            }
 
-        $functions = $this->functions->list($queries);
+            $response = $this->functions->list($queries);
 
-        if ($functions['total'] === 0) {
-            return;
-        }
 
-        $convertedResources = [];
+            if ($response['total'] === 0) {
+                return;
+            }
 
-        foreach ($functions['functions'] as $function) {
-            $convertedFunc = new Func(
-                $function['$id'],
-                $function['name'],
-                $function['runtime'],
-                $function['execute'],
-                $function['enabled'],
-                $function['events'],
-                $function['schedule'],
-                $function['timeout'],
-                $function['deploymentId'] ?? '',
-                $function['entrypoint']
-            );
+            $functions = [];
+            $convertedResources = [];
 
-            $convertedResources[] = $convertedFunc;
-
-            foreach ($function['vars'] as $var) {
-                $convertedResources[] = new EnvVar(
-                    $var['$id'],
-                    $convertedFunc,
-                    $var['key'],
-                    $var['value'],
+            foreach ($response['functions'] as $function) {
+                $convertedFunc = new Func(
+                    $function['$id'],
+                    $function['name'],
+                    $function['runtime'],
+                    $function['execute'],
+                    $function['enabled'],
+                    $function['events'],
+                    $function['schedule'],
+                    $function['timeout'],
+                    $function['deploymentId'] ?? '',
+                    $function['entrypoint']
                 );
+                $functions[] = $convertedFunc;
+
+                $convertedResources[] = $convertedFunc;
+
+                foreach ($function['vars'] as $var) {
+                    $convertedResources[] = new EnvVar(
+                        $var['$id'],
+                        $convertedFunc,
+                        $var['key'],
+                        $var['value'],
+                    );
+                }
+            }
+
+            $lastFunction = $functions[count($functions) - 1];
+
+            $this->callback($convertedResources);
+            if (count($functions) < $batchSize) {
+                return;
             }
         }
-
-        $this->callback($convertedResources);
     }
 
     /**
