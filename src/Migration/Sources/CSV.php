@@ -247,12 +247,20 @@ class CSV extends Source
                         if ($parsedValue === '') {
                             $parsedData[$key] = [];
                         } else {
+                            // Try to decode as JSON first (Excel/Google Sheets format)
+                            $arrayValues = json_decode($parsedValue, true);
+
+                            // If JSON decode fails, fall back to comma-separated parsing for backward compatibility
+                            if (json_last_error() !== JSON_ERROR_NONE) {
                                 $arrayValues = str_getcsv($parsedValue);
                                 $arrayValues = array_map(trim(...), $arrayValues);
+                                // Remove empty strings from comma-separated parsing
+                                $arrayValues = array_filter($arrayValues, fn($item) => $item !== '');
+                                $arrayValues = array_values($arrayValues); // Re-index array
+                            }
 
-                            // Special handling for permissions to unescape quotes
-                            if ($key === '$permissions') {
-                                $arrayValues = array_map(stripslashes(...), $arrayValues);
+                            if (!is_array($arrayValues)) {
+                                throw new \Exception("Invalid array format for column '$key': $parsedValue");
                             }
 
                             $parsedData[$key] = array_map(function ($item) use ($type) {
@@ -267,14 +275,24 @@ class CSV extends Source
                         continue;
                     }
 
-                    if ($parsedValue !== '') {
+                    // Handle empty values vs missing values:
+                    // Empty string in CSV ("") = empty string result
+                    if ($parsedValue === '') {
                         $parsedData[$key] = match ($type) {
-                            Attribute::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
-                            Attribute::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
-                            Attribute::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
+                            Column::TYPE_INTEGER, Column::TYPE_FLOAT => null,
+                            Column::TYPE_BOOLEAN => null,
+                            Column::TYPE_DATETIME => null,
+                            Column::TYPE_RELATIONSHIP => null,
+                            default => '', // Text fields: empty string from CSV becomes empty string
+                        };
+                    } else {
+                        $parsedData[$key] = match ($type) {
+                            Column::TYPE_INTEGER => \is_numeric($parsedValue) ? (int) $parsedValue : null,
+                            Column::TYPE_FLOAT => \is_numeric($parsedValue) ? (float) $parsedValue : null,
+                            Column::TYPE_BOOLEAN => \filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
                             default => $parsedValue,
                         };
-                        }
+                    }
                 }
 
                 $documentId = $parsedData['$id'] ?? 'unique()';
@@ -383,7 +401,7 @@ class CSV extends Source
 
         // Only validate that required columns are present
         $missingRequiredColumns = [];
-        foreach ($requiredColumns as $requiredColumn) {
+        foreach (\array_keys($requiredColumns) as $requiredColumn) {
             if (!\in_array($requiredColumn, $headers)) {
                 $missingRequiredColumns[] = $requiredColumn;
             }
