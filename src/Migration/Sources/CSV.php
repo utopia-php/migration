@@ -255,7 +255,7 @@ class CSV extends Source
                                 $arrayValues = str_getcsv($parsedValue);
                                 $arrayValues = array_map(trim(...), $arrayValues);
                                 // Remove empty strings from comma-separated parsing
-                                $arrayValues = array_filter($arrayValues, fn($item) => $item !== '');
+                                $arrayValues = array_filter($arrayValues, fn ($item) => $item !== '');
                                 $arrayValues = array_values($arrayValues); // Re-index array
                             }
 
