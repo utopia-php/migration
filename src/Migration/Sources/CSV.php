@@ -183,8 +183,8 @@ class CSV extends Source
 
             if (
                 $type === Attribute::TYPE_RELATIONSHIP &&
-                $relationType === 'manyToMany' &&
-                $relationSide === 'parent'
+                $relationType === UtopiaDatabase::RELATION_MANY_TO_MANY &&
+                $relationSide === UtopiaDatabase::RELATION_SIDE_PARENT
             ) {
                 $manyToManyKeys[$key] = true;
             }
@@ -195,8 +195,9 @@ class CSV extends Source
         }
 
         $this->withCsvStream(function ($stream, $delimiter) use ($attributeTypes, $requiredAttributes, $manyToManyKeys, $arrayKeys, $collection, $batchSize) {
-            $headers = \fgetcsv($stream);
-            if (!is_array($headers) || count($headers) === 0) {
+            $headers = \fgetcsv($stream, 0, $delimiter, '"', '"');
+
+            if (!\is_array($headers) || \count($headers) === 0) {
                 return;
             }
 
@@ -204,12 +205,12 @@ class CSV extends Source
 
             $buffer = [];
 
-            while (($csvDocumentItem = \fgetcsv(stream: $stream, separator: $delimiter)) !== false) {
-                if (count($csvDocumentItem) !== count($headers)) {
+            while (($row = \fgetcsv($stream, 0, $delimiter, '"', '"')) !== false) {
+                if (count($row) !== count($headers)) {
                     throw new \Exception('CSV document does not match the number of header attributes.');
                 }
 
-                $data = \array_combine($headers, $csvDocumentItem);
+                $data = \array_combine($headers, $row);
                 if ($data === false) {
                     continue;
                 }
@@ -217,29 +218,24 @@ class CSV extends Source
                 $parsedData = $data;
 
                 foreach ($data as $key => $value) {
-                    $parsedValue = trim($value);
+                    $parsedValue = \trim($value);
                     $type = $attributeTypes[$key] ?? null;
 
                     if (!isset($type) && $key !== '$permissions') {
-                        if (isset(self::ALLOWED_INTERNALS[$key])) {
-                            continue;
-                        }
-                        // Skip unknown attributes instead of throwing an error
-                        // (they were already reported in header validation)
+                        // Skip unknown attributes
                         continue;
                     }
 
                     if (isset($manyToManyKeys[$key])) {
-                        $parsedData[$key] = $parsedValue === ''
-                            ? []
-                            : array_values(
-                                array_filter(
-                                    array_map(
-                                        trim(...),
-                                        explode(',', $parsedValue)
-                                    )
-                                )
-                            );
+                        if ($parsedValue === '') {
+                            $parsedData[$key] = [];
+                        } else {
+                            // Split on commas, trim whitespace, drop empty tokens, and reindex
+                            $ids = \explode(',', $parsedValue);
+                            $ids = \array_map(\trim(...), $ids);
+                            $ids = \array_filter($ids, static fn ($id) => $id !== '');
+                            $parsedData[$key] = \array_values($ids);
+                        }
                         continue;
                     }
 
@@ -247,27 +243,27 @@ class CSV extends Source
                         if ($parsedValue === '') {
                             $parsedData[$key] = [];
                         } else {
-                            // Try to decode as JSON first (Excel/Google Sheets format)
-                            $arrayValues = json_decode($parsedValue, true);
+                            // Try to decode as JSON first
+                            $arrayValues = \json_decode($parsedValue, true);
 
-                            // If JSON decode fails, fall back to comma-separated parsing for backward compatibility
-                            if (json_last_error() !== JSON_ERROR_NONE) {
-                                $arrayValues = str_getcsv($parsedValue);
-                                $arrayValues = array_map(trim(...), $arrayValues);
+                            // If JSON decode fails, fall back to comma-separated parsing
+                            if (\json_last_error() !== JSON_ERROR_NONE) {
                                 // Remove empty strings from comma-separated parsing
-                                $arrayValues = array_filter($arrayValues, fn ($item) => $item !== '');
-                                $arrayValues = array_values($arrayValues); // Re-index array
+                                $arrayValues = \str_getcsv($parsedValue, ',', '"', '"');
+                                $arrayValues = \array_map(\trim(...), $arrayValues);
+                                $arrayValues = \array_filter($arrayValues, fn ($item) => $item !== '');
+                                $arrayValues = \array_values($arrayValues); // Re-index array
                             }
 
-                            if (!is_array($arrayValues)) {
+                            if (!\is_array($arrayValues)) {
                                 throw new \Exception("Invalid array format for attribute '$key': $parsedValue");
                             }
 
                             $parsedData[$key] = array_map(function ($item) use ($type) {
                                 return match ($type) {
-                                    Attribute::TYPE_INTEGER => is_numeric($item) ? (int) $item : null,
-                                    Attribute::TYPE_FLOAT => is_numeric($item) ? (float) $item : null,
-                                    Attribute::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN),
+                                    Attribute::TYPE_INTEGER => is_numeric($item) ? (int)$item : null,
+                                    Attribute::TYPE_FLOAT => is_numeric($item) ? (float)$item : null,
+                                    Attribute::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE),
                                     default => $item,
                                 };
                             }, $arrayValues);
@@ -275,24 +271,35 @@ class CSV extends Source
                         continue;
                     }
 
-                    // Handle empty values vs missing values:
-                    // Empty string in CSV ("") = empty string result
-                    if ($parsedValue === '') {
-                        $parsedData[$key] = match ($type) {
-                            Attribute::TYPE_INTEGER, Attribute::TYPE_FLOAT => null,
-                            Attribute::TYPE_BOOLEAN => null,
-                            Attribute::TYPE_DATETIME => null,
-                            Attribute::TYPE_RELATIONSHIP => null,
-                            default => '', // Text fields: empty string from CSV becomes empty string
-                        };
-                    } else {
-                        $parsedData[$key] = match ($type) {
-                            Attribute::TYPE_INTEGER => \is_numeric($parsedValue) ? (int) $parsedValue : null,
-                            Attribute::TYPE_FLOAT => \is_numeric($parsedValue) ? (float) $parsedValue : null,
-                            Attribute::TYPE_BOOLEAN => \filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
+                    /**
+                     * Parsing logic for best compatibility with spec and 3rd party tools.
+                     * - 'null' unquoted literal string is converted to null.
+                     * - missing strings stay empty strings for best compatibility.
+                     * - missing numbers, booleans, and datetime's are converted to null.
+                     * - other values are parsed as per their type.
+                     */
+
+                    $parsedData[$key] = match ($parsedValue) {
+                        'null' => null, // 'null' string is converted to null
+                        '' => match ($type) {
+                            Attribute::TYPE_INTEGER,
+                            Attribute::TYPE_FLOAT,
+                            Attribute::TYPE_BOOLEAN,
+                            Attribute::TYPE_DATETIME,
+                            Attribute::TYPE_RELATIONSHIP => null, // primitive types default to null
+                            default => '', // but empty string stays empty string for compatibility
+                        },
+                        default => match ($type) {
+                            Attribute::TYPE_INTEGER => \is_numeric($parsedValue) ? (int)$parsedValue : null,
+                            Attribute::TYPE_FLOAT => \is_numeric($parsedValue) ? (float)$parsedValue : null,
+                            Attribute::TYPE_BOOLEAN => \filter_var(
+                                $parsedValue,
+                                filter: FILTER_VALIDATE_BOOLEAN,
+                                options: FILTER_NULL_ON_FAILURE
+                            ),
                             default => $parsedValue,
-                        };
-                    }
+                        },
+                    };
                 }
 
                 $documentId = $parsedData['$id'] ?? 'unique()';
@@ -309,13 +316,13 @@ class CSV extends Source
 
                 $buffer[] = $document;
 
-                if (count($buffer) === $batchSize) {
+                if (\count($buffer) === $batchSize) {
                     $this->callback($buffer);
                     $buffer = [];
                 }
             }
 
-            if (! empty($buffer)) {
+            if (!empty($buffer)) {
                 $this->callback($buffer);
             }
         });
@@ -398,36 +405,35 @@ class CSV extends Source
      */
     private function validateCSVHeaders(array $headers, array $attributeTypes, array $requiredAttributes): void
     {
-        $internalAttributes = ['$id', '$permissions', '$createdAt', '$updatedAt'];
-        $allKnownAttributes = \array_keys($attributeTypes);
+        $internals = ['$id', '$permissions', '$createdAt', '$updatedAt'];
+        $allKnown = \array_keys($attributeTypes);
 
         // Only validate that required attributes are present
-        $missingRequiredAttributes = [];
+        $missingRequired = [];
         foreach (\array_keys($requiredAttributes) as $requiredAttribute) {
             if (!\in_array($requiredAttribute, $headers)) {
-                $missingRequiredAttributes[] = $requiredAttribute;
+                $missingRequired[] = $requiredAttribute;
             }
         }
 
-        // Check for completely unknown attributes (not in schema and not internal)
-        $unknownAttributes = \array_diff($headers, $allKnownAttributes, $internalAttributes);
-
         $messages = [];
 
-        if (!empty($missingRequiredAttributes)) {
-            $label = \count($missingRequiredAttributes) === 1 ? 'Missing required attribute' : 'Missing required attributes';
-            $messages[] = "$label: '".\implode("', '", $missingRequiredAttributes)."'";
+        // If there are missing required attributes, throw an exception
+        if (!empty($missingRequired)) {
+            $label = \count($missingRequired) === 1 ? 'Missing required attribute' : 'Missing required attributes';
+            $messages[] = "$label: '" . \implode("', '", $missingRequired) . "'";
         }
-        if (!empty($unknownAttributes)) {
-            $label = \count($unknownAttributes) === 1 ? 'Unknown attribute' : 'Unknown attributes';
-            $messages[] = "$label: '".\implode("', '", $unknownAttributes)."' (will be ignored)";
-        }
-        if (!empty($missingRequiredAttributes)) {
-            throw new \Exception('CSV header validation failed: '. \implode(', ', $messages));
+        if (!empty($missingRequired)) {
+            throw new \Exception('CSV header validation failed: ' . \implode('. ', $messages));
         }
 
         // If there are unknown attributes but no missing required attributes, just log a warning
-        if (!empty($unknownAttributes)) {
+        $unknown = \array_diff($headers, $allKnown, $internals);
+        if (!empty($unknown)) {
+            $label = \count($unknown) === 1 ? 'Unknown attribute' : 'Unknown attributes';
+            $messages[] = "$label: '" . \implode("', '", $unknown) . "' (will be ignored)";
+        }
+        if (!empty($unknown)) {
             Console::warning(\implode(', ', $messages));
         }
     }
@@ -516,7 +522,7 @@ class CSV extends Source
                 if (!\str_contains($line, $delimiter)) {
                     $fields = [$line];
                 } else {
-                    $fields = \str_getcsv($line, $delimiter);
+                    $fields = \str_getcsv($line, $delimiter, '"', '"');
                 }
 
                 $fieldCount = \count($fields);
