@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Sources;
 
+use Utopia\CLI\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource as UtopiaResource;
@@ -29,7 +30,7 @@ class CSV extends Source
     private string $filePath;
 
     /**
-     * format: `{databaseId:collectionId}`
+     * format: `{databaseId:tableId}`
      */
     private string $resourceId;
 
@@ -157,12 +158,14 @@ class CSV extends Source
             '$permissions' => true,
         ];
         $columnTypes = [];
+        $requiredColumns = [];
         $manyToManyKeys = [];
 
         foreach ($columns as $column) {
             $key = $column['key'];
             $type = $column['type'];
             $isArray = $column['array'] ?? false;
+            $isRequired = $column['required'] ?? false;
             $relationSide = $column['side'] ?? '';
             $relationType = $column['relationType'] ?? '';
 
@@ -174,11 +177,14 @@ class CSV extends Source
             }
 
             $columnTypes[$key] = $type;
+            if ($isRequired) {
+                $requiredColumns[$key] = true;
+            }
 
             if (
                 $type === Column::TYPE_RELATIONSHIP &&
-                $relationType === 'manyToMany' &&
-                $relationSide === 'parent'
+                $relationType === UtopiaDatabase::RELATION_MANY_TO_MANY &&
+                $relationSide === UtopiaDatabase::RELATION_SIDE_PARENT
             ) {
                 $manyToManyKeys[$key] = true;
             }
@@ -188,22 +194,23 @@ class CSV extends Source
             }
         }
 
-        $this->withCSVStream(function ($stream, $delimiter) use ($columnTypes, $manyToManyKeys, $arrayKeys, $table, $batchSize) {
-            $headers = fgetcsv($stream);
-            if (!is_array($headers) || count($headers) === 0) {
+        $this->withCsvStream(function ($stream, $delimiter) use ($columnTypes, $requiredColumns, $manyToManyKeys, $arrayKeys, $table, $batchSize) {
+            $headers = \fgetcsv($stream, 0, $delimiter, '"', '"');
+
+            if (!\is_array($headers) || \count($headers) === 0) {
                 return;
             }
 
-            $this->validateCSVHeaders($headers, $columnTypes);
+            $this->validateCSVHeaders($headers, $columnTypes, $requiredColumns);
 
             $buffer = [];
 
-            while (($csvRowItem = fgetcsv(stream: $stream, separator: $delimiter)) !== false) {
-                if (count($csvRowItem) !== count($headers)) {
+            while (($row = \fgetcsv($stream, 0, $delimiter, '"', '"')) !== false) {
+                if (count($row) !== count($headers)) {
                     throw new \Exception('CSV row does not match the number of header columns.');
                 }
 
-                $data = array_combine($headers, $csvRowItem);
+                $data = \array_combine($headers, $row);
                 if ($data === false) {
                     continue;
                 }
@@ -211,27 +218,24 @@ class CSV extends Source
                 $parsedData = $data;
 
                 foreach ($data as $key => $value) {
-                    $parsedValue = trim($value);
+                    $parsedValue = \trim($value);
                     $type = $columnTypes[$key] ?? null;
 
                     if (!isset($type) && $key !== '$permissions') {
-                        if (isset(self::ALLOWED_INTERNALS[$key])) {
-                            continue;
-                        }
-                        throw new \Exception('Unexpected column in CSV: '.$key);
+                        // Skip unknown columns
+                        continue;
                     }
 
                     if (isset($manyToManyKeys[$key])) {
-                        $parsedData[$key] = $parsedValue === ''
-                            ? []
-                            : array_values(
-                                array_filter(
-                                    array_map(
-                                        trim(...),
-                                        explode(',', $parsedValue)
-                                    )
-                                )
-                            );
+                        if ($parsedValue === '') {
+                            $parsedData[$key] = [];
+                        } else {
+                            // Split on commas, trim whitespace, drop empty tokens, and reindex
+                            $ids = \explode(',', $parsedValue);
+                            $ids = \array_map(\trim(...), $ids);
+                            $ids = \array_filter($ids, static fn ($id) => $id !== '');
+                            $parsedData[$key] = \array_values($ids);
+                        }
                         continue;
                     }
 
@@ -239,19 +243,27 @@ class CSV extends Source
                         if ($parsedValue === '') {
                             $parsedData[$key] = [];
                         } else {
-                            $arrayValues = str_getcsv($parsedValue);
-                            $arrayValues = array_map(trim(...), $arrayValues);
+                            // Try to decode as JSON first
+                            $arrayValues = \json_decode($parsedValue, true);
 
-                            // Special handling for permissions to unescape quotes
-                            if ($key === '$permissions') {
-                                $arrayValues = array_map(stripslashes(...), $arrayValues);
+                            // If JSON decode fails, fall back to comma-separated parsing
+                            if (\json_last_error() !== JSON_ERROR_NONE) {
+                                // Remove empty strings from comma-separated parsing
+                                $arrayValues = \str_getcsv($parsedValue, ',', '"', '"');
+                                $arrayValues = \array_map(\trim(...), $arrayValues);
+                                $arrayValues = \array_filter($arrayValues, fn ($item) => $item !== '');
+                                $arrayValues = \array_values($arrayValues); // Re-index array
+                            }
+
+                            if (!\is_array($arrayValues)) {
+                                throw new \Exception("Invalid array format for column '$key': $parsedValue");
                             }
 
                             $parsedData[$key] = array_map(function ($item) use ($type) {
                                 return match ($type) {
-                                    Column::TYPE_INTEGER => is_numeric($item) ? (int) $item : null,
-                                    Column::TYPE_FLOAT => is_numeric($item) ? (float) $item : null,
-                                    Column::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN),
+                                    Column::TYPE_INTEGER => is_numeric($item) ? (int)$item : null,
+                                    Column::TYPE_FLOAT => is_numeric($item) ? (float)$item : null,
+                                    Column::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE),
                                     default => $item,
                                 };
                             }, $arrayValues);
@@ -259,19 +271,39 @@ class CSV extends Source
                         continue;
                     }
 
-                    if ($parsedValue !== '') {
-                        $parsedData[$key] = match ($type) {
-                            Column::TYPE_INTEGER => is_numeric($parsedValue) ? (int) $parsedValue : null,
-                            Column::TYPE_FLOAT => is_numeric($parsedValue) ? (float) $parsedValue : null,
-                            Column::TYPE_BOOLEAN => filter_var($parsedValue, FILTER_VALIDATE_BOOLEAN),
+                    /**
+                     * Parsing logic for best compatibility with spec and 3rd party tools.
+                     * - 'null' unquoted literal string is converted to null.
+                     * - missing strings stay empty strings for best compatibility.
+                     * - missing numbers, booleans, and datetime's are converted to null.
+                     * - other values are parsed as per their type.
+                     */
+
+                    $parsedData[$key] = match ($parsedValue) {
+                        'null' => null, // 'null' string is converted to null
+                        '' => match ($type) {
+                            Column::TYPE_INTEGER,
+                            Column::TYPE_FLOAT,
+                            Column::TYPE_BOOLEAN,
+                            Column::TYPE_DATETIME,
+                            Column::TYPE_RELATIONSHIP => null, // primitive types default to null
+                            default => '', // but empty string stays empty string for compatibility
+                        },
+                        default => match ($type) {
+                            Column::TYPE_INTEGER => \is_numeric($parsedValue) ? (int)$parsedValue : null,
+                            Column::TYPE_FLOAT => \is_numeric($parsedValue) ? (float)$parsedValue : null,
+                            Column::TYPE_BOOLEAN => \filter_var(
+                                $parsedValue,
+                                filter: FILTER_VALIDATE_BOOLEAN,
+                                options: FILTER_NULL_ON_FAILURE
+                            ),
                             default => $parsedValue,
-                        };
-                    }
+                        },
+                    };
                 }
 
                 $rowId = $parsedData['$id'] ?? 'unique()';
                 $permissions = $parsedData['$permissions'] ?? [];
-
 
                 unset($parsedData['$id'], $parsedData['$permissions']);
 
@@ -284,13 +316,13 @@ class CSV extends Source
 
                 $buffer[] = $row;
 
-                if (count($buffer) === $batchSize) {
+                if (\count($buffer) === $batchSize) {
                     $this->callback($buffer);
                     $buffer = [];
                 }
             }
 
-            if (! empty($buffer)) {
+            if (!empty($buffer)) {
                 $this->callback($buffer);
             }
         });
@@ -371,27 +403,38 @@ class CSV extends Source
     /**
      * @throws \Exception
      */
-    private function validateCSVHeaders(array $headers, array $columnTypes): void
+    private function validateCSVHeaders(array $headers, array $columnTypes, array $requiredColumns): void
     {
-        $internalColumns = ['$id', '$permissions', '$createdAt', '$updatedAt'];
-        $expectedColumns = \array_keys($columnTypes);
-        $extraColumns = \array_diff($headers, $expectedColumns, $internalColumns);
-        $missingColumns = \array_diff($expectedColumns, $headers);
+        $internals = ['$id', '$permissions', '$createdAt', '$updatedAt'];
+        $allKnown = \array_keys($columnTypes);
 
-        if (! empty($missingColumns) || ! empty($extraColumns)) {
-            $messages = [];
-
-            if (! empty($missingColumns)) {
-                $label = count($missingColumns) === 1 ? 'Missing column' : 'Missing columns';
-                $messages[] = "$label: '".implode("', '", $missingColumns)."'";
+        // Only validate that required columns are present
+        $missingRequired = [];
+        foreach (\array_keys($requiredColumns) as $requiredColumn) {
+            if (!\in_array($requiredColumn, $headers)) {
+                $missingRequired[] = $requiredColumn;
             }
+        }
 
-            if (! empty($extraColumns)) {
-                $label = count($extraColumns) === 1 ? 'Unexpected column' : 'Unexpected columns';
-                $messages[] = "$label: '".implode("', '", $extraColumns)."'";
-            }
+        $messages = [];
 
-            throw new \Exception('CSV header mismatch. '.implode(' | ', $messages));
+        // If there are missing required columns, throw an exception
+        if (!empty($missingRequired)) {
+            $label = \count($missingRequired) === 1 ? 'Missing required column' : 'Missing required columns';
+            $messages[] = "$label: '" . \implode("', '", $missingRequired) . "'";
+        }
+        if (!empty($missingRequired)) {
+            throw new \Exception('CSV header validation failed: ' . \implode('. ', $messages));
+        }
+
+        // If there are unknown columns but no missing required columns, just log a warning
+        $unknown = \array_diff($headers, $allKnown, $internals);
+        if (!empty($unknown)) {
+            $label = \count($unknown) === 1 ? 'Unknown column' : 'Unknown columns';
+            $messages[] = "$label: '" . \implode("', '", $unknown) . "' (will be ignored)";
+        }
+        if (!empty($unknown)) {
+            Console::warning(\implode(', ', $messages));
         }
     }
 
@@ -440,13 +483,13 @@ class CSV extends Source
 
         $sampleLines = [];
 
-        for ($i = 0; $i < 5 && !feof($stream); $i++) {
-            $line = fgets($stream);
+        for ($i = 0; $i < 5 && !\feof($stream); $i++) {
+            $line = \fgets($stream);
             if ($line === false) {
                 break;
             }
 
-            $line = trim($line);
+            $line = \trim($line);
 
             // empty line, skip for sampling
             if (empty($line)) {
@@ -461,7 +504,7 @@ class CSV extends Source
          * reset to top again because we need to process
          * the same file later again if everything goes OK here!
          */
-        rewind($stream);
+        \rewind($stream);
 
         if (empty($sampleLines)) {
             return ',';
@@ -476,27 +519,27 @@ class CSV extends Source
 
             foreach ($sampleLines as $line) {
                 // delimiter doesn't exist
-                if (!str_contains($line, $delimiter)) {
+                if (!\str_contains($line, $delimiter)) {
                     $fields = [$line];
                 } else {
-                    $fields = str_getcsv($line, $delimiter);
+                    $fields = \str_getcsv($line, $delimiter, '"', '"');
                 }
 
-                $fieldCount = count($fields);
+                $fieldCount = \count($fields);
                 $columnCounts[] = $fieldCount;
                 $totalFields += $fieldCount;
 
                 // Count fields that make some sense i.e.
                 // longer than 1 char or single alphanumeric
                 foreach ($fields as $field) {
-                    $trimmed = trim($field);
-                    if (strlen($trimmed) > 1) {
+                    $trimmed = \trim($field);
+                    if (\strlen($trimmed) > 1) {
                         $usableFields++;
                     }
                 }
             }
 
-            $sampleCount = count($columnCounts);
+            $sampleCount = \count($columnCounts);
             $avgColumns = $totalFields / $sampleCount;
 
             // short-circuit
@@ -512,11 +555,11 @@ class CSV extends Source
             } else {
                 $variance = 0;
                 foreach ($columnCounts as $count) {
-                    $variance += pow($count - $avgColumns, 2);
+                    $variance += \pow($count - $avgColumns, 2);
                 }
 
                 // oof, math!
-                $stddev = sqrt($variance / $sampleCount);
+                $stddev = \sqrt($variance / $sampleCount);
                 $coefficientOfVariation = $stddev / $avgColumns;
 
                 // lower variance = higher score
@@ -529,10 +572,10 @@ class CSV extends Source
         }
 
         // sort as per score
-        arsort($delimiterScores);
+        \arsort($delimiterScores);
 
         // get the first
-        $bestDelimiter = key($delimiterScores);
+        $bestDelimiter = \key($delimiterScores);
 
         return ($bestDelimiter && $delimiterScores[$bestDelimiter] > 0) ? $bestDelimiter : ',';
     }
