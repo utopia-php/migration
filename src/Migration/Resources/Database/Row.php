@@ -14,11 +14,12 @@ class Row extends Resource
      * @param array<string> $permissions
      */
     public function __construct(
-        string                 $id,
+        string $id,
         private readonly Table $table,
         private readonly array $data = [],
-        array                  $permissions = []
-    ) {
+        array $permissions = []
+    )
+    {
         $this->id = $id;
         $this->permissions = $permissions;
     }

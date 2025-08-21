@@ -8,7 +8,7 @@ use Utopia\Database\Exception\Conflict;
 use Utopia\Database\Exception\Structure;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Resource;
-use Utopia\Migration\Resources\Database\Document;
+use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Transfer;
 use Utopia\Storage\Device;
 use Utopia\Storage\Device\Local;
@@ -34,7 +34,7 @@ class CSV extends Destination
     ) {
         $this->deviceForMigrations = $deviceForExports;
         $this->resourceId = $resourceId;
-        $this->local = new Local('/' . $resourceId . '.csv');
+        $this->local = new Local(\sys_get_temp_dir() . '/csv_export_' . uniqid());
         $this->local->setTransferChunkSize(Transfer::STORAGE_MAX_CHUNK_SIZE);
         $this->createDirectory($this->local->getRoot());
 
@@ -51,7 +51,7 @@ class CSV extends Destination
     public static function getSupportedResources(): array
     {
         return [
-            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ROW,
         ];
     }
 
@@ -60,6 +60,91 @@ class CSV extends Destination
         return [];
     }
 
+    /**
+     * @param array<Row> $resources
+     * @throws \JsonException
+     * @throws \Exception
+     */
+    protected function import(array $resources, callable $callback): void
+    {
+        $handle = null; // file handle
+        $buffer = ['lines' => [], 'size' => 0];  // Buffer for batching writes
+        $bufferBytes = 1024 * 1024; // 1MB
+        $log = $this->local->getRoot() . '/' . $this->resourceId . '.csv';
+
+        $flushBuffer = function () use ($log, &$handle, &$buffer) {
+            if (empty($buffer['lines'])) {
+                return;
+            }
+            try {
+                if (!isset($handle)) {
+                    $handle = \fopen($log, 'a');
+                    if ($handle === false) {
+                        throw new \Exception("Failed to open file for writing: $log");
+                    }
+                }
+
+                $content = \implode('', $buffer['lines']);
+                if (\fwrite($handle, $content) === false) {
+                    throw new \Exception("Failed to write to file: $log");
+                }
+
+                $buffer = [
+                    'lines' => [],
+                    'size' => 0
+                ];
+            } catch (\Exception $e) {
+                // Close handle on error
+                if (isset($handle)) {
+                    \fclose($handle);
+                    unset($handle);
+                }
+                throw $e;
+            }
+        };
+
+        try {
+            foreach ($resources as $resource) {
+                $csvData = $this->resourceToCSVData($resource);
+
+                // Write headers if this is the first row of the file
+                if (!isset($csvHeader)) {
+                    $headers = $this->toCSV(\array_keys($csvData));
+                    $buffer['lines'][] = $headers;
+                    $buffer['size'] += \strlen($headers);
+                    $csvHeader = true;
+                }
+
+                $dataLine = $this->toCSV(\array_values($csvData));
+                $buffer['lines'][] = $dataLine;
+                $buffer['size'] += \strlen($dataLine);
+
+                if ($buffer['size'] >= $bufferBytes) {
+                    $flushBuffer();
+                }
+
+                $resource->setStatus(Resource::STATUS_SUCCESS);
+                if (isset($this->cache)) {
+                    $this->cache->update($resource);
+                }
+            }
+
+            // Flush any remaining buffered lines
+            if (!empty($buffer['lines'])) {
+                $flushBuffer();
+            }
+        } finally {
+            if (\is_resource($handle)) {
+                \fclose($handle);
+            }
+        }
+
+        $callback($resources);
+    }
+
+    /**
+     * @throws \Exception
+     */
     public function shutdown(): void
     {
         if (!\file_exists($this->local->getRoot())) {
@@ -69,17 +154,22 @@ class CSV extends Destination
         $filename = $this->resourceId . '.csv';
 
         try {
-            $destination = $this->deviceForMigrations->getRoot() . '/' . $filename;
-            $result = $this->local->transfer($filename, $destination, $this->deviceForMigrations);
+            // Transfer expects relative paths within each device
+            $result = $this->local->transfer(
+                $filename,
+                $filename,
+                $this->deviceForMigrations
+            );
 
             if ($result === false) {
-                throw new \Exception('Error uploading to ' . $destination);
+                throw new \Exception('Error uploading to ' . $this->deviceForMigrations->getRoot() . '/' . $filename);
             }
 
-            if (!$this->deviceForMigrations->exists($destination)) {
-                throw new \Exception('File not found on destination: ' . $destination);
+            if (!$this->deviceForMigrations->exists($filename)) {
+                throw new \Exception('File not found on destination: ' . $filename);
             }
         } finally {
+            // Clean up the temporary directory
             if (!$this->local->deletePath('') || \file_exists($this->local->getRoot())) {
                 Console::error('Error deleting: ' . $this->local->getRoot());
                 throw new \Exception('Error deleting: ' . $this->local->getRoot());
@@ -88,112 +178,8 @@ class CSV extends Destination
     }
 
     /**
-     * @param array<Document> $resources
-     * @throws \JsonException
-     * @throws \Exception
-     */
-    protected function import(array $resources, callable $callback): void
-    {
-        $handles = []; // file path => file handle
-        $buffers = []; // file path => ['lines' => array, 'size' => int]
-        $bufferBytes = 1024 * 1024; // 1MB
-        $csvHeaders = []; // file path => bool (to track if headers written)
-        $csvDataCache = []; // Cache for CSV data to avoid repeated processing
-
-        $flushBuffer = function (string $file) use (&$handles, &$buffers) {
-            if (empty($buffers[$file]['lines'])) {
-                return;
-            }
-
-            try {
-                if (!isset($handles[$file])) {
-                    $handles[$file] = \fopen($file, 'a');
-                    if ($handles[$file] === false) {
-                        throw new \Exception("Failed to open file for writing: $file");
-                    }
-                }
-
-                $content = \implode('', $buffers[$file]['lines']);
-                if (\fwrite($handles[$file], $content) === false) {
-                    throw new \Exception("Failed to write to file: $file");
-                }
-
-                $buffers[$file] = [
-                    'lines' => [],
-                    'size' => 0
-                ];
-            } catch (\Exception $e) {
-                // Close handle on error
-                if (isset($handles[$file])) {
-                    \fclose($handles[$file]);
-                    unset($handles[$file]);
-                }
-                throw $e;
-            }
-        };
-
-        try {
-            foreach ($resources as $resource) {
-                $log = $this->local->getRoot() . '/' . $resource->getGroup() . '-' . $resource->getName() . '.csv';
-
-                if (!isset($buffers[$log])) {
-                    $buffers[$log] = ['lines' => [], 'size' => 0];
-                }
-
-                // Write headers if this is the first record for this file
-                if (!isset($csvHeaders[$log])) {
-                    $csvData = $this->resourceToCSVData($resource);
-                    $csvDataCache[$resource->getId()] = $csvData;
-
-                    $headerLine = $this->toCSV(array_keys($csvData));
-                    $buffers[$log]['lines'][] = $headerLine;
-                    $buffers[$log]['size'] += strlen($headerLine);
-                    $csvHeaders[$log] = true;
-                } else {
-                    // Use cached data if available, otherwise process
-                    if (!isset($csvDataCache[$resource->getId()])) {
-                        $csvData = $this->resourceToCSVData($resource);
-                        $csvDataCache[$resource->getId()] = $csvData;
-                    } else {
-                        $csvData = $csvDataCache[$resource->getId()];
-                    }
-                }
-
-                $dataLine = $this->toCSV(array_values($csvData));
-                $buffers[$log]['lines'][] = $dataLine;
-                $buffers[$log]['size'] += strlen($dataLine);
-
-                if ($buffers[$log]['size'] >= $bufferBytes) {
-                    $flushBuffer($log);
-                }
-
-                $resource->setStatus(Resource::STATUS_SUCCESS);
-                if (isset($this->cache)) {
-                    $this->cache->update($resource);
-                }
-            }
-
-            // Flush remaining buffers
-            foreach ($buffers as $file => $bufferData) {
-                if (!empty($bufferData['lines'])) {
-                    $flushBuffer($file);
-                }
-            }
-
-        } finally {
-            // Ensure all handles are closed
-            foreach ($handles as $handle) {
-                if (is_resource($handle)) {
-                    \fclose($handle);
-                }
-            }
-        }
-
-        $callback($resources);
-    }
-
-    /**
      * Helper to ensure a directory exists.
+     * @throws \Exception
      */
     protected function createDirectory(string $path): void
     {
@@ -207,23 +193,29 @@ class CSV extends Destination
     /**
      * Convert a resource to CSV-compatible data
      */
-    protected function resourceToCSVData(Document $resource): array
+    protected function resourceToCSVData(Row $resource): array
     {
         $data = [
             '$id' => $resource->getId(),
             '$permissions' => $resource->getPermissions(),
-            ...\array_filter($resource->getData(), function ($key) {
-                return isset($this->allowedAttributes[$key]);
-            }, ARRAY_FILTER_USE_KEY)
         ];
-
-        $results = [];
-
-        foreach ($data as $key => $value) {
-            $results[$key] = $this->convertValueToCSV($value);
+        
+        // Add all attributes if no filter specified, otherwise only allowed ones
+        if (empty($this->allowedAttributes)) {
+            $data = \array_merge($data, $resource->getData());
+        } else {
+            foreach ($resource->getData() as $key => $value) {
+                if (isset($this->allowedAttributes[$key])) {
+                    $data[$key] = $value;
+                }
+            }
         }
 
-        return $results;
+        foreach ($data as $key => $value) {
+            $data[$key] = $this->convertValueToCSV($value);
+        }
+
+        return $data;
     }
 
     /**
@@ -231,52 +223,33 @@ class CSV extends Destination
      */
     protected function convertValueToCSV(mixed $value): string
     {
+        if (\is_null($value)) {
+            return 'null';
+        }
+        if (\is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
         if (\is_array($value)) {
-            return $this->convertMapToCSV($value);
+            return $this->convertArrayToCSV($value);
         }
         if (\is_object($value)) {
             return $this->convertObjectToCSV($value);
         }
-        return $this->escape($value);
+        return (string)$value;
     }
 
     /**
      * Convert array to CSV format
      */
-    protected function convertMapToCSV(array $value): string
+    protected function convertArrayToCSV(array $value): string
     {
         if (empty($value)) {
-            return '""';
+            return '';
         }
         if (isset($value['$id'])) {
-            return $this->escape($value['$id']);
+            return $value['$id'];
         }
-        if (!\array_is_list($value)) {
-            return $this->escape(\json_encode($value));
-        }
-        return $this->convertListToCSV($value);
-    }
-
-    /**
-     * Convert indexed array to CSV format
-     */
-    protected function convertListToCSV(array $value): string
-    {
-        $count = \count($value);
-        if ($count === 0) {
-            return '""';
-        }
-
-        $processed = [];
-        for ($i = 0; $i < $count; $i++) {
-            if (\is_array($value[$i]) && isset($value['$id'])) {
-                $processed[] = $value['$id'];
-                continue;
-            }
-            $processed[] = $this->escape($value[$i]);
-        }
-
-        return '"' . implode(',', $processed) . '"';
+        return \json_encode($value);
     }
 
     /**
@@ -284,60 +257,35 @@ class CSV extends Destination
      */
     protected function convertObjectToCSV($value): string
     {
-        if ($value instanceof Document) {
-            return $this->escape($value->getId());
+        if ($value instanceof Row) {
+            return $value->getId();
         }
-        return $this->escape(\json_encode($value));
+        return \json_encode($value);
     }
 
     /**
      * Convert array to CSV line with proper escaping
+     * Uses standard CSV format with double-quote escaping
      */
     protected function toCSV(array $array): string
     {
-        if (empty($array)) {
-            return "\n";
+        $output = [];
+        foreach ($array as $value) {
+            $output[] = $this->escapeForCSV($value);
         }
-
-        $line = $this->escape($array[0]);
-        $count = \count($array);
-
-        for ($i = 1; $i < $count; $i++) {
-            $line .= ',' . $this->escape($array[$i]);
-        }
-
-        return $line . "\n";
+        return \implode(',', $output) . "\n";
     }
 
     /**
-     * Safely escape a value for CSV (backslash-escape style)
-     * - null/empty -> empty string
-     * - bool -> true/false
-     * - numeric -> raw
-     * - strings with special chars -> quoted with backslash escapes
+     * Escape a single value for CSV format
      */
-    protected function escape($value): string
+    protected function escapeForCSV(string $value): string
     {
-        if (\is_null($value) || $value === '') {
-            return '';
-        }
-        if (\is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-        if (\is_numeric($value)) {
-            return (string)$value;
-        }
-
-        $stringValue = (string)$value;
-
-        // Escape backslashes first, then quotes
-        $escaped = \str_replace(['\\', '"'], ['\\\\', '\\"'], $stringValue);
-
-        // Needs quoting if it contains commas, line breaks, quotes, or backslashes
-        if (\strpbrk($stringValue, ",\n\r\"\\") !== false) {
+        if (\strpbrk($value, ",\n\r\"") !== false) {
+            // Escape quotes by doubling them (CSV standard)
+            $escaped = \str_replace('"', '""', $value);
             return '"' . $escaped . '"';
         }
-
-        return $escaped;
+        return $value;
     }
 }
