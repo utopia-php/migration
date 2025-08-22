@@ -17,9 +17,10 @@ class CSV extends Destination
 {
     protected Device $deviceForMigrations;
     protected string $resourceId;
+    protected string $outputFile;
     protected Local $local;
 
-    protected array $allowedAttributes = [];
+    protected array $allowedColumns = [];
 
     /**
      * @throws Authorization
@@ -30,16 +31,17 @@ class CSV extends Destination
     public function __construct(
         Device $deviceForExports,
         string $resourceId,
-        array $allowedAttributes = []
+        array $allowedColumns = []
     ) {
         $this->deviceForMigrations = $deviceForExports;
         $this->resourceId = $resourceId;
+        $this->outputFile = $this->sanitizeFilename($resourceId);
         $this->local = new Local(\sys_get_temp_dir() . '/csv_export_' . uniqid());
         $this->local->setTransferChunkSize(Transfer::STORAGE_MAX_CHUNK_SIZE);
         $this->createDirectory($this->local->getRoot());
 
-        foreach ($allowedAttributes as $attribute) {
-            $this->allowedAttributes[$attribute] = true;
+        foreach ($allowedColumns as $attribute) {
+            $this->allowedColumns[$attribute] = true;
         }
     }
 
@@ -70,7 +72,7 @@ class CSV extends Destination
         $handle = null; // file handle
         $buffer = ['lines' => [], 'size' => 0];  // Buffer for batching writes
         $bufferBytes = 1024 * 1024; // 1MB
-        $log = $this->local->getRoot() . '/' . $this->resourceId . '.csv';
+        $log = $this->local->getRoot() . '/' . $this->outputFile . '.csv';
 
         $flushBuffer = function () use ($log, &$handle, &$buffer) {
             if (empty($buffer['lines'])) {
@@ -105,6 +107,10 @@ class CSV extends Destination
 
         try {
             foreach ($resources as $resource) {
+                if (!($resource instanceof Row)) {
+                    continue;
+                }
+
                 $csvData = $this->resourceToCSVData($resource);
 
                 // Write headers if this is the first row of the file
@@ -147,13 +153,20 @@ class CSV extends Destination
      */
     public function shutdown(): void
     {
-        if (!\file_exists($this->local->getRoot())) {
-            throw new \Exception('Nothing to upload');
+        $filename = $this->outputFile . '.csv';
+        $localFilePath = $this->local->getRoot() . '/' . $filename;
+
+        // Check if the CSV file was actually created
+        if (!$this->local->exists($localFilePath)) {
+            throw new \Exception("No data to export for resource: $this->resourceId");
         }
 
-        $filename = $this->resourceId . '.csv';
-
         try {
+            $destRoot = $this->deviceForMigrations->getRoot();
+            if (!$this->deviceForMigrations->exists($destRoot)) {
+                $this->deviceForMigrations->createDirectory($destRoot);
+            }
+
             // Transfer expects relative paths within each device
             $result = $this->local->transfer(
                 $filename,
@@ -165,14 +178,16 @@ class CSV extends Destination
                 throw new \Exception('Error uploading to ' . $this->deviceForMigrations->getRoot() . '/' . $filename);
             }
 
-            if (!$this->deviceForMigrations->exists($filename)) {
-                throw new \Exception('File not found on destination: ' . $filename);
+            $finalDestPath = $destRoot . '/' . $filename;
+            if (!$this->deviceForMigrations->exists($finalDestPath)) {
+                throw new \Exception('File not found on destination: ' . $finalDestPath);
+            } else {
+                Console::info("Export successful! File created at: $finalDestPath");
             }
         } finally {
             // Clean up the temporary directory
-            if (!$this->local->deletePath('') || \file_exists($this->local->getRoot())) {
-                Console::error('Error deleting: ' . $this->local->getRoot());
-                throw new \Exception('Error deleting: ' . $this->local->getRoot());
+            if (!$this->local->deletePath('') || $this->local->exists($this->local->getRoot())) {
+                Console::error('Error cleaning up: ' . $this->local->getRoot());
             }
         }
     }
@@ -191,6 +206,18 @@ class CSV extends Destination
     }
 
     /**
+     * Sanitize a filename to make it filesystem-safe
+     */
+    protected function sanitizeFilename(string $filename): string
+    {
+        // Replace problematic characters with underscores
+        $sanitized = \preg_replace('/[:\\/<>"|*?]/', '_', $filename);
+        $sanitized = \preg_replace('/[^\x20-\x7E]/', '_', $sanitized);
+        $sanitized = \trim($sanitized);
+        return empty($sanitized) ? 'export' : $sanitized;
+    }
+
+    /**
      * Convert a resource to CSV-compatible data
      */
     protected function resourceToCSVData(Row $resource): array
@@ -199,13 +226,13 @@ class CSV extends Destination
             '$id' => $resource->getId(),
             '$permissions' => $resource->getPermissions(),
         ];
-        
+
         // Add all attributes if no filter specified, otherwise only allowed ones
-        if (empty($this->allowedAttributes)) {
+        if (empty($this->allowedColumns)) {
             $data = \array_merge($data, $resource->getData());
         } else {
             foreach ($resource->getData() as $key => $value) {
-                if (isset($this->allowedAttributes[$key])) {
+                if (isset($this->allowedColumns[$key])) {
                     $data[$key] = $value;
                 }
             }
