@@ -707,7 +707,17 @@ class Appwrite extends Source
             $queries = [$this->database->queryLimit($batchSize)];
 
             if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_DATABASE) {
-                $queries[] = $this->database->queryEqual('$id', [$this->rootResourceId]);
+                $targetDatabaseId = $this->rootResourceId;
+
+                // Handle database:collection format - extract database ID
+                if (\str_contains($this->rootResourceId, ':')) {
+                    $parts = \explode(':', $this->rootResourceId, 2);
+                    if (\count($parts) === 2) {
+                        $targetDatabaseId = $parts[0];
+                    }
+                }
+
+                $queries[] = $this->database->queryEqual('$id', [$targetDatabaseId]);
                 $queries[] = $this->database->queryLimit(1);
             }
 
@@ -735,11 +745,11 @@ class Appwrite extends Source
                 break;
             }
 
-            $lastDatabase = $databases[count($databases) - 1];
+            $lastDatabase = $databases[\count($databases) - 1];
 
             $this->callback($databases);
 
-            if (count($databases) < $batchSize) {
+            if (\count($databases) < $batchSize) {
                 break;
             }
         }
@@ -754,14 +764,33 @@ class Appwrite extends Source
         $databases = $this->cache->get(Database::getName());
 
         foreach ($databases as $database) {
+            /** @var Database $database */
             $lastTable = null;
 
-            /** @var Database $database */
             while (true) {
                 $queries = [$this->database->queryLimit($batchSize)];
                 $tables = [];
 
-                if ($lastTable) {
+                // Filter to specific table if rootResourceType is database with database:collection format
+                if (
+                    $this->rootResourceId !== '' &&
+                    $this->rootResourceType === Resource::TYPE_DATABASE &&
+                    \str_contains($this->rootResourceId, ':')
+                ) {
+                    $parts = \explode(':', $this->rootResourceId, 2);
+                    if (\count($parts) === 2) {
+                        $targetTableId = $parts[1]; // table ID
+                        $queries[] = $this->database->queryEqual('$id', [$targetTableId]);
+                        $queries[] = $this->database->queryLimit(1);
+                    }
+                } elseif (
+                    $this->rootResourceId !== '' &&
+                    $this->rootResourceType === Resource::TYPE_TABLE
+                ) {
+                    $targetTableId = $this->rootResourceId;
+                    $queries[] = $this->database->queryEqual('$id', [$targetTableId]);
+                    $queries[] = $this->database->queryLimit(1);
+                } elseif ($lastTable) {
                     $queries[] = $this->database->queryCursorAfter($lastTable);
                 }
 
@@ -787,9 +816,9 @@ class Appwrite extends Source
 
                 $this->callback($tables);
 
-                $lastTable = $tables[count($tables) - 1];
+                $lastTable = $tables[\count($tables) - 1];
 
-                if (count($tables) < $batchSize) {
+                if (\count($tables) < $batchSize) {
                     break;
                 }
             }
@@ -804,7 +833,7 @@ class Appwrite extends Source
     {
         $tables = $this->cache->get(Table::getName());
 
-        /** @var Table[] $tables */
+        /** @var array<Table> $tables */
         foreach ($tables as $table) {
             $lastColumn = null;
 
