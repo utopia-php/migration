@@ -154,35 +154,26 @@ class CSV extends Destination
     public function shutdown(): void
     {
         $filename = $this->outputFile . '.csv';
-        $localFilePath = $this->local->getRoot() . '/' . $filename;
+        $sourceFilePath = $this->local->getPath($filename);
+        $destFilePath = $this->deviceForMigrations->getPath($filename);
 
         // Check if the CSV file was actually created
-        if (!$this->local->exists($localFilePath)) {
+        if (!$this->local->exists($sourceFilePath)) {
             throw new \Exception("No data to export for resource: $this->resourceId");
         }
 
         try {
-            $destRoot = $this->deviceForMigrations->getRoot();
-            if (!$this->deviceForMigrations->exists($destRoot)) {
-                $this->deviceForMigrations->createDirectory($destRoot);
-            }
-
-            // Transfer expects relative paths within each device
+            // Transfer expects absolute paths within each device
             $result = $this->local->transfer(
                 $filename,
                 $filename,
                 $this->deviceForMigrations
             );
-
             if ($result === false) {
-                throw new \Exception('Error uploading to ' . $this->deviceForMigrations->getRoot() . '/' . $filename);
+                throw new \Exception('Error transferring to ' . $this->deviceForMigrations->getRoot() . '/' . $filename);
             }
-
-            $finalDestPath = $destRoot . '/' . $filename;
-            if (!$this->deviceForMigrations->exists($finalDestPath)) {
-                throw new \Exception('File not found on destination: ' . $finalDestPath);
-            } else {
-                Console::info("Export successful! File created at: $finalDestPath");
+            if (!$this->deviceForMigrations->exists($destFilePath)) {
+                throw new \Exception('File not found on destination: ' . $destFilePath);
             }
         } finally {
             // Clean up the temporary directory
