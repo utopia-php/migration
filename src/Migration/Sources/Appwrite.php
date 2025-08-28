@@ -1159,22 +1159,6 @@ class Appwrite extends Source
                 )
             );
         }
-
-        try {
-            if (in_array(Resource::TYPE_BUCKET, $resources)) {
-                $this->exportBuckets($batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_BUCKET,
-                    Transfer::GROUP_STORAGE,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-        }
     }
 
     /**
