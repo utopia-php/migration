@@ -957,6 +957,7 @@ class Appwrite extends Source
                                 createdAt: $column['$createdAt'] ?? '',
                                 updatedAt: $column['$updatedAt'] ?? '',
                             );
+                            break;
                         case Column::TYPE_LINE:
                             $col = new Line(
                                 $column['key'],
@@ -966,6 +967,7 @@ class Appwrite extends Source
                                 createdAt: $column['$createdAt'] ?? '',
                                 updatedAt: $column['$updatedAt'] ?? '',
                             );
+                            break;
                         case Column::TYPE_POLYGON:
                             $col = new Polygon(
                                 $column['key'],
@@ -975,6 +977,7 @@ class Appwrite extends Source
                                 createdAt: $column['$createdAt'] ?? '',
                                 updatedAt: $column['$updatedAt'] ?? '',
                             );
+                            break;
                     }
 
                     if (!isset($col)) {

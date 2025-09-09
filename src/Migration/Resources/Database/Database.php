@@ -12,6 +12,9 @@ const TYPE_BOOLEAN = 'boolean';
 const TYPE_OBJECT = 'object';
 const TYPE_ARRAY = 'array';
 const TYPE_NULL = 'null';
+const TYPE_POINT = 'point';
+const TYPE_LINE = 'linestring';
+const TYPE_POLYGON = 'polygon';
 
 class Database extends Resource
 {
