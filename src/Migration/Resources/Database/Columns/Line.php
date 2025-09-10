@@ -10,8 +10,8 @@ class Line extends Column
     public function __construct(
         string $key,
         Table $table,
-        bool   $required = false,
-        ?array  $default = null,
+        bool $required = false,
+        ?array $default = null,
         string $createdAt = '',
         string $updatedAt = ''
     ) {
