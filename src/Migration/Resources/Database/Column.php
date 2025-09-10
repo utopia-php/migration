@@ -18,6 +18,10 @@ abstract class Column extends Resource
     public const TYPE_URL = 'url';
     public const TYPE_RELATIONSHIP = 'relationship';
 
+    public const TYPE_POINT = 'point';
+    public const TYPE_LINE = 'linestring';
+    public const TYPE_POLYGON = 'polygon';
+
     /**
      * @param string $key
      * @param Table $table

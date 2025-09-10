@@ -440,6 +440,9 @@ class Appwrite extends Destination
             Column::TYPE_EMAIL,
             Column::TYPE_URL,
             Column::TYPE_ENUM => UtopiaDatabase::VAR_STRING,
+            Column::TYPE_POINT => UtopiaDatabase::VAR_POINT,
+            Column::TYPE_LINE => UtopiaDatabase::VAR_LINESTRING,
+            Column::TYPE_POLYGON => UtopiaDatabase::VAR_POLYGON,
             default => throw new \Exception('Invalid resource type '.$resource->getType()),
         };
 
