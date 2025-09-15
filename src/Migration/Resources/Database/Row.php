@@ -18,8 +18,7 @@ class Row extends Resource
         private readonly Table $table,
         private readonly array $data = [],
         array $permissions = []
-    )
-    {
+    ) {
         $this->id = $id;
         $this->permissions = $permissions;
     }

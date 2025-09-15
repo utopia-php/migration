@@ -31,7 +31,11 @@ class CSV extends Destination
     public function __construct(
         Device $deviceForExports,
         string $resourceId,
-        array $allowedColumns = []
+        array $allowedColumns = [],
+        private readonly string $delimiter = ',',
+        private readonly string $enclosure = '"',
+        private readonly string $escape = '\\',
+        private readonly bool $includeHeaders = true,
     ) {
         $this->deviceForMigrations = $deviceForExports;
         $this->resourceId = $resourceId;
@@ -86,9 +90,12 @@ class CSV extends Destination
                     }
                 }
 
-                $content = \implode('', $buffer['lines']);
-                if (\fwrite($handle, $content) === false) {
-                    throw new \Exception("Failed to write to file: $log");
+                foreach ($buffer['lines'] as $line) {
+                    if ($line['type'] === 'csv') {
+                        if (\fputcsv($handle, $line['data'], $this->delimiter, $this->enclosure, $this->escape) === false) {
+                            throw new \Exception("Failed to write CSV line to file: $log");
+                        }
+                    }
                 }
 
                 $buffer = [
@@ -114,16 +121,16 @@ class CSV extends Destination
                 $csvData = $this->resourceToCSVData($resource);
 
                 // Write headers if this is the first row of the file
-                if (!isset($csvHeader)) {
-                    $headers = $this->toCSV(\array_keys($csvData));
-                    $buffer['lines'][] = $headers;
-                    $buffer['size'] += \strlen($headers);
+                if (!isset($csvHeader) && $this->includeHeaders) {
+                    $headers = \array_keys($csvData);
+                    $buffer['lines'][] = ['type' => 'csv', 'data' => $headers];
+                    $buffer['size'] += \strlen(\implode($this->delimiter, $headers)) + 2; // Approximate size
                     $csvHeader = true;
                 }
 
-                $dataLine = $this->toCSV(\array_values($csvData));
-                $buffer['lines'][] = $dataLine;
-                $buffer['size'] += \strlen($dataLine);
+                $dataValues = \array_values($csvData);
+                $buffer['lines'][] = ['type' => 'csv', 'data' => $dataValues];
+                $buffer['size'] += \strlen(\implode($this->delimiter, $dataValues)) + 2; // Approximate size
 
                 if ($buffer['size'] >= $bufferBytes) {
                     $flushBuffer();
@@ -281,29 +288,4 @@ class CSV extends Destination
         return \json_encode($value);
     }
 
-    /**
-     * Convert array to CSV line with proper escaping
-     * Uses standard CSV format with double-quote escaping
-     */
-    protected function toCSV(array $array): string
-    {
-        $output = [];
-        foreach ($array as $value) {
-            $output[] = $this->escapeForCSV($value);
-        }
-        return \implode(',', $output) . "\n";
-    }
-
-    /**
-     * Escape a single value for CSV format
-     */
-    protected function escapeForCSV(string $value): string
-    {
-        if (\strpbrk($value, ",\n\r\"") !== false) {
-            // Escape quotes by doubling them (CSV standard)
-            $escaped = \str_replace('"', '""', $value);
-            return '"' . $escaped . '"';
-        }
-        return $value;
-    }
 }
