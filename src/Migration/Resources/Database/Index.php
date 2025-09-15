@@ -13,6 +13,8 @@ class Index extends Resource
 
     public const TYPE_KEY = 'key';
 
+    public const TYPE_SPATIAL = 'spatial';
+
     /**
      * @param string $id
      * @param string $key

@@ -26,6 +26,9 @@ use Utopia\Migration\Resources\Database\Columns\Email;
 use Utopia\Migration\Resources\Database\Columns\Enum;
 use Utopia\Migration\Resources\Database\Columns\Integer;
 use Utopia\Migration\Resources\Database\Columns\IP;
+use Utopia\Migration\Resources\Database\Columns\Line;
+use Utopia\Migration\Resources\Database\Columns\Point;
+use Utopia\Migration\Resources\Database\Columns\Polygon;
 use Utopia\Migration\Resources\Database\Columns\Relationship;
 use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Columns\URL;
@@ -974,6 +977,36 @@ class Appwrite extends Source
                                 updatedAt: $column['$updatedAt'] ?? '',
                             );
                             break;
+                        case Column::TYPE_POINT:
+                            $col = new Point(
+                                $column['key'],
+                                $table,
+                                required: $column['required'],
+                                default: $column['default'],
+                                createdAt: $column['$createdAt'] ?? '',
+                                updatedAt: $column['$updatedAt'] ?? '',
+                            );
+                            break;
+                        case Column::TYPE_LINE:
+                            $col = new Line(
+                                $column['key'],
+                                $table,
+                                required: $column['required'],
+                                default: $column['default'],
+                                createdAt: $column['$createdAt'] ?? '',
+                                updatedAt: $column['$updatedAt'] ?? '',
+                            );
+                            break;
+                        case Column::TYPE_POLYGON:
+                            $col = new Polygon(
+                                $column['key'],
+                                $table,
+                                required: $column['required'],
+                                default: $column['default'],
+                                createdAt: $column['$createdAt'] ?? '',
+                                updatedAt: $column['$updatedAt'] ?? '',
+                            );
+                            break;
                     }
 
                     if (!isset($col)) {
@@ -1181,22 +1214,6 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_FILE,
-                    Transfer::GROUP_STORAGE,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-        }
-
-        try {
-            if (in_array(Resource::TYPE_BUCKET, $resources)) {
-                $this->exportBuckets($batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_BUCKET,
                     Transfer::GROUP_STORAGE,
                     message: $e->getMessage(),
                     code: $e->getCode(),
