@@ -91,10 +91,8 @@ class CSV extends Destination
                 }
 
                 foreach ($buffer['lines'] as $line) {
-                    if ($line['type'] === 'csv') {
-                        if (\fputcsv($handle, $line['data'], $this->delimiter, $this->enclosure, $this->escape) === false) {
-                            throw new \Exception("Failed to write CSV line to file: $log");
-                        }
+                    if (\fputcsv($handle, $line, $this->delimiter, $this->enclosure, $this->escape) === false) {
+                        throw new \Exception("Failed to write CSV line to file: $log");
                     }
                 }
 
@@ -123,13 +121,13 @@ class CSV extends Destination
                 // Write headers if this is the first row of the file
                 if (!isset($csvHeader) && $this->includeHeaders) {
                     $headers = \array_keys($csvData);
-                    $buffer['lines'][] = ['type' => 'csv', 'data' => $headers];
+                    $buffer['lines'][] = $headers;
                     $buffer['size'] += \strlen(\implode($this->delimiter, $headers)) + 2; // Approximate size
                     $csvHeader = true;
                 }
 
                 $dataValues = \array_values($csvData);
-                $buffer['lines'][] = ['type' => 'csv', 'data' => $dataValues];
+                $buffer['lines'][] = $dataValues;
                 $buffer['size'] += \strlen(\implode($this->delimiter, $dataValues)) + 2; // Approximate size
 
                 if ($buffer['size'] >= $bufferBytes) {
