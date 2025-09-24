@@ -131,12 +131,13 @@ class CSV extends Source
         $columns = [];
         $lastColumn = null;
 
-        [$databaseId, $tableId] = explode(':', $this->resourceId);
+        [$databaseId, $tableId] = \explode(':', $this->resourceId);
         $database = new Database($databaseId, '');
         $table = new Table($database, '', $tableId);
 
         while (true) {
             $queries = [$this->database->queryLimit($batchSize)];
+
             if ($lastColumn) {
                 $queries[] = $this->database->queryCursorAfter($lastColumn);
             }
@@ -146,10 +147,10 @@ class CSV extends Source
                 break;
             }
 
-            array_push($columns, ...$fetched);
-            $lastColumn = $fetched[count($fetched) - 1];
+            \array_push($columns, ...$fetched);
+            $lastColumn = $fetched[\count($fetched) - 1];
 
-            if (count($fetched) < $batchSize) {
+            if (\count($fetched) < $batchSize) {
                 break;
             }
         }
@@ -206,7 +207,7 @@ class CSV extends Source
             $buffer = [];
 
             while (($row = \fgetcsv($stream, 0, $delimiter, '"', '"')) !== false) {
-                if (count($row) !== count($headers)) {
+                if (\count($row) !== \count($headers)) {
                     throw new \Exception('CSV row does not match the number of header columns.');
                 }
 
@@ -273,7 +274,7 @@ class CSV extends Source
 
                     /**
                      * Parsing logic for best compatibility with spec and 3rd party tools.
-                     * - 'null' unquoted literal string is converted to null.
+                     * - 'null' unquoted literal is converted to null.
                      * - missing strings stay empty strings for best compatibility.
                      * - missing numbers, booleans, and datetime's are converted to null.
                      * - other values are parsed as per their type.
