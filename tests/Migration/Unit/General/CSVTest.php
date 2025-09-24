@@ -81,7 +81,7 @@ class CSVTest extends TestCase
         $exportDevice = new Local($tempDir);
 
         // Create CSV destination
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
 
         // Create test data
         $database = new Database('test_db');
@@ -112,7 +112,6 @@ class CSVTest extends TestCase
         $csvDestination->shutdown();
 
         // Verify CSV file was created in local temp directory
-        // Note: The filename gets sanitized, so ':' becomes '_'
         $expectedFile = $csvDestination->getLocalRoot() . '/test_db_test_table_id.csv';
         $this->assertFileExists($expectedFile, 'CSV file should exist');
 
@@ -132,6 +131,8 @@ class CSVTest extends TestCase
         // Check header
         $this->assertContains('$id', $header);
         $this->assertContains('$permissions', $header);
+        $this->assertContains('$createdAt', $header);
+        $this->assertContains('$updatedAt', $header);
         $this->assertContains('name', $header);
         $this->assertContains('age', $header);
         $this->assertContains('email', $header);
@@ -139,9 +140,10 @@ class CSVTest extends TestCase
         // Check first row data
         $this->assertEquals('row1', $row1Data[0]); // $id
         $this->assertStringContainsString('user:123', $row1Data[1]); // $permissions
-        $this->assertEquals('John Doe', $row1Data[2]); // name
-        $this->assertEquals('30', $row1Data[3]); // age
-        $this->assertEquals('john@example.com', $row1Data[4]); // email
+        // $createdAt and $updatedAt are empty for test data
+        $this->assertEquals('John Doe', $row1Data[4]); // name
+        $this->assertEquals('30', $row1Data[5]); // age
+        $this->assertEquals('john@example.com', $row1Data[6]); // email
 
         // Cleanup
         if (is_dir($tempDir)) {
@@ -154,7 +156,7 @@ class CSVTest extends TestCase
         $tempDir = sys_get_temp_dir() . '/csv_test_special_' . uniqid();
         $exportDevice = new Local($tempDir);
 
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -183,11 +185,12 @@ class CSVTest extends TestCase
         $this->assertNotFalse($header);
         $this->assertNotFalse($rowData);
 
-        // Verify special characters are properly handled (fgetcsv($handle, 0, ',', '"', '"');
-        $this->assertEquals('Text with "quotes"', $rowData[2]); // quote_field
-        $this->assertEquals('Text, with, commas', $rowData[3]); // comma_field
-        $this->assertEquals("Text with\nnewlines", $rowData[4]); // newline_field
-        $this->assertEquals('Text with "quotes", commas, and\nnewlines', $rowData[5]); // mixed_field
+        // Verify special characters are properly handled
+        // Indices are shifted by 2 due to $createdAt and $updatedAt
+        $this->assertEquals('Text with "quotes"', $rowData[4]); // quote_field
+        $this->assertEquals('Text, with, commas', $rowData[5]); // comma_field
+        $this->assertEquals("Text with\nnewlines", $rowData[6]); // newline_field
+        $this->assertEquals('Text with "quotes", commas, and\nnewlines', $rowData[7]); // mixed_field
 
         // Cleanup
         if (is_dir($tempDir)) {
@@ -200,7 +203,7 @@ class CSVTest extends TestCase
         $tempDir = sys_get_temp_dir() . '/csv_test_arrays_' . uniqid();
         $exportDevice = new Local($tempDir);
 
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -229,10 +232,11 @@ class CSVTest extends TestCase
         $this->assertNotFalse($rowData);
 
         // Arrays should be JSON encoded
-        $this->assertEquals('["php","csv","export"]', $rowData[2]); // tags
-        $this->assertJson($rowData[3]); // metadata should be valid JSON
-        $this->assertEquals('', $rowData[4]); // empty_array
-        $this->assertJson($rowData[5]); // nested should be valid JSON
+        // Indices are shifted by 2 due to $createdAt and $updatedAt
+        $this->assertEquals('["php","csv","export"]', $rowData[4]); // tags
+        $this->assertJson($rowData[5]); // metadata should be valid JSON
+        $this->assertEquals('', $rowData[6]); // empty_array
+        $this->assertJson($rowData[7]); // nested should be valid JSON
 
         // Cleanup
         if (is_dir($tempDir)) {
@@ -245,7 +249,7 @@ class CSVTest extends TestCase
         $tempDir = sys_get_temp_dir() . '/csv_test_nulls_' . uniqid();
         $exportDevice = new Local($tempDir);
 
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -274,11 +278,12 @@ class CSVTest extends TestCase
         $this->assertNotFalse($header);
         $this->assertNotFalse($rowData);
 
-        $this->assertEquals('Test', $rowData[2]); // name
-        $this->assertEquals('null', $rowData[3]); // null_field -> "null" string
-        $this->assertEquals('', $rowData[4]); // empty_string
-        $this->assertEquals('0', $rowData[5]); // zero
-        $this->assertEquals('false', $rowData[6]); // false_bool
+        // Indices are shifted by 2 due to $createdAt and $updatedAt
+        $this->assertEquals('Test', $rowData[4]); // name
+        $this->assertEquals('null', $rowData[5]); // null_field -> "null" string
+        $this->assertEquals('', $rowData[6]); // empty_string
+        $this->assertEquals('0', $rowData[7]); // zero
+        $this->assertEquals('false', $rowData[8]); // false_bool
 
         // Cleanup
         if (is_dir($tempDir)) {
@@ -292,7 +297,7 @@ class CSVTest extends TestCase
         $exportDevice = new Local($tempDir);
 
         // Only allow specific attributes
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', ['name', 'email']);
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id', ['name', 'email']);
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -320,9 +325,11 @@ class CSVTest extends TestCase
         $this->assertNotFalse($header);
         $this->assertNotFalse($rowData);
 
-        // Should have $id, $permissions, and only allowed attributes
+        // Should have $id, $permissions, $createdAt, $updatedAt, and only allowed attributes
         $this->assertContains('$id', $header);
         $this->assertContains('$permissions', $header);
+        $this->assertContains('$createdAt', $header);
+        $this->assertContains('$updatedAt', $header);
         $this->assertContains('name', $header);
         $this->assertContains('email', $header);
         $this->assertNotContains('age', $header);
@@ -340,7 +347,7 @@ class CSVTest extends TestCase
         $exportDevice = new Local($tempDir);
 
         // Export data
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -384,6 +391,9 @@ class CSVTest extends TestCase
         $this->assertEquals('null', $reconstructed['null_field']); // null becomes "null" string
         $this->assertEquals('', $reconstructed['empty_field']);
         $this->assertEquals('true', $reconstructed['bool_field']); // bool becomes string
+        // Check that createdAt and updatedAt are in the reconstructed data
+        $this->assertArrayHasKey('$createdAt', $reconstructed);
+        $this->assertArrayHasKey('$updatedAt', $reconstructed);
 
         // Arrays should be valid JSON that can be decoded
         $this->assertJson($reconstructed['tags']);
