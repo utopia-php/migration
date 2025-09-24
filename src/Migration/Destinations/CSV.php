@@ -15,8 +15,9 @@ use Utopia\Storage\Device\Local;
 
 class CSV extends Destination
 {
-    protected Device $deviceForMigrations;
+    protected Device $deviceForFiles;
     protected string $resourceId;
+    protected string $directory;
     protected string $outputFile;
     protected Local $local;
 
@@ -29,17 +30,20 @@ class CSV extends Destination
      * @throws \Exception
      */
     public function __construct(
-        Device $deviceForExports,
+        Device $deviceForFiles,
         string $resourceId,
+        string $directory,
+        string $filename,
         array $allowedColumns = [],
         private readonly string $delimiter = ',',
         private readonly string $enclosure = '"',
         private readonly string $escape = '\\',
         private readonly bool $includeHeaders = true,
     ) {
-        $this->deviceForMigrations = $deviceForExports;
+        $this->deviceForFiles = $deviceForFiles;
         $this->resourceId = $resourceId;
-        $this->outputFile = $this->sanitizeFilename($resourceId);
+        $this->directory = $directory;
+        $this->outputFile = $this->sanitizeFilename($filename);
         $this->local = new Local(\sys_get_temp_dir() . '/csv_export_' . uniqid());
         $this->local->setTransferChunkSize(Transfer::STORAGE_MAX_CHUNK_SIZE);
         $this->createDirectory($this->local->getRoot());
@@ -159,26 +163,26 @@ class CSV extends Destination
     public function shutdown(): void
     {
         $filename = $this->outputFile . '.csv';
-        $sourceFilePath = $this->local->getPath($filename);
-        $destFilePath = $this->deviceForMigrations->getPath($filename);
+        $sourcePath = $this->local->getPath($filename);
+        $destPath = $this->deviceForFiles->getPath($this->directory . '/' . $filename);
 
         // Check if the CSV file was actually created
-        if (!$this->local->exists($sourceFilePath)) {
+        if (!$this->local->exists($sourcePath)) {
             throw new \Exception("No data to export for resource: $this->resourceId");
         }
 
         try {
             // Transfer expects absolute paths within each device
             $result = $this->local->transfer(
-                $filename,
-                $filename,
-                $this->deviceForMigrations
+                $sourcePath,
+                $destPath,
+                $this->deviceForFiles
             );
             if ($result === false) {
-                throw new \Exception('Error transferring to ' . $this->deviceForMigrations->getRoot() . '/' . $filename);
+                throw new \Exception('Error transferring to ' . $this->deviceForFiles->getRoot() . '/' . $filename);
             }
-            if (!$this->deviceForMigrations->exists($destFilePath)) {
-                throw new \Exception('File not found on destination: ' . $destFilePath);
+            if (!$this->deviceForFiles->exists($destPath)) {
+                throw new \Exception('File not found on destination: ' . $destPath);
             }
         } finally {
             // Clean up the temporary directory
@@ -221,6 +225,8 @@ class CSV extends Destination
         $data = [
             '$id' => $resource->getId(),
             '$permissions' => $resource->getPermissions(),
+            '$createdAt' => $resource->getCreatedAt(),
+            '$updatedAt' => $resource->getUpdatedAt(),
         ];
 
         // Add all attributes if no filter specified, otherwise only allowed ones
