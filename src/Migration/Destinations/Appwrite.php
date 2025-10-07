@@ -338,6 +338,7 @@ class Appwrite extends Destination
             '$updatedAt' => $resource->getUpdatedAt(),
             'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
             'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
+            'database' => $resource->getDatabase()
         ]));
 
         $resource->setSequence($database->getSequence());

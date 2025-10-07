@@ -738,7 +738,8 @@ class Appwrite extends Source
                     $database['name'],
                     $database['$createdAt'],
                     $database['$updatedAt'],
-                    type: $database['type'] ?? 'legacy'
+                    type: $database['type'] ?? 'legacy',
+                    database: $database['database']
                 );
 
                 $databases[] = $newDatabase;
