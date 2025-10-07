@@ -66,14 +66,16 @@ class Appwrite extends Destination
      * @param string $project
      * @param string $endpoint
      * @param string $key
-     * @param UtopiaDatabase $database
+     * @param UtopiaDatabase $dbForProject
+     * @param UtopiaDatabase $dbForDatabase
      * @param array<array<string, mixed>> $collectionStructure
      */
     public function __construct(
         string $project,
         string $endpoint,
         string $key,
-        protected UtopiaDatabase $database,
+        protected UtopiaDatabase $dbForProject,
+        protected UtopiaDatabase $dbForDatabase,
         protected array $collectionStructure
     ) {
         $this->project = $project;
@@ -228,7 +230,7 @@ class Appwrite extends Destination
             $isLast = $index === $total - 1;
 
             try {
-                $this->database->setPreserveDates(true);
+                $this->dbForDatabase->setPreserveDates(true);
 
                 $responseResource = match ($resource->getGroup()) {
                     Transfer::GROUP_DATABASES => $this->importDatabaseResource($resource, $isLast),
@@ -255,7 +257,7 @@ class Appwrite extends Destination
 
                 $responseResource = $resource;
             } finally {
-                $this->database->setPreserveDates(false);
+                $this->dbForDatabase->setPreserveDates(false);
             }
 
             $this->cache->update($responseResource);
@@ -329,7 +331,7 @@ class Appwrite extends Destination
             );
         }
 
-        $database = $this->database->createDocument('databases', new UtopiaDocument([
+        $database = $this->dbForProject->createDocument('databases', new UtopiaDocument([
             '$id' => $resource->getId(),
             'name' => $resource->getDatabaseName(),
             'enabled' => $resource->getEnabled(),
@@ -353,7 +355,7 @@ class Appwrite extends Destination
             $this->collectionStructure['indexes']
         );
 
-        $this->database->createCollection(
+        $this->dbForProject->createCollection(
             'database_' . $database->getSequence(),
             $columns,
             $indexes
@@ -385,7 +387,7 @@ class Appwrite extends Destination
             );
         }
 
-        $database = $this->database->getDocument(
+        $database = $this->dbForProject->getDocument(
             'databases',
             $resource->getDatabase()->getId()
         );
@@ -399,7 +401,7 @@ class Appwrite extends Destination
             );
         }
 
-        $table = $this->database->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
+        $table = $this->dbForProject->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
             '$id' => $resource->getId(),
             'databaseInternalId' => $database->getSequence(),
             'databaseId' => $resource->getDatabase()->getId(),
@@ -414,7 +416,7 @@ class Appwrite extends Destination
 
         $resource->setSequence($table->getSequence());
 
-        $this->database->createCollection(
+        $this->dbForDatabase->createCollection(
             'database_' . $database->getSequence() . '_collection_' . $resource->getSequence(),
             permissions: $resource->getPermissions(),
             documentSecurity: $resource->getRowSecurity()
@@ -447,7 +449,7 @@ class Appwrite extends Destination
             default => throw new \Exception('Invalid resource type '.$resource->getType()),
         };
 
-        $database = $this->database->getDocument(
+        $database = $this->dbForProject->getDocument(
             'databases',
             $resource->getTable()->getDatabase()->getId(),
         );
@@ -461,7 +463,7 @@ class Appwrite extends Destination
             );
         }
 
-        $table = $this->database->getDocument(
+        $table = $this->dbForProject->getDocument(
             'database_' . $database->getSequence(),
             $resource->getTable()->getId(),
         );
@@ -506,7 +508,7 @@ class Appwrite extends Destination
 
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP) {
             $resource->getOptions()['side'] = UtopiaDatabase::RELATION_SIDE_PARENT;
-            $relatedTable = $this->database->getDocument(
+            $relatedTable = $this->dbForProject->getDocument(
                 'database_' . $database->getSequence(),
                 $resource->getOptions()['relatedCollection']
             );
@@ -543,9 +545,9 @@ class Appwrite extends Destination
                 '$updatedAt' => $resource->getUpdatedAt(),
             ]);
 
-            $this->database->checkAttribute($table, $column);
+            $this->dbForProject->checkAttribute($table, $column);
 
-            $column = $this->database->createDocument('attributes', $column);
+            $column = $this->dbForProject->createDocument('attributes', $column);
         } catch (DuplicateException) {
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -561,13 +563,13 @@ class Appwrite extends Destination
                 message: 'Attribute limit exceeded',
             );
         } catch (\Throwable $e) {
-            $this->database->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
-            $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+            $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+            $this->dbForDatabase->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
             throw $e;
         }
 
-        $this->database->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
-        $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+        $this->dbForDatabase->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
         $options = $resource->getOptions();
 
         $twoWayKey = null;
@@ -601,9 +603,9 @@ class Appwrite extends Destination
                     '$updatedAt' => $resource->getUpdatedAt(),
                 ]);
 
-                $this->database->createDocument('attributes', $twoWayAttribute);
+                $this->dbForProject->createDocument('attributes', $twoWayAttribute);
             } catch (DuplicateException) {
-                $this->database->deleteDocument('attributes', $column->getId());
+                $this->dbForProject->deleteDocument('attributes', $column->getId());
 
                 throw new Exception(
                     resourceName: $resource->getName(),
@@ -612,7 +614,7 @@ class Appwrite extends Destination
                     message: 'Attribute already exists',
                 );
             } catch (LimitException) {
-                $this->database->deleteDocument('attributes', $column->getId());
+                $this->dbForProject->deleteDocument('attributes', $column->getId());
 
                 throw new Exception(
                     resourceName: $resource->getName(),
@@ -621,8 +623,8 @@ class Appwrite extends Destination
                     message: 'Column limit exceeded',
                 );
             } catch (\Throwable $e) {
-                $this->database->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
-                $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence());
+                $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
+                $this->dbForDatabase->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence());
                 throw $e;
             }
         }
@@ -630,7 +632,7 @@ class Appwrite extends Destination
         try {
             switch ($type) {
                 case UtopiaDatabase::VAR_RELATIONSHIP:
-                    if (!$this->database->createRelationship(
+                    if (!$this->dbForDatabase->createRelationship(
                         collection: 'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
                         relatedCollection: 'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence(),
                         type: $options['relationType'],
@@ -648,7 +650,7 @@ class Appwrite extends Destination
                     }
                     break;
                 default:
-                    if (!$this->database->createAttribute(
+                    if (!$this->dbForDatabase->createAttribute(
                         'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
                         $resource->getKey(),
                         $type,
@@ -665,10 +667,10 @@ class Appwrite extends Destination
                     }
             }
         } catch (\Throwable) {
-            $this->database->deleteDocument('attributes', $column->getId());
+            $this->dbForProject->deleteDocument('attributes', $column->getId());
 
             if (isset($twoWayAttribute)) {
-                $this->database->deleteDocument('attributes', $twoWayAttribute->getId());
+                $this->dbForProject->deleteDocument('attributes', $twoWayAttribute->getId());
             }
 
             throw new Exception(
@@ -680,11 +682,11 @@ class Appwrite extends Destination
         }
 
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
-            $this->database->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
+            $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
         }
 
-        $this->database->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
-        $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+        $this->dbForDatabase->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
 
         return true;
     }
@@ -695,7 +697,7 @@ class Appwrite extends Destination
      */
     protected function createIndex(Index $resource): bool
     {
-        $database = $this->database->getDocument(
+        $database = $this->dbForProject->getDocument(
             'databases',
             $resource->getTable()->getDatabase()->getId(),
         );
@@ -708,7 +710,7 @@ class Appwrite extends Destination
             );
         }
 
-        $table = $this->database->getDocument(
+        $table = $this->dbForProject->getDocument(
             'database_' . $database->getSequence(),
             $resource->getTable()->getId(),
         );
@@ -721,12 +723,12 @@ class Appwrite extends Destination
             );
         }
 
-        $count = $this->database->count('indexes', [
+        $count = $this->dbForProject->count('indexes', [
             Query::equal('collectionInternalId', [$table->getSequence()]),
             Query::equal('databaseInternalId', [$database->getSequence()])
-        ], $this->database->getLimitForIndexes());
+        ], $this->dbForDatabase->getLimitForIndexes());
 
-        if ($count >= $this->database->getLimitForIndexes()) {
+        if ($count >= $this->dbForDatabase->getLimitForIndexes()) {
             throw new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
@@ -845,9 +847,9 @@ class Appwrite extends Destination
 
         $validator = new IndexValidator(
             $tableColumns,
-            $this->database->getAdapter()->getMaxIndexLength(),
-            $this->database->getAdapter()->getInternalIndexesKeys(),
-            $this->database->getAdapter()->getSupportForIndexArray(),
+            $this->dbForDatabase->getAdapter()->getMaxIndexLength(),
+            $this->dbForDatabase->getAdapter()->getInternalIndexesKeys(),
+            $this->dbForDatabase->getAdapter()->getSupportForIndexArray(),
         );
 
         if (!$validator->isValid($index)) {
@@ -859,10 +861,10 @@ class Appwrite extends Destination
             );
         }
 
-        $index = $this->database->createDocument('indexes', $index);
+        $index = $this->dbForProject->createDocument('indexes', $index);
 
         try {
-            $result = $this->database->createIndex(
+            $result = $this->dbForDatabase->createIndex(
                 'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
                 $resource->getKey(),
                 $resource->getType(),
@@ -880,7 +882,7 @@ class Appwrite extends Destination
                 );
             }
         } catch (\Throwable $th) {
-            $this->database->deleteDocument('indexes', $index->getId());
+            $this->dbForProject->deleteDocument('indexes', $index->getId());
 
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -890,7 +892,7 @@ class Appwrite extends Destination
             );
         }
 
-        $this->database->purgeCachedDocument(
+        $this->dbForProject->purgeCachedDocument(
             'database_' . $database->getSequence(),
             $table->getId()
         );
@@ -942,12 +944,12 @@ class Appwrite extends Destination
 
         if ($isLast) {
             try {
-                $database = $this->database->getDocument(
+                $database = $this->dbForProject->getDocument(
                     'databases',
                     $resource->getTable()->getDatabase()->getId(),
                 );
 
-                $table = $this->database->getDocument(
+                $table = $this->dbForProject->getDocument(
                     'database_' . $database->getSequence(),
                     $resource->getTable()->getId(),
                 );
@@ -980,7 +982,7 @@ class Appwrite extends Destination
                     }
                 }
 
-                $this->database->skipRelationshipsExistCheck(fn () => $this->database->createDocuments(
+                $this->dbForDatabase->skipRelationshipsExistCheck(fn () => $this->dbForDatabase->createDocuments(
                     'database_' . $databaseInternalId . '_collection_' . $tableInternalId,
                     $this->rowBuffer
                 ));
