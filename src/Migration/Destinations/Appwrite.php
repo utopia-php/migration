@@ -238,20 +238,16 @@ class Appwrite extends Destination
                     default => throw new \Exception('Invalid resource group'),
                 };
             } catch (\Throwable $e) {
-                if ($e->getCode() === 409) {
-                    $resource->setStatus(Resource::STATUS_SKIPPED, $e->getMessage());
-                } else {
-                    $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
 
-                    $this->addError(new Exception(
-                        resourceName: $resource->getName(),
-                        resourceGroup: $resource->getGroup(),
-                        resourceId: $resource->getId(),
-                        message: $e->getMessage(),
-                        code: $e->getCode(),
-                        previous: $e
-                    ));
-                }
+                $this->addError(new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                ));
 
                 $responseResource = $resource;
             } finally {
