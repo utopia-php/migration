@@ -58,7 +58,7 @@ class Appwrite extends Destination
     private Users $users;
 
     /**
-     * @var callable(string $databaseDSN): UtopiaDatabase
+     * @var callable(UtopiaDocument $database): UtopiaDatabase
      */
     protected mixed $getDatabaseDB;
 
@@ -72,7 +72,7 @@ class Appwrite extends Destination
      * @param string $endpoint
      * @param string $key
      * @param UtopiaDatabase $dbForProject
-     * @param callable(string $databaseDSN):UtopiaDatabase $getDatabaseDB
+     * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabaseDB
      * @param array<array<string, mixed>> $collectionStructure
      */
     public function __construct(
@@ -408,7 +408,7 @@ class Appwrite extends Destination
             );
         }
 
-        $dbForDatabase = call_user_func($this->getDatabaseDB, $database->getAttribute('database'));
+        $dbForDatabase = call_user_func($this->getDatabaseDB, $database);
 
         $table = $this->dbForProject->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
             '$id' => $resource->getId(),
@@ -530,7 +530,7 @@ class Appwrite extends Destination
                 );
             }
         }
-        $dbForDatabase = call_user_func($this->getDatabaseDB, $database->getAttribute('database'));
+        $dbForDatabase = call_user_func($this->getDatabaseDB, $database);
         try {
             $column = new UtopiaDocument([
                 '$id' => ID::custom($database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey()),
@@ -731,7 +731,7 @@ class Appwrite extends Destination
                 message: 'Table not found',
             );
         }
-        $dbForDatabase = call_user_func($this->getDatabaseDB, $database->getAttribute('database'));
+        $dbForDatabase = call_user_func($this->getDatabaseDB, $database);
 
         $count = $this->dbForProject->count('indexes', [
             Query::equal('collectionInternalId', [$table->getSequence()]),
@@ -991,7 +991,7 @@ class Appwrite extends Destination
                         }
                     }
                 }
-                $dbForDatabase = call_user_func($this->getDatabaseDB, $database->getAttribute('database'));
+                $dbForDatabase = call_user_func($this->getDatabaseDB, $database);
                 $dbForDatabase->skipRelationshipsExistCheck(fn () => $dbForDatabase->createDocuments(
                     'database_' . $databaseInternalId . '_collection_' . $tableInternalId,
                     $this->rowBuffer
