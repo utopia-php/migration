@@ -441,6 +441,12 @@ class Appwrite extends Destination
      */
     protected function createColumn(Column $resource): bool
     {
+        // Skip columns for documents DB (schemaless)
+        if ($resource->getTable()->getDatabase()->getType() === 'documents') {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Columns not supported for documents database');
+            return false;
+        }
+
         $type = match ($resource->getType()) {
             Column::TYPE_DATETIME => UtopiaDatabase::VAR_DATETIME,
             Column::TYPE_BOOLEAN => UtopiaDatabase::VAR_BOOLEAN,

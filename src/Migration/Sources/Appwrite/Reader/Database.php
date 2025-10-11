@@ -413,6 +413,11 @@ class Database implements Reader
         return Query::limit($limit);
     }
 
+    public function getSupportForAttributes(): bool
+    {
+        return $this->dbForProject->getAdapter()->getSupportForAttributes();
+    }
+
     /**
      * @param string $table
      * @param array $queries

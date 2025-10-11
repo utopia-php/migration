@@ -30,6 +30,8 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_DATABASE = 'database';
 
+    public const TYPE_DOCUMENTSDB_DATABASE = 'documentsdb';
+
     public const TYPE_ROW = 'row';
 
     public const TYPE_FILE = 'file';
@@ -70,6 +72,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_BUCKET,
         self::TYPE_TABLE,
         self::TYPE_DATABASE,
+        self::TYPE_DOCUMENTSDB_DATABASE,
         self::TYPE_ROW,
         self::TYPE_FILE,
         self::TYPE_FUNCTION,
