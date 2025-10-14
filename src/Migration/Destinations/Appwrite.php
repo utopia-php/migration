@@ -118,6 +118,7 @@ class Appwrite extends Destination
 
             // Database
             Resource::TYPE_DATABASE,
+            Resource::TYPE_DOCUMENTSDB_DATABASE,
             Resource::TYPE_TABLE,
             Resource::TYPE_COLUMN,
             Resource::TYPE_INDEX,
@@ -282,18 +283,19 @@ class Appwrite extends Destination
     {
         switch ($resource->getName()) {
             case Resource::TYPE_DATABASE:
+            case Resource::TYPE_DOCUMENTSDB_DATABASE:
                 /** @var Database $resource */
                 $success = $this->createDatabase($resource);
                 break;
             case Resource::TYPE_TABLE:
             case Resource::TYPE_COLLECTION:
                 /** @var Table $resource */
-                $success = $this->createTable($resource);
+                $success = $this->createEntity($resource);
                 break;
             case Resource::TYPE_COLUMN:
             case Resource::TYPE_ATTRIBUTE:
                 /** @var Column $resource */
-                $success = $this->createColumn($resource);
+                $success = $this->createField($resource);
                 break;
             case Resource::TYPE_INDEX:
                 /** @var Index $resource */
@@ -302,7 +304,7 @@ class Appwrite extends Destination
             case Resource::TYPE_ROW:
             case Resource::TYPE_DOCUMENT:
                 /** @var Row $resource */
-                $success = $this->createRow($resource, $isLast);
+                $success = $this->createRecord($resource, $isLast);
                 break;
             default:
                 $success = false;
@@ -377,7 +379,7 @@ class Appwrite extends Destination
      * @throws StructureException
      * @throws Exception
      */
-    protected function createTable(Table $resource): bool
+    protected function createEntity(Table $resource): bool
     {
         if ($resource->getId() == 'unique()') {
             $resource->setId(ID::unique());
@@ -439,7 +441,7 @@ class Appwrite extends Destination
      * @throws \Exception
      * @throws \Throwable
      */
-    protected function createColumn(Column $resource): bool
+    protected function createField(Column $resource): bool
     {
         // Skip columns for documents DB (schemaless)
         if ($resource->getTable()->getDatabase()->getType() === 'documents') {
@@ -922,7 +924,7 @@ class Appwrite extends Destination
      * @throws StructureException
      * @throws Exception
      */
-    protected function createRow(Row $resource, bool $isLast): bool
+    protected function createRecord(Row $resource, bool $isLast): bool
     {
         if ($resource->getId() == 'unique()') {
             $resource->setId(ID::unique());
@@ -942,7 +944,7 @@ class Appwrite extends Destination
         // Check if document has already been created
         $exists = \array_key_exists(
             $resource->getId(),
-            $this->cache->get(Resource::TYPE_ROW)
+            $this->cache->get($resource->getName())
         );
 
         if ($exists) {
@@ -972,32 +974,33 @@ class Appwrite extends Destination
 
                 $databaseInternalId = $database->getSequence();
                 $tableInternalId = $table->getSequence();
-
+                $dbForDatabase = call_user_func($this->getDatabaseDB, $database);
                 /**
                  * This is in case an attribute was deleted from Appwrite attributes collection but was not deleted from the table
                  * When creating an archive we select * which will include orphan attribute from the schema
                  */
-                foreach ($this->rowBuffer as $row) {
-                    foreach ($row as $key => $value) {
-                        if (\str_starts_with($key, '$')) {
-                            continue;
-                        }
-
-                        /** @var \Utopia\Database\Document $attribute */
-                        $found = false;
-                        foreach ($table->getAttribute('attributes', []) as $attribute) {
-                            if ($attribute->getAttribute('key') == $key) {
-                                $found = true;
-                                break;
+                if ($dbForDatabase->getAdapter()->getSupportForAttributes()) {
+                    foreach ($this->rowBuffer as $row) {
+                        foreach ($row as $key => $value) {
+                            if (\str_starts_with($key, '$')) {
+                                continue;
                             }
-                        }
 
-                        if (! $found) {
-                            $row->removeAttribute($key);
+                            /** @var \Utopia\Database\Document $attribute */
+                            $found = false;
+                            foreach ($table->getAttribute('attributes', []) as $attribute) {
+                                if ($attribute->getAttribute('key') == $key) {
+                                    $found = true;
+                                    break;
+                                }
+                            }
+
+                            if (! $found) {
+                                $row->removeAttribute($key);
+                            }
                         }
                     }
                 }
-                $dbForDatabase = call_user_func($this->getDatabaseDB, $database);
                 $dbForDatabase->skipRelationshipsExistCheck(fn () => $dbForDatabase->createDocuments(
                     'database_' . $databaseInternalId . '_collection_' . $tableInternalId,
                     $this->rowBuffer

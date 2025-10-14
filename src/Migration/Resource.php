@@ -30,6 +30,10 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_DATABASE = 'database';
 
+    public const TYPE_DATABASE_LEGACY = 'legacy';
+
+    public const TYPE_DATABASE_TABLESDB = 'tablesdb';
+
     public const TYPE_DOCUMENTSDB_DATABASE = 'documentsdb';
 
     public const TYPE_ROW = 'row';
@@ -88,6 +92,20 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_DOCUMENT,
         self::TYPE_ATTRIBUTE,
         self::TYPE_COLLECTION,
+    ];
+
+    // index terminology is same for all
+    public const DATABASE_TYPE_RESOURCE_MAP = [
+        self::TYPE_DATABASE => [
+            'entity' => self::TYPE_TABLE,
+            'fields' => self::TYPE_COLUMN,
+            'records' => self::TYPE_ROW,
+        ],
+        self::TYPE_DOCUMENTSDB_DATABASE => [
+            'entity' => self::TYPE_COLLECTION,
+            'records' => self::TYPE_DOCUMENT,
+            'fields' => self::TYPE_ATTRIBUTE,
+        ],
     ];
 
     protected string $id = '';

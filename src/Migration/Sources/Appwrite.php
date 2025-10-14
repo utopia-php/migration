@@ -114,19 +114,16 @@ class Appwrite extends Source
     }
 
     /**
-     * Create a reader instance for a specific database
+     * Create a reader instance for general operations (not database-specific)
      *
-     * @param Database|null $database
      * @return Reader
      * @throws \Exception
      */
-    private function createReaderForDatabase(Database|null $database): Reader
+    private function createReader(): Reader
     {
         return match ($this->source) {
             static::SOURCE_API => new APIReader(new Databases($this->client)),
-            static::SOURCE_DATABASE => new DatabaseReader(
-                call_user_func($this->getDatabaseDB, new UtopiaDocument(['database' => $database]))
-            ),
+            static::SOURCE_DATABASE => new DatabaseReader($this->dbForProject, $this->getDatabaseDB),
             default => throw new \Exception('Unknown source'),
         };
     }
@@ -153,6 +150,9 @@ class Appwrite extends Source
             Resource::TYPE_DOCUMENT,
             Resource::TYPE_ATTRIBUTE,
             Resource::TYPE_COLLECTION,
+
+            // documentsdb
+            Resource::TYPE_DOCUMENTSDB_DATABASE,
 
             // Storage
             Resource::TYPE_BUCKET,
@@ -293,14 +293,7 @@ class Appwrite extends Source
      */
     private function reportDatabases(array $resources, array &$report): void
     {
-        // For reporting, we use a temporary reader with dbForProject for SOURCE_DATABASE
-        // or the API reader for SOURCE_API
-        $reader = match ($this->source) {
-            static::SOURCE_API => new APIReader(new Databases($this->client)),
-            static::SOURCE_DATABASE => new DatabaseReader($this->dbForProject),
-            default => throw new \Exception('Unknown source'),
-        };
-
+        $reader = $this->createReader();
         $reader->report($resources, $report);
     }
 
@@ -640,8 +633,8 @@ class Appwrite extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         try {
-            if (\in_array(Resource::TYPE_DATABASE, $resources)) {
-                $this->exportDatabases($batchSize);
+            if (\in_array(Resource::TYPE_DATABASE, $resources) || \in_array(Resource::TYPE_DOCUMENTSDB_DATABASE, $resources)) {
+                $this->exportDatabases($batchSize, $resources);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -657,30 +650,31 @@ class Appwrite extends Source
             return;
         }
 
-        if (count($this->cache->get(Database::getName()))) {
+        if (count($this->cache->get(Database::getName())) > 0) {
             $this->exportTablesDB($batchSize, $resources);
+        }
+
+        if (count($this->cache->get(DocumentsDB::getName())) > 0) {
+            $this->exportDocumentsDB($batchSize, $resources);
         }
     }
 
     /**
      * @param int $batchSize
+     * @param array $resources
      * @throws Exception
      */
-    private function exportDatabases(int $batchSize): void
+    private function exportDatabases(int $batchSize, array $resources = []): void
     {
         $lastDatabase = null;
 
         // Create a reader for listing databases (not database-specific)
-        $reader = match ($this->source) {
-            static::SOURCE_API => new APIReader(new Databases($this->client)),
-            static::SOURCE_DATABASE => new DatabaseReader($this->dbForProject),
-            default => throw new \Exception('Unknown source'),
-        };
+        $reader = $this->createReader();
 
         while (true) {
             $queries = [$reader->queryLimit($batchSize)];
 
-            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_DATABASE) {
+            if ($this->rootResourceId !== '' && ($this->rootResourceType === Resource::TYPE_DATABASE || $this->rootResourceType === Resource::TYPE_DOCUMENTSDB_DATABASE)) {
                 $targetDatabaseId = $this->rootResourceId;
 
                 // Handle database:collection format - extract database ID
@@ -704,15 +698,23 @@ class Appwrite extends Source
             $response = $reader->listDatabases($queries);
 
             foreach ($response as $database) {
-                $newDatabase = self::getDatabase($database['type'], [
-                    'id' => $database['$id'],
-                    'name' => $database['name'],
-                    'createdAt' => $database['$createdAt'],
-                    'updatedAt' => $database['$updatedAt'],
-                    'type' => $database['type'],
-                    'database' => $database['database']
-                ]);
-                $databases[] = $newDatabase;
+                $databaseType = $database['type'];
+                if ($databaseType === Resource::TYPE_DATABASE_LEGACY || $databaseType === Resource::TYPE_DATABASE_TABLESDB) {
+                    $databaseType = Resource::TYPE_DATABASE;
+                }
+
+                if (Resource::isSupported($databaseType, $resources)) {
+                    $newDatabase = self::getDatabase($databaseType, [
+                        'id' => $database['$id'],
+                        'name' => $database['name'],
+                        'createdAt' => $database['$createdAt'],
+                        'updatedAt' => $database['$updatedAt'],
+                        'type' => $databaseType,
+                        'database' => $database['database']
+                    ]);
+                    $databases[] = $newDatabase;
+
+                }
             }
 
             if (empty($databases)) {
@@ -735,18 +737,15 @@ class Appwrite extends Source
      * @param array<Resource> $databases
      * @throws Exception
      */
-    private function exportEntities(string $databaseName, int $batchSize, array $databases): void
+    private function exportEntities(string $databaseName, int $batchSize): void
     {
+        $databases = $this->cache->get($databaseName);
         foreach ($databases as $database) {
             /** @var Database $database */
             $lastTable = null;
 
-            // colections in the metadata
-            $reader =  match ($this->source) {
-                static::SOURCE_API => new APIReader(new Databases($this->client)),
-                static::SOURCE_DATABASE => new DatabaseReader($this->dbForProject),
-                default => throw new \Exception('Unknown source'),
-            };
+            // collections in the metadata
+            $reader = $this->createReader();
 
             while (true) {
                 $queries = [$reader->queryLimit($batchSize)];
@@ -776,7 +775,6 @@ class Appwrite extends Source
                 }
 
                 $response = $reader->listTables($database, $queries);
-
                 foreach ($response as $table) {
                     $newTable = self::getEntity($databaseName, [
                         'id' => $table['$id'],
@@ -787,7 +785,7 @@ class Appwrite extends Source
                         'updatedAt' => $table['$updatedAt'],
                         'database' => [
                             'id' => $database->getId(),
-                            'name' => $database->getDatabaseName(),
+                            'name' => $databaseName,
                             'type' => $database->getType(),
                             'database' => $database->getDatabase(),
                         ]
@@ -823,11 +821,7 @@ class Appwrite extends Source
         foreach ($tables as $table) {
             $lastColumn = null;
 
-            $reader = match ($this->source) {
-                static::SOURCE_API => new APIReader(new Databases($this->client)),
-                static::SOURCE_DATABASE => new DatabaseReader($this->dbForProject),
-                default => throw new \Exception('Unknown source'),
-            };
+            $reader = $this->createReader();
 
             while (true) {
                 $queries = [$reader->queryLimit($batchSize)];
@@ -1026,23 +1020,20 @@ class Appwrite extends Source
     }
 
     /**
+     * @param string $entityType
      * @param int $batchSize
-     * @param array<Resource> $entites
      * @throws Exception
      */
-    private function exportIndexes(int $batchSize, array $entites): void
+    private function exportIndexes(string $entityType, int $batchSize): void
     {
+        $entities = $this->cache->get($entityType);
         // Transfer Indexes
-        foreach ($entites as $table) {
+        foreach ($entities as $table) {
             /** @var Table $table */
             $lastIndex = null;
 
             // Create reader for this specific database
-            $reader = match ($this->source) {
-                static::SOURCE_API => new APIReader(new Databases($this->client)),
-                static::SOURCE_DATABASE => new DatabaseReader($this->dbForProject),
-                default => throw new \Exception('Unknown source'),
-            };
+            $reader = $this->createReader();
 
             while (true) {
                 $queries = [$reader->queryLimit($batchSize)];
@@ -1084,14 +1075,13 @@ class Appwrite extends Source
     }
 
     /**
-     * @param string $databaseName
+     * @param string $entityName
      * @param int $batchSize
-     * @param array<Resource> $entities
      * @throws Exception
      */
-    private function exportRecords(string $databaseName, int $batchSize, array $entities): void
+    private function exportRecords(string $entityName, int $batchSize): void
     {
-
+        $entities = $this->cache->get($entityName);
         foreach ($entities as $table) {
             /** @var Table $table */
             $lastRow = null;
@@ -1100,7 +1090,8 @@ class Appwrite extends Source
             $reader = match ($this->source) {
                 static::SOURCE_API => new APIReader(new Databases($this->client)),
                 static::SOURCE_DATABASE => new DatabaseReader(
-                    call_user_func($this->getDatabaseDB, new UtopiaDocument(['database' => $table->getDatabase()->getDatabase()]))
+                    $this->dbForProject,
+                    $this->getDatabaseDB
                 ),
                 default => throw new \Exception('Unknown source'),
             };
@@ -1176,7 +1167,7 @@ class Appwrite extends Source
                     unset($row['$sequence']);
                     unset($row['$collection']);
 
-                    $row = self::getRecord($databaseName, [
+                    $row = self::getRecord($table->getDatabase()->getDatabaseName(), [
                         'id' => $id,
                         'table' => [
                             'id' => $table->getId(),
@@ -1626,9 +1617,8 @@ class Appwrite extends Source
     private function exportTablesDB(int $batchSize, array $resources)
     {
         try {
-            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
-                $databases = $this->cache->get(Database::getName());
-                $this->exportEntities(Table::getName(), $batchSize, $databases);
+            if (\in_array(Resource::TYPE_TABLE, $resources)) {
+                $this->exportEntities(Database::getName(), $batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -1645,7 +1635,7 @@ class Appwrite extends Source
         }
 
         try {
-            if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
+            if (\in_array(Resource::TYPE_COLUMN, $resources)) {
                 $this->exportFields($batchSize);
             }
         } catch (\Throwable $e) {
@@ -1664,8 +1654,7 @@ class Appwrite extends Source
 
         try {
             if (\in_array(Resource::TYPE_INDEX, $resources)) {
-                $tables = $this->cache->get(Table::getName());
-                $this->exportIndexes($batchSize, $tables);
+                $this->exportIndexes(Table::getName(), $batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -1682,9 +1671,8 @@ class Appwrite extends Source
         }
 
         try {
-            if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
-                $tables = $this->cache->get(Table::getName());
-                $this->exportRecords(Table::getName(), $batchSize, $tables);
+            if (\in_array(Resource::TYPE_ROW, $resources)) {
+                $this->exportRecords(Table::getName(), $batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -1701,6 +1689,69 @@ class Appwrite extends Source
         }
     }
 
+    /**
+     * Export DocumentsDB databases (collections and documents)
+     *
+     * @param int $batchSize
+     * @param array $resources
+     * @param array $documentsDBDatabases
+     */
+    private function exportDocumentsDB(int $batchSize, array $resources): void
+    {
+        try {
+            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
+                $this->exportEntities(DocumentsDB::getName(), $batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_COLLECTION,
+                    Transfer::GROUP_DATABASES,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                )
+            );
+
+            return;
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_INDEX, $resources)) {
+                $this->exportIndexes(Collection::getName(), $batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_INDEX,
+                    Transfer::GROUP_DATABASES,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                )
+            );
+
+            return;
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
+                $this->exportRecords(Collection::getName(), $batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_DOCUMENT,
+                    Transfer::GROUP_DATABASES,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                )
+            );
+
+            return;
+        }
+    }
 
     /**
      * @param string $databaseType

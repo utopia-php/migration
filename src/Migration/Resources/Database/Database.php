@@ -44,7 +44,7 @@ class Database extends Resource
      */
     public static function fromArray(array $array): self
     {
-        return new self(
+        return new static(
             $array['id'],
             $array['name'],
             createdAt: $array['createdAt'] ?? '',
