@@ -52,7 +52,7 @@ class Row extends Resource
      */
     public static function fromArray(array $array): self
     {
-        return new static(
+        return new self(
             $array['id'],
             Table::fromArray($array['table'] ?? $array['collection']),
             $array['data'],

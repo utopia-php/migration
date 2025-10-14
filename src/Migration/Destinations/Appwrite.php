@@ -443,9 +443,8 @@ class Appwrite extends Destination
      */
     protected function createField(Column $resource): bool
     {
-        // Skip columns for documents DB (schemaless)
-        if ($resource->getTable()->getDatabase()->getType() === 'documents') {
-            $resource->setStatus(Resource::STATUS_SKIPPED, 'Columns not supported for documents database');
+        if ($resource->getTable()->getDatabase()->getDatabase() === Resource::TYPE_DOCUMENTSDB_DATABASE) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Columns not supported for DocumentsDB');
             return false;
         }
 

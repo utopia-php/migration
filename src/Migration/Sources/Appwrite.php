@@ -12,7 +12,6 @@ use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
-use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -78,9 +77,9 @@ class Appwrite extends Source
         protected string $project,
         protected string $endpoint,
         protected string $key,
+        callable $getDatabasesDB,
         protected string $source = self::SOURCE_API,
         protected ?UtopiaDatabase $dbForProject = null,
-        callable $getDatabasesDB
     ) {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
@@ -114,7 +113,6 @@ class Appwrite extends Source
     }
 
     /**
-     * Create a reader instance for general operations (not database-specific)
      *
      * @return Reader
      * @throws \Exception
@@ -734,7 +732,6 @@ class Appwrite extends Source
     /**
      * @param string $databaseName
      * @param int $batchSize
-     * @param array<Resource> $databases
      * @throws Exception
      */
     private function exportEntities(string $databaseName, int $batchSize): void
@@ -1694,7 +1691,6 @@ class Appwrite extends Source
      *
      * @param int $batchSize
      * @param array $resources
-     * @param array $documentsDBDatabases
      */
     private function exportDocumentsDB(int $batchSize, array $resources): void
     {

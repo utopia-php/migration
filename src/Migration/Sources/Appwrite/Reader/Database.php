@@ -126,10 +126,10 @@ class Database implements Reader
             foreach ($tables as $table) {
                 $tableSequence = $table->getSequence();
 
-                if (Resource::isSupported($databaseSpecificResources['records'], $resources)) {
+                if (Resource::isSupported($databaseSpecificResources['record'], $resources)) {
                     $rowTableId = "database_{$databaseSequence}_collection_{$tableSequence}";
                     $count = $this->countResources($rowTableId, [], $dbResource);
-                    $report[$databaseSpecificResources['records']] += $count;
+                    $report[$databaseSpecificResources['record']] += $count;
                 }
 
                 $commonQueries = [
@@ -137,9 +137,9 @@ class Database implements Reader
                     Query::equal('collectionInternalId', [$tableSequence]),
                 ];
 
-                if (Resource::isSupported($databaseSpecificResources['fields'], $resources)) {
+                if (Resource::isSupported($databaseSpecificResources['field'], $resources)) {
                     $count = $this->countResources('attributes', $commonQueries);
-                    $report[$databaseSpecificResources['fields']] += $count;
+                    $report[$databaseSpecificResources['field']] += $count;
                 }
 
                 if (in_array(Resource::TYPE_INDEX, $resources)) {

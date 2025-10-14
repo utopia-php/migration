@@ -98,13 +98,13 @@ abstract class Resource implements \JsonSerializable
     public const DATABASE_TYPE_RESOURCE_MAP = [
         self::TYPE_DATABASE => [
             'entity' => self::TYPE_TABLE,
-            'fields' => self::TYPE_COLUMN,
-            'records' => self::TYPE_ROW,
+            'field' => self::TYPE_COLUMN,
+            'record' => self::TYPE_ROW,
         ],
         self::TYPE_DOCUMENTSDB_DATABASE => [
             'entity' => self::TYPE_COLLECTION,
-            'records' => self::TYPE_DOCUMENT,
-            'fields' => self::TYPE_ATTRIBUTE,
+            'record' => self::TYPE_DOCUMENT,
+            'field' => self::TYPE_ATTRIBUTE,
         ],
     ];
 

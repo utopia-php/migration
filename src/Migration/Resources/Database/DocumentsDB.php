@@ -10,4 +10,29 @@ class DocumentsDB extends Database
     {
         return Resource::TYPE_DOCUMENTSDB_DATABASE;
     }
+
+    /**
+     * @param array{
+     *     id: string,
+     *     name: string,
+     *     createdAt: string,
+     *     updatedAt: string,
+     *     enabled: bool,
+     *     originalId: string|null,
+     *     database: string
+     * } $array
+     */
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            $array['id'],
+            $array['name'],
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
+            enabled: $array['enabled'] ?? true,
+            originalId: $array['originalId'] ?? '',
+            type: $array['type'] ?? 'legacy',
+            database: $array['database'] ?? 'legacy'
+        );
+    }
 }

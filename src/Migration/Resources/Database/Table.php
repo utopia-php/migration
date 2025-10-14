@@ -49,7 +49,7 @@ class Table extends Resource
      */
     public static function fromArray(array $array): self
     {
-        return new static(
+        return new self(
             Database::fromArray($array['database']),
             name: $array['name'],
             id: $array['id'],
