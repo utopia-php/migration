@@ -443,7 +443,7 @@ class Appwrite extends Destination
      */
     protected function createField(Column $resource): bool
     {
-        if ($resource->getTable()->getDatabase()->getDatabase() === Resource::TYPE_DOCUMENTSDB_DATABASE) {
+        if ($resource->getTable()->getDatabase()->getName() === Resource::TYPE_DOCUMENTSDB_DATABASE) {
             $resource->setStatus(Resource::STATUS_SKIPPED, 'Columns not supported for DocumentsDB');
             return false;
         }
