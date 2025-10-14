@@ -60,7 +60,7 @@ class Appwrite extends Destination
     /**
      * @var callable(UtopiaDocument $database): UtopiaDatabase
      */
-    protected mixed $getDatabaseDB;
+    protected mixed $getDatabasesDB;
 
     /**
      * @var array<UtopiaDocument>
@@ -72,7 +72,7 @@ class Appwrite extends Destination
      * @param string $endpoint
      * @param string $key
      * @param UtopiaDatabase $dbForProject
-     * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabaseDB
+     * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
      * @param array<array<string, mixed>> $collectionStructure
      */
     public function __construct(
@@ -80,7 +80,7 @@ class Appwrite extends Destination
         string $endpoint,
         string $key,
         protected UtopiaDatabase $dbForProject,
-        callable $getDatabaseDB,
+        callable $getDatabasesDB,
         protected array $collectionStructure
     ) {
         $this->project = $project;
@@ -97,7 +97,7 @@ class Appwrite extends Destination
         $this->teams = new Teams($this->client);
         $this->users = new Users($this->client);
 
-        $this->getDatabaseDB = $getDatabaseDB;
+        $this->getDatabasesDB = $getDatabasesDB;
     }
 
     public static function getName(): string
@@ -410,7 +410,7 @@ class Appwrite extends Destination
             );
         }
 
-        $dbForDatabase = call_user_func($this->getDatabaseDB, $database);
+        $dbForDatabase = call_user_func($this->getDatabasesDB, $database);
 
         $table = $this->dbForProject->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
             '$id' => $resource->getId(),
@@ -538,7 +538,7 @@ class Appwrite extends Destination
                 );
             }
         }
-        $dbForDatabase = call_user_func($this->getDatabaseDB, $database);
+        $dbForDatabase = call_user_func($this->getDatabasesDB, $database);
         try {
             $column = new UtopiaDocument([
                 '$id' => ID::custom($database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey()),
@@ -739,7 +739,7 @@ class Appwrite extends Destination
                 message: 'Table not found',
             );
         }
-        $dbForDatabase = call_user_func($this->getDatabaseDB, $database);
+        $dbForDatabase = call_user_func($this->getDatabasesDB, $database);
 
         $count = $this->dbForProject->count('indexes', [
             Query::equal('collectionInternalId', [$table->getSequence()]),
@@ -974,7 +974,7 @@ class Appwrite extends Destination
 
                 $databaseInternalId = $database->getSequence();
                 $tableInternalId = $table->getSequence();
-                $dbForDatabase = call_user_func($this->getDatabaseDB, $database);
+                $dbForDatabase = call_user_func($this->getDatabasesDB, $database);
                 /**
                  * This is in case an attribute was deleted from Appwrite attributes collection but was not deleted from the table
                  * When creating an archive we select * which will include orphan attribute from the schema

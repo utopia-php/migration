@@ -69,7 +69,7 @@ class Appwrite extends Source
     /**
      * @var callable(UtopiaDocument $database|null): UtopiaDatabase
      */
-    protected mixed $getDatabaseDB;
+    protected mixed $getDatabasesDB;
 
     /**
      * @throws \Exception
@@ -80,7 +80,7 @@ class Appwrite extends Source
         protected string $key,
         protected string $source = self::SOURCE_API,
         protected ?UtopiaDatabase $dbForProject = null,
-        callable $getDatabaseDB
+        callable $getDatabasesDB
     ) {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
@@ -100,12 +100,12 @@ class Appwrite extends Source
             if (\is_null($dbForProject)) {
                 throw new \Exception('Database is required for database source');
             }
-            if (\is_null($getDatabaseDB)) {
-                throw new \Exception('getDatabaseDB callable is required for database source');
+            if (\is_null($getDatabasesDB)) {
+                throw new \Exception('getDatabasesDB callable is required for database source');
             }
         }
 
-        $this->getDatabaseDB = $getDatabaseDB;
+        $this->getDatabasesDB = $getDatabasesDB;
     }
 
     public static function getName(): string
@@ -123,7 +123,7 @@ class Appwrite extends Source
     {
         return match ($this->source) {
             static::SOURCE_API => new APIReader(new Databases($this->client)),
-            static::SOURCE_DATABASE => new DatabaseReader($this->dbForProject, $this->getDatabaseDB),
+            static::SOURCE_DATABASE => new DatabaseReader($this->dbForProject, $this->getDatabasesDB),
             default => throw new \Exception('Unknown source'),
         };
     }
@@ -1086,12 +1086,12 @@ class Appwrite extends Source
             /** @var Table $table */
             $lastRow = null;
 
-            // Create reader - use getDatabaseDB for row data operations
+            // Create reader - use getDatabasesDB for row data operations
             $reader = match ($this->source) {
                 static::SOURCE_API => new APIReader(new Databases($this->client)),
                 static::SOURCE_DATABASE => new DatabaseReader(
                     $this->dbForProject,
-                    $this->getDatabaseDB
+                    $this->getDatabasesDB
                 ),
                 default => throw new \Exception('Unknown source'),
             };

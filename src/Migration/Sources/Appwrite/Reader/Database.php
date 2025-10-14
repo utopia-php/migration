@@ -25,13 +25,13 @@ class Database implements Reader
     /**
      * @var callable(UtopiaDocument|null): UtopiaDatabase
     */
-    private mixed $getDatabaseDB;
+    private mixed $getDatabasesDB;
 
     public function __construct(
         private readonly UtopiaDatabase $dbForProject,
-        ?callable $getDatabaseDB = null
+        ?callable $getDatabasesDB = null
     ) {
-        $this->getDatabaseDB = $getDatabaseDB;
+        $this->getDatabasesDB = $getDatabasesDB;
     }
 
     /**
@@ -39,8 +39,8 @@ class Database implements Reader
      */
     private function getDatabase(?string $databaseDSN = null): UtopiaDatabase
     {
-        if ($this->getDatabaseDB !== null && $databaseDSN !== null) {
-            return call_user_func($this->getDatabaseDB, new UtopiaDocument(['database' => $databaseDSN]));
+        if ($this->getDatabasesDB !== null && $databaseDSN !== null) {
+            return call_user_func($this->getDatabasesDB, new UtopiaDocument(['database' => $databaseDSN]));
         }
 
         return $this->dbForProject;
