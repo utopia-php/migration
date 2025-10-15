@@ -96,15 +96,7 @@ class Appwrite extends Source
         $this->headers['X-Appwrite-Project'] = $this->project;
         $this->headers['X-Appwrite-Key'] = $this->key;
 
-        // Validate required parameters based on source type
-        if ($this->source === static::SOURCE_DATABASE) {
-            if (\is_null($dbForProject)) {
-                throw new \Exception('Database is required for database source');
-            }
-            if (\is_null($getDatabasesDB)) {
-                throw new \Exception('getDatabasesDB callable is required for database source');
-            }
-        }
+        $this->getDatabasesDB = $getDatabasesDB;
 
         $this->reader = match ($this->source) {
             static::SOURCE_API => new APIReader(new Databases($this->client)),
@@ -112,7 +104,6 @@ class Appwrite extends Source
             default => throw new \Exception('Unknown source'),
         };
 
-        $this->getDatabasesDB = $getDatabasesDB;
     }
 
     public static function getName(): string
