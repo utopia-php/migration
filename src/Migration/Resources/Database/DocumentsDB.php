@@ -8,7 +8,7 @@ class DocumentsDB extends Database
 {
     public static function getName(): string
     {
-        return Resource::TYPE_DOCUMENTSDB_DATABASE;
+        return Resource::TYPE_DATABASE_DOCUMENTSDB;
     }
 
     /**

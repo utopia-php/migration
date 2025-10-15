@@ -57,6 +57,8 @@ class Appwrite extends Source
 
     protected Client $client;
 
+    private Reader $reader;
+
     private Users $users;
 
     private Teams $teams;
@@ -104,26 +106,18 @@ class Appwrite extends Source
             }
         }
 
+        $this->reader = match ($this->source) {
+            static::SOURCE_API => new APIReader(new Databases($this->client)),
+            static::SOURCE_DATABASE => new DatabaseReader($this->dbForProject, $this->getDatabasesDB),
+            default => throw new \Exception('Unknown source'),
+        };
+
         $this->getDatabasesDB = $getDatabasesDB;
     }
 
     public static function getName(): string
     {
         return 'Appwrite';
-    }
-
-    /**
-     *
-     * @return Reader
-     * @throws \Exception
-     */
-    private function createReader(): Reader
-    {
-        return match ($this->source) {
-            static::SOURCE_API => new APIReader(new Databases($this->client)),
-            static::SOURCE_DATABASE => new DatabaseReader($this->dbForProject, $this->getDatabasesDB),
-            default => throw new \Exception('Unknown source'),
-        };
     }
 
     /**
@@ -150,7 +144,7 @@ class Appwrite extends Source
             Resource::TYPE_COLLECTION,
 
             // documentsdb
-            Resource::TYPE_DOCUMENTSDB_DATABASE,
+            Resource::TYPE_DATABASE_DOCUMENTSDB,
 
             // Storage
             Resource::TYPE_BUCKET,
@@ -291,8 +285,7 @@ class Appwrite extends Source
      */
     private function reportDatabases(array $resources, array &$report): void
     {
-        $reader = $this->createReader();
-        $reader->report($resources, $report);
+        $this->reader->report($resources, $report);
     }
 
     /**
@@ -631,7 +624,7 @@ class Appwrite extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         try {
-            if (\in_array(Resource::TYPE_DATABASE, $resources) || \in_array(Resource::TYPE_DOCUMENTSDB_DATABASE, $resources)) {
+            if (Resource::isSupported(array_keys(Resource::DATABASE_TYPE_RESOURCE_MAP), $resources)) {
                 $this->exportDatabases($batchSize, $resources);
             }
         } catch (\Throwable $e) {
@@ -667,12 +660,11 @@ class Appwrite extends Source
         $lastDatabase = null;
 
         // Create a reader for listing databases (not database-specific)
-        $reader = $this->createReader();
 
         while (true) {
-            $queries = [$reader->queryLimit($batchSize)];
+            $queries = [$this->reader->queryLimit($batchSize)];
 
-            if ($this->rootResourceId !== '' && ($this->rootResourceType === Resource::TYPE_DATABASE || $this->rootResourceType === Resource::TYPE_DOCUMENTSDB_DATABASE)) {
+            if ($this->rootResourceId !== '' && ($this->rootResourceType === Resource::TYPE_DATABASE || $this->rootResourceType === Resource::TYPE_DATABASE_DOCUMENTSDB)) {
                 $targetDatabaseId = $this->rootResourceId;
 
                 // Handle database:collection format - extract database ID
@@ -683,24 +675,23 @@ class Appwrite extends Source
                     }
                 }
 
-                $queries[] = $reader->queryEqual('$id', [$targetDatabaseId]);
-                $queries[] = $reader->queryLimit(1);
+                $queries[] = $this->reader->queryEqual('$id', [$targetDatabaseId]);
+                $queries[] = $this->reader->queryLimit(1);
             }
 
             $databases = [];
 
             if ($lastDatabase) {
-                $queries[] = $reader->queryCursorAfter($lastDatabase);
+                $queries[] = $this->reader->queryCursorAfter($lastDatabase);
             }
 
-            $response = $reader->listDatabases($queries);
+            $response = $this->reader->listDatabases($queries);
 
             foreach ($response as $database) {
                 $databaseType = $database['type'];
-                if ($databaseType === Resource::TYPE_DATABASE_LEGACY || $databaseType === Resource::TYPE_DATABASE_TABLESDB) {
+                if (in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY,Resource::TYPE_DATABASE_TABLESDB])) {
                     $databaseType = Resource::TYPE_DATABASE;
                 }
-
                 if (Resource::isSupported($databaseType, $resources)) {
                     $newDatabase = self::getDatabase($databaseType, [
                         'id' => $database['$id'],
@@ -741,11 +732,8 @@ class Appwrite extends Source
             /** @var Database $database */
             $lastTable = null;
 
-            // collections in the metadata
-            $reader = $this->createReader();
-
             while (true) {
-                $queries = [$reader->queryLimit($batchSize)];
+                $queries = [$this->reader->queryLimit($batchSize)];
                 $tables = [];
 
                 // Filter to specific table if rootResourceType is database with database:collection format
@@ -757,21 +745,21 @@ class Appwrite extends Source
                     $parts = \explode(':', $this->rootResourceId, 2);
                     if (\count($parts) === 2) {
                         $targetTableId = $parts[1]; // table ID
-                        $queries[] = $reader->queryEqual('$id', [$targetTableId]);
-                        $queries[] = $reader->queryLimit(1);
+                        $queries[] = $this->reader->queryEqual('$id', [$targetTableId]);
+                        $queries[] = $this->reader->queryLimit(1);
                     }
                 } elseif (
                     $this->rootResourceId !== '' &&
                     $this->rootResourceType === Resource::TYPE_TABLE
                 ) {
                     $targetTableId = $this->rootResourceId;
-                    $queries[] = $reader->queryEqual('$id', [$targetTableId]);
-                    $queries[] = $reader->queryLimit(1);
+                    $queries[] = $this->reader->queryEqual('$id', [$targetTableId]);
+                    $queries[] = $this->reader->queryLimit(1);
                 } elseif ($lastTable) {
-                    $queries[] = $reader->queryCursorAfter($lastTable);
+                    $queries[] = $this->reader->queryCursorAfter($lastTable);
                 }
 
-                $response = $reader->listTables($database, $queries);
+                $response = $this->reader->listTables($database, $queries);
                 foreach ($response as $table) {
                     $newTable = self::getEntity($databaseName, [
                         'id' => $table['$id'],
@@ -818,17 +806,15 @@ class Appwrite extends Source
         foreach ($tables as $table) {
             $lastColumn = null;
 
-            $reader = $this->createReader();
-
             while (true) {
-                $queries = [$reader->queryLimit($batchSize)];
+                $queries = [$this->reader->queryLimit($batchSize)];
                 $columns = [];
 
                 if ($lastColumn) {
-                    $queries[] = $reader->queryCursorAfter($lastColumn);
+                    $queries[] = $this->reader->queryCursorAfter($lastColumn);
                 }
 
-                $response = $reader->listColumns($table, $queries);
+                $response = $this->reader->listColumns($table, $queries);
 
                 foreach ($response as $column) {
                     if (
@@ -1029,18 +1015,15 @@ class Appwrite extends Source
             /** @var Table $table */
             $lastIndex = null;
 
-            // Create reader for this specific database
-            $reader = $this->createReader();
-
             while (true) {
-                $queries = [$reader->queryLimit($batchSize)];
+                $queries = [$this->reader->queryLimit($batchSize)];
                 $indexes = [];
 
                 if ($lastIndex) {
-                    $queries[] = $reader->queryCursorAfter($lastIndex);
+                    $queries[] = $this->reader->queryCursorAfter($lastIndex);
                 }
 
-                $response = $reader->listIndexes($table, $queries);
+                $response = $this->reader->listIndexes($table, $queries);
 
                 foreach ($response as $index) {
                     $indexes[] = new Index(
@@ -1084,7 +1067,7 @@ class Appwrite extends Source
             $lastRow = null;
 
             // Create reader - use getDatabasesDB for row data operations
-            $reader = match ($this->source) {
+            $this->reader = match ($this->source) {
                 static::SOURCE_API => new APIReader(new Databases($this->client)),
                 static::SOURCE_DATABASE => new DatabaseReader(
                     $this->dbForProject,
@@ -1094,18 +1077,18 @@ class Appwrite extends Source
             };
 
             while (true) {
-                $queries = [$reader->queryLimit($batchSize)];
+                $queries = [$this->reader->queryLimit($batchSize)];
 
                 $rows = [];
 
                 if ($lastRow) {
-                    $queries[] = $reader->queryCursorAfter($lastRow);
+                    $queries[] = $this->reader->queryCursorAfter($lastRow);
                 }
 
                 $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want relations flat!
                 $manyToMany = [];
 
-                if ($reader->getSupportForAttributes()) {
+                if ($this->reader->getSupportForAttributes()) {
                     $attributes = $this->cache->get(Column::getName());
                     foreach ($attributes as $attribute) {
                         /** @var Relationship $attribute */
@@ -1115,22 +1098,15 @@ class Appwrite extends Source
                             $attribute->getSide() === 'parent' &&
                             $attribute->getRelationType() == 'manyToMany'
                         ) {
-                            /**
-                             * Blockers:
-                             * we should use but Does not work properly:
-                             * $selects[] = $attribute->getKey() . '.$id';
-                             * when selecting for a relation we get all relations not just the one we were asking.
-                             * when selecting for a relation like select(*, relation.$id) , all relations get resolve
-                             */
                             $manyToMany[] = $attribute->getKey();
                         }
                     }
                     /** @var Column|Relationship $attribute */
                 }
 
-                $queries[] = $reader->querySelect($selects);
+                $queries[] = $this->reader->querySelect($selects);
 
-                $response = $reader->listRows($table, $queries);
+                $response = $this->reader->listRows($table, $queries);
 
                 foreach ($response as $row) {
                     // HACK: Handle many to many (only for schema-based databases)
@@ -1140,10 +1116,10 @@ class Appwrite extends Source
                             $stack[] = $relation . '.$id';
                         }
 
-                        $rowItem = $reader->getRow(
+                        $rowItem = $this->reader->getRow(
                             $table,
                             $row['$id'],
-                            [$reader->querySelect($stack)]
+                            [$this->reader->querySelect($stack)]
                         );
 
                         foreach ($manyToMany as $key) {
@@ -1764,7 +1740,7 @@ class Appwrite extends Source
     private static function getDatabase(string $databaseType, array $database): Resource
     {
         switch ($databaseType) {
-            case Resource::TYPE_DOCUMENTSDB_DATABASE:
+            case Resource::TYPE_DATABASE_DOCUMENTSDB:
                 return DocumentsDB::fromArray($database);
             default:
                 return Database::fromArray($database);
@@ -1792,7 +1768,7 @@ class Appwrite extends Source
     private static function getEntity(string $databaseType, array $entity): Resource
     {
         switch ($databaseType) {
-            case Resource::TYPE_DOCUMENTSDB_DATABASE:
+            case Resource::TYPE_DATABASE_DOCUMENTSDB:
                 return Collection::fromArray($entity);
             default:
                 return Table::fromArray($entity);
@@ -1831,7 +1807,7 @@ class Appwrite extends Source
     private static function getRecord(string $databaseType, array $record): Resource
     {
         switch ($databaseType) {
-            case Resource::TYPE_DOCUMENTSDB_DATABASE:
+            case Resource::TYPE_DATABASE_DOCUMENTSDB:
                 return Document::fromArray($record);
             default:
                 return Row::fromArray($record);

@@ -40,7 +40,7 @@ class Database implements Reader
     private function getDatabase(?string $databaseDSN = null): UtopiaDatabase
     {
         if ($this->getDatabasesDB !== null && $databaseDSN !== null) {
-            return call_user_func($this->getDatabasesDB, new UtopiaDocument(['database' => $databaseDSN]));
+            return ($this->getDatabasesDB)(new UtopiaDocument(['database' => $databaseDSN]));
         }
 
         return $this->dbForProject;
@@ -49,14 +49,14 @@ class Database implements Reader
     public function report(array $resources, array &$report): mixed
     {
         $relevantResources = [
+            // tablesdb
             Resource::TYPE_DATABASE,
             Resource::TYPE_TABLE,
             Resource::TYPE_ROW,
             Resource::TYPE_COLUMN,
             Resource::TYPE_INDEX,
             // Documentsdb
-            Resource::TYPE_DOCUMENTSDB_DATABASE,
-            // Legacy types
+            Resource::TYPE_DATABASE_DOCUMENTSDB,
             Resource::TYPE_COLLECTION,
             Resource::TYPE_DOCUMENT,
             Resource::TYPE_ATTRIBUTE,
@@ -75,7 +75,7 @@ class Database implements Reader
 
         foreach ($databases as $database) {
             $databaseType = $database->getAttribute('type');
-            if ($databaseType === Resource::TYPE_DATABASE_LEGACY || $databaseType === Resource::TYPE_DATABASE_TABLESDB) {
+            if (in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY,Resource::TYPE_DATABASE_TABLESDB])) {
                 $databaseType = Resource::TYPE_DATABASE;
             }
             if (Resource::isSupported($databaseType, $resources)) {
@@ -93,7 +93,7 @@ class Database implements Reader
         $dbResources = [];
         foreach ($databases as $database) {
             $databaseType = $database->getAttribute('type');
-            if ($databaseType === Resource::TYPE_DATABASE_LEGACY || $databaseType === Resource::TYPE_DATABASE_TABLESDB) {
+            if (in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY,Resource::TYPE_DATABASE_TABLESDB])) {
                 $databaseType = Resource::TYPE_DATABASE;
             }
 
