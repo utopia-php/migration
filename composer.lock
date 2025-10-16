@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ee13b1e778c4fc84737951d6b68b6317",
+    "content-hash": "ee2498f1ac5d16e0ab89ac1de91eb7eb",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -187,16 +187,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v4.32.1",
+            "version": "v4.33.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "c4ed1c1f9bbc1e91766e2cd6c0af749324fe87cb"
+                "reference": "b50269e23204e5ae859a326ec3d90f09efe3047d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/c4ed1c1f9bbc1e91766e2cd6c0af749324fe87cb",
-                "reference": "c4ed1c1f9bbc1e91766e2cd6c0af749324fe87cb",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/b50269e23204e5ae859a326ec3d90f09efe3047d",
+                "reference": "b50269e23204e5ae859a326ec3d90f09efe3047d",
                 "shasum": ""
             },
             "require": {
@@ -225,9 +225,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.32.1"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.33.0"
             },
-            "time": "2025-09-14T05:14:52+00:00"
+            "time": "2025-10-15T20:10:28+00:00"
         },
         {
             "name": "mongodb/mongodb",
@@ -2161,16 +2161,16 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "dev-feat-documentsdb",
+            "version": "dev-test-docsdb",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "a9e4f07fa2a2f36b4ed69adb7dd4e590acc05d60"
+                "reference": "b4e3d5501f7de6c849677d2cd1c923ea16562781"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/a9e4f07fa2a2f36b4ed69adb7dd4e590acc05d60",
-                "reference": "a9e4f07fa2a2f36b4ed69adb7dd4e590acc05d60",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/b4e3d5501f7de6c849677d2cd1c923ea16562781",
+                "reference": "b4e3d5501f7de6c849677d2cd1c923ea16562781",
                 "shasum": ""
             },
             "require": {
@@ -2213,9 +2213,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/feat-documentsdb"
+                "source": "https://github.com/utopia-php/database/tree/feat-mongodb"
             },
-            "time": "2025-10-07T05:15:47+00:00"
+            "time": "2025-10-14T08:05:04+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -4918,7 +4918,7 @@
     "aliases": [
         {
             "package": "utopia-php/database",
-            "version": "dev-feat-documentsdb",
+            "version": "dev-test-docsdb",
             "alias": "1.4.5",
             "alias_normalized": "1.4.5.0"
         }
