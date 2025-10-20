@@ -818,7 +818,7 @@ class Appwrite extends Destination
             $lengths[$i] = null;
 
             if ($columnArray === true) {
-                $lengths[$i] = UtopiaDatabase::ARRAY_INDEX_LENGTH;
+                $lengths[$i] = UtopiaDatabase::MAX_ARRAY_INDEX_LENGTH;
             }
         }
 

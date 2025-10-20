@@ -1,6 +1,6 @@
 <?php
 
-namespace Migration\Unit\General;
+namespace Utopia\Tests\Unit\General;
 
 use PHPUnit\Framework\TestCase;
 use Utopia\Migration\Destinations\CSV as DestinationCSV;
