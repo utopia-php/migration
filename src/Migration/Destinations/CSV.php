@@ -2,7 +2,7 @@
 
 namespace Utopia\Migration\Destinations;
 
-use Utopia\CLI\Console;
+use Utopia\Console;
 use Utopia\Database\Exception\Authorization;
 use Utopia\Database\Exception\Conflict;
 use Utopia\Database\Exception\Structure;
