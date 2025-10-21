@@ -733,7 +733,12 @@ class Appwrite extends Destination
         /**
          * @var array<UtopiaDocument> $tableColumns
          */
-        $tableColumns = $table->getAttribute('attributes');
+        $tableColumns = $table->getAttribute('attributes', []);
+
+        /**
+         * @var array<UtopiaDocument> $tableIndexes
+         */
+        $tableIndexes = $table->getAttribute('indexes', []);
 
         $oldColumns = \array_map(
             fn ($attr) => $attr->getArrayCopy(),
@@ -840,9 +845,16 @@ class Appwrite extends Destination
 
         $validator = new IndexValidator(
             $tableColumns,
+            $tableIndexes,
             $this->database->getAdapter()->getMaxIndexLength(),
             $this->database->getAdapter()->getInternalIndexesKeys(),
             $this->database->getAdapter()->getSupportForIndexArray(),
+            $this->database->getAdapter()->getSupportForSpatialIndexNull(),
+            $this->database->getAdapter()->getSupportForSpatialIndexOrder(),
+            $this->database->getAdapter()->getSupportForVectors(),
+            $this->database->getAdapter()->getSupportForAttributes(),
+            $this->database->getAdapter()->getSupportForMultipleFulltextIndexes(),
+            $this->database->getAdapter()->getSupportForIdenticalIndexes(),
         );
 
         if (!$validator->isValid($index)) {
