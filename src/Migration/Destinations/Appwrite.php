@@ -736,7 +736,7 @@ class Appwrite extends Destination
         $tableColumns = $table->getAttribute('attributes', []);
 
         /**
-         * @var array<UtopiaDocument> $tableColumns
+         * @var array<UtopiaDocument> $tableIndexes
          */
         $tableIndexes = $table->getAttribute('indexes', []);
 
