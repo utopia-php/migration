@@ -275,10 +275,27 @@ class CSV extends Destination
         if (empty($value)) {
             return '';
         }
+
         if (isset($value['$id'])) {
             return $value['$id'];
         }
-        return \json_encode($value);
+
+        $isStringArray = \array_reduce(
+            $value,
+            fn($carry, $item) => $carry && is_string($item),
+            true
+        );
+
+        if ($isStringArray) {
+            // For string arrays, escape quotes and join with commas
+            return \implode(',', \array_map(
+                fn($item) => \str_replace('"', '""', $item),
+                $value
+            ));
+        }
+
+        // For complex arrays, use JSON with escaped quotes
+        return \str_replace('"', '""', \json_encode($value));
     }
 
     /**
@@ -289,7 +306,8 @@ class CSV extends Destination
         if ($value instanceof Row) {
             return $value->getId();
         }
-        return \json_encode($value);
+        
+        // Escape quotes for CSV by doubling them
+        return \str_replace('"', '""', \json_encode($value));
     }
-
 }
