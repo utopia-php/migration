@@ -95,7 +95,7 @@ class CSV extends Destination
                 }
 
                 foreach ($buffer['lines'] as $line) {
-                    if (\fputcsv($handle, $line, $this->delimiter, $this->enclosure, $this->escape) === false) {
+                    if (!$this->writeCSVLine($handle, $line)) {
                         throw new \Exception("Failed to write CSV line to file: $log");
                     }
                 }
@@ -193,6 +193,29 @@ class CSV extends Destination
     }
 
     /**
+     * Write a CSV line with RFC 4180 compliant escaping (double-quote method)
+     * Optimized for maximum performance: array building + single implode
+     * @param resource $handle
+     * @param array $fields
+     * @return bool
+     */
+    protected function writeCSVLine($handle, array $fields): bool
+    {
+        $parts = [];
+
+        foreach ($fields as $field) {
+            $field = (string)$field;
+            if (\strpbrk($field, $this->delimiter . "\n\r" . $this->enclosure) !== false) {
+                $parts[] = $this->enclosure . \str_replace($this->enclosure, $this->enclosure . $this->enclosure, $field) . $this->enclosure;
+            } else {
+                $parts[] = $field;
+            }
+        }
+
+        return \fwrite($handle, \implode($this->delimiter, $parts) . "\n") !== false;
+    }
+
+    /**
      * Helper to ensure a directory exists.
      * @throws \Exception
      */
@@ -275,27 +298,10 @@ class CSV extends Destination
         if (empty($value)) {
             return '';
         }
-
         if (isset($value['$id'])) {
             return $value['$id'];
         }
-
-        $isStringArray = \array_reduce(
-            $value,
-            fn($carry, $item) => $carry && is_string($item),
-            true
-        );
-
-        if ($isStringArray) {
-            // For string arrays, escape quotes and join with commas
-            return \implode(',', \array_map(
-                fn($item) => \str_replace('"', '""', $item),
-                $value
-            ));
-        }
-
-        // For complex arrays, use JSON with escaped quotes
-        return \str_replace('"', '""', \json_encode($value));
+        return \json_encode($value);
     }
 
     /**
@@ -306,8 +312,6 @@ class CSV extends Destination
         if ($value instanceof Row) {
             return $value->getId();
         }
-        
-        // Escape quotes for CSV by doubling them
-        return \str_replace('"', '""', \json_encode($value));
+        return \json_encode($value);
     }
 }
