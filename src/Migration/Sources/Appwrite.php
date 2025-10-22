@@ -72,7 +72,8 @@ class Appwrite extends Source
         protected string $endpoint,
         protected string $key,
         protected string $source = self::SOURCE_API,
-        protected ?UtopiaDatabase $dbForProject = null
+        protected ?UtopiaDatabase $dbForProject = null,
+        protected array $queries = [],
     ) {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
@@ -1100,7 +1101,10 @@ class Appwrite extends Source
             $lastRow = null;
 
             while (true) {
-                $queries = [$this->database->queryLimit($batchSize)];
+                $queries = [
+                    $this->database->queryLimit($batchSize),
+                    ...$this->queries,
+                ];
 
                 $rows = [];
 

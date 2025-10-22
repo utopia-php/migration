@@ -7,7 +7,7 @@ use Utopia\Database\Exception\Authorization;
 use Utopia\Database\Exception\Conflict;
 use Utopia\Database\Exception\Structure;
 use Utopia\Migration\Destination;
-use Utopia\Migration\Resource;
+use Utopia\Migration\Resource as UtopiaResource;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Transfer;
 use Utopia\Storage\Device;
@@ -37,7 +37,7 @@ class CSV extends Destination
         array $allowedColumns = [],
         private readonly string $delimiter = ',',
         private readonly string $enclosure = '"',
-        private readonly string $escape = '\\',
+        private readonly string $escape = '"',
         private readonly bool $includeHeaders = true,
     ) {
         $this->deviceForFiles = $deviceForFiles;
@@ -61,7 +61,7 @@ class CSV extends Destination
     public static function getSupportedResources(): array
     {
         return [
-            Resource::TYPE_ROW,
+            UtopiaResource::TYPE_ROW,
         ];
     }
 
@@ -95,7 +95,7 @@ class CSV extends Destination
                 }
 
                 foreach ($buffer['lines'] as $line) {
-                    if (\fputcsv($handle, $line, $this->delimiter, $this->enclosure, $this->escape) === false) {
+                    if (!$this->writeCSVLine($handle, $line)) {
                         throw new \Exception("Failed to write CSV line to file: $log");
                     }
                 }
@@ -138,7 +138,7 @@ class CSV extends Destination
                     $flushBuffer();
                 }
 
-                $resource->setStatus(Resource::STATUS_SUCCESS);
+                $resource->setStatus(UtopiaResource::STATUS_SUCCESS);
                 if (isset($this->cache)) {
                     $this->cache->update($resource);
                 }
@@ -166,13 +166,11 @@ class CSV extends Destination
         $sourcePath = $this->local->getPath($filename);
         $destPath = $this->deviceForFiles->getPath($this->directory . '/' . $filename);
 
-        // Check if the CSV file was actually created
         if (!$this->local->exists($sourcePath)) {
             throw new \Exception("No data to export for resource: $this->resourceId");
         }
 
         try {
-            // Transfer expects absolute paths within each device
             $result = $this->local->transfer(
                 $sourcePath,
                 $destPath,
@@ -190,6 +188,29 @@ class CSV extends Destination
                 Console::error('Error cleaning up: ' . $this->local->getRoot());
             }
         }
+    }
+
+    /**
+     * Write a CSV line with RFC 4180 compliant escaping (double-quote method)
+     *
+     * @param resource $handle
+     * @param array $fields
+     * @return bool
+     */
+    protected function writeCSVLine($handle, array $fields): bool
+    {
+        $parts = [];
+
+        foreach ($fields as $field) {
+            $field = (string)$field;
+            if (\strpbrk($field, $this->delimiter . "\n\r" . $this->enclosure) !== false) {
+                $parts[] = $this->enclosure . \str_replace($this->enclosure, $this->enclosure . $this->enclosure, $field) . $this->enclosure;
+            } else {
+                $parts[] = $field;
+            }
+        }
+
+        return \fwrite($handle, \implode($this->delimiter, $parts) . "\n") !== false;
     }
 
     /**
@@ -222,18 +243,25 @@ class CSV extends Destination
      */
     protected function resourceToCSVData(Row $resource): array
     {
+        $rowData = $resource->getData();
+
         $data = [
             '$id' => $resource->getId(),
             '$permissions' => $resource->getPermissions(),
-            '$createdAt' => $resource->getCreatedAt(),
-            '$updatedAt' => $resource->getUpdatedAt(),
+            '$createdAt' => $rowData['$createdAt'] ?? '',
+            '$updatedAt' => $rowData['$updatedAt'] ?? '',
         ];
+
+        unset(
+            $rowData['$createdAt'],
+            $rowData['$updatedAt'],
+        );
 
         // Add all attributes if no filter specified, otherwise only allowed ones
         if (empty($this->allowedColumns)) {
-            $data = \array_merge($data, $resource->getData());
+            $data = \array_merge($data, $rowData);
         } else {
-            foreach ($resource->getData() as $key => $value) {
+            foreach ($rowData as $key => $value) {
                 if (isset($this->allowedColumns[$key])) {
                     $data[$key] = $value;
                 }
@@ -291,5 +319,4 @@ class CSV extends Destination
         }
         return \json_encode($value);
     }
-
 }
