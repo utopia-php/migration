@@ -2,7 +2,6 @@
 
 namespace Utopia\Migration\Destinations;
 
-use Utopia\CLI\Console;
 use Utopia\Console;
 use Utopia\Database\Exception\Authorization;
 use Utopia\Database\Exception\Conflict;
@@ -193,7 +192,7 @@ class CSV extends Destination
 
     /**
      * Write a CSV line with RFC 4180 compliant escaping (double-quote method)
-     * Optimized for maximum performance: array building + single implode
+     *
      * @param resource $handle
      * @param array $fields
      * @return bool
