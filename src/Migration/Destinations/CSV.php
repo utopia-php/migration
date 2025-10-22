@@ -37,7 +37,7 @@ class CSV extends Destination
         array $allowedColumns = [],
         private readonly string $delimiter = ',',
         private readonly string $enclosure = '"',
-        private readonly string $escape = '\\',
+        private readonly string $escape = '"',
         private readonly bool $includeHeaders = true,
     ) {
         $this->deviceForFiles = $deviceForFiles;
