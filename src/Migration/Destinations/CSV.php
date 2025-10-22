@@ -245,18 +245,23 @@ class CSV extends Destination
      */
     protected function resourceToCSVData(Row $resource): array
     {
+        $rowData = $resource->getData();
+
         $data = [
             '$id' => $resource->getId(),
             '$permissions' => $resource->getPermissions(),
-            '$createdAt' => $resource->getCreatedAt(),
-            '$updatedAt' => $resource->getUpdatedAt(),
+            '$createdAt' => $rowData['$createdAt'] ?? '',
+            '$updatedAt' => $rowData['$updatedAt'] ?? '',
         ];
+
+        // Remove internal fields from rowData before merging to avoid duplication
+        unset($rowData['$createdAt'], $rowData['$updatedAt']);
 
         // Add all attributes if no filter specified, otherwise only allowed ones
         if (empty($this->allowedColumns)) {
-            $data = \array_merge($data, $resource->getData());
+            $data = \array_merge($data, $rowData);
         } else {
-            foreach ($resource->getData() as $key => $value) {
+            foreach ($rowData as $key => $value) {
                 if (isset($this->allowedColumns[$key])) {
                     $data[$key] = $value;
                 }
