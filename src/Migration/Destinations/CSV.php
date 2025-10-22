@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Destinations;
 
+use Utopia\CLI\Console;
 use Utopia\Console;
 use Utopia\Database\Exception\Authorization;
 use Utopia\Database\Exception\Conflict;
@@ -166,13 +167,11 @@ class CSV extends Destination
         $sourcePath = $this->local->getPath($filename);
         $destPath = $this->deviceForFiles->getPath($this->directory . '/' . $filename);
 
-        // Check if the CSV file was actually created
         if (!$this->local->exists($sourcePath)) {
             throw new \Exception("No data to export for resource: $this->resourceId");
         }
 
         try {
-            // Transfer expects absolute paths within each device
             $result = $this->local->transfer(
                 $sourcePath,
                 $destPath,
@@ -199,7 +198,7 @@ class CSV extends Destination
      * @param array $fields
      * @return bool
      */
-    protected function writeCSVLine($handle, array $fields): bool
+    protected function writeCSVLine(resource $handle, array $fields): bool
     {
         $parts = [];
 
@@ -254,8 +253,10 @@ class CSV extends Destination
             '$updatedAt' => $rowData['$updatedAt'] ?? '',
         ];
 
-        // Remove internal fields from rowData before merging to avoid duplication
-        unset($rowData['$createdAt'], $rowData['$updatedAt']);
+        unset(
+            $rowData['$createdAt'],
+            $rowData['$updatedAt'],
+        );
 
         // Add all attributes if no filter specified, otherwise only allowed ones
         if (empty($this->allowedColumns)) {
