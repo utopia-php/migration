@@ -7,7 +7,7 @@ use Utopia\Database\Exception\Authorization;
 use Utopia\Database\Exception\Conflict;
 use Utopia\Database\Exception\Structure;
 use Utopia\Migration\Destination;
-use Utopia\Migration\Resource;
+use Utopia\Migration\Resource as UtopiaResource;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Transfer;
 use Utopia\Storage\Device;
@@ -61,7 +61,7 @@ class CSV extends Destination
     public static function getSupportedResources(): array
     {
         return [
-            Resource::TYPE_ROW,
+            UtopiaResource::TYPE_ROW,
         ];
     }
 
@@ -138,7 +138,7 @@ class CSV extends Destination
                     $flushBuffer();
                 }
 
-                $resource->setStatus(Resource::STATUS_SUCCESS);
+                $resource->setStatus(UtopiaResource::STATUS_SUCCESS);
                 if (isset($this->cache)) {
                     $this->cache->update($resource);
                 }
@@ -197,7 +197,7 @@ class CSV extends Destination
      * @param array $fields
      * @return bool
      */
-    protected function writeCSVLine(resource $handle, array $fields): bool
+    protected function writeCSVLine($handle, array $fields): bool
     {
         $parts = [];
 
