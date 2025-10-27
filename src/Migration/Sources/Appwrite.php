@@ -82,6 +82,7 @@ class Appwrite extends Source
         callable $getDatabasesDB,
         protected string $source = self::SOURCE_API,
         protected ?UtopiaDatabase $dbForProject = null,
+        protected array $queries = [],
     ) {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
@@ -1068,7 +1069,10 @@ class Appwrite extends Source
             };
 
             while (true) {
-                $queries = [$this->reader->queryLimit($batchSize)];
+                $queries = [
+                    $this->reader->queryLimit($batchSize),
+                    ...$this->queries,
+                ];
 
                 $rows = [];
 

@@ -2,7 +2,7 @@
 
 namespace Utopia\Migration\Sources;
 
-use Utopia\CLI\Console;
+use Utopia\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource as UtopiaResource;
