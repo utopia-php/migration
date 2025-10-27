@@ -881,6 +881,8 @@ class Appwrite extends Destination
         $supportForAttributes = $dbForDatabases->getAdapter()->getSupportForAttributes();
         $supportForMultipleFulltextIndexes = $dbForDatabases->getAdapter()->getSupportForMultipleFulltextIndexes();
         $supportForIdenticalIndexes = $dbForDatabases->getAdapter()->getSupportForIdenticalIndexes();
+        $supportForVectorIndexes = $dbForDatabases->getAdapter()->getSupportForVectors();
+        $supportForObjectIndexes = $dbForDatabases->getAdapter()->getSupportForObject();
 
         $validator = new IndexValidator(
             $table->getAttribute('attributes'),
@@ -888,12 +890,13 @@ class Appwrite extends Destination
             $maxIndexLength,
             $internalIndexesKeys,
             $supportForIndexArray,
-            $supportForSpatialAttributes,
             $supportForSpatialIndexNull,
             $supportForSpatialIndexOrder,
+            $supportForVectorIndexes,
             $supportForAttributes,
             $supportForMultipleFulltextIndexes,
-            $supportForIdenticalIndexes
+            $supportForIdenticalIndexes,
+            $supportForObjectIndexes,
         );
 
 
