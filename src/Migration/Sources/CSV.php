@@ -298,6 +298,9 @@ class CSV extends Source
                                 filter: FILTER_VALIDATE_BOOLEAN,
                                 options: FILTER_NULL_ON_FAILURE
                             ),
+                            Column::TYPE_POINT,
+                            Column::TYPE_LINE,
+                            COLUMN::TYPE_POLYGON => \is_string($parsedValue) ? json_decode($parsedValue) : null,
                             default => $parsedValue,
                         },
                     };
