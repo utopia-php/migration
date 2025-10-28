@@ -300,7 +300,7 @@ class CSV extends Source
                             ),
                             Column::TYPE_POINT,
                             Column::TYPE_LINE,
-                            COLUMN::TYPE_POLYGON => \is_string($parsedValue) ? json_decode($parsedValue) : null,
+                            Column::TYPE_POLYGON => \is_string($parsedValue) ? json_decode($parsedValue) : null,
                             default => $parsedValue,
                         },
                     };
