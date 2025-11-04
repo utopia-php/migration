@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5be49868a8b5e46b7c8870d462b79670",
+    "content-hash": "8b2b0894b94d976f09044c200956961a",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -2209,16 +2209,16 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "dev-dat-851",
+            "version": "3.1.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "7290a34e44a83cfd58078be22b481533a5859b37"
+                "reference": "b38cc9887a8fefedcb9a962168dd6f28b7082fc1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/7290a34e44a83cfd58078be22b481533a5859b37",
-                "reference": "7290a34e44a83cfd58078be22b481533a5859b37",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/b38cc9887a8fefedcb9a962168dd6f28b7082fc1",
+                "reference": "b38cc9887a8fefedcb9a962168dd6f28b7082fc1",
                 "shasum": ""
             },
             "require": {
@@ -2261,9 +2261,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/dat-851"
+                "source": "https://github.com/utopia-php/database/tree/3.1.3"
             },
-            "time": "2025-11-04T11:34:18+00:00"
+            "time": "2025-11-04T11:41:54+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -4916,9 +4916,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "utopia-php/database": 20
-    },
+    "stability-flags": {},
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
