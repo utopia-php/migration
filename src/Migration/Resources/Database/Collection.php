@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Resources\Database;
 
+use Appwrite\Services\Databases;
 use Utopia\Migration\Resource;
 
 class Collection extends Table
@@ -29,8 +30,14 @@ class Collection extends Table
     */
     public static function fromArray(array $array): self
     {
+        $database = match ($array['database']['type']) {
+            Resource::TYPE_DATABASE_DOCUMENTSDB => DocumentsDB::fromArray($array['database']),
+            Resource::TYPE_DATABASE_VECTORDB => VectorDB::fromArray($array['database']),
+            default => Database::fromArray($array['database'])
+        };
+        
         return new self(
-            DocumentsDB::fromArray($array['database']),
+            $database,
             name: $array['name'],
             id: $array['id'],
             rowSecurity: $array['rowSecurity'] ?? $array['documentSecurity'],

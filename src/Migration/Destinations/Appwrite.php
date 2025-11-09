@@ -419,6 +419,11 @@ class Appwrite extends Destination
 
         $dbForDatabases = ($this->getDatabasesDB)($database);
 
+        // passing null in creates only creates the metadata collection
+        if (!$dbForDatabases->exists(null, UtopiaDatabase::METADATA)) {
+            $dbForDatabases->create();
+        }
+
         $table = $this->dbForProject->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
             '$id' => $resource->getId(),
             'databaseInternalId' => $database->getSequence(),
@@ -470,6 +475,7 @@ class Appwrite extends Destination
             Column::TYPE_LINE => UtopiaDatabase::VAR_LINESTRING,
             Column::TYPE_POLYGON => UtopiaDatabase::VAR_POLYGON,
             Column::TYPE_OBJECT => UtopiaDatabase::VAR_OBJECT,
+            Column::TYPE_VECTOR => UtopiaDatabase::VAR_VECTOR,
             default => throw new \Exception('Invalid resource type '.$resource->getType()),
         };
 

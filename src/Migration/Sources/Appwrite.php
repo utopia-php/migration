@@ -34,6 +34,7 @@ use Utopia\Migration\Resources\Database\Columns\ObjectType;
 use Utopia\Migration\Resources\Database\Columns\Relationship;
 use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Columns\URL;
+use Utopia\Migration\Resources\Database\Columns\Vector;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Document;
 use Utopia\Migration\Resources\Database\DocumentsDB;
@@ -796,15 +797,17 @@ class Appwrite extends Source
     }
 
     /**
+     * @param string $entityType
      * @param int $batchSize
      * @throws Exception
      */
-    private function exportFields(int $batchSize): void
+    private function exportFields(string $entityType,int $batchSize): void
     {
-        $tables = $this->cache->get(Table::getName());
+        $entities = $this->cache->get($entityType);
+        // Transfer Indexes
 
         /** @var array<Table> $tables */
-        foreach ($tables as $table) {
+        foreach ($entities as $table) {
             $lastColumn = null;
 
             while (true) {
@@ -984,6 +987,17 @@ class Appwrite extends Source
                                 updatedAt: $column['$updatedAt'] ?? '',
                             );
                             break;
+                        case Column::TYPE_VECTOR:
+                            $col = new Vector(
+                                $column['key'],
+                                $table,
+                                size:$column['size'],
+                                required: $column['required'],
+                                default: $column['default'],
+                                createdAt: $column['$createdAt'] ?? '',
+                                updatedAt: $column['$updatedAt'] ?? '',
+                            );
+                            break;
                     }
 
                     if (!isset($col)) {
@@ -1076,16 +1090,6 @@ class Appwrite extends Source
         foreach ($entities as $table) {
             /** @var Table $table */
             $lastRow = null;
-
-            // Create reader - use getDatabasesDB for row data operations
-            $this->reader = match ($this->source) {
-                static::SOURCE_API => new APIReader(new Databases($this->client)),
-                static::SOURCE_DATABASE => new DatabaseReader(
-                    $this->dbForProject,
-                    $this->getDatabasesDB
-                ),
-                default => throw new \Exception('Unknown source'),
-            };
 
             while (true) {
                 $queries = [
@@ -1623,7 +1627,7 @@ class Appwrite extends Source
 
         try {
             if (\in_array(Resource::TYPE_COLUMN, $resources)) {
-                $this->exportFields($batchSize);
+                $this->exportFields(Table::getName(),$batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -1755,6 +1759,24 @@ class Appwrite extends Source
             $this->addError(
                 new Exception(
                     Resource::TYPE_COLLECTION,
+                    Transfer::GROUP_DATABASES,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                )
+            );
+
+            return;
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
+                $this->exportFields(Collection::getName(),$batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_ATTRIBUTE,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
                     code: $e->getCode(),

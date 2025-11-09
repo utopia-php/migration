@@ -44,6 +44,7 @@ class Transfer
         Resource::TYPE_ROW,
         Resource::TYPE_DOCUMENT,
         Resource::TYPE_COLLECTION,
+        Resource::TYPE_ATTRIBUTE
     ];
 
     public const GROUP_SETTINGS_RESOURCES = [];

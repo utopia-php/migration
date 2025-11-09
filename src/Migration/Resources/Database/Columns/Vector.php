@@ -5,12 +5,13 @@ namespace Utopia\Migration\Resources\Database\Columns;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Table;
 
-class ObjectType extends Column
+class Vector extends Column
 {
     public function __construct(
         string $key,
         Table $table,
         bool $required = false,
+        int  $size,
         ?array $default = null,
         string $createdAt = '',
         string $updatedAt = ''
@@ -18,6 +19,7 @@ class ObjectType extends Column
         parent::__construct(
             $key,
             $table,
+            size: $size,
             required: $required,
             default: $default,
             createdAt: $createdAt,
@@ -48,6 +50,7 @@ class ObjectType extends Column
      *         rowSecurity: bool,
      *         permissions: ?array<string>
      *     },
+     *     size: int,
      *     required: bool,
      *     default: ?array<mixed>,
      *     createdAt: string,
@@ -61,6 +64,7 @@ class ObjectType extends Column
             $array['key'],
             Table::fromArray($array['table'] ?? $array['collection']),
             required: $array['required'],
+            size:$array['size'],
             default: $array['default'],
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
@@ -69,6 +73,6 @@ class ObjectType extends Column
 
     public function getType(): string
     {
-        return Column::TYPE_OBJECT;
+        return Column::TYPE_VECTOR;
     }
 }
