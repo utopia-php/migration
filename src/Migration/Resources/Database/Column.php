@@ -22,6 +22,8 @@ abstract class Column extends Resource
     public const TYPE_LINE = 'linestring';
     public const TYPE_POLYGON = 'polygon';
 
+    public const TYPE_OBJECT = 'object';
+
     /**
      * @param string $key
      * @param Table $table

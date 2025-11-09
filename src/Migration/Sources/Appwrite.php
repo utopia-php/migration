@@ -30,6 +30,7 @@ use Utopia\Migration\Resources\Database\Columns\IP;
 use Utopia\Migration\Resources\Database\Columns\Line;
 use Utopia\Migration\Resources\Database\Columns\Point;
 use Utopia\Migration\Resources\Database\Columns\Polygon;
+use Utopia\Migration\Resources\Database\Columns\ObjectType;
 use Utopia\Migration\Resources\Database\Columns\Relationship;
 use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Columns\URL;
@@ -39,6 +40,7 @@ use Utopia\Migration\Resources\Database\DocumentsDB;
 use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Resources\Database\Table;
+use Utopia\Migration\Resources\Database\VectorDB;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
@@ -137,6 +139,8 @@ class Appwrite extends Source
 
             // documentsdb
             Resource::TYPE_DATABASE_DOCUMENTSDB,
+            // vectordb
+            Resource::TYPE_DATABASE_VECTORDB,
 
             // Storage
             Resource::TYPE_BUCKET,
@@ -640,6 +644,11 @@ class Appwrite extends Source
         if (count($this->cache->get(DocumentsDB::getName())) > 0) {
             $this->exportDocumentsDB($batchSize, $resources);
         }
+
+        // Export VectorDB databases using same flow as DocumentsDB
+        if (count($this->cache->get(VectorDB::getName())) > 0) {
+            $this->exportVectorDB($batchSize, $resources);
+        }
     }
 
     /**
@@ -957,6 +966,16 @@ class Appwrite extends Source
                             break;
                         case Column::TYPE_POLYGON:
                             $col = new Polygon(
+                                $column['key'],
+                                $table,
+                                required: $column['required'],
+                                default: $column['default'],
+                                createdAt: $column['$createdAt'] ?? '',
+                                updatedAt: $column['$updatedAt'] ?? '',
+                            );
+                            break;
+                        case Column::TYPE_OBJECT:
+                            $col = new ObjectType(
                                 $column['key'],
                                 $table,
                                 required: $column['required'],
@@ -1721,6 +1740,69 @@ class Appwrite extends Source
     }
 
     /**
+     * Export VectorDB databases (collections and documents)
+     *
+     * @param int $batchSize
+     * @param array $resources
+     */
+    private function exportVectorDB(int $batchSize, array $resources): void
+    {
+        try {
+            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
+                $this->exportEntities(VectorDB::getName(), $batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_COLLECTION,
+                    Transfer::GROUP_DATABASES,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                )
+            );
+
+            return;
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_INDEX, $resources)) {
+                $this->exportIndexes(Collection::getName(), $batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_INDEX,
+                    Transfer::GROUP_DATABASES,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                )
+            );
+
+            return;
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
+                $this->exportRecords(Collection::getName(), $batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    Resource::TYPE_DOCUMENT,
+                    Transfer::GROUP_DATABASES,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                )
+            );
+
+            return;
+        }
+    }
+
+    /**
      * @param string $databaseType
      * @param array $database {
      *     id: string,
@@ -1737,6 +1819,8 @@ class Appwrite extends Source
         switch ($databaseType) {
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
                 return DocumentsDB::fromArray($database);
+            case Resource::TYPE_DATABASE_VECTORDB:
+                return VectorDB::fromArray($database);
             default:
                 return Database::fromArray($database);
         }
@@ -1764,6 +1848,8 @@ class Appwrite extends Source
     {
         switch ($databaseType) {
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
+                return Collection::fromArray($entity);
+            case Resource::TYPE_DATABASE_VECTORDB:
                 return Collection::fromArray($entity);
             default:
                 return Table::fromArray($entity);
@@ -1803,6 +1889,8 @@ class Appwrite extends Source
     {
         switch ($databaseType) {
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
+                return Document::fromArray($record);
+            case Resource::TYPE_DATABASE_VECTORDB:
                 return Document::fromArray($record);
             default:
                 return Row::fromArray($record);

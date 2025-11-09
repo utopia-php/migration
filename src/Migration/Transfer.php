@@ -37,6 +37,7 @@ class Transfer
     public const GROUP_DATABASES_RESOURCES = [
         Resource::TYPE_DATABASE,
         Resource::TYPE_DATABASE_DOCUMENTSDB,
+        Resource::TYPE_DATABASE_VECTORDB,
         Resource::TYPE_TABLE,
         Resource::TYPE_INDEX,
         Resource::TYPE_COLUMN,

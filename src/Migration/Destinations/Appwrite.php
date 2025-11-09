@@ -127,6 +127,7 @@ class Appwrite extends Destination
             // Database
             Resource::TYPE_DATABASE,
             Resource::TYPE_DATABASE_DOCUMENTSDB,
+            Resource::TYPE_DATABASE_VECTORDB,
             Resource::TYPE_TABLE,
             Resource::TYPE_COLUMN,
             Resource::TYPE_INDEX,
@@ -288,6 +289,7 @@ class Appwrite extends Destination
         switch ($resource->getName()) {
             case Resource::TYPE_DATABASE:
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
+            case Resource::TYPE_DATABASE_VECTORDB:
                 /** @var Database $resource */
                 $success = $this->createDatabase($resource);
                 break;
@@ -467,6 +469,7 @@ class Appwrite extends Destination
             Column::TYPE_POINT => UtopiaDatabase::VAR_POINT,
             Column::TYPE_LINE => UtopiaDatabase::VAR_LINESTRING,
             Column::TYPE_POLYGON => UtopiaDatabase::VAR_POLYGON,
+            Column::TYPE_OBJECT => UtopiaDatabase::VAR_OBJECT,
             default => throw new \Exception('Invalid resource type '.$resource->getType()),
         };
 
