@@ -18,6 +18,22 @@ use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
+use Utopia\Migration\Resources\Database\Attribute;
+use Utopia\Migration\Resources\Database\Attribute\Boolean as AttributeBoolean;
+use Utopia\Migration\Resources\Database\Attribute\DateTime as AttributeDateTime;
+use Utopia\Migration\Resources\Database\Attribute\Decimal as AttributeDecimal;
+use Utopia\Migration\Resources\Database\Attribute\Email as AttributeEmail;
+use Utopia\Migration\Resources\Database\Attribute\Enum as AttributeEnum;
+use Utopia\Migration\Resources\Database\Attribute\Integer as AttributeInteger;
+use Utopia\Migration\Resources\Database\Attribute\IP as AttributeIP;
+use Utopia\Migration\Resources\Database\Attribute\Line as AttributeLine;
+use Utopia\Migration\Resources\Database\Attribute\ObjectType as AttributeObjectType;
+use Utopia\Migration\Resources\Database\Attribute\Point as AttributePoint;
+use Utopia\Migration\Resources\Database\Attribute\Polygon as AttributePolygon;
+use Utopia\Migration\Resources\Database\Attribute\Relationship as AttributeRelationship;
+use Utopia\Migration\Resources\Database\Attribute\Text as AttributeText;
+use Utopia\Migration\Resources\Database\Attribute\URL as AttributeURL;
+use Utopia\Migration\Resources\Database\Attribute\Vector as AttributeVector;
 use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Columns\Boolean;
@@ -28,9 +44,9 @@ use Utopia\Migration\Resources\Database\Columns\Enum;
 use Utopia\Migration\Resources\Database\Columns\Integer;
 use Utopia\Migration\Resources\Database\Columns\IP;
 use Utopia\Migration\Resources\Database\Columns\Line;
+use Utopia\Migration\Resources\Database\Columns\ObjectType;
 use Utopia\Migration\Resources\Database\Columns\Point;
 use Utopia\Migration\Resources\Database\Columns\Polygon;
-use Utopia\Migration\Resources\Database\Columns\ObjectType;
 use Utopia\Migration\Resources\Database\Columns\Relationship;
 use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Columns\URL;
@@ -801,7 +817,7 @@ class Appwrite extends Source
      * @param int $batchSize
      * @throws Exception
      */
-    private function exportFields(string $entityType,int $batchSize): void
+    private function exportFields(string $entityType, int $batchSize): void
     {
         $entities = $this->cache->get($entityType);
         // Transfer Indexes
@@ -828,177 +844,11 @@ class Appwrite extends Source
                         continue;
                     }
 
-                    switch ($column['type']) {
-                        case Column::TYPE_STRING:
-                            $col = match ($column['format'] ?? '') {
-                                Column::TYPE_EMAIL => new Email(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 254,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                Column::TYPE_ENUM => new Enum(
-                                    $column['key'],
-                                    $table,
-                                    elements: $column['elements'],
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? UtopiaDatabase::LENGTH_KEY,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                Column::TYPE_URL => new URL(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 2000,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                Column::TYPE_IP => new IP(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 39,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                default => new Text(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 0,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                            };
-
-                            break;
-                        case Column::TYPE_BOOLEAN:
-                            $col = new Boolean(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_INTEGER:
-                            $col = new Integer(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                min: $column['min'] ?? null,
-                                max: $column['max'] ?? null,
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_FLOAT:
-                            $col = new Decimal(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                min: $column['min'] ?? null,
-                                max: $column['max'] ?? null,
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_RELATIONSHIP:
-                            $col = new Relationship(
-                                $column['key'],
-                                $table,
-                                relatedTable: $column['relatedTable'] ?? $column['relatedCollection'],
-                                relationType: $column['relationType'],
-                                twoWay: $column['twoWay'],
-                                twoWayKey: $column['twoWayKey'],
-                                onDelete: $column['onDelete'],
-                                side: $column['side'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_DATETIME:
-                            $col = new DateTime(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_POINT:
-                            $col = new Point(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_LINE:
-                            $col = new Line(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_POLYGON:
-                            $col = new Polygon(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_OBJECT:
-                            $col = new ObjectType(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_VECTOR:
-                            $col = new Vector(
-                                $column['key'],
-                                $table,
-                                size:$column['size'],
-                                required: $column['required'],
-                                default: $column['default'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                    }
+                    /** @var Table $table */
+                    $col = match($table->getDatabase()->getType()) {
+                        Resource::TYPE_DATABASE_VECTORDB => self::getAttribute($table, $column),
+                        default => self::getColumn($table, $column),
+                    };
 
                     if (!isset($col)) {
                         throw new Exception(
@@ -1081,10 +931,11 @@ class Appwrite extends Source
 
     /**
      * @param string $entityName
+     * @param string $fieldName
      * @param int $batchSize
      * @throws Exception
      */
-    private function exportRecords(string $entityName, int $batchSize): void
+    private function exportRecords(string $entityName, string $fieldName, int $batchSize): void
     {
         $entities = $this->cache->get($entityName);
         foreach ($entities as $table) {
@@ -1107,12 +958,16 @@ class Appwrite extends Source
                 $manyToMany = [];
 
                 if ($this->reader->getSupportForAttributes()) {
-                    $attributes = $this->cache->get(Column::getName());
+                    $attributes = $this->cache->get($fieldName);
+                    $relationship = match($fieldName) {
+                        Attribute::getName() => AttributeRelationship::getName(),
+                        default => Column::getName()
+                    };
                     foreach ($attributes as $attribute) {
                         /** @var Relationship $attribute */
                         if (
                             $attribute->getTable()->getId() === $table->getId() &&
-                            $attribute->getType() === Column::TYPE_RELATIONSHIP &&
+                            $attribute->getType() === $relationship &&
                             $attribute->getSide() === 'parent' &&
                             $attribute->getRelationType() == 'manyToMany'
                         ) {
@@ -1627,7 +1482,7 @@ class Appwrite extends Source
 
         try {
             if (\in_array(Resource::TYPE_COLUMN, $resources)) {
-                $this->exportFields(Table::getName(),$batchSize);
+                $this->exportFields(Table::getName(), $batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -1663,7 +1518,7 @@ class Appwrite extends Source
 
         try {
             if (\in_array(Resource::TYPE_ROW, $resources)) {
-                $this->exportRecords(Table::getName(), $batchSize);
+                $this->exportRecords(Table::getName(), Column::getName(), $batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -1726,7 +1581,7 @@ class Appwrite extends Source
 
         try {
             if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
-                $this->exportRecords(Collection::getName(), $batchSize);
+                $this->exportRecords(Collection::getName(), Attribute::getName(), $batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -1771,7 +1626,7 @@ class Appwrite extends Source
 
         try {
             if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-                $this->exportFields(Collection::getName(),$batchSize);
+                $this->exportFields(Collection::getName(), $batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -1807,7 +1662,7 @@ class Appwrite extends Source
 
         try {
             if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
-                $this->exportRecords(Collection::getName(), $batchSize);
+                $this->exportRecords(Collection::getName(), '', $batchSize);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -1917,5 +1772,333 @@ class Appwrite extends Source
             default:
                 return Row::fromArray($record);
         }
+    }
+    private static function getColumn(Table $table, mixed $column): Column
+    {
+        return match ($column['type']) {
+            Column::TYPE_STRING => match ($column['format'] ?? '') {
+                Column::TYPE_EMAIL => new Email(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 254,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                Column::TYPE_ENUM => new Enum(
+                    $column['key'],
+                    $table,
+                    elements: $column['elements'],
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? UtopiaDatabase::LENGTH_KEY,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                Column::TYPE_URL => new URL(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 2000,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                Column::TYPE_IP => new IP(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 39,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                default => new Text(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 0,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+            },
+
+            Column::TYPE_BOOLEAN => new Boolean(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_INTEGER => new Integer(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                min: $column['min'] ?? null,
+                max: $column['max'] ?? null,
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_FLOAT => new Decimal(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                min: $column['min'] ?? null,
+                max: $column['max'] ?? null,
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_RELATIONSHIP => new Relationship(
+                $column['key'],
+                $table,
+                relatedTable: $column['relatedTable'] ?? $column['relatedCollection'],
+                relationType: $column['relationType'],
+                twoWay: $column['twoWay'],
+                twoWayKey: $column['twoWayKey'],
+                onDelete: $column['onDelete'],
+                side: $column['side'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_DATETIME => new DateTime(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_POINT => new Point(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_LINE => new Line(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_POLYGON => new Polygon(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_OBJECT => new ObjectType(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_VECTOR => new Vector(
+                $column['key'],
+                $table,
+                size: $column['size'],
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            default => throw new \InvalidArgumentException("Unsupported column type: {$column['type']}"),
+        };
+
+    }
+
+    private static function getAttribute(Collection $collection, mixed $attribute): Attribute
+    {
+        return match ($attribute['type']) {
+            Attribute::TYPE_STRING => match ($attribute['format'] ?? '') {
+                Attribute::TYPE_EMAIL => new AttributeEmail(
+                    $attribute['key'],
+                    $collection,
+                    required: $attribute['required'],
+                    default: $attribute['default'],
+                    array: $attribute['array'],
+                    size: $attribute['size'] ?? 254,
+                    createdAt: $attribute['$createdAt'] ?? '',
+                    updatedAt: $attribute['$updatedAt'] ?? '',
+                ),
+                Attribute::TYPE_ENUM => new AttributeEnum(
+                    $attribute['key'],
+                    $collection,
+                    elements: $attribute['elements'],
+                    required: $attribute['required'],
+                    default: $attribute['default'],
+                    array: $attribute['array'],
+                    size: $attribute['size'] ?? UtopiaDatabase::LENGTH_KEY,
+                    createdAt: $attribute['$createdAt'] ?? '',
+                    updatedAt: $attribute['$updatedAt'] ?? '',
+                ),
+                Attribute::TYPE_URL => new AttributeURL(
+                    $attribute['key'],
+                    $collection,
+                    required: $attribute['required'],
+                    default: $attribute['default'],
+                    array: $attribute['array'],
+                    size: $attribute['size'] ?? 2000,
+                    createdAt: $attribute['$createdAt'] ?? '',
+                    updatedAt: $attribute['$updatedAt'] ?? '',
+                ),
+                Attribute::TYPE_IP => new AttributeIP(
+                    $attribute['key'],
+                    $collection,
+                    required: $attribute['required'],
+                    default: $attribute['default'],
+                    array: $attribute['array'],
+                    size: $attribute['size'] ?? 39,
+                    createdAt: $attribute['$createdAt'] ?? '',
+                    updatedAt: $attribute['$updatedAt'] ?? '',
+                ),
+                default => new AttributeText(
+                    $attribute['key'],
+                    $collection,
+                    required: $attribute['required'],
+                    default: $attribute['default'],
+                    array: $attribute['array'],
+                    size: $attribute['size'] ?? 0,
+                    createdAt: $attribute['$createdAt'] ?? '',
+                    updatedAt: $attribute['$updatedAt'] ?? '',
+                ),
+            },
+
+            Attribute::TYPE_BOOLEAN => new AttributeBoolean(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                array: $attribute['array'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_INTEGER => new AttributeInteger(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                array: $attribute['array'],
+                min: $attribute['min'] ?? null,
+                max: $attribute['max'] ?? null,
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_FLOAT => new AttributeDecimal(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                array: $attribute['array'],
+                min: $attribute['min'] ?? null,
+                max: $attribute['max'] ?? null,
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_RELATIONSHIP => new AttributeRelationship(
+                $attribute['key'],
+                $collection,
+                relatedTable: $attribute['relatedTable'] ?? $attribute['relatedCollection'],
+                relationType: $attribute['relationType'],
+                twoWay: $attribute['twoWay'],
+                twoWayKey: $attribute['twoWayKey'],
+                onDelete: $attribute['onDelete'],
+                side: $attribute['side'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_DATETIME => new AttributeDateTime(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                array: $attribute['array'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_POINT => new AttributePoint(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_LINE => new AttributeLine(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_POLYGON => new AttributePolygon(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_OBJECT => new AttributeObjectType(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_VECTOR => new AttributeVector(
+                $attribute['key'],
+                $collection,
+                size: $attribute['size'],
+                required: $attribute['required'],
+                default: $attribute['default'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            default => throw new \InvalidArgumentException("Unsupported attribute type: {$attribute['type']}"),
+        };
     }
 }

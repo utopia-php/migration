@@ -36,5 +36,3 @@ class VectorDB extends Database
         );
     }
 }
-
-

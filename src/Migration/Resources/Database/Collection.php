@@ -2,7 +2,6 @@
 
 namespace Utopia\Migration\Resources\Database;
 
-use Appwrite\Services\Databases;
 use Utopia\Migration\Resource;
 
 class Collection extends Table
@@ -35,7 +34,7 @@ class Collection extends Table
             Resource::TYPE_DATABASE_VECTORDB => VectorDB::fromArray($array['database']),
             default => Database::fromArray($array['database'])
         };
-        
+
         return new self(
             $database,
             name: $array['name'],
