@@ -139,7 +139,10 @@ class Database implements Reader
                     Query::equal('collectionInternalId', [$tableSequence]),
                 ];
 
-                if (Resource::isSupported($databaseSpecificResources['field'], $resources)) {
+                if (
+                    isset($databaseSpecificResources['field']) &&
+                    Resource::isSupported($databaseSpecificResources['field'], $resources)
+                ) {
                     $count = $this->countResources('attributes', $commonQueries);
                     $report[$databaseSpecificResources['field']] += $count;
                 }

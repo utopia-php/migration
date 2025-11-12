@@ -105,14 +105,26 @@ abstract class Resource implements \JsonSerializable
         ],
         self::TYPE_DATABASE_DOCUMENTSDB => [
             'entity' => self::TYPE_COLLECTION,
-            'record' => self::TYPE_DOCUMENT,
+            // HACK: not required in documentsdb but adding it for consistency in the db reader(not gonna impact)
             'field' => self::TYPE_ATTRIBUTE,
+            'record' => self::TYPE_DOCUMENT,
         ],
         self::TYPE_DATABASE_VECTORDB => [
             'entity' => self::TYPE_COLLECTION,
-            'record' => self::TYPE_DOCUMENT,
             'field' => self::TYPE_ATTRIBUTE,
+            'record' => self::TYPE_DOCUMENT,
         ]
+    ];
+
+    public const ENTITY_TYPE_RESOURCE_MAP = [
+        self::TYPE_TABLE => [
+            'field' => self::TYPE_COLUMN,
+            'record' => self::TYPE_ROW,
+        ],
+        self::TYPE_COLLECTION => [
+            'field' => self::TYPE_ATTRIBUTE,
+            'record' => self::TYPE_DOCUMENT,
+        ],
     ];
 
     protected string $id = '';

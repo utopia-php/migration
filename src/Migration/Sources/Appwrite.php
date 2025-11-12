@@ -654,17 +654,84 @@ class Appwrite extends Source
             return;
         }
 
-        if (count($this->cache->get(Database::getName())) > 0) {
-            $this->exportTablesDB($batchSize, $resources);
+        foreach (Resource::DATABASE_TYPE_RESOURCE_MAP as $databaseKey => $databaseResource) {
+            try {
+                if (\in_array($databaseResource['entity'], $resources)) {
+                    $this->exportEntities($databaseKey, $batchSize);
+                }
+            } catch (\Throwable $e) {
+                $this->addError(
+                    new Exception(
+                        $databaseResource['entity'],
+                        Transfer::GROUP_DATABASES,
+                        message: $e->getMessage(),
+                        code: $e->getCode(),
+                        previous: $e
+                    )
+                );
+
+                return;
+            }
         }
 
-        if (count($this->cache->get(DocumentsDB::getName())) > 0) {
-            $this->exportDocumentsDB($batchSize, $resources);
+        foreach (Resource::ENTITY_TYPE_RESOURCE_MAP as $entityKey => $entityResource) {
+            try {
+                if (\in_array($entityResource['field'], $resources)) {
+                    $this->exportFields($entityKey, $batchSize);
+                }
+            } catch (\Throwable $e) {
+                $this->addError(
+                    new Exception(
+                        $entityResource['field'],
+                        Transfer::GROUP_DATABASES,
+                        message: $e->getMessage(),
+                        code: $e->getCode(),
+                        previous: $e
+                    )
+                );
+
+                return;
+            }
         }
 
-        // Export VectorDB databases using same flow as DocumentsDB
-        if (count($this->cache->get(VectorDB::getName())) > 0) {
-            $this->exportVectorDB($batchSize, $resources);
+        foreach (Resource::ENTITY_TYPE_RESOURCE_MAP as $entityKey => $entityResource) {
+            try {
+                if (\in_array($entityResource['field'], $resources)) {
+                    $this->exportIndexes($entityKey, $batchSize);
+                }
+            } catch (\Throwable $e) {
+                $this->addError(
+                    new Exception(
+                        Resource::TYPE_INDEX,
+                        Transfer::GROUP_DATABASES,
+                        message: $e->getMessage(),
+                        code: $e->getCode(),
+                        previous: $e
+                    )
+                );
+
+                return;
+            }
+        }
+
+        foreach (Resource::ENTITY_TYPE_RESOURCE_MAP as $entityKey => $entityResource) {
+            try {
+                if (\in_array($entityResource['record'], $resources)) {
+                    $this->exportRecords($entityKey, $entityResource['field'], $batchSize);
+                }
+            } catch (\Throwable $e) {
+                $this->addError(
+                    new Exception(
+                        $entityResource['record'],
+                        Transfer::GROUP_DATABASES,
+                        message: $e->getMessage(),
+                        code: $e->getCode(),
+                        previous: $e
+                    )
+                );
+
+                return;
+            }
         }
     }
 
@@ -1457,225 +1524,6 @@ class Appwrite extends Source
             if ($end > $fileSize) {
                 $end = $fileSize - 1;
             }
-        }
-    }
-
-    private function exportTablesDB(int $batchSize, array $resources)
-    {
-        try {
-            if (\in_array(Resource::TYPE_TABLE, $resources)) {
-                $this->exportEntities(Database::getName(), $batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_TABLE,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-
-        try {
-            if (\in_array(Resource::TYPE_COLUMN, $resources)) {
-                $this->exportFields(Table::getName(), $batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_COLUMN,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-
-        try {
-            if (\in_array(Resource::TYPE_INDEX, $resources)) {
-                $this->exportIndexes(Table::getName(), $batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_INDEX,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-
-        try {
-            if (\in_array(Resource::TYPE_ROW, $resources)) {
-                $this->exportRecords(Table::getName(), Column::getName(), $batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_ROW,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-    }
-
-    /**
-     * Export DocumentsDB databases (collections and documents)
-     *
-     * @param int $batchSize
-     * @param array $resources
-     */
-    private function exportDocumentsDB(int $batchSize, array $resources): void
-    {
-        try {
-            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
-                $this->exportEntities(DocumentsDB::getName(), $batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_COLLECTION,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-
-        try {
-            if (\in_array(Resource::TYPE_INDEX, $resources)) {
-                $this->exportIndexes(Collection::getName(), $batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_INDEX,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-
-        try {
-            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
-                $this->exportRecords(Collection::getName(), Attribute::getName(), $batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_DOCUMENT,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-    }
-
-    /**
-     * Export VectorDB databases (collections and documents)
-     *
-     * @param int $batchSize
-     * @param array $resources
-     */
-    private function exportVectorDB(int $batchSize, array $resources): void
-    {
-        try {
-            if (\in_array(Resource::TYPE_COLLECTION, $resources)) {
-                $this->exportEntities(VectorDB::getName(), $batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_COLLECTION,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-
-        try {
-            if (\in_array(Resource::TYPE_ATTRIBUTE, $resources)) {
-                $this->exportFields(Collection::getName(), $batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_ATTRIBUTE,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-
-        try {
-            if (\in_array(Resource::TYPE_INDEX, $resources)) {
-                $this->exportIndexes(Collection::getName(), $batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_INDEX,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-
-        try {
-            if (\in_array(Resource::TYPE_DOCUMENT, $resources)) {
-                $this->exportRecords(Collection::getName(), '', $batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_DOCUMENT,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
         }
     }
 
