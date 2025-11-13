@@ -867,7 +867,7 @@ class Appwrite extends Source
         $entities = $this->cache->get($entityType);
         // Transfer Indexes
 
-        /** @var array<Table> $tables */
+        /** @var array<Table|Collection> $table */
         foreach ($entities as $table) {
             $lastColumn = null;
 
@@ -894,15 +894,6 @@ class Appwrite extends Source
                         Resource::TYPE_DATABASE_VECTORDB => self::getAttribute($table, $column),
                         default => self::getColumn($table, $column),
                     };
-
-                    if (!isset($col)) {
-                        throw new Exception(
-                            resourceName: Resource::TYPE_COLUMN,
-                            resourceGroup: Transfer::GROUP_DATABASES,
-                            resourceId: $column['$id'],
-                            message: 'Unknown column type: ' . $column['type']
-                        );
-                    }
 
                     $columns[] = $col;
                 }

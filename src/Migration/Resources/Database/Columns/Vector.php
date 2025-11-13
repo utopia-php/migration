@@ -11,7 +11,7 @@ class Vector extends Column
         string $key,
         Table $table,
         bool $required = false,
-        int  $size,
+        int  $size = 0,
         ?array $default = null,
         string $createdAt = '',
         string $updatedAt = ''

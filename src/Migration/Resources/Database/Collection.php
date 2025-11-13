@@ -16,6 +16,7 @@ class Collection extends Table
      *     database: array{
      *        id: string,
      *        name: string,
+     *        type: string
      *     },
      *     name: string,
      *     id: string,

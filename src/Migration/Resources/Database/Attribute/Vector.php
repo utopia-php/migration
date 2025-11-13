@@ -11,7 +11,7 @@ class Vector extends Attribute
         string $key,
         Collection $collection,
         bool $required = false,
-        int  $size,
+        int  $size = 0,
         ?array $default = null,
         string $createdAt = '',
         string $updatedAt = ''
