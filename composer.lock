@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "06e20c24c39c070353947cabfb51d3d0",
+    "content-hash": "8b2b0894b94d976f09044c200956961a",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -2209,16 +2209,16 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "dev-var_object",
+            "version": "3.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "9a0cea65abbfb325506cb1d619db60dac7ee7e55"
+                "reference": "b92554e2e7b3b00f0f0acb2b53c6a11e1349b81e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/9a0cea65abbfb325506cb1d619db60dac7ee7e55",
-                "reference": "9a0cea65abbfb325506cb1d619db60dac7ee7e55",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/b92554e2e7b3b00f0f0acb2b53c6a11e1349b81e",
+                "reference": "b92554e2e7b3b00f0f0acb2b53c6a11e1349b81e",
                 "shasum": ""
             },
             "require": {
@@ -2261,9 +2261,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/var_object"
+                "source": "https://github.com/utopia-php/database/tree/3.0.2"
             },
-            "time": "2025-11-06T09:02:12+00:00"
+            "time": "2025-10-20T23:58:56+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -4923,9 +4923,7 @@
         }
     ],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "utopia-php/database": 20
-    },
+    "stability-flags": {},
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
@@ -4936,5 +4934,5 @@
     "platform-dev": {
         "ext-pdo": "*"
     },
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.2.0"
 }
