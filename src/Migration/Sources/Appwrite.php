@@ -636,6 +636,29 @@ class Appwrite extends Source
 
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
+        $handleExportEntityScopedResources = function (string $resourceKey, callable $callback) use ($resources) {
+            foreach (Resource::ENTITY_TYPE_RESOURCE_MAP as $entityKey => $entityResource) {
+                try {
+                    if (\in_array($entityResource[$resourceKey], $resources)) {
+                        $callback($entityKey, $entityResource);
+                    }
+                } catch (\Throwable $e) {
+                    $this->addError(
+                        new Exception(
+                            $resourceKey,
+                            Transfer::GROUP_DATABASES,
+                            message: $e->getMessage(),
+                            code: $e->getCode(),
+                            previous: $e
+                        )
+                    );
+
+                    return false;
+                }
+            }
+            return true;
+        };
+
         try {
             if (Resource::isSupported(array_keys(Resource::DATABASE_TYPE_RESOURCE_MAP), $resources)) {
                 $this->exportDatabases($batchSize, $resources);
@@ -674,64 +697,19 @@ class Appwrite extends Source
             }
         }
 
-        foreach (Resource::ENTITY_TYPE_RESOURCE_MAP as $entityKey => $entityResource) {
-            try {
-                if (\in_array($entityResource['field'], $resources)) {
-                    $this->exportFields($entityKey, $batchSize);
-                }
-            } catch (\Throwable $e) {
-                $this->addError(
-                    new Exception(
-                        $entityResource['field'],
-                        Transfer::GROUP_DATABASES,
-                        message: $e->getMessage(),
-                        code: $e->getCode(),
-                        previous: $e
-                    )
-                );
-
-                return;
-            }
+        // field
+        if (!$handleExportEntityScopedResources('field', fn ($entityKey) => $this->exportFields($entityKey, $batchSize))) {
+            return;
         }
 
-        foreach (Resource::ENTITY_TYPE_RESOURCE_MAP as $entityKey => $entityResource) {
-            try {
-                if (\in_array($entityResource['field'], $resources)) {
-                    $this->exportIndexes($entityKey, $batchSize);
-                }
-            } catch (\Throwable $e) {
-                $this->addError(
-                    new Exception(
-                        Resource::TYPE_INDEX,
-                        Transfer::GROUP_DATABASES,
-                        message: $e->getMessage(),
-                        code: $e->getCode(),
-                        previous: $e
-                    )
-                );
-
-                return;
-            }
+        // index
+        if (!$handleExportEntityScopedResources('index', fn ($entityKey) => $this->exportIndexes($entityKey, $batchSize))) {
+            return;
         }
 
-        foreach (Resource::ENTITY_TYPE_RESOURCE_MAP as $entityKey => $entityResource) {
-            try {
-                if (\in_array($entityResource['record'], $resources)) {
-                    $this->exportRecords($entityKey, $entityResource['field'], $batchSize);
-                }
-            } catch (\Throwable $e) {
-                $this->addError(
-                    new Exception(
-                        $entityResource['record'],
-                        Transfer::GROUP_DATABASES,
-                        message: $e->getMessage(),
-                        code: $e->getCode(),
-                        previous: $e
-                    )
-                );
-
-                return;
-            }
+        // record
+        if (!$handleExportEntityScopedResources('record', fn ($entityKey, $entityResource) => $this->exportRecords($entityKey, $entityResource['field'], $batchSize))) {
+            return;
         }
     }
 

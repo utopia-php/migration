@@ -120,10 +120,12 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_TABLE => [
             'field' => self::TYPE_COLUMN,
             'record' => self::TYPE_ROW,
+            'index' => self::TYPE_INDEX
         ],
         self::TYPE_COLLECTION => [
             'field' => self::TYPE_ATTRIBUTE,
             'record' => self::TYPE_DOCUMENT,
+            'index' => self::TYPE_INDEX
         ],
     ];
 

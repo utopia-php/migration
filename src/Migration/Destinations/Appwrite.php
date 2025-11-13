@@ -12,6 +12,7 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
+use Dom\Document;
 use Override;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
@@ -769,101 +770,11 @@ class Appwrite extends Destination
             );
         }
 
-        /**
-         * @var array<UtopiaDocument> $tableColumns
-         */
-        $tableColumns = $table->getAttribute('attributes', []);
-
-        /**
-         * @var array<UtopiaDocument> $tableIndexes
-         */
-        $tableIndexes = $table->getAttribute('indexes', []);
-
-        $oldColumns = \array_map(
-            fn ($attr) => $attr->getArrayCopy(),
-            $tableColumns
-        );
-
-        $oldColumns[] = [
-            'key' => '$id',
-            'type' => UtopiaDatabase::VAR_STRING,
-            'status' => 'available',
-            'required' => true,
-            'array' => false,
-            'default' => null,
-            'size' => UtopiaDatabase::LENGTH_KEY
-        ];
-
-        $oldColumns[] = [
-            'key' => '$createdAt',
-            'type' => UtopiaDatabase::VAR_DATETIME,
-            'status' => 'available',
-            'signed' => false,
-            'required' => false,
-            'array' => false,
-            'default' => null,
-            'size' => 0
-        ];
-
-        $oldColumns[] = [
-            'key' => '$updatedAt',
-            'type' => UtopiaDatabase::VAR_DATETIME,
-            'status' => 'available',
-            'signed' => false,
-            'required' => false,
-            'array' => false,
-            'default' => null,
-            'size' => 0
-        ];
-
         // Lengths hidden by default
         $lengths = [];
 
-        foreach ($resource->getColumns() as $i => $column) {
-            // find attribute metadata in collection document
-            $columnIndex = \array_search(
-                $column,
-                \array_column($oldColumns, 'key')
-            );
-
-            if ($columnIndex === false) {
-                throw new Exception(
-                    resourceName: $resource->getName(),
-                    resourceGroup: $resource->getGroup(),
-                    resourceId: $resource->getId(),
-                    message: 'Column not found in table: ' . $column,
-                );
-            }
-
-            $columnStatus = $oldColumns[$columnIndex]['status'];
-            $columnType = $oldColumns[$columnIndex]['type'];
-            $columnSize = $oldColumns[$columnIndex]['size'];
-            $columnArray = $oldColumns[$columnIndex]['array'] ?? false;
-
-            if ($columnType === UtopiaDatabase::VAR_RELATIONSHIP) {
-                throw new Exception(
-                    resourceName: $resource->getName(),
-                    resourceGroup: $resource->getGroup(),
-                    resourceId: $resource->getId(),
-                    message: 'Relationship columns are not supported in indexes',
-                );
-            }
-
-            // Ensure attribute is available
-            if ($columnStatus !== 'available') {
-                throw new Exception(
-                    resourceName: $resource->getName(),
-                    resourceGroup: $resource->getGroup(),
-                    resourceId: $resource->getId(),
-                    message: 'Column not available: ' . $column,
-                );
-            }
-
-            $lengths[$i] = null;
-
-            if ($columnArray === true) {
-                $lengths[$i] = UtopiaDatabase::MAX_ARRAY_INDEX_LENGTH;
-            }
+        if ($dbForDatabases->getAdapter()->getSupportForAttributes()) {
+            $this->validateFieldsForIndexes($resource, $table, $lengths);
         }
 
         $index = new UtopiaDocument([
@@ -1487,5 +1398,97 @@ class Appwrite extends Destination
         }
 
         return $deployment;
+    }
+
+    private function validateFieldsForIndexes(Index $resource, UtopiaDocument $table, array &$lengths)
+    {
+        /**
+         * @var array<UtopiaDocument> $tableColumns
+         */
+        $tableColumns = $table->getAttribute('attributes', []);
+
+        $oldColumns = \array_map(
+            fn ($attr) => $attr->getArrayCopy(),
+            $tableColumns
+        );
+
+        $oldColumns[] = [
+            'key' => '$id',
+            'type' => UtopiaDatabase::VAR_STRING,
+            'status' => 'available',
+            'required' => true,
+            'array' => false,
+            'default' => null,
+            'size' => UtopiaDatabase::LENGTH_KEY
+        ];
+
+        $oldColumns[] = [
+            'key' => '$createdAt',
+            'type' => UtopiaDatabase::VAR_DATETIME,
+            'status' => 'available',
+            'signed' => false,
+            'required' => false,
+            'array' => false,
+            'default' => null,
+            'size' => 0
+        ];
+
+        $oldColumns[] = [
+            'key' => '$updatedAt',
+            'type' => UtopiaDatabase::VAR_DATETIME,
+            'status' => 'available',
+            'signed' => false,
+            'required' => false,
+            'array' => false,
+            'default' => null,
+            'size' => 0
+        ];
+
+        foreach ($resource->getColumns() as $i => $column) {
+            // find attribute metadata in collection document
+            $columnIndex = \array_search(
+                $column,
+                \array_column($oldColumns, 'key')
+            );
+
+            if ($columnIndex === false) {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Column not found in table: ' . $column,
+                );
+            }
+
+            $columnStatus = $oldColumns[$columnIndex]['status'];
+            $columnType = $oldColumns[$columnIndex]['type'];
+            $columnSize = $oldColumns[$columnIndex]['size'];
+            $columnArray = $oldColumns[$columnIndex]['array'] ?? false;
+
+            if ($columnType === UtopiaDatabase::VAR_RELATIONSHIP) {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Relationship columns are not supported in indexes',
+                );
+            }
+
+            // Ensure attribute is available
+            if ($columnStatus !== 'available') {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Column not available: ' . $column,
+                );
+            }
+
+            $lengths[$i] = null;
+
+            if ($columnArray === true) {
+                $lengths[$i] = UtopiaDatabase::MAX_ARRAY_INDEX_LENGTH;
+            }
+        }
     }
 }
