@@ -995,22 +995,18 @@ class Appwrite extends Source
 
                 if ($this->reader->getSupportForAttributes()) {
                     $attributes = $this->cache->get($fieldName);
-                    $relationship = match($fieldName) {
-                        Attribute::getName() => AttributeRelationship::getName(),
-                        default => Column::getName()
-                    };
+
                     foreach ($attributes as $attribute) {
                         /** @var Relationship $attribute */
                         if (
                             $attribute->getTable()->getId() === $table->getId() &&
-                            $attribute->getType() === $relationship &&
+                            $attribute->getType() === Column::TYPE_RELATIONSHIP &&
                             $attribute->getSide() === 'parent' &&
                             $attribute->getRelationType() == 'manyToMany'
                         ) {
                             $manyToMany[] = $attribute->getKey();
                         }
                     }
-                    /** @var Column|Relationship $attribute */
                 }
 
                 $queries[] = $this->reader->querySelect($selects);
@@ -1033,8 +1029,12 @@ class Appwrite extends Source
 
                         foreach ($manyToMany as $key) {
                             $row[$key] = [];
-                            foreach ($rowItem[$key] as $relatedRowItem) {
-                                $row[$key][] = $relatedRowItem['$id'];
+                            if (isset($rowItem[$key]) && is_array($rowItem[$key])) {
+                                foreach ($rowItem[$key] as $relatedRowItem) {
+                                    if (is_array($relatedRowItem) && isset($relatedRowItem['$id'])) {
+                                        $row[$key][] = $relatedRowItem['$id'];
+                                    }
+                                }
                             }
                         }
                     }
