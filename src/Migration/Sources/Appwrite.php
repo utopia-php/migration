@@ -1508,7 +1508,7 @@ class Appwrite extends Source
      *     database: string
      * }
     */
-    private static function getDatabase(string $databaseType, array $database): Resource
+    public static function getDatabase(string $databaseType, array $database): Resource
     {
         switch ($databaseType) {
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
@@ -1538,7 +1538,7 @@ class Appwrite extends Source
      *     enabled: bool
      * } $entity
      */
-    private static function getEntity(string $databaseType, array $entity): Resource
+    public static function getEntity(string $databaseType, array $entity): Resource
     {
         switch ($databaseType) {
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
@@ -1579,7 +1579,7 @@ class Appwrite extends Source
      *     permissions: ?array<string>
      * } $record
      */
-    private static function getRecord(string $databaseType, array $record): Resource
+    public static function getRecord(string $databaseType, array $record): Resource
     {
         switch ($databaseType) {
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
@@ -1590,7 +1590,7 @@ class Appwrite extends Source
                 return Row::fromArray($record);
         }
     }
-    private static function getColumn(Table $table, mixed $column): Column
+    public static function getColumn(Table $table, mixed $column): Column
     {
         return match ($column['type']) {
             Column::TYPE_STRING => match ($column['format'] ?? '') {
@@ -1755,7 +1755,7 @@ class Appwrite extends Source
 
     }
 
-    private static function getAttribute(Collection $collection, mixed $attribute): Attribute
+    public static function getAttribute(Collection $collection, mixed $attribute): Attribute
     {
         return match ($attribute['type']) {
             Attribute::TYPE_STRING => match ($attribute['format'] ?? '') {
