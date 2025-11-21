@@ -1588,6 +1588,7 @@ class Appwrite extends Source
                 return Row::fromArray($record);
         }
     }
+    
     public static function getColumn(Table $table, mixed $column): Column
     {
         return match ($column['type']) {
