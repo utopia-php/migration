@@ -12,7 +12,13 @@ class Transfer
 
     public const GROUP_FUNCTIONS = 'functions';
 
+    // separating databases and tablesdb out for easier separation in extract services
+    // migration can use group_databases for mentioning all resources but when mentioning specific resources go with specific type databases
     public const GROUP_DATABASES = 'databases';
+    public const GROUP_DATABASES_TABLES_DB = 'tablesdb';
+    public const GROUP_DATABASES_DOCUMENTS_DB = 'documentsdb';
+
+    public const GROUP_DATABASES_VECTOR_DB = 'vectordb';
 
     public const GROUP_SETTINGS = 'settings';
 
@@ -34,12 +40,40 @@ class Transfer
         Resource::TYPE_DEPLOYMENT
     ];
 
-    public const GROUP_DATABASES_RESOURCES = [
+    public const GROUP_TABLESDB_RESOURCES = [
         Resource::TYPE_DATABASE,
         Resource::TYPE_TABLE,
         Resource::TYPE_INDEX,
         Resource::TYPE_COLUMN,
         Resource::TYPE_ROW,
+    ];
+
+    public const GROUP_DOCUMENTSDB_RESOURCES = [
+        Resource::TYPE_DATABASE_DOCUMENTSDB,
+        Resource::TYPE_COLLECTION,
+        Resource::TYPE_INDEX,
+        Resource::TYPE_DOCUMENT
+    ];
+
+    public const GROUP_VECTORDB_RESOURCES = [
+        Resource::TYPE_DATABASE_VECTORDB,
+        Resource::TYPE_COLLECTION,
+        Resource::TYPE_ATTRIBUTE,
+        Resource::TYPE_INDEX,
+        Resource::TYPE_DOCUMENT
+    ];
+
+    public const GROUP_DATABASES_RESOURCES = [
+        Resource::TYPE_DATABASE,
+        Resource::TYPE_DATABASE_DOCUMENTSDB,
+        Resource::TYPE_DATABASE_VECTORDB,
+        Resource::TYPE_TABLE,
+        Resource::TYPE_INDEX,
+        Resource::TYPE_COLUMN,
+        Resource::TYPE_ROW,
+        Resource::TYPE_DOCUMENT,
+        Resource::TYPE_COLLECTION,
+        Resource::TYPE_ATTRIBUTE
     ];
 
     public const GROUP_SETTINGS_RESOURCES = [];
@@ -68,6 +102,8 @@ class Transfer
     public const ROOT_RESOURCES = [
         Resource::TYPE_BUCKET,
         Resource::TYPE_DATABASE,
+        Resource::TYPE_DATABASE_DOCUMENTSDB,
+        Resource::TYPE_DATABASE_VECTORDB,
         Resource::TYPE_FUNCTION,
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
@@ -227,7 +263,7 @@ class Transfer
             }
 
             if (!in_array($rootResourceType, self::ROOT_RESOURCES)) {
-                throw new \Exception('Resource type must be one of ' . implode(', ', self::ROOT_RESOURCES));
+                throw new \Exception('Got '.$rootResourceType.' Resource type must be one of ' . implode(', ', self::ROOT_RESOURCES));
             }
 
             $rootResources = \array_intersect($computedResources, self::ROOT_RESOURCES);
@@ -321,6 +357,7 @@ class Transfer
     public static function extractServices(array $services): array
     {
         $resources = [];
+        $groupDatabasesIndex = array_search(Transfer::GROUP_DATABASES, $services);
         foreach ($services as $service) {
             $resources = match ($service) {
                 self::GROUP_FUNCTIONS => array_merge($resources, self::GROUP_FUNCTIONS_RESOURCES),
@@ -328,6 +365,9 @@ class Transfer
                 self::GROUP_GENERAL => array_merge($resources, []),
                 self::GROUP_AUTH => array_merge($resources, self::GROUP_AUTH_RESOURCES),
                 self::GROUP_DATABASES => array_merge($resources, self::GROUP_DATABASES_RESOURCES),
+                self::GROUP_DATABASES_TABLES_DB => array_merge($resources, self::GROUP_TABLESDB_RESOURCES),
+                self::GROUP_DATABASES_DOCUMENTS_DB => array_merge($resources, self::GROUP_DOCUMENTSDB_RESOURCES),
+                self::GROUP_DATABASES_VECTOR_DB => array_merge($resources, self::GROUP_VECTORDB_RESOURCES),
                 self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
                 default => throw new \Exception('No service group found'),
             };
