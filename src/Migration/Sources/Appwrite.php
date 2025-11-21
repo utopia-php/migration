@@ -722,8 +722,6 @@ class Appwrite extends Source
     {
         $lastDatabase = null;
 
-        // Create a reader for listing databases (not database-specific)
-
         while (true) {
             $queries = [$this->reader->queryLimit($batchSize)];
 
