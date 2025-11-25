@@ -10,7 +10,7 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
-use Utopia\CLI\Console;
+use Utopia\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Migration\Exception;

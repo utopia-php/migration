@@ -2,7 +2,7 @@
 
 namespace Utopia\Migration\Sources\Appwrite\Reader;
 
-use Utopia\CLI\Console;
+use Utopia\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Exception as DatabaseException;
