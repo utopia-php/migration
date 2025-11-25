@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Sources\Appwrite\Reader;
 
+use Utopia\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Exception as DatabaseException;
@@ -13,6 +14,7 @@ use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Resources\Database\Index as IndexResource;
 use Utopia\Migration\Resources\Database\Row as RowResource;
 use Utopia\Migration\Resources\Database\Table as TableResource;
+use Utopia\Migration\Sources\Appwrite;
 use Utopia\Migration\Sources\Appwrite\Reader;
 
 /**
@@ -20,8 +22,27 @@ use Utopia\Migration\Sources\Appwrite\Reader;
  */
 class Database implements Reader
 {
-    public function __construct(private readonly UtopiaDatabase $dbForProject)
+    public function __construct(
+        private readonly UtopiaDatabase $dbForProject,
+        private readonly ?string $projectId = null
+    ) {
+    }
+
+    /**
+     * Log debug message for tracked projects
+     */
+    private function logDebug(string $message): void
     {
+        if ($this->projectId === null) {
+            return;
+        }
+
+        $projectTag = Appwrite::$debugProjects[$this->projectId] ?? null;
+        if ($projectTag === null) {
+            return;
+        }
+
+        Console::info("MIGRATIONS-READER-$projectTag: $message");
     }
 
     public function report(array $resources, array &$report): mixed
@@ -296,7 +317,11 @@ class Database implements Reader
         $tableId = "database_{$database->getSequence()}_collection_{$table->getSequence()}";
 
         try {
+            $this->logDebug("BEFORE dbInstance->find() | TableID: $tableId | Queries: " . count($queries));
+
             $rows = $this->dbForProject->find($tableId, $queries);
+
+            $this->logDebug("AFTER dbInstance->find() | TableID: $tableId | Rows returned: " . count($rows));
         } catch (DatabaseException $e) {
             throw new Exception(
                 resourceName: $resource->getName(),
