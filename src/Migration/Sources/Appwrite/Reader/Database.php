@@ -51,7 +51,7 @@ class Database implements Reader
             return;
         }
 
-        Console::log("MIGRATIONS-READER-$projectTag: $message");
+        Console::info("MIGRATIONS-READER-$projectTag: $message");
     }
 
     /**
