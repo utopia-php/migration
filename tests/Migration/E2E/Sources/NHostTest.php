@@ -183,10 +183,10 @@ class NHostTest extends Base
             $this->fail('User "test@test.com" not found');
         }
 
-        $this->assertEquals('success', $foundUser->getStatus());
-        $this->assertEquals('$2a$10$ARQ/f.K6OmCjZ8XF0U.6fezPMlxDqsmcl0Rs6xQVkvj62u7gcSzOW', $foundUser->getPasswordHash()->getHash());
-        $this->assertEquals('bcrypt', $foundUser->getPasswordHash()->getAlgorithm());
-        $this->assertEquals('test@test.com', $foundUser->getUsername());
+        $this->assertSame('success', $foundUser->getStatus());
+        $this->assertSame('$2a$10$ARQ/f.K6OmCjZ8XF0U.6fezPMlxDqsmcl0Rs6xQVkvj62u7gcSzOW', $foundUser->getPasswordHash()->getHash());
+        $this->assertSame('bcrypt', $foundUser->getPasswordHash()->getAlgorithm());
+        $this->assertSame('test@test.com', $foundUser->getUsername());
     }
 
     #[Depends('testValidateDestinationErrors')]
@@ -209,9 +209,9 @@ class NHostTest extends Base
             $this->fail('Database "public" not found');
         }
 
-        $this->assertEquals('success', $foundDatabase->getStatus());
-        $this->assertEquals('public', $foundDatabase->getDatabaseName());
-        $this->assertEquals('public', $foundDatabase->getId());
+        $this->assertSame('success', $foundDatabase->getStatus());
+        $this->assertSame('public', $foundDatabase->getDatabaseName());
+        $this->assertSame('public', $foundDatabase->getId());
 
         // Find known table
         $tables = $state['source']->cache->get(Resource::TYPE_TABLE);
@@ -230,10 +230,10 @@ class NHostTest extends Base
             $this->fail('Table "TestTable" not found');
         }
 
-        $this->assertEquals('success', $foundTable->getStatus());
-        $this->assertEquals('TestTable', $foundTable->getTableName());
-        $this->assertEquals('TestTable', $foundTable->getId());
-        $this->assertEquals('public', $foundTable->getDatabase()->getId());
+        $this->assertSame('success', $foundTable->getStatus());
+        $this->assertSame('TestTable', $foundTable->getTableName());
+        $this->assertSame('TestTable', $foundTable->getId());
+        $this->assertSame('public', $foundTable->getDatabase()->getId());
 
         return $state;
     }
@@ -258,10 +258,10 @@ class NHostTest extends Base
             $this->fail('Table "FunctionalDefaultTestTable" not found');
         }
 
-        $this->assertEquals('warning', $foundTable->getStatus());
-        $this->assertEquals('FunctionalDefaultTestTable', $foundTable->getTableName());
-        $this->assertEquals('FunctionalDefaultTestTable', $foundTable->getId());
-        $this->assertEquals('public', $foundTable->getDatabase()->getId());
+        $this->assertSame('warning', $foundTable->getStatus());
+        $this->assertSame('FunctionalDefaultTestTable', $foundTable->getTableName());
+        $this->assertSame('FunctionalDefaultTestTable', $foundTable->getId());
+        $this->assertSame('public', $foundTable->getDatabase()->getId());
     }
 
     #[Depends('testValidateDatabaseTransfer')]
@@ -284,8 +284,8 @@ class NHostTest extends Base
             $this->fail('Bucket "default" not found');
         }
 
-        $this->assertEquals('success', $foundBucket->getStatus());
-        $this->assertEquals('default', $foundBucket->getId());
+        $this->assertSame('success', $foundBucket->getStatus());
+        $this->assertSame('default', $foundBucket->getId());
 
         // Find known file
         $files = $state['source']->cache->get(Resource::TYPE_FILE);
@@ -304,11 +304,11 @@ class NHostTest extends Base
             $this->fail('File "tulips.png" not found');
         }
         /** @var File $foundFile */
-        $this->assertEquals('success', $foundFile->getStatus());
-        $this->assertEquals('tulips.png', $foundFile->getFileName());
-        $this->assertEquals('default', $foundFile->getBucket()->getId());
-        $this->assertEquals('image/png', $foundFile->getMimeType());
-        $this->assertEquals(679233, $foundFile->getSize());
-        $this->assertEquals('', $foundFile->getData()); // Memory Leak Check
+        $this->assertSame('success', $foundFile->getStatus());
+        $this->assertSame('tulips.png', $foundFile->getFileName());
+        $this->assertSame('default', $foundFile->getBucket()->getId());
+        $this->assertSame('image/png', $foundFile->getMimeType());
+        $this->assertSame(679233, $foundFile->getSize());
+        $this->assertSame('', $foundFile->getData()); // Memory Leak Check
     }
 }
