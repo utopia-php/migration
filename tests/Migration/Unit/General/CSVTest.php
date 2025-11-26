@@ -70,7 +70,7 @@ class CSVTest extends TestCase
             $delimiter = $this->detectDelimiter($stream);
             fclose($stream);
 
-            $this->assertEquals($case['expected'], $delimiter, "Failed for {$case['file']}");
+            $this->assertSame($case['expected'], $delimiter, "Failed for {$case['file']}");
         }
     }
 
@@ -105,7 +105,7 @@ class CSVTest extends TestCase
         $csvDestination->testableImport([$row1, $row2], function ($resources) {
             // Callback - verify resources are marked as successful
             foreach ($resources as $resource) {
-                $this->assertEquals('success', $resource->getStatus());
+                $this->assertSame('success', $resource->getStatus());
             }
         });
 
@@ -138,12 +138,12 @@ class CSVTest extends TestCase
         $this->assertContains('email', $header);
 
         // Check first row data
-        $this->assertEquals('row1', $row1Data[0]); // $id
+        $this->assertSame('row1', $row1Data[0]); // $id
         $this->assertStringContainsString('user:123', $row1Data[1]); // $permissions
         // $createdAt and $updatedAt are empty for test data
-        $this->assertEquals('John Doe', $row1Data[4]); // name
-        $this->assertEquals('30', $row1Data[5]); // age
-        $this->assertEquals('john@example.com', $row1Data[6]); // email
+        $this->assertSame('John Doe', $row1Data[4]); // name
+        $this->assertSame('30', $row1Data[5]); // age
+        $this->assertSame('john@example.com', $row1Data[6]); // email
 
         // Cleanup
         if (is_dir($tempDir)) {
@@ -187,10 +187,10 @@ class CSVTest extends TestCase
 
         // Verify special characters are properly handled
         // Indices are shifted by 2 due to $createdAt and $updatedAt
-        $this->assertEquals('Text with "quotes"', $rowData[4]); // quote_field
-        $this->assertEquals('Text, with, commas', $rowData[5]); // comma_field
-        $this->assertEquals("Text with\nnewlines", $rowData[6]); // newline_field
-        $this->assertEquals('Text with "quotes", commas, and\nnewlines', $rowData[7]); // mixed_field
+        $this->assertSame('Text with "quotes"', $rowData[4]); // quote_field
+        $this->assertSame('Text, with, commas', $rowData[5]); // comma_field
+        $this->assertSame("Text with\nnewlines", $rowData[6]); // newline_field
+        $this->assertSame('Text with "quotes", commas, and\nnewlines', $rowData[7]); // mixed_field
 
         // Cleanup
         if (is_dir($tempDir)) {
@@ -233,9 +233,9 @@ class CSVTest extends TestCase
 
         // Arrays should be JSON encoded
         // Indices are shifted by 2 due to $createdAt and $updatedAt
-        $this->assertEquals('["php","csv","export"]', $rowData[4]); // tags
+        $this->assertSame('["php","csv","export"]', $rowData[4]); // tags
         $this->assertJson($rowData[5]); // metadata should be valid JSON
-        $this->assertEquals('', $rowData[6]); // empty_array
+        $this->assertSame('', $rowData[6]); // empty_array
         $this->assertJson($rowData[7]); // nested should be valid JSON
 
         // Cleanup
@@ -279,11 +279,11 @@ class CSVTest extends TestCase
         $this->assertNotFalse($rowData);
 
         // Indices are shifted by 2 due to $createdAt and $updatedAt
-        $this->assertEquals('Test', $rowData[4]); // name
-        $this->assertEquals('null', $rowData[5]); // null_field -> "null" string
-        $this->assertEquals('', $rowData[6]); // empty_string
-        $this->assertEquals('0', $rowData[7]); // zero
-        $this->assertEquals('false', $rowData[8]); // false_bool
+        $this->assertSame('Test', $rowData[4]); // name
+        $this->assertSame('null', $rowData[5]); // null_field -> "null" string
+        $this->assertSame('', $rowData[6]); // empty_string
+        $this->assertSame('0', $rowData[7]); // zero
+        $this->assertSame('false', $rowData[8]); // false_bool
 
         // Cleanup
         if (is_dir($tempDir)) {
@@ -385,12 +385,12 @@ class CSVTest extends TestCase
         // Verify we can reconstruct the data
         $reconstructed = \array_combine($header, $data);
 
-        $this->assertEquals('compat_row', $reconstructed['$id']);
-        $this->assertEquals('John Doe', $reconstructed['name']);
-        $this->assertEquals('30', $reconstructed['age']);
-        $this->assertEquals('null', $reconstructed['null_field']); // null becomes "null" string
-        $this->assertEquals('', $reconstructed['empty_field']);
-        $this->assertEquals('true', $reconstructed['bool_field']); // bool becomes string
+        $this->assertSame('compat_row', $reconstructed['$id']);
+        $this->assertSame('John Doe', $reconstructed['name']);
+        $this->assertSame('30', $reconstructed['age']);
+        $this->assertSame('null', $reconstructed['null_field']); // null becomes "null" string
+        $this->assertSame('', $reconstructed['empty_field']);
+        $this->assertSame('true', $reconstructed['bool_field']); // bool becomes string
         // Check that createdAt and updatedAt are in the reconstructed data
         $this->assertArrayHasKey('$createdAt', $reconstructed);
         $this->assertArrayHasKey('$updatedAt', $reconstructed);
@@ -402,8 +402,8 @@ class CSVTest extends TestCase
         $tagsArray = json_decode($reconstructed['tags'], true);
         $metadataArray = json_decode($reconstructed['metadata'], true);
 
-        $this->assertEquals(['php', 'csv'], $tagsArray);
-        $this->assertEquals(['key' => 'value'], $metadataArray);
+        $this->assertSame(['php', 'csv'], $tagsArray);
+        $this->assertSame(['key' => 'value'], $metadataArray);
 
         // Cleanup
         if (is_dir($tempDir)) {
