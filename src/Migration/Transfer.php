@@ -172,13 +172,14 @@ class Transfer
         }
 
         foreach ($this->cache->getAll() as $resourceType => $resources) {
-            foreach ($resources as $resource) {
+            foreach ($resources as $k => $resource) {
                 if (($resourceType === Resource::TYPE_ROW || $resourceType === Resource::TYPE_DOCUMENT) && is_string($resource)) {
-                    $rowStatus = $resource;
-                    $status[$resourceType][$rowStatus]++;
+                    $resource = intval($resource);
+
+                    $status[$resourceType][$k] = $resource;
 
                     if ($status[$resourceType]['pending'] > 0) {
-                        $status[$resourceType]['pending']--;
+                        $status[$resourceType]['pending'] -= $resource;
                     }
 
                     continue;

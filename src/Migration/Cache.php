@@ -89,10 +89,14 @@ class Cache
     {
         $key = $this->resolveResourceCacheKey($resource);
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
-
-            return; // skip caching
-
             $status = $resource->getStatus();
+
+            $counter = $this->cache[$resource->getName()][$status] ?? 0;
+            $counter = intval($counter) + 1;
+
+            $this->cache[$resource->getName()][$status] = $counter . ''; // Transfer.php check is_string($resource)
+
+            return;
 
             $this->cache[$resource->getName()][$key] = $status;
             return;
