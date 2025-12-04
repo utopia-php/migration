@@ -42,6 +42,9 @@ class Cache
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
             $rowId = $resource->getSequence();
+
+            return;
+
             $this->cache[$resource->getName()][$rowId] = $status;
             return;
         }
