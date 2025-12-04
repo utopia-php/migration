@@ -90,6 +90,9 @@ class Cache
         $key = $this->resolveResourceCacheKey($resource);
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
+
+            return;
+
             $this->cache[$resource->getName()][$key] = $status;
             return;
         }
