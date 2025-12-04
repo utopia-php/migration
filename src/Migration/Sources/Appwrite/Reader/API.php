@@ -74,16 +74,16 @@ class API implements Reader
                         : [Query::limit($pageLimit)]
                 )['collections']; /* ['tables'] */
 
-                $tables = array_merge($tables, $currentTables);
+                $tables = \array_merge($tables, $currentTables);
                 $lastTable = $tables[count($tables) - 1]['$id'] ?? null;
 
-                if (count($currentTables) < $pageLimit) {
+                if (\count($currentTables) < $pageLimit) {
                     break;
                 }
             }
 
             if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
-                $report[Resource::TYPE_TABLE] += count($tables);
+                $report[Resource::TYPE_TABLE] += \count($tables);
             }
 
             if (Resource::isSupported([Resource::TYPE_ROW, Resource::TYPE_COLUMN, Resource::TYPE_INDEX], $resources)) {
@@ -95,12 +95,11 @@ class API implements Reader
                         $report[Resource::TYPE_COLUMN] += count($table['columns'] ?? $table['attributes'] ?? []);
                     }
 
-                    if (in_array(Resource::TYPE_INDEX, $resources)) {
-                        // a table already returns a list of indexes
-                        $report[Resource::TYPE_INDEX] += count($table['indexes'] ?? []);
+                    if (\in_array(Resource::TYPE_INDEX, $resources)) {
+                        // A table already returns a list of indexes
+                        $report[Resource::TYPE_INDEX] += \count($table['indexes'] ?? []);
                     }
 
-                    // this one's a bit heavy if the number of tables are high!
                     if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
                         /* $rowsResponse = $this->tables->listRows(...) */
                         $rowsResponse = $this->database->listDocuments(
@@ -240,5 +239,10 @@ class API implements Reader
     public function queryLimit(int $limit): string
     {
         return Query::limit($limit);
+    }
+
+    public function getSupportForAttributes(): bool
+    {
+        return true;
     }
 }

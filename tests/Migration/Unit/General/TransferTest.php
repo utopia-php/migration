@@ -39,7 +39,7 @@ class TransferTest extends TestCase
             $this->transfer->run([Resource::TYPE_USER, Resource::TYPE_DATABASE], function () {}, 'rootResourceId');
             $this->fail('Multiple root resources should not be allowed');
         } catch (\Exception $e) {
-            $this->assertEquals('Resource type must be set when resource ID is set.', $e->getMessage());
+            $this->assertSame('Resource type must be set when resource ID is set.', $e->getMessage());
         }
 
         $this->source->pushMockResource(new Database('test', 'test'));
@@ -59,7 +59,7 @@ class TransferTest extends TestCase
         $database = $this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_DATABASE, 'test');
         /** @var Database $database */
         $this->assertNotNull($database);
-        $this->assertEquals('test', $database->getDatabaseName());
-        $this->assertEquals('test', $database->getId());
+        $this->assertSame('test', $database->getDatabaseName());
+        $this->assertSame('test', $database->getId());
     }
 }

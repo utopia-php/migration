@@ -12,6 +12,9 @@ const TYPE_BOOLEAN = 'boolean';
 const TYPE_OBJECT = 'object';
 const TYPE_ARRAY = 'array';
 const TYPE_NULL = 'null';
+const TYPE_POINT = 'point';
+const TYPE_LINE = 'linestring';
+const TYPE_POLYGON = 'polygon';
 
 class Database extends Resource
 {
@@ -22,6 +25,8 @@ class Database extends Resource
         protected string $updatedAt = '',
         protected bool $enabled = true,
         protected string $originalId = '',
+        protected string $type = '',
+        protected string $database = ''
     ) {
         $this->id = $id;
     }
@@ -34,6 +39,7 @@ class Database extends Resource
      *     updatedAt: string,
      *     enabled: bool,
      *     originalId: string|null,
+     *     database: string
      * } $array
      */
     public static function fromArray(array $array): self
@@ -45,6 +51,8 @@ class Database extends Resource
             updatedAt: $array['updatedAt'] ?? '',
             enabled: $array['enabled'] ?? true,
             originalId: $array['originalId'] ?? '',
+            type: $array['type'] ?? 'legacy',
+            database: $array['database']
         );
     }
 
@@ -59,6 +67,7 @@ class Database extends Resource
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
             'enabled' => $this->enabled,
+            'type' => $this->type,
         ];
     }
 
@@ -80,5 +89,15 @@ class Database extends Resource
     public function getEnabled(): bool
     {
         return $this->enabled;
+    }
+
+    public function getType(): string
+    {
+        return $this->type;
+    }
+
+    public function getDatabase(): string
+    {
+        return $this->database;
     }
 }

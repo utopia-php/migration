@@ -2,6 +2,10 @@
 
 namespace Utopia\Migration;
 
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Index;
+use Utopia\Migration\Resources\Database\Row;
+use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Storage\File;
 
@@ -23,6 +27,59 @@ class Cache
     }
 
     /**
+     * Get cache key from resource
+     *
+     * @param Resource $resource
+     * @return string
+    */
+    public function resolveResourceCacheKey(Resource $resource): string
+    {
+        if (! $resource->getSequence()) {
+            $resource->setSequence(uniqid());
+        }
+
+        $resourceName = $resource->getName();
+        $keys = [];
+
+        switch ($resourceName) {
+            case Resource::TYPE_TABLE:
+            case Resource::TYPE_COLLECTION:
+                /** @var Table $resource */
+                $keys[] = $resource->getDatabase()->getType();
+                $keys[] = $resource->getDatabase()->getSequence();
+                break;
+
+            case Resource::TYPE_ROW:
+            case Resource::TYPE_DOCUMENT:
+            case Resource::TYPE_COLUMN:
+            case Resource::TYPE_ATTRIBUTE:
+            case Resource::TYPE_INDEX:
+                /** @var Row|Column|Index $resource */
+                $table = $resource->getTable();
+                $keys[] = $table->getDatabase()->getSequence();
+                $keys[] = $table->getSequence();
+                break;
+
+            case Resource::TYPE_FILE:
+                /** @var File $resource */
+                $keys[] = $resource->getBucket()->getSequence();
+                break;
+
+            case Resource::TYPE_DEPLOYMENT:
+                /** @var Deployment $resource */
+                $keys[] = $resource->getFunction()->getSequence();
+                break;
+
+            default:
+                break;
+        }
+
+        $keys[] = $resource->getSequence();
+
+        return \implode('_', $keys);
+    }
+
+    /**
      * Add Resource
      *
      * Places the resource in the cache, in the cache backend this also gets assigned a unique ID.
@@ -30,22 +87,10 @@ class Cache
      */
     public function add(Resource $resource): void
     {
-        if (! $resource->getSequence()) {
-            $resourceId = uniqid();
-            if (isset($this->cache[$resource->getName()][$resourceId])) {
-                $resourceId = uniqid();
-                // todo: $resourceId is not used?
-            }
-            $resource->setSequence(uniqid());
-        }
-
+        $key = $this->resolveResourceCacheKey($resource);
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
-            $rowId = $resource->getSequence();
-
-            return;
-
-            $this->cache[$resource->getName()][$rowId] = $status;
+            $this->cache[$resource->getName()][$key] = $status;
             return;
         }
 
@@ -54,7 +99,7 @@ class Cache
             $resource->setData(''); // Prevent Memory Leak
         }
 
-        $this->cache[$resource->getName()][$resource->getSequence()] = $resource;
+        $this->cache[$resource->getName()][$key] = $resource;
     }
 
     /**
@@ -81,14 +126,14 @@ class Cache
      */
     public function update(Resource $resource): void
     {
+        $key = $this->resolveResourceCacheKey($resource);
         // if rows then updating the status counter only
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
-            $rowId = $resource->getSequence();
-            if (!isset($this->cache[$resource->getName()][$rowId])) {
+            if (!isset($this->cache[$resource->getName()][$key])) {
                 $this->add($resource);
             } else {
                 $status = $resource->getStatus();
-                $this->cache[$resource->getName()][$rowId] = $status;
+                $this->cache[$resource->getName()][$key] = $status;
             }
             return;
         }
@@ -97,7 +142,7 @@ class Cache
             $this->add($resource);
         }
 
-        $this->cache[$resource->getName()][$resource->getSequence()] = $resource;
+        $this->cache[$resource->getName()][$key] = $resource;
     }
 
     /**
@@ -122,8 +167,9 @@ class Cache
      */
     public function remove(Resource $resource): void
     {
+        $key = $this->resolveResourceCacheKey($resource);
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
-            if (! isset($this->cache[$resource->getName()][$resource->getSequence()])) {
+            if (! isset($this->cache[$resource->getName()][$key])) {
                 throw new \Exception('Resource does not exist in cache');
             }
         }
@@ -131,7 +177,7 @@ class Cache
             throw new \Exception('Resource does not exist in cache');
         }
 
-        unset($this->cache[$resource->getName()][$resource->getSequence()]);
+        unset($this->cache[$resource->getName()][$key]);
     }
 
     /**

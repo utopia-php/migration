@@ -1,16 +1,16 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Columns;
+namespace Utopia\Migration\Resources\Database\Attribute;
 
 use Utopia\Database\Database;
-use Utopia\Migration\Resources\Database\Column;
-use Utopia\Migration\Resources\Database\Table;
+use Utopia\Migration\Resources\Database\Attribute;
+use Utopia\Migration\Resources\Database\Collection;
 
-class Relationship extends Column
+class Relationship extends Attribute
 {
     public function __construct(
         string  $key,
-        Table   $table,
+        Collection   $collection,
         string  $relatedTable,
         string  $relationType,
         bool    $twoWay = false,
@@ -22,7 +22,7 @@ class Relationship extends Column
     ) {
         parent::__construct(
             $key,
-            $table,
+            $collection,
             options: [
                 'relatedCollection' => $relatedTable,
                 'relationType' => $relationType,
@@ -76,7 +76,7 @@ class Relationship extends Column
     {
         return new self(
             $array['key'],
-            Table::fromArray($array['table'] ?? $array['collection']),
+            Collection::fromArray($array['table'] ?? $array['collection']),
             relatedTable: $array['options']['relatedTable'] ?? $array['options']['relatedCollection'],
             relationType: $array['options']['relationType'],
             twoWay: $array['options']['twoWay'],
@@ -90,7 +90,7 @@ class Relationship extends Column
 
     public function getType(): string
     {
-        return Column::TYPE_RELATIONSHIP;
+        return Attribute::TYPE_RELATIONSHIP;
     }
 
     public function getRelatedTable(): string
