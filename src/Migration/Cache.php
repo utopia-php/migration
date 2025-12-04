@@ -91,7 +91,9 @@ class Cache
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
 
-            return;
+            if ((count($this->cache[$resource->getName()] ?? []) >= 10000)) {
+                return; // skip caching
+            }
 
             $this->cache[$resource->getName()][$key] = $status;
             return;
