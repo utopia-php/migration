@@ -88,9 +88,15 @@ class Cache
     public function add(Resource $resource): void
     {
         $key = $this->resolveResourceCacheKey($resource);
+
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
             $status = $resource->getStatus();
-            $this->cache[$resource->getName()][$key] = $status;
+
+            $counter = $this->cache[$resource->getName()][$status] ?? 0;
+            $counter = intval($counter) + 1;
+
+            $this->cache[$resource->getName()][$status] = $counter . ''; // Transfer.php check is_string($resource)
+
             return;
         }
 
@@ -127,14 +133,17 @@ class Cache
     public function update(Resource $resource): void
     {
         $key = $this->resolveResourceCacheKey($resource);
-        // if rows then updating the status counter only
+
+        /**
+         * if rows then updating the status counter only
+         */
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
-            if (!isset($this->cache[$resource->getName()][$key])) {
+            $status = $resource->getStatus();
+
+            if ($status != Resource::STATUS_SUCCESS) {
                 $this->add($resource);
-            } else {
-                $status = $resource->getStatus();
-                $this->cache[$resource->getName()][$key] = $status;
             }
+
             return;
         }
 
