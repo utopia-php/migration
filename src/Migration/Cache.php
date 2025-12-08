@@ -45,7 +45,6 @@ class Cache
             case Resource::TYPE_TABLE:
             case Resource::TYPE_COLLECTION:
                 /** @var Table $resource */
-                $keys[] = $resource->getDatabase()->getType();
                 $keys[] = $resource->getDatabase()->getSequence();
                 break;
 
