@@ -137,11 +137,7 @@ class Cache
          * if rows then updating the status counter only
          */
         if ($resource->getName() == Resource::TYPE_ROW || $resource->getName() == Resource::TYPE_DOCUMENT) {
-            $status = $resource->getStatus();
-
-            if ($status != Resource::STATUS_SUCCESS) {
-                $this->add($resource);
-            }
+            $this->add($resource);
 
             return;
         }
