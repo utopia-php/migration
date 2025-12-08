@@ -2,7 +2,6 @@
 
 namespace Utopia\Migration\Sources\Appwrite\Reader;
 
-use Utopia\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Exception as DatabaseException;
@@ -14,7 +13,6 @@ use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Resources\Database\Index as IndexResource;
 use Utopia\Migration\Resources\Database\Row as RowResource;
 use Utopia\Migration\Resources\Database\Table as TableResource;
-use Utopia\Migration\Sources\Appwrite;
 use Utopia\Migration\Sources\Appwrite\Reader;
 
 /**

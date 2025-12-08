@@ -10,7 +10,6 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
-use Utopia\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Migration\Exception;
@@ -113,19 +112,6 @@ class Appwrite extends Source
     public static function getName(): string
     {
         return 'Appwrite';
-    }
-
-    /**
-     * Log migration debug info for tracked projects
-     */
-    private function logDebugTrackedProject(string $message): void
-    {
-        $projectTag = self::$debugProjects[$this->project] ?? null;
-        if ($projectTag === null) {
-            return;
-        }
-
-        Console::info("MIGRATIONS-SOURCE-$projectTag: $message");
     }
 
     /**
@@ -1121,14 +1107,7 @@ class Appwrite extends Source
             $lastRow = null;
             $iterationCount = 0;
 
-            $this->logDebugTrackedProject("Starting table export | Table: {$table->getName()} | ID: {$table->getId()}");
-
             while (true) {
-                $iterationCount++;
-
-                $memUsage = round(memory_get_usage(true) / 1024 / 1024, 2);
-                $this->logDebugTrackedProject("Table: {$table->getName()} | Iteration: $iterationCount | Memory: {$memUsage}MB | LastRow: " . ($lastRow ? $lastRow->getId() : 'null'));
-
                 $queries = [
                     $this->database->queryLimit($batchSize),
                     ...$this->queries,
@@ -1167,9 +1146,6 @@ class Appwrite extends Source
                 $queries[] = $this->database->querySelect($selects);
 
                 $response = $this->database->listRows($table, $queries);
-
-                $timestamp = microtime(true);
-                $this->logDebugTrackedProject("AFTER listRows() | Table: {$table->getName()} | Rows: " . count($response) . " | Timestamp: $timestamp");
 
                 foreach ($response as $row) {
                     // HACK: Handle many to many
@@ -1214,24 +1190,13 @@ class Appwrite extends Source
                     $lastRow = $row;
                 }
 
-                $this->logDebugTrackedProject("Processed rows from response | Table: {$table->getName()} | Rows in batch: " . count($rows));
-
-                $this->logDebugTrackedProject("BEFORE callback() | Table: {$table->getName()} | Rows: " . count($rows));
-
                 $this->callback($rows);
 
-                $this->logDebugTrackedProject("AFTER callback() | Table: {$table->getName()}");
-
                 if (count($response) < $batchSize) {
-                    $this->logDebugTrackedProject("Table export completed | Table: {$table->getName()} | Response count: " . count($response) . " < Batch size: $batchSize");
                     break;
                 }
             }
-
-            $this->logDebugTrackedProject("Finished table export | Table: {$table->getName()} | Total iterations: {$iterationCount}");
         }
-
-        $this->logDebugTrackedProject("exportRecords completed | Entity: {$entityName}");
     }
 
     protected function exportGroupStorage(int $batchSize, array $resources): void
