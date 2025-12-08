@@ -12,7 +12,6 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
-use Dom\Document;
 use Override;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
@@ -34,7 +33,6 @@ use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
-use Utopia\Migration\Resources\Database\Attribute;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Index;
@@ -60,16 +58,6 @@ class Appwrite extends Destination
     private Users $users;
 
     /**
-     * @var callable(UtopiaDocument $database): UtopiaDatabase
-    */
-    protected $getDatabasesDB;
-
-    /**
-     * @var callable(string $databaseType):string
-    */
-    protected $getDatabaseDSN;
-
-    /**
      * @var array<UtopiaDocument>
      */
     private array $rowBuffer = [];
@@ -78,18 +66,14 @@ class Appwrite extends Destination
      * @param string $project
      * @param string $endpoint
      * @param string $key
-     * @param UtopiaDatabase $dbForProject
-     * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
-     * @param callable(string $databaseType):string $getDatabasesDSN
+     * @param UtopiaDatabase $database
      * @param array<array<string, mixed>> $collectionStructure
      */
     public function __construct(
         string $project,
         string $endpoint,
         string $key,
-        protected UtopiaDatabase $dbForProject,
-        callable $getDatabasesDB,
-        callable $getDatabasesDSN,
+        protected UtopiaDatabase $database,
         protected array $collectionStructure
     ) {
         $this->project = $project;
@@ -105,9 +89,6 @@ class Appwrite extends Destination
         $this->storage = new Storage($this->client);
         $this->teams = new Teams($this->client);
         $this->users = new Users($this->client);
-
-        $this->getDatabasesDB = $getDatabasesDB;
-        $this->getDatabaseDSN = $getDatabasesDSN;
     }
 
     public static function getName(): string
@@ -128,8 +109,6 @@ class Appwrite extends Destination
 
             // Database
             Resource::TYPE_DATABASE,
-            Resource::TYPE_DATABASE_DOCUMENTSDB,
-            Resource::TYPE_DATABASE_VECTORDB,
             Resource::TYPE_TABLE,
             Resource::TYPE_COLUMN,
             Resource::TYPE_INDEX,
@@ -249,7 +228,7 @@ class Appwrite extends Destination
             $isLast = $index === $total - 1;
 
             try {
-                $this->dbForProject->setPreserveDates(true);
+                $this->database->setPreserveDates(true);
 
                 $responseResource = match ($resource->getGroup()) {
                     Transfer::GROUP_DATABASES => $this->importDatabaseResource($resource, $isLast),
@@ -272,7 +251,7 @@ class Appwrite extends Destination
 
                 $responseResource = $resource;
             } finally {
-                $this->dbForProject->setPreserveDates(false);
+                $this->database->setPreserveDates(false);
             }
 
             $this->cache->update($responseResource);
@@ -290,20 +269,18 @@ class Appwrite extends Destination
     {
         switch ($resource->getName()) {
             case Resource::TYPE_DATABASE:
-            case Resource::TYPE_DATABASE_DOCUMENTSDB:
-            case Resource::TYPE_DATABASE_VECTORDB:
                 /** @var Database $resource */
                 $success = $this->createDatabase($resource);
                 break;
             case Resource::TYPE_TABLE:
             case Resource::TYPE_COLLECTION:
                 /** @var Table $resource */
-                $success = $this->createEntity($resource);
+                $success = $this->createTable($resource);
                 break;
             case Resource::TYPE_COLUMN:
             case Resource::TYPE_ATTRIBUTE:
                 /** @var Column $resource */
-                $success = $this->createField($resource);
+                $success = $this->createColumn($resource);
                 break;
             case Resource::TYPE_INDEX:
                 /** @var Index $resource */
@@ -312,7 +289,7 @@ class Appwrite extends Destination
             case Resource::TYPE_ROW:
             case Resource::TYPE_DOCUMENT:
                 /** @var Row $resource */
-                $success = $this->createRecord($resource, $isLast);
+                $success = $this->createRow($resource, $isLast);
                 break;
             default:
                 $success = false;
@@ -348,7 +325,7 @@ class Appwrite extends Destination
             );
         }
 
-        $database = $this->dbForProject->createDocument('databases', new UtopiaDocument([
+        $database = $this->database->createDocument('databases', new UtopiaDocument([
             '$id' => $resource->getId(),
             'name' => $resource->getDatabaseName(),
             'enabled' => $resource->getEnabled(),
@@ -357,8 +334,6 @@ class Appwrite extends Destination
             '$updatedAt' => $resource->getUpdatedAt(),
             'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
             'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
-            // source and destination can be in different location
-            'database' => ($this->getDatabaseDSN)($resource->getType())
         ]));
 
         $resource->setSequence($database->getSequence());
@@ -373,7 +348,7 @@ class Appwrite extends Destination
             $this->collectionStructure['indexes']
         );
 
-        $this->dbForProject->createCollection(
+        $this->database->createCollection(
             'database_' . $database->getSequence(),
             $columns,
             $indexes
@@ -388,7 +363,7 @@ class Appwrite extends Destination
      * @throws StructureException
      * @throws Exception
      */
-    protected function createEntity(Table $resource): bool
+    protected function createTable(Table $resource): bool
     {
         if ($resource->getId() == 'unique()') {
             $resource->setId(ID::unique());
@@ -405,7 +380,7 @@ class Appwrite extends Destination
             );
         }
 
-        $database = $this->dbForProject->getDocument(
+        $database = $this->database->getDocument(
             'databases',
             $resource->getDatabase()->getId()
         );
@@ -419,14 +394,7 @@ class Appwrite extends Destination
             );
         }
 
-        $dbForDatabases = ($this->getDatabasesDB)($database);
-
-        // passing null in creates only creates the metadata collection
-        if (!$dbForDatabases->exists(null, UtopiaDatabase::METADATA)) {
-            $dbForDatabases->create();
-        }
-
-        $table = $this->dbForProject->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
+        $table = $this->database->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
             '$id' => $resource->getId(),
             'databaseInternalId' => $database->getSequence(),
             'databaseId' => $resource->getDatabase()->getId(),
@@ -441,7 +409,7 @@ class Appwrite extends Destination
 
         $resource->setSequence($table->getSequence());
 
-        $dbForDatabases->createCollection(
+        $this->database->createCollection(
             'database_' . $database->getSequence() . '_collection_' . $resource->getSequence(),
             permissions: $resource->getPermissions(),
             documentSecurity: $resource->getRowSecurity()
@@ -455,33 +423,26 @@ class Appwrite extends Destination
      * @throws \Exception
      * @throws \Throwable
      */
-    protected function createField(Column|Attribute $resource): bool
+    protected function createColumn(Column $resource): bool
     {
-        if ($resource->getTable()->getDatabase()->getType() === Resource::TYPE_DATABASE_DOCUMENTSDB) {
-            $resource->setStatus(Resource::STATUS_SKIPPED, 'Columns not supported for DocumentsDB');
-            return false;
-        }
-
         $type = match ($resource->getType()) {
-            Column::TYPE_DATETIME, Attribute::TYPE_DATETIME => UtopiaDatabase::VAR_DATETIME,
-            Column::TYPE_BOOLEAN, Attribute::TYPE_BOOLEAN => UtopiaDatabase::VAR_BOOLEAN,
-            Column::TYPE_INTEGER, Attribute::TYPE_INTEGER => UtopiaDatabase::VAR_INTEGER,
-            Column::TYPE_FLOAT, Attribute::TYPE_FLOAT => UtopiaDatabase::VAR_FLOAT,
-            Column::TYPE_RELATIONSHIP, Attribute::TYPE_RELATIONSHIP => UtopiaDatabase::VAR_RELATIONSHIP,
-            Column::TYPE_STRING, Attribute::TYPE_STRING,
-            Column::TYPE_IP, Attribute::TYPE_IP,
-            Column::TYPE_EMAIL, Attribute::TYPE_EMAIL,
-            Column::TYPE_URL, Attribute::TYPE_URL,
-            Column::TYPE_ENUM, Attribute::TYPE_ENUM => UtopiaDatabase::VAR_STRING,
-            Column::TYPE_POINT, Attribute::TYPE_POINT => UtopiaDatabase::VAR_POINT,
-            Column::TYPE_LINE, Attribute::TYPE_LINE => UtopiaDatabase::VAR_LINESTRING,
-            Column::TYPE_POLYGON, Attribute::TYPE_POLYGON => UtopiaDatabase::VAR_POLYGON,
-            Column::TYPE_OBJECT, Attribute::TYPE_OBJECT => UtopiaDatabase::VAR_OBJECT,
-            Column::TYPE_VECTOR, Attribute::TYPE_VECTOR => UtopiaDatabase::VAR_VECTOR,
+            Column::TYPE_DATETIME => UtopiaDatabase::VAR_DATETIME,
+            Column::TYPE_BOOLEAN => UtopiaDatabase::VAR_BOOLEAN,
+            Column::TYPE_INTEGER => UtopiaDatabase::VAR_INTEGER,
+            Column::TYPE_FLOAT => UtopiaDatabase::VAR_FLOAT,
+            Column::TYPE_RELATIONSHIP => UtopiaDatabase::VAR_RELATIONSHIP,
+            Column::TYPE_STRING,
+            Column::TYPE_IP,
+            Column::TYPE_EMAIL,
+            Column::TYPE_URL,
+            Column::TYPE_ENUM => UtopiaDatabase::VAR_STRING,
+            Column::TYPE_POINT => UtopiaDatabase::VAR_POINT,
+            Column::TYPE_LINE => UtopiaDatabase::VAR_LINESTRING,
+            Column::TYPE_POLYGON => UtopiaDatabase::VAR_POLYGON,
             default => throw new \Exception('Invalid resource type '.$resource->getType()),
         };
 
-        $database = $this->dbForProject->getDocument(
+        $database = $this->database->getDocument(
             'databases',
             $resource->getTable()->getDatabase()->getId(),
         );
@@ -495,7 +456,7 @@ class Appwrite extends Destination
             );
         }
 
-        $table = $this->dbForProject->getDocument(
+        $table = $this->database->getDocument(
             'database_' . $database->getSequence(),
             $resource->getTable()->getId(),
         );
@@ -540,7 +501,7 @@ class Appwrite extends Destination
 
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP) {
             $resource->getOptions()['side'] = UtopiaDatabase::RELATION_SIDE_PARENT;
-            $relatedTable = $this->dbForProject->getDocument(
+            $relatedTable = $this->database->getDocument(
                 'database_' . $database->getSequence(),
                 $resource->getOptions()['relatedCollection']
             );
@@ -553,7 +514,7 @@ class Appwrite extends Destination
                 );
             }
         }
-        $dbForDatabases = ($this->getDatabasesDB)($database);
+
         try {
             $column = new UtopiaDocument([
                 '$id' => ID::custom($database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey()),
@@ -577,9 +538,9 @@ class Appwrite extends Destination
                 '$updatedAt' => $resource->getUpdatedAt(),
             ]);
 
-            $this->dbForProject->checkAttribute($table, $column);
+            $this->database->checkAttribute($table, $column);
 
-            $column = $this->dbForProject->createDocument('attributes', $column);
+            $column = $this->database->createDocument('attributes', $column);
         } catch (DuplicateException) {
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -595,13 +556,13 @@ class Appwrite extends Destination
                 message: 'Attribute limit exceeded',
             );
         } catch (\Throwable $e) {
-            $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
-            $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+            $this->database->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+            $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
             throw $e;
         }
 
-        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
-        $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+        $this->database->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+        $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
         $options = $resource->getOptions();
 
         $twoWayKey = null;
@@ -635,9 +596,9 @@ class Appwrite extends Destination
                     '$updatedAt' => $resource->getUpdatedAt(),
                 ]);
 
-                $this->dbForProject->createDocument('attributes', $twoWayAttribute);
+                $this->database->createDocument('attributes', $twoWayAttribute);
             } catch (DuplicateException) {
-                $this->dbForProject->deleteDocument('attributes', $column->getId());
+                $this->database->deleteDocument('attributes', $column->getId());
 
                 throw new Exception(
                     resourceName: $resource->getName(),
@@ -646,7 +607,7 @@ class Appwrite extends Destination
                     message: 'Attribute already exists',
                 );
             } catch (LimitException) {
-                $this->dbForProject->deleteDocument('attributes', $column->getId());
+                $this->database->deleteDocument('attributes', $column->getId());
 
                 throw new Exception(
                     resourceName: $resource->getName(),
@@ -655,8 +616,8 @@ class Appwrite extends Destination
                     message: 'Column limit exceeded',
                 );
             } catch (\Throwable $e) {
-                $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
-                $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence());
+                $this->database->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
+                $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence());
                 throw $e;
             }
         }
@@ -664,7 +625,7 @@ class Appwrite extends Destination
         try {
             switch ($type) {
                 case UtopiaDatabase::VAR_RELATIONSHIP:
-                    if (!$dbForDatabases->createRelationship(
+                    if (!$this->database->createRelationship(
                         collection: 'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
                         relatedCollection: 'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence(),
                         type: $options['relationType'],
@@ -682,7 +643,7 @@ class Appwrite extends Destination
                     }
                     break;
                 default:
-                    if (!$dbForDatabases->createAttribute(
+                    if (!$this->database->createAttribute(
                         'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
                         $resource->getKey(),
                         $type,
@@ -699,10 +660,10 @@ class Appwrite extends Destination
                     }
             }
         } catch (\Throwable) {
-            $this->dbForProject->deleteDocument('attributes', $column->getId());
+            $this->database->deleteDocument('attributes', $column->getId());
 
             if (isset($twoWayAttribute)) {
-                $this->dbForProject->deleteDocument('attributes', $twoWayAttribute->getId());
+                $this->database->deleteDocument('attributes', $twoWayAttribute->getId());
             }
 
             throw new Exception(
@@ -714,11 +675,11 @@ class Appwrite extends Destination
         }
 
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
-            $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
+            $this->database->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
         }
 
-        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
-        $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+        $this->database->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+        $this->database->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
 
         return true;
     }
@@ -729,7 +690,7 @@ class Appwrite extends Destination
      */
     protected function createIndex(Index $resource): bool
     {
-        $database = $this->dbForProject->getDocument(
+        $database = $this->database->getDocument(
             'databases',
             $resource->getTable()->getDatabase()->getId(),
         );
@@ -742,7 +703,7 @@ class Appwrite extends Destination
             );
         }
 
-        $table = $this->dbForProject->getDocument(
+        $table = $this->database->getDocument(
             'database_' . $database->getSequence(),
             $resource->getTable()->getId(),
         );
@@ -754,14 +715,13 @@ class Appwrite extends Destination
                 message: 'Table not found',
             );
         }
-        $dbForDatabases = ($this->getDatabasesDB)($database);
 
-        $count = $this->dbForProject->count('indexes', [
+        $count = $this->database->count('indexes', [
             Query::equal('collectionInternalId', [$table->getSequence()]),
             Query::equal('databaseInternalId', [$database->getSequence()])
-        ], $dbForDatabases->getLimitForIndexes());
+        ], $this->database->getLimitForIndexes());
 
-        if ($count >= $dbForDatabases->getLimitForIndexes()) {
+        if ($count >= $this->database->getLimitForIndexes()) {
             throw new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
@@ -770,11 +730,101 @@ class Appwrite extends Destination
             );
         }
 
+        /**
+         * @var array<UtopiaDocument> $tableColumns
+         */
+        $tableColumns = $table->getAttribute('attributes', []);
+
+        /**
+         * @var array<UtopiaDocument> $tableIndexes
+         */
+        $tableIndexes = $table->getAttribute('indexes', []);
+
+        $oldColumns = \array_map(
+            fn ($attr) => $attr->getArrayCopy(),
+            $tableColumns
+        );
+
+        $oldColumns[] = [
+            'key' => '$id',
+            'type' => UtopiaDatabase::VAR_STRING,
+            'status' => 'available',
+            'required' => true,
+            'array' => false,
+            'default' => null,
+            'size' => UtopiaDatabase::LENGTH_KEY
+        ];
+
+        $oldColumns[] = [
+            'key' => '$createdAt',
+            'type' => UtopiaDatabase::VAR_DATETIME,
+            'status' => 'available',
+            'signed' => false,
+            'required' => false,
+            'array' => false,
+            'default' => null,
+            'size' => 0
+        ];
+
+        $oldColumns[] = [
+            'key' => '$updatedAt',
+            'type' => UtopiaDatabase::VAR_DATETIME,
+            'status' => 'available',
+            'signed' => false,
+            'required' => false,
+            'array' => false,
+            'default' => null,
+            'size' => 0
+        ];
+
         // Lengths hidden by default
         $lengths = [];
 
-        if ($dbForDatabases->getAdapter()->getSupportForAttributes()) {
-            $this->validateFieldsForIndexes($resource, $table, $lengths);
+        foreach ($resource->getColumns() as $i => $column) {
+            // find attribute metadata in collection document
+            $columnIndex = \array_search(
+                $column,
+                \array_column($oldColumns, 'key')
+            );
+
+            if ($columnIndex === false) {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Column not found in table: ' . $column,
+                );
+            }
+
+            $columnStatus = $oldColumns[$columnIndex]['status'];
+            $columnType = $oldColumns[$columnIndex]['type'];
+            $columnSize = $oldColumns[$columnIndex]['size'];
+            $columnArray = $oldColumns[$columnIndex]['array'] ?? false;
+
+            if ($columnType === UtopiaDatabase::VAR_RELATIONSHIP) {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Relationship columns are not supported in indexes',
+                );
+            }
+
+            // Ensure attribute is available
+            if ($columnStatus !== 'available') {
+                throw new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Column not available: ' . $column,
+                );
+            }
+
+            $lengths[$i] = null;
+
+            if ($columnArray === true) {
+                $lengths[$i] = UtopiaDatabase::MAX_ARRAY_INDEX_LENGTH;
+            }
         }
 
         $index = new UtopiaDocument([
@@ -793,33 +843,19 @@ class Appwrite extends Destination
             '$updatedAt' => $resource->getUpdatedAt(),
         ]);
 
-        $maxIndexLength = $dbForDatabases->getAdapter()->getMaxIndexLength();
-        $internalIndexesKeys = $dbForDatabases->getAdapter()->getInternalIndexesKeys();
-        $supportForIndexArray = $dbForDatabases->getAdapter()->getSupportForIndexArray();
-        $supportForSpatialAttributes = $dbForDatabases->getAdapter()->getSupportForSpatialAttributes();
-        $supportForSpatialIndexNull = $dbForDatabases->getAdapter()->getSupportForSpatialIndexNull();
-        $supportForSpatialIndexOrder = $dbForDatabases->getAdapter()->getSupportForSpatialIndexOrder();
-        $supportForAttributes = $dbForDatabases->getAdapter()->getSupportForAttributes();
-        $supportForMultipleFulltextIndexes = $dbForDatabases->getAdapter()->getSupportForMultipleFulltextIndexes();
-        $supportForIdenticalIndexes = $dbForDatabases->getAdapter()->getSupportForIdenticalIndexes();
-        $supportForVectorIndexes = $dbForDatabases->getAdapter()->getSupportForVectors();
-        $supportForObjectIndexes = $dbForDatabases->getAdapter()->getSupportForObject();
-
         $validator = new IndexValidator(
-            $table->getAttribute('attributes'),
-            $table->getAttribute('indexes', []),
-            $maxIndexLength,
-            $internalIndexesKeys,
-            $supportForIndexArray,
-            $supportForSpatialIndexNull,
-            $supportForSpatialIndexOrder,
-            $supportForVectorIndexes,
-            $supportForAttributes,
-            $supportForMultipleFulltextIndexes,
-            $supportForIdenticalIndexes,
-            $supportForObjectIndexes,
+            $tableColumns,
+            $tableIndexes,
+            $this->database->getAdapter()->getMaxIndexLength(),
+            $this->database->getAdapter()->getInternalIndexesKeys(),
+            $this->database->getAdapter()->getSupportForIndexArray(),
+            $this->database->getAdapter()->getSupportForSpatialIndexNull(),
+            $this->database->getAdapter()->getSupportForSpatialIndexOrder(),
+            $this->database->getAdapter()->getSupportForVectors(),
+            $this->database->getAdapter()->getSupportForAttributes(),
+            $this->database->getAdapter()->getSupportForMultipleFulltextIndexes(),
+            $this->database->getAdapter()->getSupportForIdenticalIndexes(),
         );
-
 
         if (!$validator->isValid($index)) {
             throw new Exception(
@@ -830,10 +866,10 @@ class Appwrite extends Destination
             );
         }
 
-        $index = $this->dbForProject->createDocument('indexes', $index);
+        $index = $this->database->createDocument('indexes', $index);
 
         try {
-            $result = $dbForDatabases->createIndex(
+            $result = $this->database->createIndex(
                 'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
                 $resource->getKey(),
                 $resource->getType(),
@@ -851,7 +887,7 @@ class Appwrite extends Destination
                 );
             }
         } catch (\Throwable $th) {
-            $this->dbForProject->deleteDocument('indexes', $index->getId());
+            $this->database->deleteDocument('indexes', $index->getId());
 
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -861,7 +897,7 @@ class Appwrite extends Destination
             );
         }
 
-        $this->dbForProject->purgeCachedDocument(
+        $this->database->purgeCachedDocument(
             'database_' . $database->getSequence(),
             $table->getId()
         );
@@ -875,7 +911,7 @@ class Appwrite extends Destination
      * @throws StructureException
      * @throws Exception
      */
-    protected function createRecord(Row $resource, bool $isLast): bool
+    protected function createRow(Row $resource, bool $isLast): bool
     {
         if ($resource->getId() == 'unique()') {
             $resource->setId(ID::unique());
@@ -895,7 +931,7 @@ class Appwrite extends Destination
         // Check if document has already been created
         $exists = \array_key_exists(
             $resource->getId(),
-            $this->cache->get($resource->getName())
+            $this->cache->get(Resource::TYPE_ROW)
         );
 
         if ($exists) {
@@ -913,46 +949,45 @@ class Appwrite extends Destination
 
         if ($isLast) {
             try {
-                $database = $this->dbForProject->getDocument(
+                $database = $this->database->getDocument(
                     'databases',
                     $resource->getTable()->getDatabase()->getId(),
                 );
 
-                $table = $this->dbForProject->getDocument(
+                $table = $this->database->getDocument(
                     'database_' . $database->getSequence(),
                     $resource->getTable()->getId(),
                 );
 
                 $databaseInternalId = $database->getSequence();
                 $tableInternalId = $table->getSequence();
-                $dbForDatabases = ($this->getDatabasesDB)($database);
+
                 /**
                  * This is in case an attribute was deleted from Appwrite attributes collection but was not deleted from the table
                  * When creating an archive we select * which will include orphan attribute from the schema
                  */
-                if ($dbForDatabases->getAdapter()->getSupportForAttributes()) {
-                    foreach ($this->rowBuffer as $row) {
-                        foreach ($row as $key => $value) {
-                            if (\str_starts_with($key, '$')) {
-                                continue;
-                            }
+                foreach ($this->rowBuffer as $row) {
+                    foreach ($row as $key => $value) {
+                        if (\str_starts_with($key, '$')) {
+                            continue;
+                        }
 
-                            /** @var \Utopia\Database\Document $attribute */
-                            $found = false;
-                            foreach ($table->getAttribute('attributes', []) as $attribute) {
-                                if ($attribute->getAttribute('key') == $key) {
-                                    $found = true;
-                                    break;
-                                }
+                        /** @var \Utopia\Database\Document $attribute */
+                        $found = false;
+                        foreach ($table->getAttribute('attributes', []) as $attribute) {
+                            if ($attribute->getAttribute('key') == $key) {
+                                $found = true;
+                                break;
                             }
+                        }
 
-                            if (! $found) {
-                                $row->removeAttribute($key);
-                            }
+                        if (! $found) {
+                            $row->removeAttribute($key);
                         }
                     }
                 }
-                $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->createDocuments(
+
+                $this->database->skipRelationshipsExistCheck(fn () => $this->database->createDocuments(
                     'database_' . $databaseInternalId . '_collection_' . $tableInternalId,
                     $this->rowBuffer
                 ));
@@ -1398,97 +1433,5 @@ class Appwrite extends Destination
         }
 
         return $deployment;
-    }
-
-    private function validateFieldsForIndexes(Index $resource, UtopiaDocument $table, array &$lengths)
-    {
-        /**
-         * @var array<UtopiaDocument> $tableColumns
-         */
-        $tableColumns = $table->getAttribute('attributes', []);
-
-        $oldColumns = \array_map(
-            fn ($attr) => $attr->getArrayCopy(),
-            $tableColumns
-        );
-
-        $oldColumns[] = [
-            'key' => '$id',
-            'type' => UtopiaDatabase::VAR_STRING,
-            'status' => 'available',
-            'required' => true,
-            'array' => false,
-            'default' => null,
-            'size' => UtopiaDatabase::LENGTH_KEY
-        ];
-
-        $oldColumns[] = [
-            'key' => '$createdAt',
-            'type' => UtopiaDatabase::VAR_DATETIME,
-            'status' => 'available',
-            'signed' => false,
-            'required' => false,
-            'array' => false,
-            'default' => null,
-            'size' => 0
-        ];
-
-        $oldColumns[] = [
-            'key' => '$updatedAt',
-            'type' => UtopiaDatabase::VAR_DATETIME,
-            'status' => 'available',
-            'signed' => false,
-            'required' => false,
-            'array' => false,
-            'default' => null,
-            'size' => 0
-        ];
-
-        foreach ($resource->getColumns() as $i => $column) {
-            // find attribute metadata in collection document
-            $columnIndex = \array_search(
-                $column,
-                \array_column($oldColumns, 'key')
-            );
-
-            if ($columnIndex === false) {
-                throw new Exception(
-                    resourceName: $resource->getName(),
-                    resourceGroup: $resource->getGroup(),
-                    resourceId: $resource->getId(),
-                    message: 'Column not found in table: ' . $column,
-                );
-            }
-
-            $columnStatus = $oldColumns[$columnIndex]['status'];
-            $columnType = $oldColumns[$columnIndex]['type'];
-            $columnSize = $oldColumns[$columnIndex]['size'];
-            $columnArray = $oldColumns[$columnIndex]['array'] ?? false;
-
-            if ($columnType === UtopiaDatabase::VAR_RELATIONSHIP) {
-                throw new Exception(
-                    resourceName: $resource->getName(),
-                    resourceGroup: $resource->getGroup(),
-                    resourceId: $resource->getId(),
-                    message: 'Relationship columns are not supported in indexes',
-                );
-            }
-
-            // Ensure attribute is available
-            if ($columnStatus !== 'available') {
-                throw new Exception(
-                    resourceName: $resource->getName(),
-                    resourceGroup: $resource->getGroup(),
-                    resourceId: $resource->getId(),
-                    message: 'Column not available: ' . $column,
-                );
-            }
-
-            $lengths[$i] = null;
-
-            if ($columnArray === true) {
-                $lengths[$i] = UtopiaDatabase::MAX_ARRAY_INDEX_LENGTH;
-            }
-        }
     }
 }

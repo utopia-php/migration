@@ -30,13 +30,6 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_DATABASE = 'database';
 
-    public const TYPE_DATABASE_LEGACY = 'legacy';
-
-    public const TYPE_DATABASE_TABLESDB = 'tablesdb';
-
-    public const TYPE_DATABASE_DOCUMENTSDB = 'documentsdb';
-    public const TYPE_DATABASE_VECTORDB = 'vectordb';
-
     public const TYPE_ROW = 'row';
 
     public const TYPE_FILE = 'file';
@@ -77,8 +70,6 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_BUCKET,
         self::TYPE_TABLE,
         self::TYPE_DATABASE,
-        self::TYPE_DATABASE_VECTORDB,
-        self::TYPE_DATABASE_DOCUMENTSDB,
         self::TYPE_ROW,
         self::TYPE_FILE,
         self::TYPE_FUNCTION,
@@ -94,39 +85,6 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_DOCUMENT,
         self::TYPE_ATTRIBUTE,
         self::TYPE_COLLECTION,
-    ];
-
-    // index terminology is same for all
-    public const DATABASE_TYPE_RESOURCE_MAP = [
-        self::TYPE_DATABASE => [
-            'entity' => self::TYPE_TABLE,
-            'field' => self::TYPE_COLUMN,
-            'record' => self::TYPE_ROW,
-        ],
-        self::TYPE_DATABASE_DOCUMENTSDB => [
-            'entity' => self::TYPE_COLLECTION,
-            // HACK: not required in documentsdb but adding it for consistency in the db reader(not gonna impact)
-            'field' => self::TYPE_ATTRIBUTE,
-            'record' => self::TYPE_DOCUMENT,
-        ],
-        self::TYPE_DATABASE_VECTORDB => [
-            'entity' => self::TYPE_COLLECTION,
-            'field' => self::TYPE_ATTRIBUTE,
-            'record' => self::TYPE_DOCUMENT,
-        ]
-    ];
-
-    public const ENTITY_TYPE_RESOURCE_MAP = [
-        self::TYPE_TABLE => [
-            'field' => self::TYPE_COLUMN,
-            'record' => self::TYPE_ROW,
-            'index' => self::TYPE_INDEX
-        ],
-        self::TYPE_COLLECTION => [
-            'field' => self::TYPE_ATTRIBUTE,
-            'record' => self::TYPE_DOCUMENT,
-            'index' => self::TYPE_INDEX
-        ],
     ];
 
     protected string $id = '';
