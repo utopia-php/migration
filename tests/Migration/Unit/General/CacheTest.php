@@ -53,7 +53,7 @@ class CacheTest extends TestCase
         $key = $cache->resolveResourceCacheKey($db1);
 
         /**
-         * @var $resource Resource
+         * @var Resource $resource
          */
         $resource = $cache->get('database')[$key];
         $this->assertEquals('success', $resource->getStatus());
