@@ -131,6 +131,10 @@ class Cache
      */
     public function update(Resource $resource): void
     {
+        /**
+         * todo: call directly $this->add($resource);
+         */
+
         $key = $this->resolveResourceCacheKey($resource);
 
         /**
