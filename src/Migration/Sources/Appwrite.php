@@ -166,6 +166,7 @@ class Appwrite extends Source
      * @return array<string, mixed>
      *
      * @throws \Exception
+     * @throws \Throwable
      */
     public function report(array $resources = []): array
     {
@@ -192,9 +193,9 @@ class Appwrite extends Source
         } catch (\Throwable $e) {
             if ($e->getCode() === 403) {
                 throw new \Exception("Missing required scopes.");
-            } else {
-                throw new \Exception($e->getMessage(), previous: $e);
             }
+
+            throw $e;
         }
 
         $this->previousReport = $report;
