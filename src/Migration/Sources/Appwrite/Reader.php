@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Sources\Appwrite;
 
+use Utopia\Database\Query;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Table;
@@ -77,10 +78,10 @@ interface Reader
     /**
      * Return a query to select the given attributes
      *
-     * @param array $columns
+     * @param string $column
      * @return QueryType|string
      */
-    public function querySelect(array $columns): mixed;
+    public function querySelect(string $column): mixed;
 
     /**
      * Return a query to filter the given attributes

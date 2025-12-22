@@ -1143,7 +1143,9 @@ class Appwrite extends Source
                 }
                 /** @var Column|Relationship $attribute */
 
-                $queries[] = $this->database->querySelect($selects);
+                foreach ($selects as $select) {
+                    $queries[] = $this->database->querySelect($select);
+                }
 
                 $response = $this->database->listRows($table, $queries);
 
