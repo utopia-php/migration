@@ -25,7 +25,7 @@ class API implements Reader
     /**
      * @throws AppwriteException
      */
-    public function report(array $resources, array &$report): mixed
+    public function report(array $resources, array &$report, array $resourceIds = []): mixed
     {
         $relevantResources = [
             Resource::TYPE_DATABASE,
@@ -45,11 +45,22 @@ class API implements Reader
             }
         }
 
-        $databasesResponse = $this->database->list();
-        $databases = $databasesResponse['databases'];
+        $databaseQueries = [];
+        if (isset($resourceIds[Resource::TYPE_DATABASE])) {
+            $databaseIds = is_array($resourceIds[Resource::TYPE_DATABASE])
+                ? $resourceIds[Resource::TYPE_DATABASE]
+                : [$resourceIds[Resource::TYPE_DATABASE]];
+
+            foreach ($databaseIds as $databaseId) {
+                $databaseQueries[] = Query::equal('$id', $databaseId);
+            }
+        }
+
+        $response = $this->listDatabases($databaseQueries);
+        $databases = $response['databases'];
 
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
-            $report[Resource::TYPE_DATABASE] = $databasesResponse['total'];
+            $report[Resource::TYPE_DATABASE] = $response['total'];
         }
 
         if (count(array_intersect($resources, $relevantResources)) === 1 &&
@@ -122,7 +133,7 @@ class API implements Reader
      */
     public function listDatabases(array $queries = []): array
     {
-        return $this->database->list($queries)['databases'];
+        return $this->database->list($queries);
     }
 
     /**

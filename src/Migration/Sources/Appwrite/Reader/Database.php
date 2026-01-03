@@ -24,7 +24,7 @@ class Database implements Reader
     {
     }
 
-    public function report(array $resources, array &$report): mixed
+    public function report(array $resources, array &$report, array $resourceIds = []): mixed
     {
         $relevantResources = [
             Resource::TYPE_DATABASE,
@@ -44,8 +44,17 @@ class Database implements Reader
             }
         }
 
+        $databaseQueries = [];
+        if (isset($resourceIds[Resource::TYPE_DATABASE])) {
+            $databaseIds = is_array($resourceIds[Resource::TYPE_DATABASE])
+                ? $resourceIds[Resource::TYPE_DATABASE]
+                : [$resourceIds[Resource::TYPE_DATABASE]];
+
+            $databaseQueries[] = Query::equal('$id', $databaseIds);
+        }
+
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
-            $report[Resource::TYPE_DATABASE] = $this->countResources('databases');
+            $report[Resource::TYPE_DATABASE] = $this->countResources('databases', $databaseQueries);
         }
 
         if (count(array_intersect($resources, $relevantResources)) === 1 &&
@@ -54,7 +63,7 @@ class Database implements Reader
         }
 
         $dbResources = [];
-        $databases = $this->listDatabases();
+        $databases = $this->listDatabases($databaseQueries);
 
         // Process each database
         foreach ($databases as $database) {

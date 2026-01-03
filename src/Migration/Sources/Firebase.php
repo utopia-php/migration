@@ -141,7 +141,7 @@ class Firebase extends Source
         ];
     }
 
-    public function report(array $resources = []): array
+    public function report(array $resources = [], array $resourceIds = []): array
     {
         // Check our service account is valid
         if (! isset($this->serviceAccount['project_id'])) {

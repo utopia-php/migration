@@ -63,9 +63,12 @@ abstract class Target
      * If any issues are found then an exception should be thrown with an error message.
      *
      * @param  array<string>  $resources  Resources to report
+     * @param  array<string, array<string>>  $resourceIds  Map of resource type to IDs. Only top-level resources supported.
      * @return array<string, int>
+     *
+     * @throws \Exception if resourceIds contains non-top-level resource types
      */
-    abstract public function report(array $resources = []): array;
+    abstract public function report(array $resources = [], array $resourceIds = []): array;
 
     /**
      * Make an API call
@@ -181,6 +184,21 @@ abstract class Target
         }
 
         return $output;
+    }
+
+    /**
+     * Validate that resourceIds only contains top-level resources
+     */
+    protected function validateResourceIds(array $resourceIds): void
+    {
+        foreach (array_keys($resourceIds) as $resourceType) {
+            if (!in_array($resourceType, Transfer::ROOT_RESOURCES)) {
+                throw new \Exception(
+                    'Invalid resource type in resourceIds: ' . $resourceType . '. ' .
+                    'Only top-level resources are supported: ' . implode(', ', Transfer::ROOT_RESOURCES)
+                );
+            }
+        }
     }
 
     /**

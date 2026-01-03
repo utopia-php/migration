@@ -52,12 +52,6 @@ class Appwrite extends Source
     public const SOURCE_API = 'api';
     public const SOURCE_DATABASE = 'database';
 
-    // Debug logging for specific projects
-    public static array $debugProjects = [
-        '67ec0369002bd8a96885' => 'SimpMusic#Maxrave',
-        '6838382d0014e002589c' => 'Fastwrite#DocuTrust',
-    ];
-
     protected Client $client;
 
     private Users $users;
@@ -163,12 +157,15 @@ class Appwrite extends Source
 
     /**
      * @param array<string> $resources
+     * @param array<string, array<string>> $resourceIds
      * @return array<string, mixed>
      *
      * @throws \Exception
      */
-    public function report(array $resources = []): array
+    public function report(array $resources = [], array $resourceIds = []): array
     {
+        $this->validateResourceIds($resourceIds);
+
         $report = [];
 
         if (empty($resources)) {
@@ -176,10 +173,10 @@ class Appwrite extends Source
         }
 
         try {
-            $this->reportAuth($resources, $report);
-            $this->reportDatabases($resources, $report);
-            $this->reportStorage($resources, $report);
-            $this->reportFunctions($resources, $report);
+            $this->reportAuth($resources, $report, $resourceIds);
+            $this->reportDatabases($resources, $report, $resourceIds);
+            $this->reportStorage($resources, $report, $resourceIds);
+            $this->reportFunctions($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -205,9 +202,10 @@ class Appwrite extends Source
     /**
      * @param array $resources
      * @param array $report
+     * @param array<string, array<string>> $resourceIds
      * @throws AppwriteException
      */
-    private function reportAuth(array $resources, array &$report): void
+    private function reportAuth(array $resources, array &$report, array $resourceIds = []): void
     {
         // check if we need to fetch teams!
         $needTeams = !empty(array_intersect(
@@ -274,17 +272,18 @@ class Appwrite extends Source
      * @throws Exception
      * @throws AppwriteException
      */
-    private function reportDatabases(array $resources, array &$report): void
+    private function reportDatabases(array $resources, array &$report, array $resourceIds = []): void
     {
-        $this->database->report($resources, $report);
+        $this->database->report($resources, $report, $resourceIds);
     }
 
     /**
      * @param array $resources
      * @param array $report
+     * @param array<string, array<string>> $resourceIds
      * @throws AppwriteException
      */
-    private function reportStorage(array $resources, array &$report): void
+    private function reportStorage(array $resources, array &$report, array $resourceIds = []): void
     {
         if (\in_array(Resource::TYPE_BUCKET, $resources)) {
             // just fetch one bucket for the `total`
@@ -344,7 +343,7 @@ class Appwrite extends Source
         }
     }
 
-    private function reportFunctions(array $resources, array &$report): void
+    private function reportFunctions(array $resources, array &$report, array $resourceIds = []): void
     {
         $pageLimit = 25;
         $needVarsOrDeployments = (
