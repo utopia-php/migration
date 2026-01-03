@@ -54,11 +54,11 @@ class API implements Reader
             $databaseQueries[] = Query::equal('$id', $databaseIds);
         }
 
-        $response = $this->listDatabases($databaseQueries);
-        $databases = $response['databases'];
+        $databasesResponse = $this->database->list($databaseQueries);
+        $databases = $databasesResponse['databases'];
 
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
-            $report[Resource::TYPE_DATABASE] = $response['total'];
+            $report[Resource::TYPE_DATABASE] = $databasesResponse['total'];
         }
 
         if (count(array_intersect($resources, $relevantResources)) === 1 &&
@@ -131,7 +131,7 @@ class API implements Reader
      */
     public function listDatabases(array $queries = []): array
     {
-        return $this->database->list($queries);
+        return $this->database->list($queries)['databases'];
     }
 
     /**
