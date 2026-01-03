@@ -46,14 +46,12 @@ class API implements Reader
         }
 
         $databaseQueries = [];
-        if (isset($resourceIds[Resource::TYPE_DATABASE])) {
+        if (!empty($resourceIds[Resource::TYPE_DATABASE])) {
             $databaseIds = is_array($resourceIds[Resource::TYPE_DATABASE])
                 ? $resourceIds[Resource::TYPE_DATABASE]
                 : [$resourceIds[Resource::TYPE_DATABASE]];
 
-            foreach ($databaseIds as $databaseId) {
-                $databaseQueries[] = Query::equal('$id', $databaseId);
-            }
+            $databaseQueries[] = Query::equal('$id', $databaseIds);
         }
 
         $response = $this->listDatabases($databaseQueries);

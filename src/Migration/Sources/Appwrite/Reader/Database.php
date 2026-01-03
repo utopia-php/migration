@@ -45,7 +45,7 @@ class Database implements Reader
         }
 
         $databaseQueries = [];
-        if (isset($resourceIds[Resource::TYPE_DATABASE])) {
+        if (!empty($resourceIds[Resource::TYPE_DATABASE])) {
             $databaseIds = is_array($resourceIds[Resource::TYPE_DATABASE])
                 ? $resourceIds[Resource::TYPE_DATABASE]
                 : [$resourceIds[Resource::TYPE_DATABASE]];
