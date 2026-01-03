@@ -217,9 +217,9 @@ class Appwrite extends Source
         $teams = ['total' => 0, 'teams' => []];
 
         if (\in_array(Resource::TYPE_USER, $resources)) {
-            $report[Resource::TYPE_USER] = $this->users->list(
-                [Query::limit(1)]
-            )['total'];
+            $userQueries = $this->buildQueries(Resource::TYPE_USER, $resourceIds, null, 1);
+            $userList = $this->users->list($userQueries);
+            $report[Resource::TYPE_USER] = $userList['total'];
         }
 
         if ($needTeams) {
@@ -228,12 +228,7 @@ class Appwrite extends Source
                 $lastTeam = null;
 
                 while (true) {
-                    $params = $lastTeam
-                        // TODO: should we use offset here?
-                        // this, realistically, shouldn't be too much ig
-                        ? [Query::cursorAfter($lastTeam)]
-                        : [Query::limit($pageLimit)];
-
+                    $params = $this->buildQueries(Resource::TYPE_TEAM, $resourceIds, $lastTeam, $pageLimit);
                     $teamList = $this->teams->list($params);
 
                     $totalTeams = $teamList['total'];
@@ -248,7 +243,8 @@ class Appwrite extends Source
                 }
                 $teams = ['total' => $totalTeams, 'teams' => $allTeams];
             } else {
-                $teamList = $this->teams->list([Query::limit(1)]);
+                $params = $this->buildQueries(Resource::TYPE_TEAM, $resourceIds, null, 1);
+                $teamList = $this->teams->list($params);
                 $teams = ['total' => $teamList['total'], 'teams' => []];
             }
         }
@@ -285,14 +281,12 @@ class Appwrite extends Source
      */
     private function reportStorage(array $resources, array &$report, array $resourceIds = []): void
     {
-        if (\in_array(Resource::TYPE_BUCKET, $resources)) {
-            // just fetch one bucket for the `total`
-            $report[Resource::TYPE_BUCKET] = $this->storage->listBuckets([
-                Query::limit(1)
-            ])['total'];
-        }
-
         $pageLimit = 25;
+
+        if (\in_array(Resource::TYPE_BUCKET, $resources)) {
+            $bucketQueries = $this->buildQueries(Resource::TYPE_BUCKET, $resourceIds, null, 1);
+            $report[Resource::TYPE_BUCKET] = $this->storage->listBuckets($bucketQueries)['total'];
+        }
 
         if (\in_array(Resource::TYPE_FILE, $resources)) {
             $report[Resource::TYPE_FILE] = 0;
@@ -301,11 +295,8 @@ class Appwrite extends Source
             $lastBucket = null;
 
             while (true) {
-                $currentBuckets = $this->storage->listBuckets(
-                    $lastBucket
-                        ? [Query::cursorAfter($lastBucket)]
-                        : [Query::limit($pageLimit)]
-                )['buckets'];
+                $queries = $this->buildQueries(Resource::TYPE_BUCKET, $resourceIds, $lastBucket, $pageLimit);
+                $currentBuckets = $this->storage->listBuckets($queries)['buckets'];
 
                 $buckets = array_merge($buckets, $currentBuckets);
                 $lastBucket = $buckets[count($buckets) - 1]['$id'] ?? null;
@@ -355,19 +346,15 @@ class Appwrite extends Source
         $totalFunctions = 0;
 
         if (!$needVarsOrDeployments && \in_array(Resource::TYPE_FUNCTION, $resources)) {
-            // Only function count needed, short-circuit
-            $funcList = $this->functions->list([Query::limit(1)]);
-            $report[Resource::TYPE_FUNCTION] = $funcList['total'];
+            $functionQueries = $this->buildQueries(Resource::TYPE_FUNCTION, $resourceIds, null, 1);
+            $report[Resource::TYPE_FUNCTION] = $this->functions->list($functionQueries)['total'];
             return;
         }
 
         if ($needVarsOrDeployments) {
             $lastFunction = null;
             while (true) {
-                $params = $lastFunction
-                    ? [Query::cursorAfter($lastFunction)]
-                    : [Query::limit($pageLimit)];
-
+                $params = $this->buildQueries(Resource::TYPE_FUNCTION, $resourceIds, $lastFunction, $pageLimit);
                 $funcList = $this->functions->list($params);
 
                 $totalFunctions = $funcList['total'];
@@ -1612,5 +1599,29 @@ class Appwrite extends Source
                 $end = $fileSize - 1;
             }
         }
+    }
+
+    /**
+     * Build queries with optional filtering by resource IDs
+     */
+    private function buildQueries(string $resourceType, array $resourceIds, ?string $cursor = null, int $limit = 25): array
+    {
+        $queries = [];
+
+        if (!empty($resourceIds[$resourceType])) {
+            $ids = is_array($resourceIds[$resourceType])
+                ? $resourceIds[$resourceType]
+                : [$resourceIds[$resourceType]];
+
+            $queries[] = Query::equal('$id', $ids);
+        }
+
+        if ($cursor) {
+            $queries[] = Query::cursorAfter($cursor);
+        } else {
+            $queries[] = Query::limit($limit);
+        }
+
+        return $queries;
     }
 }
