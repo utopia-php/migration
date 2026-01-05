@@ -426,10 +426,13 @@ class Database implements Reader
      * @param string $table
      * @param array $queries
      * @return int
-     * @throws DatabaseException
      */
     private function countResources(string $table, array $queries = []): int
     {
-        return $this->dbForProject->count($table, $queries);
+        try {
+            return $this->dbForProject->count($table, $queries);
+        } catch (DatabaseException $e) {
+            return 0;
+        }
     }
 }
