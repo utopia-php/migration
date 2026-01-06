@@ -239,4 +239,11 @@ abstract class Target
     public function error(): void
     {
     }
+
+    /**
+     * Clean up callback
+     */
+    public function cleanUp(): void
+    {
+    }
 }
