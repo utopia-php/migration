@@ -215,7 +215,6 @@ class Appwrite extends Source
             $resources
         ));
 
-        $pageLimit = self::DEFAULT_PAGE_LIMIT;
         $teams = ['total' => 0, 'teams' => []];
 
         if (\in_array(Resource::TYPE_USER, $resources)) {
@@ -237,8 +236,7 @@ class Appwrite extends Source
                     $params = $this->buildQueries(
                         resourceType: Resource::TYPE_TEAM,
                         resourceIds: $resourceIds,
-                        cursor: $lastTeam,
-                        limit: $pageLimit
+                        cursor: $lastTeam
                     );
                     $teamList = $this->teams->list($params);
 
@@ -248,7 +246,7 @@ class Appwrite extends Source
                     $allTeams = array_merge($allTeams, $currentTeams);
                     $lastTeam = $currentTeams[count($currentTeams) - 1]['$id'] ?? null;
 
-                    if (count($currentTeams) < $pageLimit) {
+                    if (count($currentTeams) < self::DEFAULT_PAGE_LIMIT) {
                         break;
                     }
                 }
@@ -296,7 +294,6 @@ class Appwrite extends Source
      */
     private function reportStorage(array $resources, array &$report, array $resourceIds = []): void
     {
-        $pageLimit = self::DEFAULT_PAGE_LIMIT;
 
         if (\in_array(Resource::TYPE_BUCKET, $resources)) {
             $bucketQueries = $this->buildQueries(
@@ -318,14 +315,13 @@ class Appwrite extends Source
                     resourceType: Resource::TYPE_BUCKET,
                     resourceIds: $resourceIds,
                     cursor: $lastBucket,
-                    limit: $pageLimit
                 );
                 $currentBuckets = $this->storage->listBuckets($queries)['buckets'];
 
                 $buckets = array_merge($buckets, $currentBuckets);
                 $lastBucket = $buckets[count($buckets) - 1]['$id'] ?? null;
 
-                if (count($currentBuckets) < $pageLimit) {
+                if (count($currentBuckets) < self::DEFAULT_PAGE_LIMIT) {
                     break;
                 }
             }
@@ -333,7 +329,7 @@ class Appwrite extends Source
             foreach ($buckets as $bucket) {
                 $lastFile = null;
                 while (true) {
-                    $queries = [Query::limit($pageLimit)];
+                    $queries = [Query::limit(self::DEFAULT_PAGE_LIMIT)];
                     if ($lastFile) {
                         $queries[] = Query::cursorAfter($lastFile);
                     }
@@ -351,7 +347,7 @@ class Appwrite extends Source
 
                     $lastFile = $files[count($files) - 1]['$id'] ?? null;
 
-                    if (count($files) < $pageLimit) {
+                    if (count($files) < self::DEFAULT_PAGE_LIMIT) {
                         break;
                     }
                 }
@@ -363,7 +359,6 @@ class Appwrite extends Source
 
     private function reportFunctions(array $resources, array &$report, array $resourceIds = []): void
     {
-        $pageLimit = self::DEFAULT_PAGE_LIMIT;
         $needVarsOrDeployments = (
             \in_array(Resource::TYPE_DEPLOYMENT, $resources) ||
             \in_array(Resource::TYPE_ENVIRONMENT_VARIABLE, $resources)
@@ -389,7 +384,6 @@ class Appwrite extends Source
                     resourceType: Resource::TYPE_FUNCTION,
                     resourceIds: $resourceIds,
                     cursor: $lastFunction,
-                    limit: $pageLimit
                 );
                 $funcList = $this->functions->list($params);
 
@@ -398,7 +392,7 @@ class Appwrite extends Source
                 $functions = array_merge($functions, $currentFunctions);
 
                 $lastFunction = $currentFunctions[count($currentFunctions) - 1]['$id'] ?? null;
-                if (count($currentFunctions) < $pageLimit) {
+                if (count($currentFunctions) < self::DEFAULT_PAGE_LIMIT) {
                     break;
                 }
             }
@@ -1640,8 +1634,12 @@ class Appwrite extends Source
     /**
      * Build queries with optional filtering by resource IDs
      */
-    private function buildQueries(string $resourceType, array $resourceIds, ?string $cursor = null, int $limit = self::DEFAULT_PAGE_LIMIT): array
-    {
+    private function buildQueries(
+        string $resourceType,
+        array $resourceIds,
+        ?string $cursor = null,
+        int $limit = self::DEFAULT_PAGE_LIMIT
+    ): array {
         $queries = [];
 
         if (!empty($resourceIds[$resourceType])) {
