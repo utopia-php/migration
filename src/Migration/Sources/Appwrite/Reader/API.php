@@ -47,9 +47,7 @@ class API implements Reader
 
         $databaseQueries = [];
         if (!empty($resourceIds[Resource::TYPE_DATABASE])) {
-            $databaseIds = is_array($resourceIds[Resource::TYPE_DATABASE])
-                ? $resourceIds[Resource::TYPE_DATABASE]
-                : [$resourceIds[Resource::TYPE_DATABASE]];
+            $databaseIds = (array) $resourceIds[Resource::TYPE_DATABASE];
 
             $databaseQueries[] = Query::equal('$id', $databaseIds);
         }

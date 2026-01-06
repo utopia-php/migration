@@ -46,9 +46,7 @@ class Database implements Reader
 
         $databaseQueries = [];
         if (!empty($resourceIds[Resource::TYPE_DATABASE])) {
-            $databaseIds = is_array($resourceIds[Resource::TYPE_DATABASE])
-                ? $resourceIds[Resource::TYPE_DATABASE]
-                : [$resourceIds[Resource::TYPE_DATABASE]];
+            $databaseIds = (array) $resourceIds[Resource::TYPE_DATABASE];
 
             $databaseQueries[] = Query::equal('$id', $databaseIds);
         }
@@ -429,10 +427,6 @@ class Database implements Reader
      */
     private function countResources(string $table, array $queries = []): int
     {
-        try {
-            return $this->dbForProject->count($table, $queries);
-        } catch (DatabaseException $e) {
-            return 0;
-        }
+        return $this->dbForProject->count($table, $queries);
     }
 }
