@@ -353,12 +353,12 @@ class Database implements Reader
     }
 
     /**
-     * @param array $columns
+     * @param string $column
      * @return Query
      */
-    public function querySelect(array $columns): Query
+    public function querySelect(string $column): Query
     {
-        return Query::select($columns);
+        return Query::select($column);
     }
 
     /**
