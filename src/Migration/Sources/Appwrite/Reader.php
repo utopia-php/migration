@@ -16,9 +16,10 @@ interface Reader
      *
      * @param array $resources
      * @param array $report
+     * @param array<string, array<string>> $resourceIds
      * @return mixed
      */
-    public function report(array $resources, array &$report): mixed;
+    public function report(array $resources, array &$report, array $resourceIds = []): mixed;
 
     /**
      * List databases that match the given queries

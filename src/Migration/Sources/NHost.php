@@ -100,7 +100,7 @@ class NHost extends Source
         ];
     }
 
-    public function report(array $resources = []): array
+    public function report(array $resources = [], array $resourceIds = []): array
     {
         $report = [];
 

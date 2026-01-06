@@ -136,7 +136,7 @@ class Appwrite extends Destination
      * @throws AppwriteException
      */
     #[Override]
-    public function report(array $resources = []): array
+    public function report(array $resources = [], array $resourceIds = []): array
     {
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
