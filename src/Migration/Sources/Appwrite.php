@@ -327,30 +327,13 @@ class Appwrite extends Source
             }
 
             foreach ($buckets as $bucket) {
-                $lastFile = null;
-                while (true) {
-                    $queries = [Query::limit(self::DEFAULT_PAGE_LIMIT)];
-                    if ($lastFile) {
-                        $queries[] = Query::cursorAfter($lastFile);
-                    }
+                $filesResponse = $this->storage->listFiles(
+                    $bucket['$id'],
+                    [Query::limit(1)]
+                );
 
-                    $files = $this->storage->listFiles(
-                        $bucket['$id'],
-                        $queries
-                    )['files'];
-
-                    $report[Resource::TYPE_FILE] += count($files);
-                    foreach ($files as $file) {
-                        // already includes the `sizeOriginal`
-                        $report['size'] += $file['sizeOriginal'] ?? 0;
-                    }
-
-                    $lastFile = $files[count($files) - 1]['$id'] ?? null;
-
-                    if (count($files) < self::DEFAULT_PAGE_LIMIT) {
-                        break;
-                    }
-                }
+                $report['size'] += $bucket['totalSize'] ?? 0;
+                $report[Resource::TYPE_FILE] += $filesResponse['total'];
             }
 
             $report['size'] = $report['size'] / 1000 / 1000; // MB
