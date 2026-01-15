@@ -25,7 +25,7 @@ class API implements Reader
     /**
      * @throws AppwriteException
      */
-    public function report(array $resources, array &$report): mixed
+    public function report(array $resources, array &$report, array $resourceIds = []): mixed
     {
         $relevantResources = [
             Resource::TYPE_DATABASE,
@@ -45,7 +45,14 @@ class API implements Reader
             }
         }
 
-        $databasesResponse = $this->database->list();
+        $databaseQueries = [];
+        if (!empty($resourceIds[Resource::TYPE_DATABASE])) {
+            $databaseIds = (array) $resourceIds[Resource::TYPE_DATABASE];
+
+            $databaseQueries[] = Query::equal('$id', $databaseIds);
+        }
+
+        $databasesResponse = $this->database->list($databaseQueries);
         $databases = $databasesResponse['databases'];
 
         if (in_array(Resource::TYPE_DATABASE, $resources)) {

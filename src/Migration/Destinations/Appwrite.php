@@ -14,6 +14,7 @@ use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Override;
 use Utopia\Database\Database as UtopiaDatabase;
+use Utopia\Database\DateTime;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Exception as DatabaseException;
 use Utopia\Database\Exception\Authorization as AuthorizationException;
@@ -136,7 +137,7 @@ class Appwrite extends Destination
      * @throws AppwriteException
      */
     #[Override]
-    public function report(array $resources = []): array
+    public function report(array $resources = [], array $resourceIds = []): array
     {
         if (empty($resources)) {
             $resources = $this->getSupportedResources();
@@ -942,10 +943,37 @@ class Appwrite extends Destination
             return false;
         }
 
+        $data = $resource->getData();
+
+        $hasCreatedAt = !empty($data['$createdAt']);
+        $hasUpdatedAt = !empty($data['$updatedAt']);
+
+        if (! $hasCreatedAt) {
+            $createdAt = $resource->getCreatedAt();
+            if (empty($createdAt)) {
+                $createdAt = $data['created_at'] ?? $data['createdAt'] ?? null;
+            }
+
+            $data['$createdAt'] = $this->normalizeDateTime($createdAt);
+        }
+
+        if (! $hasUpdatedAt) {
+            $updatedAt = $resource->getUpdatedAt();
+            if (empty($updatedAt)) {
+                $updatedAt = $data['updated_at'] ?? $data['updatedAt'] ?? null;
+            }
+
+            if (empty($updatedAt)) {
+                $data['$updatedAt'] = (string) $data['$createdAt'];
+            } else {
+                $data['$updatedAt'] = $this->normalizeDateTime($updatedAt, $data['$createdAt']);
+            }
+        }
+
         $this->rowBuffer[] = new UtopiaDocument(\array_merge([
             '$id' => $resource->getId(),
             '$permissions' => $resource->getPermissions(),
-        ], $resource->getData()));
+        ], $data));
 
         if ($isLast) {
             try {
@@ -999,6 +1027,37 @@ class Appwrite extends Destination
 
 
         return true;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function normalizeDateTime(mixed $value, mixed $fallback = null): string
+    {
+        $resolved = $this->stringifyDateValue($value)
+            ?? $this->stringifyDateValue($fallback);
+
+        if (empty($resolved)) {
+            return DateTime::format(new \DateTime());
+        }
+
+        if (\is_numeric($resolved) && \strlen($resolved) === 10 && (int) $resolved > 0) { // Unix timestamp
+            $resolved = '@' . $resolved;
+        }
+
+        return DateTime::format(new \DateTime($resolved));
+    }
+
+    private function stringifyDateValue(mixed $value): ?string
+    {
+        if (\is_string($value)) {
+            return $value;
+        }
+        if (\is_int($value) || \is_float($value)) {
+            return (string) $value;
+        }
+
+        return null;
     }
 
     /**

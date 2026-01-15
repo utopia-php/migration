@@ -85,7 +85,7 @@ class MockDestination extends Destination
         $callback($resources);
     }
 
-    public function report(array $resources = []): array
+    public function report(array $resources = [], array $resourceIds = []): array
     {
         return [];
     }

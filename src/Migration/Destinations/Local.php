@@ -76,7 +76,7 @@ class Local extends Destination
     /**
      * @throws \Exception
      */
-    public function report(array $resources = []): array
+    public function report(array $resources = [], array $resourceIds = []): array
     {
         $report = [];
 

@@ -65,7 +65,7 @@ class CSV extends Destination
         ];
     }
 
-    public function report(array $resources = []): array
+    public function report(array $resources = [], array $resourceIds = []): array
     {
         return [];
     }
