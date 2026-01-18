@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "340b05ddc60cf89b2496bd2817f1ab84",
+    "content-hash": "6b7dec5ccd51e4f38a1ccb124e6f35b9",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -4974,8 +4974,8 @@
         {
             "package": "utopia-php/database",
             "version": "dev-joins8",
-            "alias": "4.5.2",
-            "alias_normalized": "4.5.2.0"
+            "alias": "4.6.0",
+            "alias_normalized": "4.6.0.0"
         }
     ],
     "minimum-stability": "stable",
