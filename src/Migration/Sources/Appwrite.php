@@ -1119,6 +1119,11 @@ class Appwrite extends Source
                 }
 
                 $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want relations flat!
+
+                foreach ($selects as $select) {
+                    $queries[] = $this->database->querySelect($select);
+                }
+
                 $manyToMany = [];
 
                 $attributes = $this->cache->get(Column::getName());
@@ -1142,24 +1147,22 @@ class Appwrite extends Source
                 }
                 /** @var Column|Relationship $attribute */
 
-                foreach ($selects as $select) {
-                    $queries[] = $this->database->querySelect($select);
-                }
-
                 $response = $this->database->listRows($table, $queries);
 
                 foreach ($response as $row) {
                     // HACK: Handle many to many
                     if (!empty($manyToMany)) {
-                        $stack = ['$id']; // Adding $id because we can't select only relations
+                        $queries = [];
+                        $queries[] = $this->database->querySelect('$id'); // Adding $id because we can't select only relations
+
                         foreach ($manyToMany as $relation) {
-                            $stack[] = $relation . '.$id';
+                            $queries = $this->database->querySelect($relation . '.$id');
                         }
 
                         $rowItem = $this->database->getRow(
                             $table,
                             $row['$id'],
-                            [$this->database->querySelect($stack)]
+                            $queries
                         );
 
                         foreach ($manyToMany as $key) {
