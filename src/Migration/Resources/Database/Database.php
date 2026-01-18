@@ -38,6 +38,7 @@ class Database extends Resource
      *     updatedAt: string,
      *     enabled: bool,
      *     originalId: string|null,
+     *     type: string|null,
      * } $array
      */
     public static function fromArray(array $array): self
