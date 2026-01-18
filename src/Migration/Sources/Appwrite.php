@@ -1156,7 +1156,7 @@ class Appwrite extends Source
                         $queries[] = $this->database->querySelect('$id'); // Adding $id because we can't select only relations
 
                         foreach ($manyToMany as $relation) {
-                            $queries = $this->database->querySelect($relation . '.$id');
+                            $queries[] = $this->database->querySelect($relation . '.$id');
                         }
 
                         $rowItem = $this->database->getRow(
