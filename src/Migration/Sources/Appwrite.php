@@ -19,6 +19,23 @@ use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
+use Utopia\Migration\Resources\Database\Attribute;
+use Utopia\Migration\Resources\Database\Attribute\Boolean as AttributeBoolean;
+use Utopia\Migration\Resources\Database\Attribute\DateTime as AttributeDateTime;
+use Utopia\Migration\Resources\Database\Attribute\Decimal as AttributeDecimal;
+use Utopia\Migration\Resources\Database\Attribute\Email as AttributeEmail;
+use Utopia\Migration\Resources\Database\Attribute\Enum as AttributeEnum;
+use Utopia\Migration\Resources\Database\Attribute\Integer as AttributeInteger;
+use Utopia\Migration\Resources\Database\Attribute\IP as AttributeIP;
+use Utopia\Migration\Resources\Database\Attribute\Line as AttributeLine;
+use Utopia\Migration\Resources\Database\Attribute\ObjectType as AttributeObjectType;
+use Utopia\Migration\Resources\Database\Attribute\Point as AttributePoint;
+use Utopia\Migration\Resources\Database\Attribute\Polygon as AttributePolygon;
+use Utopia\Migration\Resources\Database\Attribute\Relationship as AttributeRelationship;
+use Utopia\Migration\Resources\Database\Attribute\Text as AttributeText;
+use Utopia\Migration\Resources\Database\Attribute\URL as AttributeURL;
+use Utopia\Migration\Resources\Database\Attribute\Vector as AttributeVector;
+use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Columns\Boolean;
 use Utopia\Migration\Resources\Database\Columns\DateTime;
@@ -28,15 +45,20 @@ use Utopia\Migration\Resources\Database\Columns\Enum;
 use Utopia\Migration\Resources\Database\Columns\Integer;
 use Utopia\Migration\Resources\Database\Columns\IP;
 use Utopia\Migration\Resources\Database\Columns\Line;
+use Utopia\Migration\Resources\Database\Columns\ObjectType;
 use Utopia\Migration\Resources\Database\Columns\Point;
 use Utopia\Migration\Resources\Database\Columns\Polygon;
 use Utopia\Migration\Resources\Database\Columns\Relationship;
 use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Columns\URL;
+use Utopia\Migration\Resources\Database\Columns\Vector;
 use Utopia\Migration\Resources\Database\Database;
+use Utopia\Migration\Resources\Database\Document;
+use Utopia\Migration\Resources\Database\DocumentsDB;
 use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Resources\Database\Table;
+use Utopia\Migration\Resources\Database\VectorDB;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
@@ -57,6 +79,8 @@ class Appwrite extends Source
 
     protected Client $client;
 
+    private Reader $reader;
+
     private Users $users;
 
     private Teams $teams;
@@ -65,7 +89,10 @@ class Appwrite extends Source
 
     private Functions $functions;
 
-    private Reader $database;
+    /**
+     * @var callable(UtopiaDocument $database|null): UtopiaDatabase
+     */
+    protected mixed $getDatabasesDB;
 
     /**
      * @throws \Exception
@@ -74,6 +101,7 @@ class Appwrite extends Source
         protected string $project,
         protected string $endpoint,
         protected string $key,
+        callable $getDatabasesDB,
         protected string $source = self::SOURCE_API,
         protected ?UtopiaDatabase $dbForProject = null,
         protected array $queries = [],
@@ -91,19 +119,14 @@ class Appwrite extends Source
         $this->headers['X-Appwrite-Project'] = $this->project;
         $this->headers['X-Appwrite-Key'] = $this->key;
 
-        switch ($this->source) {
-            case static::SOURCE_API:
-                $this->database = new APIReader(new Databases($this->client));
-                break;
-            case static::SOURCE_DATABASE:
-                if (\is_null($dbForProject)) {
-                    throw new \Exception('Database is required for database source');
-                }
-                $this->database = new DatabaseReader($dbForProject);
-                break;
-            default:
-                throw new \Exception('Unknown source');
-        }
+        $this->getDatabasesDB = $getDatabasesDB;
+
+        $this->reader = match ($this->source) {
+            static::SOURCE_API => new APIReader(new Databases($this->client)),
+            static::SOURCE_DATABASE => new DatabaseReader($this->dbForProject, $this->getDatabasesDB, $this->project),
+            default => throw new \Exception('Unknown source'),
+        };
+
     }
 
     public static function getName(): string
@@ -146,6 +169,11 @@ class Appwrite extends Source
             Resource::TYPE_DOCUMENT,
             Resource::TYPE_ATTRIBUTE,
             Resource::TYPE_COLLECTION,
+
+            // documentsdb
+            Resource::TYPE_DATABASE_DOCUMENTSDB,
+            // vectordb
+            Resource::TYPE_DATABASE_VECTORDB,
 
             // Storage
             Resource::TYPE_BUCKET,
@@ -297,7 +325,7 @@ class Appwrite extends Source
      */
     private function reportDatabases(array $resources, array &$report, array $resourceIds = []): void
     {
-        $this->database->report($resources, $report, $resourceIds);
+        $this->reader->report($resources, $report, $resourceIds);
     }
 
     /**
@@ -627,9 +655,32 @@ class Appwrite extends Source
 
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
+        $handleExportEntityScopedResources = function (string $resourceKey, callable $callback) use ($resources) {
+            foreach (Resource::ENTITY_TYPE_RESOURCE_MAP as $entityKey => $entityResource) {
+                try {
+                    if (\in_array($entityResource[$resourceKey], $resources)) {
+                        $callback($entityKey, $entityResource);
+                    }
+                } catch (\Throwable $e) {
+                    $this->addError(
+                        new Exception(
+                            $resourceKey,
+                            Transfer::GROUP_DATABASES,
+                            message: $e->getMessage(),
+                            code: $e->getCode(),
+                            previous: $e
+                        )
+                    );
+
+                    return false;
+                }
+            }
+            return true;
+        };
+
         try {
-            if (\in_array(Resource::TYPE_DATABASE, $resources)) {
-                $this->exportDatabases($batchSize);
+            if (Resource::isSupported(array_keys(Resource::DATABASE_TYPE_RESOURCE_MAP), $resources)) {
+                $this->exportDatabases($batchSize, $resources);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -645,91 +696,55 @@ class Appwrite extends Source
             return;
         }
 
-        try {
-            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
-                $this->exportTables($batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_TABLE,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
+        foreach (Resource::DATABASE_TYPE_RESOURCE_MAP as $databaseKey => $databaseResource) {
+            try {
+                if (\in_array($databaseResource['entity'], $resources)) {
+                    $this->exportEntities($databaseKey, $batchSize);
+                }
+            } catch (\Throwable $e) {
+                $this->addError(
+                    new Exception(
+                        $databaseResource['entity'],
+                        Transfer::GROUP_DATABASES,
+                        message: $e->getMessage(),
+                        code: $e->getCode(),
+                        previous: $e
+                    )
+                );
 
+                return;
+            }
+        }
+
+        // field
+        if (!$handleExportEntityScopedResources('field', fn ($entityKey) => $this->exportFields($entityKey, $batchSize))) {
             return;
         }
 
-        try {
-            if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
-                $this->exportColumns($batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_COLUMN,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
+        // index
+        if (!$handleExportEntityScopedResources('index', fn ($entityKey) => $this->exportIndexes($entityKey, $batchSize))) {
             return;
         }
 
-        try {
-            if (\in_array(Resource::TYPE_INDEX, $resources)) {
-                $this->exportIndexes($batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_INDEX,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-
-        try {
-            if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
-                $this->exportRows($batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_ROW,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
+        // record
+        if (!$handleExportEntityScopedResources('record', fn ($entityKey, $entityResource) => $this->exportRecords($entityKey, $entityResource['field'], $batchSize))) {
             return;
         }
     }
 
     /**
      * @param int $batchSize
+     * @param array $resources
      * @throws Exception
      */
-    private function exportDatabases(int $batchSize): void
+    private function exportDatabases(int $batchSize, array $resources = []): void
     {
         $lastDatabase = null;
 
         while (true) {
-            $queries = [$this->database->queryLimit($batchSize)];
+            $queries = [$this->reader->queryLimit($batchSize)];
 
-            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_DATABASE) {
+            if ($this->rootResourceId !== '' && ($this->rootResourceType === Resource::TYPE_DATABASE || $this->rootResourceType === Resource::TYPE_DATABASE_DOCUMENTSDB)) {
                 $targetDatabaseId = $this->rootResourceId;
 
                 // Handle database:collection format - extract database ID
@@ -740,28 +755,35 @@ class Appwrite extends Source
                     }
                 }
 
-                $queries[] = $this->database->queryEqual('$id', [$targetDatabaseId]);
-                $queries[] = $this->database->queryLimit(1);
+                $queries[] = $this->reader->queryEqual('$id', [$targetDatabaseId]);
+                $queries[] = $this->reader->queryLimit(1);
             }
 
             $databases = [];
 
             if ($lastDatabase) {
-                $queries[] = $this->database->queryCursorAfter($lastDatabase);
+                $queries[] = $this->reader->queryCursorAfter($lastDatabase);
             }
 
-            $response = $this->database->listDatabases($queries);
+            $response = $this->reader->listDatabases($queries);
 
             foreach ($response as $database) {
-                $newDatabase = new Database(
-                    $database['$id'],
-                    $database['name'],
-                    $database['$createdAt'],
-                    $database['$updatedAt'],
-                    type: $database['type'] ?? 'legacy'
-                );
+                $databaseType = $database['type'];
+                if (in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY,Resource::TYPE_DATABASE_TABLESDB])) {
+                    $databaseType = Resource::TYPE_DATABASE;
+                }
+                if (Resource::isSupported($databaseType, $resources)) {
+                    $newDatabase = self::getDatabase($databaseType, [
+                        'id' => $database['$id'],
+                        'name' => $database['name'],
+                        'createdAt' => $database['$createdAt'],
+                        'updatedAt' => $database['$updatedAt'],
+                        'type' => $databaseType,
+                        'database' => $database['database']
+                    ]);
+                    $databases[] = $newDatabase;
 
-                $databases[] = $newDatabase;
+                }
             }
 
             if (empty($databases)) {
@@ -779,19 +801,19 @@ class Appwrite extends Source
     }
 
     /**
+     * @param string $databaseName
      * @param int $batchSize
      * @throws Exception
      */
-    private function exportTables(int $batchSize): void
+    private function exportEntities(string $databaseName, int $batchSize): void
     {
-        $databases = $this->cache->get(Database::getName());
-
+        $databases = $this->cache->get($databaseName);
         foreach ($databases as $database) {
             /** @var Database $database */
             $lastTable = null;
 
             while (true) {
-                $queries = [$this->database->queryLimit($batchSize)];
+                $queries = [$this->reader->queryLimit($batchSize)];
                 $tables = [];
 
                 // Filter to specific table if rootResourceType is database with database:collection format
@@ -803,32 +825,36 @@ class Appwrite extends Source
                     $parts = \explode(':', $this->rootResourceId, 2);
                     if (\count($parts) === 2) {
                         $targetTableId = $parts[1]; // table ID
-                        $queries[] = $this->database->queryEqual('$id', [$targetTableId]);
-                        $queries[] = $this->database->queryLimit(1);
+                        $queries[] = $this->reader->queryEqual('$id', [$targetTableId]);
+                        $queries[] = $this->reader->queryLimit(1);
                     }
                 } elseif (
                     $this->rootResourceId !== '' &&
                     $this->rootResourceType === Resource::TYPE_TABLE
                 ) {
                     $targetTableId = $this->rootResourceId;
-                    $queries[] = $this->database->queryEqual('$id', [$targetTableId]);
-                    $queries[] = $this->database->queryLimit(1);
+                    $queries[] = $this->reader->queryEqual('$id', [$targetTableId]);
+                    $queries[] = $this->reader->queryLimit(1);
                 } elseif ($lastTable) {
-                    $queries[] = $this->database->queryCursorAfter($lastTable);
+                    $queries[] = $this->reader->queryCursorAfter($lastTable);
                 }
 
-                $response = $this->database->listTables($database, $queries);
-
+                $response = $this->reader->listTables($database, $queries);
                 foreach ($response as $table) {
-                    $newTable = new Table(
-                        $database,
-                        $table['name'],
-                        $table['$id'],
-                        $table['documentSecurity'],
-                        $table['$permissions'],
-                        $table['$createdAt'],
-                        $table['$updatedAt'],
-                    );
+                    $newTable = self::getEntity($databaseName, [
+                        'id' => $table['$id'],
+                        'name' => $table['name'],
+                        'documentSecurity' => $table['documentSecurity'],
+                        'permissions' => $table['$permissions'],
+                        'createdAt' => $table['$createdAt'],
+                        'updatedAt' => $table['$updatedAt'],
+                        'database' => [
+                            'id' => $database->getId(),
+                            'name' => $databaseName,
+                            'type' => $database->getType(),
+                            'database' => $database->getDatabase(),
+                        ]
+                    ]);
 
                     $tables[] = $newTable;
                 }
@@ -849,26 +875,28 @@ class Appwrite extends Source
     }
 
     /**
+     * @param string $entityType
      * @param int $batchSize
      * @throws Exception
      */
-    private function exportColumns(int $batchSize): void
+    private function exportFields(string $entityType, int $batchSize): void
     {
-        $tables = $this->cache->get(Table::getName());
+        $entities = $this->cache->get($entityType);
+        // Transfer Indexes
 
-        /** @var array<Table> $tables */
-        foreach ($tables as $table) {
+        /** @var array<Table|Collection> $table */
+        foreach ($entities as $table) {
             $lastColumn = null;
 
             while (true) {
-                $queries = [$this->database->queryLimit($batchSize)];
+                $queries = [$this->reader->queryLimit($batchSize)];
                 $columns = [];
 
                 if ($lastColumn) {
-                    $queries[] = $this->database->queryCursorAfter($lastColumn);
+                    $queries[] = $this->reader->queryCursorAfter($lastColumn);
                 }
 
-                $response = $this->database->listColumns($table, $queries);
+                $response = $this->reader->listColumns($table, $queries);
 
                 foreach ($response as $column) {
                     if (
@@ -878,165 +906,11 @@ class Appwrite extends Source
                         continue;
                     }
 
-                    switch ($column['type']) {
-                        case Column::TYPE_STRING:
-                            $col = match ($column['format'] ?? '') {
-                                Column::TYPE_EMAIL => new Email(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 254,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                Column::TYPE_ENUM => new Enum(
-                                    $column['key'],
-                                    $table,
-                                    elements: $column['elements'],
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? UtopiaDatabase::LENGTH_KEY,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                Column::TYPE_URL => new URL(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 2000,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                Column::TYPE_IP => new IP(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 39,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                default => new Text(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 0,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                            };
-
-                            break;
-                        case Column::TYPE_BOOLEAN:
-                            $col = new Boolean(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_INTEGER:
-                            $col = new Integer(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                min: $column['min'] ?? null,
-                                max: $column['max'] ?? null,
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_FLOAT:
-                            $col = new Decimal(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                min: $column['min'] ?? null,
-                                max: $column['max'] ?? null,
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_RELATIONSHIP:
-                            $col = new Relationship(
-                                $column['key'],
-                                $table,
-                                relatedTable: $column['relatedTable'] ?? $column['relatedCollection'],
-                                relationType: $column['relationType'],
-                                twoWay: $column['twoWay'],
-                                twoWayKey: $column['twoWayKey'],
-                                onDelete: $column['onDelete'],
-                                side: $column['side'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_DATETIME:
-                            $col = new DateTime(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_POINT:
-                            $col = new Point(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_LINE:
-                            $col = new Line(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_POLYGON:
-                            $col = new Polygon(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                    }
-
-                    if (!isset($col)) {
-                        throw new Exception(
-                            resourceName: Resource::TYPE_COLUMN,
-                            resourceGroup: Transfer::GROUP_DATABASES,
-                            resourceId: $column['$id'],
-                            message: 'Unknown column type: ' . $column['type']
-                        );
-                    }
+                    /** @var Table $table */
+                    $col = match($table->getDatabase()->getType()) {
+                        Resource::TYPE_DATABASE_VECTORDB => self::getAttribute($table, $column),
+                        default => self::getColumn($table, $column),
+                    };
 
                     $columns[] = $col;
                 }
@@ -1057,27 +931,27 @@ class Appwrite extends Source
     }
 
     /**
+     * @param string $entityType
      * @param int $batchSize
      * @throws Exception
      */
-    private function exportIndexes(int $batchSize): void
+    private function exportIndexes(string $entityType, int $batchSize): void
     {
-        $tables = $this->cache->get(Resource::TYPE_TABLE);
-
+        $entities = $this->cache->get($entityType);
         // Transfer Indexes
-        foreach ($tables as $table) {
+        foreach ($entities as $table) {
             /** @var Table $table */
             $lastIndex = null;
 
             while (true) {
-                $queries = [$this->database->queryLimit($batchSize)];
+                $queries = [$this->reader->queryLimit($batchSize)];
                 $indexes = [];
 
                 if ($lastIndex) {
-                    $queries[] = $this->database->queryCursorAfter($lastIndex);
+                    $queries[] = $this->reader->queryCursorAfter($lastIndex);
                 }
 
-                $response = $this->database->listIndexes($table, $queries);
+                $response = $this->reader->listIndexes($table, $queries);
 
                 foreach ($response as $index) {
                     $indexes[] = new Index(
@@ -1109,13 +983,18 @@ class Appwrite extends Source
     }
 
     /**
+     * @param string $entityName
+     * @param string $fieldName
+     * @param int $batchSize
      * @throws Exception
      */
-    private function exportRows(int $batchSize): void
+    private function exportRecords(string $entityName, string $fieldName, int $batchSize): void
     {
-        $tables = $this->cache->get(Table::getName());
+        $entities = $this->cache->get($entityName);
 
-        foreach ($tables as $table) {
+        $this->logDebugTrackedProject("exportRecords started | Entity: $entityName | Tables count: " . count($entities));
+
+        foreach ($entities as $table) {
             /** @var Table $table */
             $lastRow = null;
             $iterationCount = 0;
@@ -1129,65 +1008,67 @@ class Appwrite extends Source
                 $this->logDebugTrackedProject("Table: {$table->getName()} | Iteration: $iterationCount | Memory: {$memUsage}MB | LastRow: " . ($lastRow ? $lastRow->getId() : 'null'));
 
                 $queries = [
-                    $this->database->queryLimit($batchSize),
+                    $this->reader->queryLimit($batchSize),
                     ...$this->queries,
                 ];
 
                 $rows = [];
 
                 if ($lastRow) {
-                    $queries[] = $this->database->queryCursorAfter($lastRow);
+                    $queries[] = $this->reader->queryCursorAfter($lastRow);
                 }
 
                 $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want relations flat!
                 $manyToMany = [];
 
-                $attributes = $this->cache->get(Column::getName());
-                foreach ($attributes as $attribute) {
-                    /** @var Relationship $attribute */
-                    if (
-                        $attribute->getTable()->getId() === $table->getId() &&
-                        $attribute->getType() === Column::TYPE_RELATIONSHIP &&
-                        $attribute->getSide() === 'parent' &&
-                        $attribute->getRelationType() == 'manyToMany'
-                    ) {
-                        /**
-                         * Blockers:
-                         * we should use but Does not work properly:
-                         * $selects[] = $attribute->getKey() . '.$id';
-                         * when selecting for a relation we get all relations not just the one we were asking.
-                         * when selecting for a relation like select(*, relation.$id) , all relations get resolve
-                         */
-                        $manyToMany[] = $attribute->getKey();
+                if ($this->reader->getSupportForAttributes()) {
+                    $attributes = $this->cache->get($fieldName);
+
+                    foreach ($attributes as $attribute) {
+                        /** @var Relationship $attribute */
+                        if (
+                            $attribute->getTable()->getId() === $table->getId() &&
+                            $attribute->getType() === Column::TYPE_RELATIONSHIP &&
+                            $attribute->getSide() === 'parent' &&
+                            $attribute->getRelationType() == 'manyToMany'
+                        ) {
+                            $manyToMany[] = $attribute->getKey();
+                        }
                     }
                 }
-                /** @var Column|Relationship $attribute */
 
-                $queries[] = $this->database->querySelect($selects);
+                $queries[] = $this->reader->querySelect($selects);
 
-                $response = $this->database->listRows($table, $queries);
+                $timestamp = microtime(true);
+                $this->logDebugTrackedProject("BEFORE listRows() | Table: {$table->getName()} | Batch: $batchSize | Timestamp: {$timestamp}");
+
+                $response = $this->reader->listRows($table, $queries);
 
                 $timestamp = microtime(true);
                 $this->logDebugTrackedProject("AFTER listRows() | Table: {$table->getName()} | Rows: " . count($response) . " | Timestamp: $timestamp");
 
                 foreach ($response as $row) {
-                    // HACK: Handle many to many
+                    // HACK: Handle many to many (only for schema-based databases)
                     if (!empty($manyToMany)) {
                         $stack = ['$id']; // Adding $id because we can't select only relations
                         foreach ($manyToMany as $relation) {
                             $stack[] = $relation . '.$id';
                         }
 
-                        $rowItem = $this->database->getRow(
+                        $rowItem = $this->reader->getRow(
                             $table,
                             $row['$id'],
-                            [$this->database->querySelect($stack)]
+                            [$this->reader->querySelect($stack)]
                         );
 
                         foreach ($manyToMany as $key) {
                             $row[$key] = [];
-                            foreach ($rowItem[$key] as $relatedRowItem) {
-                                $row[$key][] = $relatedRowItem['$id'];
+                            if (isset($rowItem[$key]) && is_array($rowItem[$key])) {
+                                foreach ($rowItem[$key] as $relatedRowItem) {
+                                    if (is_array($relatedRowItem) && isset($relatedRowItem['$id'])) {
+                                        $row[$key][] = $relatedRowItem['$id'];
+                                    }
+                                }
                             }
                         }
                     }
@@ -1202,12 +1083,23 @@ class Appwrite extends Source
                     unset($row['$sequence']);
                     unset($row['$collection']);
 
-                    $row = new Row(
-                        $id,
-                        $table,
-                        $row,
-                        $permissions
-                    );
+                    $row = self::getRecord($table->getDatabase()->getDatabaseName(), [
+                        'id' => $id,
+                        'table' => [
+                            'id' => $table->getId(),
+                            'name' => $table->getTableName(),
+                            'rowSecurity' => $table->getRowSecurity(),
+                            'permissions' => $table->getPermissions(),
+                            'database' => [
+                                'id' => $table->getDatabase()->getId(),
+                                'name' => $table->getDatabase()->getDatabaseName(),
+                                'type' => $table->getDatabase()->getType(),
+                                'database' => $table->getDatabase()->getDatabase(),
+                            ]
+                        ],
+                        'data' => $row,
+                        'permissions' => $permissions
+                    ]);
 
                     $rows[] = $row;
                     $lastRow = $row;
@@ -1647,6 +1539,430 @@ class Appwrite extends Source
                 $end = $fileSize - 1;
             }
         }
+    }
+
+    /**
+     * @param string $databaseType
+     * @param array $database {
+     *     id: string,
+     *     name: string,
+     *     createdAt: string,
+     *     updatedAt: string,
+     *     enabled: bool,
+     *     originalId: string|null,
+     *     database: string
+     * }
+    */
+    public static function getDatabase(string $databaseType, array $database): Resource
+    {
+        switch ($databaseType) {
+            case Resource::TYPE_DATABASE_DOCUMENTSDB:
+                return DocumentsDB::fromArray($database);
+            case Resource::TYPE_DATABASE_VECTORDB:
+                return VectorDB::fromArray($database);
+            default:
+                return Database::fromArray($database);
+        }
+    }
+
+    /**
+     * eg., tables,collections
+     * @param string $databaseType
+     * @param array{
+     *     database: array{
+     *        id: string,
+     *        name: string,
+     *     },
+     *     name: string,
+     *     id: string,
+     *     documentSecurity?: bool,
+     *     rowSecurity?: bool,
+     *     permissions: ?array<string>,
+     *     createdAt: string,
+     *     updatedAt: string,
+     *     enabled: bool
+     * } $entity
+     */
+    public static function getEntity(string $databaseType, array $entity): Resource
+    {
+        switch ($databaseType) {
+            case Resource::TYPE_DATABASE_DOCUMENTSDB:
+                return Collection::fromArray($entity);
+            case Resource::TYPE_DATABASE_VECTORDB:
+                return Collection::fromArray($entity);
+            default:
+                return Table::fromArray($entity);
+        }
+    }
+
+    /**
+     * eg.,documents/attributes
+     * @param string $databaseType
+     * @param array{
+     *     id: string,
+     *     collection?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     table?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         rowSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     data: array<string, mixed>,
+     *     permissions: ?array<string>
+     * } $record
+     */
+    public static function getRecord(string $databaseType, array $record): Resource
+    {
+        switch ($databaseType) {
+            case Resource::TYPE_DATABASE_DOCUMENTSDB:
+                return Document::fromArray($record);
+            case Resource::TYPE_DATABASE_VECTORDB:
+                return Document::fromArray($record);
+            default:
+                return Row::fromArray($record);
+        }
+    }
+
+    public static function getColumn(Table $table, mixed $column): Column
+    {
+        return match ($column['type']) {
+            Column::TYPE_STRING => match ($column['format'] ?? '') {
+                Column::TYPE_EMAIL => new Email(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 254,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                Column::TYPE_ENUM => new Enum(
+                    $column['key'],
+                    $table,
+                    elements: $column['elements'],
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? UtopiaDatabase::LENGTH_KEY,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                Column::TYPE_URL => new URL(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 2000,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                Column::TYPE_IP => new IP(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 39,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                default => new Text(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 0,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+            },
+
+            Column::TYPE_BOOLEAN => new Boolean(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_INTEGER => new Integer(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                min: $column['min'] ?? null,
+                max: $column['max'] ?? null,
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_FLOAT => new Decimal(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                min: $column['min'] ?? null,
+                max: $column['max'] ?? null,
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_RELATIONSHIP => new Relationship(
+                $column['key'],
+                $table,
+                relatedTable: $column['relatedTable'] ?? $column['relatedCollection'],
+                relationType: $column['relationType'],
+                twoWay: $column['twoWay'],
+                twoWayKey: $column['twoWayKey'],
+                onDelete: $column['onDelete'],
+                side: $column['side'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_DATETIME => new DateTime(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_POINT => new Point(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_LINE => new Line(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_POLYGON => new Polygon(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_OBJECT => new ObjectType(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_VECTOR => new Vector(
+                $column['key'],
+                $table,
+                size: $column['size'],
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            default => throw new \InvalidArgumentException("Unsupported column type: {$column['type']}"),
+        };
+
+    }
+
+    public static function getAttribute(Collection $collection, mixed $attribute): Attribute
+    {
+        return match ($attribute['type']) {
+            Attribute::TYPE_STRING => match ($attribute['format'] ?? '') {
+                Attribute::TYPE_EMAIL => new AttributeEmail(
+                    $attribute['key'],
+                    $collection,
+                    required: $attribute['required'],
+                    default: $attribute['default'],
+                    array: $attribute['array'],
+                    size: $attribute['size'] ?? 254,
+                    createdAt: $attribute['$createdAt'] ?? '',
+                    updatedAt: $attribute['$updatedAt'] ?? '',
+                ),
+                Attribute::TYPE_ENUM => new AttributeEnum(
+                    $attribute['key'],
+                    $collection,
+                    elements: $attribute['elements'],
+                    required: $attribute['required'],
+                    default: $attribute['default'],
+                    array: $attribute['array'],
+                    size: $attribute['size'] ?? UtopiaDatabase::LENGTH_KEY,
+                    createdAt: $attribute['$createdAt'] ?? '',
+                    updatedAt: $attribute['$updatedAt'] ?? '',
+                ),
+                Attribute::TYPE_URL => new AttributeURL(
+                    $attribute['key'],
+                    $collection,
+                    required: $attribute['required'],
+                    default: $attribute['default'],
+                    array: $attribute['array'],
+                    size: $attribute['size'] ?? 2000,
+                    createdAt: $attribute['$createdAt'] ?? '',
+                    updatedAt: $attribute['$updatedAt'] ?? '',
+                ),
+                Attribute::TYPE_IP => new AttributeIP(
+                    $attribute['key'],
+                    $collection,
+                    required: $attribute['required'],
+                    default: $attribute['default'],
+                    array: $attribute['array'],
+                    size: $attribute['size'] ?? 39,
+                    createdAt: $attribute['$createdAt'] ?? '',
+                    updatedAt: $attribute['$updatedAt'] ?? '',
+                ),
+                default => new AttributeText(
+                    $attribute['key'],
+                    $collection,
+                    required: $attribute['required'],
+                    default: $attribute['default'],
+                    array: $attribute['array'],
+                    size: $attribute['size'] ?? 0,
+                    createdAt: $attribute['$createdAt'] ?? '',
+                    updatedAt: $attribute['$updatedAt'] ?? '',
+                ),
+            },
+
+            Attribute::TYPE_BOOLEAN => new AttributeBoolean(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                array: $attribute['array'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_INTEGER => new AttributeInteger(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                array: $attribute['array'],
+                min: $attribute['min'] ?? null,
+                max: $attribute['max'] ?? null,
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_FLOAT => new AttributeDecimal(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                array: $attribute['array'],
+                min: $attribute['min'] ?? null,
+                max: $attribute['max'] ?? null,
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_RELATIONSHIP => new AttributeRelationship(
+                $attribute['key'],
+                $collection,
+                relatedTable: $attribute['relatedTable'] ?? $attribute['relatedCollection'],
+                relationType: $attribute['relationType'],
+                twoWay: $attribute['twoWay'],
+                twoWayKey: $attribute['twoWayKey'],
+                onDelete: $attribute['onDelete'],
+                side: $attribute['side'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_DATETIME => new AttributeDateTime(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                array: $attribute['array'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_POINT => new AttributePoint(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_LINE => new AttributeLine(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_POLYGON => new AttributePolygon(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_OBJECT => new AttributeObjectType(
+                $attribute['key'],
+                $collection,
+                required: $attribute['required'],
+                default: $attribute['default'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            Attribute::TYPE_VECTOR => new AttributeVector(
+                $attribute['key'],
+                $collection,
+                size: $attribute['size'],
+                required: $attribute['required'],
+                default: $attribute['default'],
+                createdAt: $attribute['$createdAt'] ?? '',
+                updatedAt: $attribute['$updatedAt'] ?? '',
+            ),
+
+            default => throw new \InvalidArgumentException("Unsupported attribute type: {$attribute['type']}"),
+        };
     }
 
     /**

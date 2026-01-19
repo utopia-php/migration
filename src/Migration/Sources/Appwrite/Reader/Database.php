@@ -9,8 +9,10 @@ use Utopia\Database\Exception as DatabaseException;
 use Utopia\Database\Query;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
+use Utopia\Migration\Resources\Database\Collection as CollectionResource;
 use Utopia\Migration\Resources\Database\Column as ColumnResource;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
+use Utopia\Migration\Resources\Database\Document as DocumentResource;
 use Utopia\Migration\Resources\Database\Index as IndexResource;
 use Utopia\Migration\Resources\Database\Row as RowResource;
 use Utopia\Migration\Resources\Database\Table as TableResource;
@@ -22,18 +24,35 @@ use Utopia\Migration\Sources\Appwrite\Reader;
  */
 class Database implements Reader
 {
-    public function __construct(private readonly UtopiaDatabase $dbForProject)
-    {
+    /**
+     * @var callable(UtopiaDocument|null): UtopiaDatabase
+    */
+    private mixed $getDatabasesDB;
+
+    public function __construct(
+        private readonly UtopiaDatabase $dbForProject,
+        ?callable $getDatabasesDB = null,
+        private readonly ?string $projectId = null
+    ) {
+        $this->getDatabasesDB = $getDatabasesDB;
     }
 
     public function report(array $resources, array &$report, array $resourceIds = []): mixed
     {
         $relevantResources = [
+            // tablesdb
             Resource::TYPE_DATABASE,
             Resource::TYPE_TABLE,
             Resource::TYPE_ROW,
             Resource::TYPE_COLUMN,
             Resource::TYPE_INDEX,
+            // vectordb
+            Resource::TYPE_DATABASE_VECTORDB,
+            // Documentsdb
+            Resource::TYPE_DATABASE_DOCUMENTSDB,
+            Resource::TYPE_COLLECTION,
+            Resource::TYPE_DOCUMENT,
+            Resource::TYPE_ATTRIBUTE,
         ];
 
         if (!Resource::isSupported($relevantResources, $resources)) {
@@ -45,20 +64,24 @@ class Database implements Reader
                 $report[$resourceType] = 0;
             }
         }
-
+        $databaseResources = array_keys(Resource::DATABASE_TYPE_RESOURCE_MAP);
         $databaseQueries = [];
-        if (!empty($resourceIds[Resource::TYPE_DATABASE])) {
-            $databaseIds = (array) $resourceIds[Resource::TYPE_DATABASE];
-
-            $databaseQueries[] = Query::equal('$id', $databaseIds);
+        foreach($databaseResources as $databaseResourceType){
+            if (!empty($resourceIds[$databaseResourceType])) {
+                $databaseIds = (array) $resourceIds[$databaseResourceType];
+    
+                $databaseQueries[] = Query::equal('$id', $databaseIds);
+            }
+            
+            if (in_array($databaseResourceType, $resources)) {
+                $report[$databaseResourceType] = $this->countResources($databaseResourceType);
+            }
         }
 
-        if (in_array(Resource::TYPE_DATABASE, $resources)) {
-            $report[Resource::TYPE_DATABASE] = $this->countResources('databases', $databaseQueries);
-        }
-
-        if (count(array_intersect($resources, $relevantResources)) === 1 &&
-            in_array(Resource::TYPE_DATABASE, $resources)) {
+        if (
+            count(array_intersect($resources, $relevantResources)) === 1 &&
+            Resource::isSupported(array_keys(Resource::DATABASE_TYPE_RESOURCE_MAP), $resources)
+        ) {
             return null;
         }
 
@@ -67,16 +90,14 @@ class Database implements Reader
 
         // Process each database
         foreach ($databases as $database) {
+            $databaseType = $database->getAttribute('type');
+            if (in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY,Resource::TYPE_DATABASE_TABLESDB])) {
+                $databaseType = Resource::TYPE_DATABASE;
+            }
+
+            $databaseSpecificResources = Resource::DATABASE_TYPE_RESOURCE_MAP[$databaseType];
+
             $databaseSequence = $database->getSequence();
-            $tableId = "database_{$databaseSequence}";
-
-            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
-                $report[Resource::TYPE_TABLE] += $this->countResources($tableId);
-            }
-
-            if (!Resource::isSupported([Resource::TYPE_ROW, Resource::TYPE_COLUMN, Resource::TYPE_INDEX], $resources)) {
-                continue;
-            }
 
             if (!isset($dbResources[$database->getId()])) {
                 $dbResources[$database->getId()] = new DatabaseResource(
@@ -84,19 +105,29 @@ class Database implements Reader
                     $database->getAttribute('name'),
                     $database->getCreatedAt(),
                     $database->getUpdatedAt(),
+                    $database->getAttribute('enabled', true),
+                    $database->getAttribute('originalId', ''),
+                    $database->getAttribute('type', ''),
+                    $database->getAttribute('database', '')
                 );
             }
 
             $dbResource = $dbResources[$database->getId()];
 
             $tables = $this->listTables($dbResource);
+            $count = count($tables);
+
+            if (Resource::isSupported($databaseSpecificResources['entity'], $resources)) {
+                $report[$databaseSpecificResources['entity']] += $count;
+            }
 
             foreach ($tables as $table) {
                 $tableSequence = $table->getSequence();
 
-                if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
+                if (Resource::isSupported($databaseSpecificResources['record'], $resources)) {
                     $rowTableId = "database_{$databaseSequence}_collection_{$tableSequence}";
-                    $report[Resource::TYPE_ROW] += $this->countResources($rowTableId);
+                    $count = $this->countResources($rowTableId, [], $dbResource);
+                    $report[$databaseSpecificResources['record']] += $count;
                 }
 
                 $commonQueries = [
@@ -104,8 +135,12 @@ class Database implements Reader
                     Query::equal('collectionInternalId', [$tableSequence]),
                 ];
 
-                if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
-                    $report[Resource::TYPE_COLUMN] += $this->countResources('attributes', $commonQueries);
+                if (
+                    isset($databaseSpecificResources['field']) &&
+                    Resource::isSupported($databaseSpecificResources['field'], $resources)
+                ) {
+                    $count = $this->countResources('attributes', $commonQueries);
+                    $report[$databaseSpecificResources['field']] += $count;
                 }
 
                 if (in_array(Resource::TYPE_INDEX, $resources)) {
@@ -304,8 +339,13 @@ class Database implements Reader
 
         $tableId = "database_{$database->getSequence()}_collection_{$table->getSequence()}";
 
+        // Use the appropriate database instance for this specific database
+        $dbInstance = $this->getDatabase($resource->getDatabase()->getDatabase());
+
         try {
-            $rows = $this->dbForProject->find($tableId, $queries);
+            $this->logDebug("BEFORE dbInstance->find() | TableID: $tableId | Queries: " . count($queries));
+            $rows = $dbInstance->find($tableId, $queries);
+            $this->logDebug("AFTER dbInstance->find() | TableID: $tableId | Rows returned: " . count($rows));
         } catch (DatabaseException $e) {
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -354,7 +394,10 @@ class Database implements Reader
 
         $tableId = "database_{$database->getSequence()}_collection_{$table->getSequence()}";
 
-        return $this->dbForProject->getDocument(
+        // Use the appropriate database instance for this specific database
+        $dbInstance = $this->getDatabase($resource->getDatabase()->getDatabase());
+
+        return $dbInstance->getDocument(
             $tableId,
             $rowId,
             $queries
@@ -394,19 +437,32 @@ class Database implements Reader
 
         switch ($resource::class) {
             case DatabaseResource::class:
+                /** @var DatabaseResource $resource */
+                // Databases are always in dbForProject metadata
                 $document = $this->dbForProject->getDocument('databases', $resource->getId());
                 break;
             case TableResource::class:
+            case CollectionResource::class:
+                /** @var TableResource|CollectionResource $resource */
+                // Tables/Collections metadata is in dbForProject
                 $database = $this->dbForProject->getDocument('databases', $resource->getDatabase()->getId());
                 $document = $this->dbForProject->getDocument('database_' . $database->getSequence(), $resource->getId());
                 break;
             case ColumnResource::class:
+                /** @var ColumnResource $resource */
+                // Columns (attributes) are in dbForProject metadata
                 $document = $this->dbForProject->getDocument('attributes', $resource->getId());
                 break;
             case IndexResource::class:
+                /** @var IndexResource $resource */
+                // Indexes are in dbForProject metadata
                 $document = $this->dbForProject->getDocument('indexes', $resource->getId());
                 break;
             case RowResource::class:
+            case DocumentResource::class:
+                /** @var RowResource|DocumentResource $resource */
+                // Rows/Documents are in the specific database instance
+                // getRow() already uses getDatabase() internally
                 $document = $this->getRow($resource->getTable(), $resource->getId());
                 $document = new UtopiaDocument($document);
                 break;
@@ -422,13 +478,26 @@ class Database implements Reader
         return Query::limit($limit);
     }
 
+    public function getSupportForAttributes(): bool
+    {
+        return $this->dbForProject->getAdapter()->getSupportForAttributes();
+    }
+
     /**
      * @param string $table
      * @param array $queries
+     * @param DatabaseResource|null $databaseResource
      * @return int
      */
-    private function countResources(string $table, array $queries = []): int
+    private function countResources(string $table, array $queries = [], ?DatabaseResource $databaseResource = null): int
     {
+        // Use the appropriate database instance for row data
+        if ($databaseResource !== null) {
+            $dbInstance = $this->getDatabase($databaseResource->getDatabase());
+            return $dbInstance->count($table, $queries);
+        }
+
+        // Use dbForProject for metadata tables
         return $this->dbForProject->count($table, $queries);
     }
 }
