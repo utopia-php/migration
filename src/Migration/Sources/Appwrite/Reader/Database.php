@@ -2,7 +2,6 @@
 
 namespace Utopia\Migration\Sources\Appwrite\Reader;
 
-use Utopia\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Exception as DatabaseException;
@@ -16,7 +15,6 @@ use Utopia\Migration\Resources\Database\Document as DocumentResource;
 use Utopia\Migration\Resources\Database\Index as IndexResource;
 use Utopia\Migration\Resources\Database\Row as RowResource;
 use Utopia\Migration\Resources\Database\Table as TableResource;
-use Utopia\Migration\Sources\Appwrite;
 use Utopia\Migration\Sources\Appwrite\Reader;
 
 /**
@@ -66,13 +64,13 @@ class Database implements Reader
         }
         $databaseResources = array_keys(Resource::DATABASE_TYPE_RESOURCE_MAP);
         $databaseQueries = [];
-        foreach($databaseResources as $databaseResourceType){
+        foreach ($databaseResources as $databaseResourceType) {
             if (!empty($resourceIds[$databaseResourceType])) {
                 $databaseIds = (array) $resourceIds[$databaseResourceType];
-    
+
                 $databaseQueries[] = Query::equal('$id', $databaseIds);
             }
-            
+
             if (in_array($databaseResourceType, $resources)) {
                 $report[$databaseResourceType] = $this->countResources($databaseResourceType);
             }
@@ -343,9 +341,7 @@ class Database implements Reader
         $dbInstance = $this->getDatabase($resource->getDatabase()->getDatabase());
 
         try {
-            $this->logDebug("BEFORE dbInstance->find() | TableID: $tableId | Queries: " . count($queries));
             $rows = $dbInstance->find($tableId, $queries);
-            $this->logDebug("AFTER dbInstance->find() | TableID: $tableId | Rows returned: " . count($rows));
         } catch (DatabaseException $e) {
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -499,5 +495,17 @@ class Database implements Reader
 
         // Use dbForProject for metadata tables
         return $this->dbForProject->count($table, $queries);
+    }
+
+    /**
+     * Get the appropriate database instance for the given database DSN
+     */
+    private function getDatabase(?string $databaseDSN = null): UtopiaDatabase
+    {
+        if ($this->getDatabasesDB !== null && $databaseDSN !== null) {
+            return ($this->getDatabasesDB)(new UtopiaDocument(['database' => $databaseDSN]));
+        }
+
+        return $this->dbForProject;
     }
 }
