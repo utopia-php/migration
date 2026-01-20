@@ -12,7 +12,7 @@ use Utopia\Migration\Transfer;
 use Utopia\Storage\Device\Local;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
-class JSONExportTest extends TestCase
+class JSONTest extends TestCase
 {
     public function testJSONExportBasic()
     {
