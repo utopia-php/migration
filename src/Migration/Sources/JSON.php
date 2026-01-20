@@ -29,9 +29,11 @@ class JSON extends Source
 
     private Device $device;
 
+    /** @noinspection PhpPropertyOnlyWrittenInspection */
+    private ?UtopiaDatabase $dbForProject;
+
     private bool $downloaded = false;
 
-    /** @noinspection PhpUnusedParameterInspection */
     public function __construct(
         string $resourceId,
         string $filePath,
@@ -41,6 +43,9 @@ class JSON extends Source
         $this->device = $device;
         $this->filePath = $filePath;
         $this->resourceId = $resourceId;
+
+        /* kept for composer check */
+        $this->dbForProject = $dbForProject;
     }
 
     public static function getName(): string
