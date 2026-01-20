@@ -1,0 +1,271 @@
+<?php
+
+namespace Utopia\Migration\Sources;
+
+use JsonMachine\Exception\JsonMachineException;
+use JsonMachine\Items;
+use JsonMachine\JsonDecoder\ExtJsonDecoder;
+use JsonMachine\JsonDecoder\PassThruDecoder;
+use Utopia\Database\Database as UtopiaDatabase;
+use Utopia\Migration\Exception;
+use Utopia\Migration\Resource as UtopiaResource;
+use Utopia\Migration\Resources\Database\Database;
+use Utopia\Migration\Resources\Database\Row;
+use Utopia\Migration\Resources\Database\Table;
+use Utopia\Migration\Resources\Storage\File;
+use Utopia\Migration\Source;
+use Utopia\Migration\Transfer;
+use Utopia\Storage\Device;
+use Utopia\Storage\Storage;
+
+class JSON extends Source
+{
+    private string $filePath;
+
+    /**
+     * format: `{databaseId:tableId}`
+     */
+    private string $resourceId;
+
+    private Device $device;
+
+    private bool $downloaded = false;
+
+    /** @noinspection PhpUnusedParameterInspection */
+    public function __construct(
+        string $resourceId,
+        string $filePath,
+        Device $device,
+        ?UtopiaDatabase $dbForProject
+    ) {
+        $this->device = $device;
+        $this->filePath = $filePath;
+        $this->resourceId = $resourceId;
+    }
+
+    public static function getName(): string
+    {
+        return 'JSON';
+    }
+
+    public static function getSupportedResources(): array
+    {
+        return [
+            UtopiaResource::TYPE_ROW,
+        ];
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function report(array $resources = [], array $resourceIds = []): array
+    {
+        $report = [];
+
+        if (!$this->device->exists($this->filePath)) {
+            return $report;
+        }
+
+        $this->downloadToLocal(
+            $this->device,
+            $this->filePath,
+        );
+
+        $items = Items::fromFile($this->filePath, [
+            'decoder' => new PassThruDecoder(),
+        ]);
+
+        $report[UtopiaResource::TYPE_ROW] = \iterator_count($items);
+
+        return $report;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    protected function exportGroupAuth(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    protected function exportGroupDatabases(int $batchSize, array $resources): void
+    {
+        try {
+            if (UtopiaResource::isSupported(UtopiaResource::TYPE_ROW, $resources)) {
+                $this->exportRows($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(
+                new Exception(
+                    UtopiaResource::TYPE_ROW,
+                    Transfer::GROUP_DATABASES,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                )
+            );
+        } finally {
+            // delete the temporary file!
+            $this->device->delete($this->filePath);
+        }
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function exportRows(int $batchSize): void
+    {
+        [$databaseId, $tableId] = \explode(':', $this->resourceId);
+        $database = new Database($databaseId, '');
+        $table = new Table($database, '', $tableId);
+
+        $this->withJsonItems(function ($items) use ($table, $batchSize) {
+            $buffer = [];
+
+            foreach ($items as $index => $item) {
+                if (!\is_array($item)) {
+                    throw new \Exception("JSON item at index $index is not an object.");
+                }
+
+                $rowId = $item['$id'] ?? 'unique()';
+                $permissions = [];
+                if (\array_key_exists('$permissions', $item)) {
+                    $permissions = $this->validatePermissions($item['$permissions']);
+                }
+
+                unset($item['$id'], $item['$permissions']);
+
+                $row = new Row(
+                    $rowId,
+                    $table,
+                    $item,
+                    $permissions,
+                );
+
+                $buffer[] = $row;
+
+                if (\count($buffer) === $batchSize) {
+                    $this->callback($buffer);
+                    $buffer = [];
+                }
+            }
+
+            if (!empty($buffer)) {
+                $this->callback($buffer);
+            }
+        });
+    }
+
+    /**
+     * @throws \Exception
+     */
+    protected function exportGroupStorage(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    /**
+     * @throws \Exception
+     */
+    protected function exportBuckets(int $batchSize): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function exportFiles(int $batchSize): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function exportFile(File $file): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    /**
+     * @throws \Exception
+     */
+    protected function exportGroupFunctions(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    /**
+     * @param callable(Items): void $callback
+     * @throws \Exception|JsonMachineException
+     */
+    private function withJsonItems(callable $callback): void
+    {
+        if (!$this->device->exists($this->filePath)) {
+            return;
+        }
+
+        if (!$this->downloaded) {
+            $this->downloadToLocal(
+                $this->device,
+                $this->filePath,
+            );
+        }
+
+        $items = Items::fromFile($this->filePath, [
+            'decoder' => new ExtJsonDecoder(true),
+        ]);
+
+        $callback($items);
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function downloadToLocal(
+        Device $device,
+        string $filePath
+    ): void {
+        if ($this->downloaded
+            || $device->getType() === Storage::DEVICE_LOCAL
+        ) {
+            return;
+        }
+
+        try {
+            $success = $device->transfer(
+                $filePath,
+                $filePath,
+                new Device\Local('/'),
+            );
+        } catch (\Exception $e) {
+            $success = false;
+        }
+
+        if (!$success) {
+            throw new \Exception('Failed to transfer JSON file from device to local storage.', previous: $e ?? null);
+        }
+
+        $this->downloaded = true;
+    }
+
+    /**
+     * @return array<int, string>
+     * @throws \Exception
+     */
+    private function validatePermissions(mixed $permissions): array
+    {
+        if (!\is_array($permissions)) {
+            throw new \Exception('Invalid permissions format; expected an array of strings.');
+        }
+
+        foreach ($permissions as $value) {
+            if (!\is_string($value)) {
+                throw new \Exception('Invalid permission value; expected string.');
+            }
+        }
+
+        return $permissions;
+    }
+}
