@@ -92,14 +92,14 @@ class CSVTest extends TestCase
             'age' => 30,
             'email' => 'john@example.com'
         ]);
-        $row1->setPermissions(['read' => ['user:123']]);
+        $row1->setPermissions(['read("user:123")']);
 
         $row2 = new Row('row2', $table, [
             'name' => 'Jane Smith',
             'age' => 25,
             'email' => 'jane@example.com'
         ]);
-        $row2->setPermissions(['read' => ['user:456']]);
+        $row2->setPermissions(['read("user:456")']);
 
         // Export the data
         $csvDestination->testableImport([$row1, $row2], function ($resources) {
@@ -363,7 +363,7 @@ class CSVTest extends TestCase
         ];
 
         $row = new Row('compat_row', $table, $originalData);
-        $row->setPermissions(['read' => ['user:123']]);
+        $row->setPermissions(['read("user:123")']);
 
         $csvDestination->testableImport([$row], function ($resources) {});
         $csvDestination->shutdown();
