@@ -823,7 +823,6 @@ class Appwrite extends Destination
             $tableIndexes,
             $dbForDatabases->getAdapter()->getMaxIndexLength(),
             $dbForDatabases->getAdapter()->getInternalIndexesKeys(),
-            $dbForDatabases->getAdapter()->getMaxIndexLength(),
             $dbForDatabases->getAdapter()->getSupportForIndexArray(),
             $dbForDatabases->getAdapter()->getSupportForSpatialIndexNull(),
             $dbForDatabases->getAdapter()->getSupportForSpatialIndexOrder(),
@@ -831,6 +830,12 @@ class Appwrite extends Destination
             $dbForDatabases->getAdapter()->getSupportForAttributes(),
             $dbForDatabases->getAdapter()->getSupportForMultipleFulltextIndexes(),
             $dbForDatabases->getAdapter()->getSupportForIdenticalIndexes(),
+            $dbForDatabases->getAdapter()->getSupportForObjectIndexes(),
+            $dbForDatabases->getAdapter()->getSupportForTrigramIndex(),
+            $dbForDatabases->getAdapter()->getSupportForSpatialAttributes(),
+            $dbForDatabases->getAdapter()->getSupportForIndex(),
+            $dbForDatabases->getAdapter()->getSupportForUniqueIndex(),
+            $dbForDatabases->getAdapter()->getSupportForFulltextIndex()
         );
 
 
