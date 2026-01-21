@@ -70,10 +70,6 @@ class Database implements Reader
 
                 $databaseQueries[] = Query::equal('$id', $databaseIds);
             }
-
-            if (in_array($databaseResourceType, $resources)) {
-                $report[$databaseResourceType] = $this->countResources($databaseResourceType);
-            }
         }
 
         if (
@@ -85,6 +81,16 @@ class Database implements Reader
 
         $dbResources = [];
         $databases = $this->listDatabases($databaseQueries);
+
+        foreach ($databases as $database) {
+            $databaseType = $database->getAttribute('type');
+            if (in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY,Resource::TYPE_DATABASE_TABLESDB])) {
+                $databaseType = Resource::TYPE_DATABASE;
+            }
+            if (Resource::isSupported($databaseType, $resources)) {
+                $report[$databaseType] += 1;
+            }
+        }
 
         // Process each database
         foreach ($databases as $database) {

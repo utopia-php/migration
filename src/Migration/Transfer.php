@@ -179,7 +179,7 @@ class Transfer
                     $status[$resourceType][$k] = $resource;
 
                     if ($status[$resourceType]['pending'] > 0) {
-                        $status[$resourceType]['pending'] -= $resource;
+                        $status[$resourceType]['pending'] -= \min($status[$resourceType]['pending'], $resource);
                     }
 
                     continue;
