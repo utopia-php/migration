@@ -5,7 +5,7 @@ namespace Utopia\Migration\Resources\Database;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
-abstract class Column extends Resource
+abstract class Attribute extends Resource
 {
     public const TYPE_STRING = 'string';
     public const TYPE_INTEGER = 'integer';
@@ -82,7 +82,7 @@ abstract class Column extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_COLUMN;
+        return Resource::TYPE_ATTRIBUTE;
     }
 
     abstract public function getType(): string;

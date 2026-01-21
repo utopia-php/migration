@@ -5,11 +5,9 @@ namespace Utopia\Migration\Sources;
 use Utopia\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
+use Utopia\Migration\Resource;
 use Utopia\Migration\Resource as UtopiaResource;
 use Utopia\Migration\Resources\Database\Column;
-use Utopia\Migration\Resources\Database\Database;
-use Utopia\Migration\Resources\Database\Row;
-use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Appwrite\Reader;
@@ -44,12 +42,13 @@ class CSV extends Source
         string $resourceId,
         string $filePath,
         Device $device,
-        ?UtopiaDatabase $dbForProject
+        ?UtopiaDatabase $dbForProject,
+        ?callable $getDatabasesDB = null,
     ) {
         $this->device = $device;
         $this->filePath = $filePath;
         $this->resourceId = $resourceId;
-        $this->database = new DatabaseReader($dbForProject);
+        $this->database = new DatabaseReader($dbForProject, $getDatabasesDB);
     }
 
     public static function getName(): string
@@ -61,6 +60,7 @@ class CSV extends Source
     {
         return [
             UtopiaResource::TYPE_ROW,
+            UtopiaResource::TYPE_DOCUMENT,
         ];
     }
 
@@ -104,7 +104,7 @@ class CSV extends Source
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
         try {
-            if (UtopiaResource::isSupported(UtopiaResource::TYPE_ROW, $resources)) {
+            if (UtopiaResource::isSupported($this->getSupportedResources(), $resources)) {
                 $this->exportRows($batchSize);
             }
         } catch (\Throwable $e) {
@@ -132,8 +132,47 @@ class CSV extends Source
         $lastColumn = null;
 
         [$databaseId, $tableId] = \explode(':', $this->resourceId);
-        $database = new Database($databaseId, '');
-        $table = new Table($database, '', $tableId);
+
+        $databases = $this->database->listDatabases([
+            $this->database->queryEqual('$id', [$databaseId]),
+            $this->database->queryLimit(1),
+        ]);
+
+        if (empty($databases)) {
+            throw new \Exception('Database not found');
+        }
+
+        $databaseDocument = $databases[0];
+        $databaseType = $databaseDocument->getAttribute('type', UtopiaResource::TYPE_DATABASE);
+        if (\in_array($databaseType, [UtopiaResource::TYPE_DATABASE_LEGACY, UtopiaResource::TYPE_DATABASE_TABLESDB], true)) {
+            $databaseType = UtopiaResource::TYPE_DATABASE;
+        }
+
+        $databasePayload = [
+            'id' => $databaseDocument->getId(),
+            'name' => $databaseDocument->getAttribute('name', $databaseDocument->getId()),
+            'originalId' => $databaseDocument->getAttribute('originalId', ''),
+            'type' => $databaseType,
+            'database' => $databaseDocument->getAttribute('database', ''),
+        ];
+
+        $tablePayload = [
+            'id' => $tableId,
+            'name' => $tableId,
+            'documentSecurity' => false,
+            'rowSecurity' => false,
+            'permissions' => [],
+            'createdAt' => '',
+            'updatedAt' => '',
+            'database' => [
+                'id' => $databasePayload['id'],
+                'name' => $databasePayload['name'],
+                'type' => $databasePayload['type'],
+                'database' => $databasePayload['database'],
+            ],
+        ];
+
+        $table = Appwrite::getEntity($databaseType, $tablePayload);
 
         while (true) {
             $queries = [$this->database->queryLimit($batchSize)];
@@ -195,7 +234,7 @@ class CSV extends Source
             }
         }
 
-        $this->withCsvStream(function ($stream, $delimiter) use ($columnTypes, $requiredColumns, $manyToManyKeys, $arrayKeys, $table, $batchSize) {
+        $this->withCsvStream(function ($stream, $delimiter) use ($columnTypes, $databaseType, $requiredColumns, $manyToManyKeys, $arrayKeys, $tablePayload, $batchSize) {
             $headers = \fgetcsv($stream, 0, $delimiter, '"', '"');
 
             if (!\is_array($headers) || \count($headers) === 0) {
@@ -300,7 +339,9 @@ class CSV extends Source
                             ),
                             Column::TYPE_POINT,
                             Column::TYPE_LINE,
-                            Column::TYPE_POLYGON => \is_string($parsedValue) ? json_decode($parsedValue) : null,
+                            Column::TYPE_POLYGON,
+                            Column::TYPE_VECTOR,
+                            Column::TYPE_OBJECT => \is_string($parsedValue) ? json_decode($parsedValue, true) : null,
                             default => $parsedValue,
                         },
                     };
@@ -311,12 +352,12 @@ class CSV extends Source
 
                 unset($parsedData['$id'], $parsedData['$permissions']);
 
-                $row = new Row(
-                    $rowId,
-                    $table,
-                    $parsedData,
-                    $permissions,
-                );
+                $row = Appwrite::getRecord($databaseType, [
+                    'id' => $rowId,
+                    'table' => $tablePayload,
+                    'data' => $parsedData,
+                    'permissions' => $permissions
+                ]);
 
                 $buffer[] = $row;
 
