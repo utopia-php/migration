@@ -349,13 +349,19 @@ class Appwrite extends Destination
             );
         }
 
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
         $database = $this->dbForProject->createDocument('databases', new UtopiaDocument([
             '$id' => $resource->getId(),
             'name' => $resource->getDatabaseName(),
             'enabled' => $resource->getEnabled(),
             'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
-            '$createdAt' => $resource->getCreatedAt(),
-            '$updatedAt' => $resource->getUpdatedAt(),
+            '$createdAt' => $createdAt,
+            '$updatedAt' => $updatedAt,
             'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
             'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
             // source and destination can be in different location
@@ -420,6 +426,12 @@ class Appwrite extends Destination
             );
         }
 
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
         $dbForDatabases = ($this->getDatabasesDB)($database);
 
         // passing null in creates only creates the metadata collection
@@ -436,8 +448,8 @@ class Appwrite extends Destination
             'enabled' => $resource->getEnabled(),
             'name' => $resource->getTableName(),
             'search' => implode(' ', [$resource->getId(), $resource->getTableName()]),
-            '$createdAt' => $resource->getCreatedAt(),
-            '$updatedAt' => $resource->getUpdatedAt(),
+            '$createdAt' => $createdAt,
+            '$updatedAt' => $updatedAt,
         ]));
 
         $resource->setSequence($table->getSequence());
@@ -554,6 +566,9 @@ class Appwrite extends Destination
                 );
             }
         }
+
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
         $dbForDatabases = ($this->getDatabasesDB)($database);
         try {
             $column = new UtopiaDocument([
@@ -574,8 +589,8 @@ class Appwrite extends Destination
                 'formatOptions' => $resource->getFormatOptions(),
                 'filters' => $resource->getFilters(),
                 'options' => $resource->getOptions(),
-                '$createdAt' => $resource->getCreatedAt(),
-                '$updatedAt' => $resource->getUpdatedAt(),
+                '$createdAt' => $createdAt,
+                '$updatedAt' => $updatedAt,
             ]);
 
             $this->dbForProject->checkAttribute($table, $column);
@@ -632,8 +647,8 @@ class Appwrite extends Destination
                     'formatOptions' => $resource->getFormatOptions(),
                     'filters' => $resource->getFilters(),
                     'options' => $options,
-                    '$createdAt' => $resource->getCreatedAt(),
-                    '$updatedAt' => $resource->getUpdatedAt(),
+                    '$createdAt' => $createdAt,
+                    '$updatedAt' => $updatedAt,
                 ]);
 
                 $this->dbForProject->createDocument('attributes', $twoWayAttribute);
@@ -778,6 +793,9 @@ class Appwrite extends Destination
             $this->validateFieldsForIndexes($resource, $table, $lengths);
         }
 
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
         $index = new UtopiaDocument([
             '$id' => ID::custom($database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey()),
             'key' => $resource->getKey(),
@@ -794,31 +812,25 @@ class Appwrite extends Destination
             '$updatedAt' => $resource->getUpdatedAt(),
         ]);
 
-        $maxIndexLength = $dbForDatabases->getAdapter()->getMaxIndexLength();
-        $internalIndexesKeys = $dbForDatabases->getAdapter()->getInternalIndexesKeys();
-        $supportForIndexArray = $dbForDatabases->getAdapter()->getSupportForIndexArray();
-        $supportForSpatialAttributes = $dbForDatabases->getAdapter()->getSupportForSpatialAttributes();
-        $supportForSpatialIndexNull = $dbForDatabases->getAdapter()->getSupportForSpatialIndexNull();
-        $supportForSpatialIndexOrder = $dbForDatabases->getAdapter()->getSupportForSpatialIndexOrder();
-        $supportForAttributes = $dbForDatabases->getAdapter()->getSupportForAttributes();
-        $supportForMultipleFulltextIndexes = $dbForDatabases->getAdapter()->getSupportForMultipleFulltextIndexes();
-        $supportForIdenticalIndexes = $dbForDatabases->getAdapter()->getSupportForIdenticalIndexes();
-        $supportForVectorIndexes = $dbForDatabases->getAdapter()->getSupportForVectors();
-        $supportForObjectIndexes = $dbForDatabases->getAdapter()->getSupportForObject();
+        /**
+         * @var array<UtopiaDocument> $tableColumns
+         */
+        $tableColumns = $table->getAttribute('attributes', []);
+        $tableIndexes = $table->getAttribute('indexes', []);
 
         $validator = new IndexValidator(
-            $table->getAttribute('attributes'),
-            $table->getAttribute('indexes', []),
-            $maxIndexLength,
-            $internalIndexesKeys,
-            $supportForIndexArray,
-            $supportForSpatialIndexNull,
-            $supportForSpatialIndexOrder,
-            $supportForVectorIndexes,
-            $supportForAttributes,
-            $supportForMultipleFulltextIndexes,
-            $supportForIdenticalIndexes,
-            $supportForObjectIndexes,
+            $tableColumns,
+            $tableIndexes,
+            $dbForDatabases->getAdapter()->getMaxIndexLength(),
+            $dbForDatabases->getAdapter()->getInternalIndexesKeys(),
+            $dbForDatabases->getAdapter()->getMaxIndexLength(),
+            $dbForDatabases->getAdapter()->getSupportForIndexArray(),
+            $dbForDatabases->getAdapter()->getSupportForSpatialIndexNull(),
+            $dbForDatabases->getAdapter()->getSupportForSpatialIndexOrder(),
+            $dbForDatabases->getAdapter()->getSupportForVectors(),
+            $dbForDatabases->getAdapter()->getSupportForAttributes(),
+            $dbForDatabases->getAdapter()->getSupportForMultipleFulltextIndexes(),
+            $dbForDatabases->getAdapter()->getSupportForIdenticalIndexes(),
         );
 
 
