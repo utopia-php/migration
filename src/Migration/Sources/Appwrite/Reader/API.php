@@ -217,6 +217,8 @@ class API implements Reader
      */
     public function querySelect(string $column): string
     {
+        return Query::select([$column]);
+
         return new Query('select', $column);
 
         /**
