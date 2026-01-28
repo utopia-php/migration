@@ -326,13 +326,16 @@ class Appwrite extends Destination
             );
         }
 
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
         $database = $this->database->createDocument('databases', new UtopiaDocument([
             '$id' => $resource->getId(),
             'name' => $resource->getDatabaseName(),
             'enabled' => $resource->getEnabled(),
             'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
-            '$createdAt' => $resource->getCreatedAt(),
-            '$updatedAt' => $resource->getUpdatedAt(),
+            '$createdAt' => $createdAt,
+            '$updatedAt' => $updatedAt,
             'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
             'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
         ]));
@@ -395,6 +398,9 @@ class Appwrite extends Destination
             );
         }
 
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
         $table = $this->database->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
             '$id' => $resource->getId(),
             'databaseInternalId' => $database->getSequence(),
@@ -404,8 +410,8 @@ class Appwrite extends Destination
             'enabled' => $resource->getEnabled(),
             'name' => $resource->getTableName(),
             'search' => implode(' ', [$resource->getId(), $resource->getTableName()]),
-            '$createdAt' => $resource->getCreatedAt(),
-            '$updatedAt' => $resource->getUpdatedAt(),
+            '$createdAt' => $createdAt,
+            '$updatedAt' => $updatedAt,
         ]));
 
         $resource->setSequence($table->getSequence());
@@ -516,6 +522,9 @@ class Appwrite extends Destination
             }
         }
 
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
         try {
             $column = new UtopiaDocument([
                 '$id' => ID::custom($database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey()),
@@ -535,8 +544,8 @@ class Appwrite extends Destination
                 'formatOptions' => $resource->getFormatOptions(),
                 'filters' => $resource->getFilters(),
                 'options' => $resource->getOptions(),
-                '$createdAt' => $resource->getCreatedAt(),
-                '$updatedAt' => $resource->getUpdatedAt(),
+                '$createdAt' => $createdAt,
+                '$updatedAt' => $updatedAt,
             ]);
 
             $this->database->checkAttribute($table, $column);
@@ -593,8 +602,8 @@ class Appwrite extends Destination
                     'formatOptions' => $resource->getFormatOptions(),
                     'filters' => $resource->getFilters(),
                     'options' => $options,
-                    '$createdAt' => $resource->getCreatedAt(),
-                    '$updatedAt' => $resource->getUpdatedAt(),
+                    '$createdAt' => $createdAt,
+                    '$updatedAt' => $updatedAt,
                 ]);
 
                 $this->database->createDocument('attributes', $twoWayAttribute);
@@ -828,6 +837,9 @@ class Appwrite extends Destination
             }
         }
 
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
         $index = new UtopiaDocument([
             '$id' => ID::custom($database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey()),
             'key' => $resource->getKey(),
@@ -840,8 +852,8 @@ class Appwrite extends Destination
             'attributes' => $resource->getColumns(),
             'lengths' => $lengths,
             'orders' => $resource->getOrders(),
-            '$createdAt' => $resource->getCreatedAt(),
-            '$updatedAt' => $resource->getUpdatedAt(),
+            '$createdAt' => $createdAt,
+            '$updatedAt' => $updatedAt,
         ]);
 
         $validator = new IndexValidator(
