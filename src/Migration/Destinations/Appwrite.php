@@ -218,7 +218,7 @@ class Appwrite extends Destination
                 $this->sites->list();
 
                 $scope = 'sites.write';
-                $this->sites->create('', '', BuildRuntime::STATIC1(), Framework::STATIC());
+                $this->sites->create('', '', BuildRuntime::STATIC1(), Framework::OTHER());
             }
 
         } catch (AppwriteException $e) {
@@ -1613,23 +1613,18 @@ class Appwrite extends Destination
                     'analog' => Framework::ANALOG(),
                     'angular' => Framework::ANGULAR(),
                     'astro' => Framework::ASTRO(),
-                    'docusaurus' => Framework::DOCUSAURUS(),
-                    'flutter-web' => Framework::FLUTTERWEB(),
-                    'gatsby' => Framework::GATSBY(),
-                    'hugo' => Framework::HUGO(),
-                    'jekyll' => Framework::JEKYLL(),
+                    'flutter', 'flutter-web' => Framework::FLUTTER(),
                     'lynx' => Framework::LYNX(),
                     'nextjs' => Framework::NEXTJS(),
                     'nuxt' => Framework::NUXT(),
                     'react' => Framework::REACT(),
-                    'react-static' => Framework::REACTSTATIC(),
+                    'react-native' => Framework::REACTNATIVE(),
                     'remix' => Framework::REMIX(),
-                    'solid-start' => Framework::SOLIDSTART(),
-                    'static' => Framework::STATIC(),
                     'svelte-kit' => Framework::SVELTEKIT(),
+                    'tanstack-start' => Framework::TANSTACKSTART(),
                     'vite' => Framework::VITE(),
                     'vue' => Framework::VUE(),
-                    default => throw new \Exception('Invalid Framework: ' . $resource->getFramework()),
+                    default => Framework::OTHER(),
                 };
 
                 $this->sites->create(
