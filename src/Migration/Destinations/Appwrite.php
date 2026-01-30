@@ -4,6 +4,7 @@ namespace Utopia\Migration\Destinations;
 
 use Appwrite\AppwriteException;
 use Appwrite\Client;
+use Appwrite\Enums\Adapter;
 use Appwrite\Enums\BuildRuntime;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\Framework;
@@ -218,7 +219,7 @@ class Appwrite extends Destination
                 $this->sites->list();
 
                 $scope = 'sites.write';
-                $this->sites->create('', '', BuildRuntime::STATIC1(), Framework::OTHER());
+                $this->sites->create('', '', Framework::OTHER(), BuildRuntime::STATIC1());
             }
 
         } catch (AppwriteException $e) {
@@ -1627,20 +1628,26 @@ class Appwrite extends Destination
                     default => Framework::OTHER(),
                 };
 
+                $adapter = match ($resource->getAdapter()) {
+                    'static' => Adapter::STATIC(),
+                    'ssr' => Adapter::SSR(),
+                    default => null,
+                };
+
                 $this->sites->create(
                     $resource->getId(),
                     $resource->getSiteName(),
-                    $buildRuntime,
                     $framework,
+                    $buildRuntime,
                     $resource->getEnabled(),
                     $resource->getLogging(),
                     $resource->getTimeout(),
                     $resource->getInstallCommand(),
                     $resource->getBuildCommand(),
                     $resource->getOutputDirectory(),
-                    $resource->getAdapter(),
-                    $resource->getFallbackFile(),
-                    $resource->getSpecification(),
+                    $adapter,
+                    fallbackFile: $resource->getFallbackFile(),
+                    specification: $resource->getSpecification(),
                 );
                 break;
             case Resource::TYPE_SITE_VARIABLE:
