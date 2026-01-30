@@ -1678,7 +1678,7 @@ class Appwrite extends Destination
         $siteId = $deployment->getSite()->getId();
 
         if ($deployment->getSize() <= Transfer::STORAGE_MAX_CHUNK_SIZE) {
-            $this->client->call(
+            $response = $this->client->call(
                 'POST',
                 "/sites/{$siteId}/deployments",
                 [
@@ -1687,9 +1687,13 @@ class Appwrite extends Destination
                 [
                     'siteId' => $siteId,
                     'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
-                    'activate' => $deployment->getActivated() ? 'true' : 'false',
+                    'activate' => $deployment->getActivated(),
                 ]
             );
+
+            if (!\is_array($response) || !isset($response['$id'])) {
+                throw new \Exception('Site deployment creation failed');
+            }
 
             $deployment->setStatus(Resource::STATUS_SUCCESS);
 
@@ -1707,7 +1711,7 @@ class Appwrite extends Destination
             [
                 'siteId' => $siteId,
                 'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
-                'activate' => $deployment->getActivated() ? 'true' : 'false',
+                'activate' => $deployment->getActivated(),
             ]
         );
 
