@@ -43,7 +43,7 @@ class Deployment extends Resource
     {
         return [
             'id' => $this->id,
-            'site' => $this->site->jsonSerialize(),
+            'site' => $this->site,
             'size' => $this->size,
             'start' => $this->start,
             'end' => $this->end,

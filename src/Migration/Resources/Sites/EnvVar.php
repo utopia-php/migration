@@ -39,7 +39,7 @@ class EnvVar extends Resource
     {
         return [
             'id' => $this->id,
-            'site' => $this->site->jsonSerialize(),
+            'site' => $this->site,
             'key' => $this->key,
             'value' => $this->value,
             'secret' => $this->secret,
