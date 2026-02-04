@@ -39,6 +39,7 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Backups\Policy;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
@@ -143,6 +144,9 @@ class Appwrite extends Source
             Resource::TYPE_ENVIRONMENT_VARIABLE,
 
             // Settings
+
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
         ];
     }
 
@@ -179,6 +183,7 @@ class Appwrite extends Source
             $this->reportDatabases($resources, $report, $resourceIds);
             $this->reportStorage($resources, $report, $resourceIds);
             $this->reportFunctions($resources, $report, $resourceIds);
+            $this->reportBackups($resources, $report);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1612,6 +1617,69 @@ class Appwrite extends Source
                 $end = $fileSize - 1;
             }
         }
+    }
+
+    protected function exportGroupBackups(int $batchSize, array $resources): void
+    {
+        try {
+            if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
+                $this->exportBackupPolicies($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_BACKUP_POLICY,
+                Transfer::GROUP_BACKUPS,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+    }
+
+    private function reportBackups(array $resources, array &$report): void
+    {
+        if (!\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
+            return;
+        }
+
+        try {
+            $response = $this->call('GET', '/backups/policies', [
+                'Content-Type' => 'application/json',
+            ]);
+
+            $report[Resource::TYPE_BACKUP_POLICY] = $response['total'] ?? 0;
+        } catch (\Throwable $e) {
+            // Backup policies are Cloud-only, skip gracefully for self-hosted
+            $report[Resource::TYPE_BACKUP_POLICY] = 0;
+        }
+    }
+
+    private function exportBackupPolicies(int $batchSize): void
+    {
+        $response = $this->call('GET', '/backups/policies', [
+            'Content-Type' => 'application/json',
+        ]);
+
+        if (empty($response['policies'])) {
+            return;
+        }
+
+        $policies = [];
+
+        foreach ($response['policies'] as $policy) {
+            $policies[] = new Policy(
+                $policy['$id'],
+                $policy['name'] ?? '',
+                $policy['services'] ?? [],
+                $policy['retention'] ?? 0,
+                $policy['schedule'] ?? '',
+                $policy['enabled'] ?? true,
+                $policy['resourceId'] ?? '',
+                $policy['resourceType'] ?? '',
+            );
+        }
+
+        $this->callback($policies);
     }
 
     /**

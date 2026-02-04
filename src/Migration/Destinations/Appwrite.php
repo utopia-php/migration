@@ -42,6 +42,7 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Backups\Policy;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Transfer;
@@ -128,6 +129,9 @@ class Appwrite extends Destination
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_ENVIRONMENT_VARIABLE,
+
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
         ];
     }
 
@@ -236,6 +240,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_STORAGE => $this->importFileResource($resource),
                     Transfer::GROUP_AUTH => $this->importAuthResource($resource),
                     Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
+                    Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
                     default => throw new \Exception('Invalid resource group'),
                 };
             } catch (\Throwable $e) {
@@ -1437,6 +1442,34 @@ class Appwrite extends Destination
                 /** @var Deployment $resource */
                 return $this->importDeployment($resource);
         }
+
+        $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
+    }
+
+    public function importBackupResource(Resource $resource): Resource
+    {
+        /** @var Policy $resource */
+        $params = [
+            'policyId' => $resource->getId(),
+            'name' => $resource->getPolicyName(),
+            'services' => $resource->getServices(),
+            'enabled' => $resource->getEnabled(),
+            'retention' => $resource->getRetention(),
+            'schedule' => $resource->getSchedule(),
+        ];
+
+        if ($resource->getResourceId()) {
+            $params['resourceId'] = $resource->getResourceId();
+            $params['resourceType'] = $resource->getResourceType();
+        }
+
+        $this->call('POST', '/backups/policies', [
+            'Content-Type' => 'application/json',
+            'X-Appwrite-Project' => $this->project,
+            'X-Appwrite-Key' => $this->key,
+        ], $params);
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
 

@@ -89,6 +89,7 @@ abstract class Source extends Target
                 Transfer::GROUP_DATABASES => Transfer::GROUP_DATABASES_RESOURCES,
                 Transfer::GROUP_STORAGE => Transfer::GROUP_STORAGE_RESOURCES,
                 Transfer::GROUP_FUNCTIONS => Transfer::GROUP_FUNCTIONS_RESOURCES,
+                Transfer::GROUP_BACKUPS => Transfer::GROUP_BACKUPS_RESOURCES,
             ];
 
             foreach ($mapping as $group => $resources) {
@@ -117,8 +118,16 @@ abstract class Source extends Target
                 case Transfer::GROUP_FUNCTIONS:
                     $this->exportGroupFunctions($this->getFunctionsBatchSize(), $resources);
                     break;
+                case Transfer::GROUP_BACKUPS:
+                    $this->exportGroupBackups($this->getBackupsBatchSize(), $resources);
+                    break;
             }
         }
+    }
+
+    public function getBackupsBatchSize(): int
+    {
+        return static::$defaultBatchSize;
     }
 
     /**
@@ -152,4 +161,15 @@ abstract class Source extends Target
      * @param array<string> $resources Resources to export
      */
     abstract protected function exportGroupFunctions(int $batchSize, array $resources): void;
+
+    /**
+     * Export Backups Group
+     *
+     * @param int $batchSize
+     * @param array<string> $resources Resources to export
+     */
+    protected function exportGroupBackups(int $batchSize, array $resources): void
+    {
+        // Override in subclasses to support backup policy migration
+    }
 }
