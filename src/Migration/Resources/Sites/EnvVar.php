@@ -11,8 +11,7 @@ class EnvVar extends Resource
         string $id,
         private readonly Site $site,
         private readonly string $key,
-        private readonly string $value,
-        private readonly bool $secret = false
+        private readonly string $value
     ) {
         $this->id = $id;
     }
@@ -27,8 +26,7 @@ class EnvVar extends Resource
             $array['id'],
             Site::fromArray($array['site']),
             $array['key'],
-            $array['value'],
-            $array['secret'] ?? false
+            $array['value']
         );
     }
 
@@ -42,7 +40,6 @@ class EnvVar extends Resource
             'site' => $this->site,
             'key' => $this->key,
             'value' => $this->value,
-            'secret' => $this->secret,
         ];
     }
 
@@ -71,8 +68,4 @@ class EnvVar extends Resource
         return $this->value;
     }
 
-    public function getSecret(): bool
-    {
-        return $this->secret;
-    }
 }

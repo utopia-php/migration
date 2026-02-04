@@ -1655,8 +1655,7 @@ class Appwrite extends Destination
                 $this->sites->createVariable(
                     $resource->getSite()->getId(),
                     $resource->getKey(),
-                    $resource->getValue(),
-                    $resource->getSecret()
+                    $resource->getValue()
                 );
                 break;
             case Resource::TYPE_SITE_DEPLOYMENT:

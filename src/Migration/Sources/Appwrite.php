@@ -1778,8 +1778,7 @@ class Appwrite extends Source
                         $var['$id'],
                         $convertedSite,
                         $var['key'],
-                        $var['value'],
-                        $var['secret'] ?? false
+                        $var['value']
                     );
                 }
             }
