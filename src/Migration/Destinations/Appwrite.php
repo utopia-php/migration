@@ -34,6 +34,7 @@ use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
+use Utopia\Migration\Resources\Backups\Policy;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Index;
@@ -42,7 +43,6 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
-use Utopia\Migration\Resources\Backups\Policy;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Transfer;
@@ -208,6 +208,35 @@ class Appwrite extends Destination
                 throw new \Exception('Missing scope: ' . $scope, previous: $e);
             }
             throw $e;
+        }
+
+        // Backups (uses call() instead of SDK, so needs separate error handling)
+        if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
+            try {
+                $scope = 'policies.read';
+                $this->call('GET', '/backups/policies', [
+                    'Content-Type' => 'application/json',
+                    'X-Appwrite-Project' => $this->project,
+                    'X-Appwrite-Key' => $this->key,
+                ]);
+
+                $scope = 'policies.write';
+                $this->call('POST', '/backups/policies', [
+                    'Content-Type' => 'application/json',
+                    'X-Appwrite-Project' => $this->project,
+                    'X-Appwrite-Key' => $this->key,
+                ], []);
+            } catch (\Throwable $e) {
+                $body = \json_decode($e->getMessage(), true);
+                if (\is_array($body) && ($body['code'] ?? 0) === 401) {
+                    $type = $body['type'] ?? '';
+                    if ($type === 'additional_resource_not_allowed') {
+                        throw new \Exception('Backups are not available on the destination project\'s plan', previous: $e);
+                    }
+                    throw new \Exception('Missing scope: ' . $scope, previous: $e);
+                }
+                throw $e;
+            }
         }
 
         return [];
@@ -1448,28 +1477,54 @@ class Appwrite extends Destination
         return $resource;
     }
 
+    /**
+     * @throws \Exception
+     */
     public function importBackupResource(Resource $resource): Resource
     {
-        /** @var Policy $resource */
-        $params = [
-            'policyId' => $resource->getId(),
-            'name' => $resource->getPolicyName(),
-            'services' => $resource->getServices(),
-            'enabled' => $resource->getEnabled(),
-            'retention' => $resource->getRetention(),
-            'schedule' => $resource->getSchedule(),
-        ];
+        switch ($resource->getName()) {
+            case Resource::TYPE_BACKUP_POLICY:
+                /** @var Policy $resource */
+                $params = [
+                    'policyId' => $resource->getId(),
+                    'name' => $resource->getPolicyName(),
+                    'services' => $resource->getServices(),
+                    'enabled' => $resource->getEnabled(),
+                    'retention' => $resource->getRetention(),
+                    'schedule' => $resource->getSchedule(),
+                ];
 
-        if ($resource->getResourceId()) {
-            $params['resourceId'] = $resource->getResourceId();
-            $params['resourceType'] = $resource->getResourceType();
+                if ($resource->getResourceId()) {
+                    $collection = match ($resource->getResourceType()) {
+                        Resource::TYPE_DATABASE => 'databases',
+                        Resource::TYPE_BUCKET => 'buckets',
+                        Resource::TYPE_FUNCTION => null, // Functions don't support per-resource backup policies
+                        default => null,
+                    };
+
+                    if ($collection !== null) {
+                        $doc = $this->database->getDocument($collection, $resource->getResourceId());
+                        if ($doc->isEmpty()) {
+                            throw new Exception(
+                                resourceName: $resource->getName(),
+                                resourceGroup: $resource->getGroup(),
+                                resourceId: $resource->getId(),
+                                message: 'Referenced ' . $resource->getResourceType() . ' "' . $resource->getResourceId() . '" not found on destination',
+                            );
+                        }
+                    }
+
+                    $params['resourceId'] = $resource->getResourceId();
+                    $params['resourceType'] = $resource->getResourceType();
+                }
+
+                $this->call('POST', '/backups/policies', [
+                    'Content-Type' => 'application/json',
+                    'X-Appwrite-Project' => $this->project,
+                    'X-Appwrite-Key' => $this->key,
+                ], $params);
+                break;
         }
-
-        $this->call('POST', '/backups/policies', [
-            'Content-Type' => 'application/json',
-            'X-Appwrite-Project' => $this->project,
-            'X-Appwrite-Key' => $this->key,
-        ], $params);
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
 

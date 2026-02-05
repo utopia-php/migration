@@ -18,6 +18,7 @@ use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
+use Utopia\Migration\Resources\Backups\Policy;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Columns\Boolean;
 use Utopia\Migration\Resources\Database\Columns\DateTime;
@@ -39,7 +40,6 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
-use Utopia\Migration\Resources\Backups\Policy;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
@@ -143,8 +143,6 @@ class Appwrite extends Source
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_ENVIRONMENT_VARIABLE,
 
-            // Settings
-
             // Backups
             Resource::TYPE_BACKUP_POLICY,
         ];
@@ -183,7 +181,7 @@ class Appwrite extends Source
             $this->reportDatabases($resources, $report, $resourceIds);
             $this->reportStorage($resources, $report, $resourceIds);
             $this->reportFunctions($resources, $report, $resourceIds);
-            $this->reportBackups($resources, $report);
+            $this->reportBackups($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1636,7 +1634,12 @@ class Appwrite extends Source
         }
     }
 
-    private function reportBackups(array $resources, array &$report): void
+    /**
+     * @param array<string> $resources
+     * @param array<string, mixed> $report
+     * @param array<string, array<string>> $resourceIds
+     */
+    private function reportBackups(array $resources, array &$report, array $resourceIds = []): void
     {
         if (!\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
             return;
@@ -1648,12 +1651,16 @@ class Appwrite extends Source
             ]);
 
             $report[Resource::TYPE_BACKUP_POLICY] = $response['total'] ?? 0;
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Backup policies are Cloud-only, skip gracefully for self-hosted
             $report[Resource::TYPE_BACKUP_POLICY] = 0;
         }
     }
 
+    /**
+     * @param int $batchSize
+     * @throws \Exception
+     */
     private function exportBackupPolicies(int $batchSize): void
     {
         $response = $this->call('GET', '/backups/policies', [

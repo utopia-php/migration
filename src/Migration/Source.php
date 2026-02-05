@@ -36,6 +36,11 @@ abstract class Source extends Target
         return static::$defaultBatchSize;
     }
 
+    public function getBackupsBatchSize(): int
+    {
+        return static::$defaultBatchSize;
+    }
+
     /**
      * @param array<Resource> $resources
      * @return void
@@ -125,11 +130,6 @@ abstract class Source extends Target
         }
     }
 
-    public function getBackupsBatchSize(): int
-    {
-        return static::$defaultBatchSize;
-    }
-
     /**
      * Export Auth Group
      *
@@ -168,8 +168,5 @@ abstract class Source extends Target
      * @param int $batchSize
      * @param array<string> $resources Resources to export
      */
-    protected function exportGroupBackups(int $batchSize, array $resources): void
-    {
-        // Override in subclasses to support backup policy migration
-    }
+    abstract protected function exportGroupBackups(int $batchSize, array $resources): void;
 }

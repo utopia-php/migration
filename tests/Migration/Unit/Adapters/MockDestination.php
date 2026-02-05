@@ -48,6 +48,7 @@ class MockDestination extends Destination
             Resource::TYPE_ENVIRONMENT_VARIABLE,
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
+            Resource::TYPE_BACKUP_POLICY,
         ];
     }
 

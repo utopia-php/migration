@@ -54,6 +54,7 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
 
+    // Backups
     public const TYPE_BACKUP_POLICY = 'backup-policy';
 
     // legacy terminologies
