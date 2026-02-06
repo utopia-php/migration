@@ -1737,7 +1737,7 @@ class Appwrite extends Destination
                 !empty($data['cc']) ? $data['cc'] : null,
                 !empty($data['bcc']) ? $data['bcc'] : null,
                 null,
-                true,
+                false,
                 $data['html'] ?? null,
             ),
             'sms' => $this->messaging->createSMS(
@@ -1746,7 +1746,7 @@ class Appwrite extends Destination
                 $topics,
                 $users,
                 $targets,
-                true,
+                false,
             ),
             'push' => $this->messaging->createPush(
                 $id,
@@ -1763,7 +1763,7 @@ class Appwrite extends Destination
                 $data['color'] ?? null,
                 $data['tag'] ?? null,
                 $data['badge'] ?? null,
-                true,
+                false,
             ),
             default => throw new \Exception('Unknown message provider type: ' . $resource->getProviderType()),
         };
