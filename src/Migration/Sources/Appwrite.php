@@ -7,6 +7,7 @@ use Appwrite\Client;
 use Appwrite\Query;
 use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
+use Appwrite\Services\Messaging;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
@@ -39,6 +40,10 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Messaging\Message;
+use Utopia\Migration\Resources\Messaging\Provider;
+use Utopia\Migration\Resources\Messaging\Subscriber;
+use Utopia\Migration\Resources\Messaging\Topic;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
@@ -64,6 +69,8 @@ class Appwrite extends Source
 
     private Functions $functions;
 
+    private Messaging $messaging;
+
     private Reader $database;
 
     /**
@@ -86,6 +93,7 @@ class Appwrite extends Source
         $this->teams = new Teams($this->client);
         $this->storage = new Storage($this->client);
         $this->functions = new Functions($this->client);
+        $this->messaging = new Messaging($this->client);
 
         $this->headers['x-appwrite-project'] = $this->project;
         $this->headers['x-appwrite-key'] = $this->key;
@@ -142,6 +150,12 @@ class Appwrite extends Source
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_ENVIRONMENT_VARIABLE,
 
+            // Messaging
+            Resource::TYPE_PROVIDER,
+            Resource::TYPE_TOPIC,
+            Resource::TYPE_SUBSCRIBER,
+            Resource::TYPE_MESSAGE,
+
             // Settings
         ];
     }
@@ -179,6 +193,7 @@ class Appwrite extends Source
             $this->reportDatabases($resources, $report, $resourceIds);
             $this->reportStorage($resources, $report, $resourceIds);
             $this->reportFunctions($resources, $report, $resourceIds);
+            $this->reportMessaging($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1610,6 +1625,316 @@ class Appwrite extends Source
 
             if ($end > $fileSize) {
                 $end = $fileSize - 1;
+            }
+        }
+    }
+
+    /**
+     * @param array<string> $resources
+     * @param array<string, int> $report
+     * @param array<string, array<string>> $resourceIds
+     */
+    private function reportMessaging(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (\in_array(Resource::TYPE_PROVIDER, $resources)) {
+            $providerQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_PROVIDER,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            $report[Resource::TYPE_PROVIDER] = $this->messaging->listProviders($providerQueries)['total'];
+        }
+
+        if (\in_array(Resource::TYPE_TOPIC, $resources)) {
+            $topicQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_TOPIC,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            $report[Resource::TYPE_TOPIC] = $this->messaging->listTopics($topicQueries)['total'];
+        }
+
+        if (\in_array(Resource::TYPE_SUBSCRIBER, $resources)) {
+            $subscriberTotal = 0;
+            $lastTopic = null;
+
+            while (true) {
+                $topicQueries = [Query::limit(self::DEFAULT_PAGE_LIMIT)];
+                if ($lastTopic) {
+                    $topicQueries[] = Query::cursorAfter($lastTopic);
+                }
+
+                $topicResponse = $this->messaging->listTopics($topicQueries);
+                if ($topicResponse['total'] == 0 || empty($topicResponse['topics'])) {
+                    break;
+                }
+
+                foreach ($topicResponse['topics'] as $topic) {
+                    $subscriberTotal += $this->messaging->listSubscribers($topic['$id'], [Query::limit(1)])['total'];
+                    $lastTopic = $topic['$id'];
+                }
+
+                if (\count($topicResponse['topics']) < self::DEFAULT_PAGE_LIMIT) {
+                    break;
+                }
+            }
+
+            $report[Resource::TYPE_SUBSCRIBER] = $subscriberTotal;
+        }
+
+        if (\in_array(Resource::TYPE_MESSAGE, $resources)) {
+            $messageQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_MESSAGE,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            $report[Resource::TYPE_MESSAGE] = $this->messaging->listMessages($messageQueries)['total'];
+        }
+    }
+
+    protected function exportGroupMessaging(int $batchSize, array $resources): void
+    {
+        try {
+            if (\in_array(Resource::TYPE_PROVIDER, $resources)) {
+                $this->exportProviders($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_PROVIDER,
+                Transfer::GROUP_MESSAGING,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_TOPIC, $resources)) {
+                $this->exportTopics($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_TOPIC,
+                Transfer::GROUP_MESSAGING,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_SUBSCRIBER, $resources)) {
+                $this->exportSubscribers($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_SUBSCRIBER,
+                Transfer::GROUP_MESSAGING,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_MESSAGE, $resources)) {
+                $this->exportMessages($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_MESSAGE,
+                Transfer::GROUP_MESSAGING,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+    }
+
+    private function exportProviders(int $batchSize): void
+    {
+        $lastDocument = null;
+
+        while (true) {
+            $providers = [];
+
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_PROVIDER) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastDocument) {
+                $queries[] = Query::cursorAfter($lastDocument);
+            }
+
+            $response = $this->messaging->listProviders($queries);
+
+            if ($response['total'] == 0) {
+                break;
+            }
+
+            foreach ($response['providers'] as $provider) {
+                $providers[] = new Provider(
+                    $provider['$id'],
+                    $provider['name'],
+                    $provider['provider'],
+                    $provider['type'],
+                    $provider['enabled'],
+                    $provider['credentials'] ?? [],
+                    $provider['options'] ?? [],
+                    $provider['$createdAt'] ?? '',
+                    $provider['$updatedAt'] ?? '',
+                );
+
+                $lastDocument = $provider['$id'];
+            }
+
+            $this->callback($providers);
+
+            if (\count($providers) < $batchSize) {
+                break;
+            }
+        }
+    }
+
+    private function exportTopics(int $batchSize): void
+    {
+        $lastDocument = null;
+
+        while (true) {
+            $topics = [];
+
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_TOPIC) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastDocument) {
+                $queries[] = Query::cursorAfter($lastDocument);
+            }
+
+            $response = $this->messaging->listTopics($queries);
+
+            if ($response['total'] == 0) {
+                break;
+            }
+
+            foreach ($response['topics'] as $topic) {
+                $topics[] = new Topic(
+                    $topic['$id'],
+                    $topic['name'],
+                    $topic['subscribe'] ?? [],
+                    $topic['$createdAt'] ?? '',
+                    $topic['$updatedAt'] ?? '',
+                );
+
+                $lastDocument = $topic['$id'];
+            }
+
+            $this->callback($topics);
+
+            if (\count($topics) < $batchSize) {
+                break;
+            }
+        }
+    }
+
+    private function exportSubscribers(int $batchSize): void
+    {
+        $topics = $this->cache->get(Topic::getName());
+
+        foreach ($topics as $topic) {
+            /** @var Topic $topic */
+            $lastDocument = null;
+
+            while (true) {
+                $subscribers = [];
+
+                $queries = [Query::limit($batchSize)];
+
+                if ($lastDocument) {
+                    $queries[] = Query::cursorAfter($lastDocument);
+                }
+
+                $response = $this->messaging->listSubscribers($topic->getId(), $queries);
+
+                if ($response['total'] == 0) {
+                    break;
+                }
+
+                foreach ($response['subscribers'] as $subscriber) {
+                    $subscribers[] = new Subscriber(
+                        $subscriber['$id'],
+                        $subscriber['topicId'],
+                        $subscriber['targetId'],
+                        $subscriber['userId'] ?? '',
+                        $subscriber['userName'] ?? '',
+                        $subscriber['providerType'] ?? '',
+                        $subscriber['$createdAt'] ?? '',
+                        $subscriber['$updatedAt'] ?? '',
+                    );
+
+                    $lastDocument = $subscriber['$id'];
+                }
+
+                $this->callback($subscribers);
+
+                if (\count($subscribers) < $batchSize) {
+                    break;
+                }
+            }
+        }
+    }
+
+    private function exportMessages(int $batchSize): void
+    {
+        $lastDocument = null;
+
+        while (true) {
+            $messages = [];
+
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_MESSAGE) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastDocument) {
+                $queries[] = Query::cursorAfter($lastDocument);
+            }
+
+            $response = $this->messaging->listMessages($queries);
+
+            if ($response['total'] == 0) {
+                break;
+            }
+
+            foreach ($response['messages'] as $message) {
+                $messages[] = new Message(
+                    $message['$id'],
+                    $message['providerType'] ?? '',
+                    $message['topics'] ?? [],
+                    $message['users'] ?? [],
+                    $message['targets'] ?? [],
+                    $message['data'] ?? [],
+                    $message['status'] ?? '',
+                    $message['scheduledAt'] ?? '',
+                    $message['$createdAt'] ?? '',
+                    $message['$updatedAt'] ?? '',
+                );
+
+                $lastDocument = $message['$id'];
+            }
+
+            $this->callback($messages);
+
+            if (\count($messages) < $batchSize) {
+                break;
             }
         }
     }
