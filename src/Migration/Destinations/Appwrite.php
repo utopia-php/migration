@@ -228,13 +228,17 @@ class Appwrite extends Destination
                 ], []);
             } catch (\Throwable $e) {
                 $body = \json_decode($e->getMessage(), true);
-                if (\is_array($body) && ($body['code'] ?? 0) === 401) {
-                    $type = $body['type'] ?? '';
-                    if ($type === 'additional_resource_not_allowed') {
-                        throw new \Exception('Backups are not available on the destination project\'s plan', previous: $e);
-                    }
+                $code = $body['code'] ?? 0;
+                $type = $body['type'] ?? '';
+
+                if ($type === 'additional_resource_not_allowed') {
+                    throw new \Exception('Backups are not available on the destination project\'s plan', previous: $e);
+                }
+
+                if ($code === 401 || $code === 403) {
                     throw new \Exception('Missing scope: ' . $scope, previous: $e);
                 }
+
                 throw $e;
             }
         }
@@ -1494,10 +1498,10 @@ class Appwrite extends Destination
                     $collection = match ($resource->getResourceType()) {
                         Resource::TYPE_DATABASE => 'databases',
                         Resource::TYPE_BUCKET => 'buckets',
-                        Resource::TYPE_FUNCTION => null, // Functions don't support per-resource backup policies
-                        default => null,
+                        default => null, // Only databases and buckets support per-resource backup policies
                     };
 
+                    // Only pass resourceId for supported resource types
                     if ($collection !== null) {
                         $doc = $this->database->getDocument($collection, $resource->getResourceId());
                         if ($doc->isEmpty()) {
@@ -1508,10 +1512,9 @@ class Appwrite extends Destination
                                 message: 'Referenced ' . $resource->getResourceType() . ' "' . $resource->getResourceId() . '" not found on destination',
                             );
                         }
-                    }
 
-                    $params['resourceId'] = $resource->getResourceId();
-                    $params['resourceType'] = $resource->getResourceType();
+                        $params['resourceId'] = $resource->getResourceId();
+                    }
                 }
 
                 $this->call('POST', '/backups/policies', [
