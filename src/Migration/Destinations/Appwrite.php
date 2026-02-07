@@ -1498,10 +1498,9 @@ class Appwrite extends Destination
                     $collection = match ($resource->getResourceType()) {
                         Resource::TYPE_DATABASE => 'databases',
                         Resource::TYPE_BUCKET => 'buckets',
-                        default => null, // Only databases and buckets support per-resource backup policies
+                        default => null,
                     };
 
-                    // Only pass resourceId for supported resource types
                     if ($collection !== null) {
                         $doc = $this->database->getDocument($collection, $resource->getResourceId());
                         if ($doc->isEmpty()) {
@@ -1514,6 +1513,12 @@ class Appwrite extends Destination
                         }
 
                         $params['resourceId'] = $resource->getResourceId();
+                    } elseif ($resource->getResourceType()) {
+                        // Per-resource backup policies only supported for databases and buckets
+                        $resource->setStatus(
+                            Resource::STATUS_WARNING,
+                            'Per-resource backup policies not supported for resource type: ' . $resource->getResourceType() . '. Created as service-level policy instead.'
+                        );
                     }
                 }
 

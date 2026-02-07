@@ -1651,8 +1651,16 @@ class Appwrite extends Source
             ]);
 
             $report[Resource::TYPE_BACKUP_POLICY] = $response['total'] ?? 0;
-        } catch (\Throwable) {
-            // Backup policies are Cloud-only, skip gracefully for self-hosted
+        } catch (\Throwable $e) {
+            $body = \json_decode($e->getMessage(), true);
+            $code = $body['code'] ?? 0;
+
+            // Re-throw permission errors as they indicate configuration issues
+            if ($code === 401 || $code === 403) {
+                throw new \Exception('Missing permission to access backup policies: ' . $e->getMessage(), previous: $e);
+            }
+
+            // Feature not available (404/501) - skip gracefully for self-hosted
             $report[Resource::TYPE_BACKUP_POLICY] = 0;
         }
     }
