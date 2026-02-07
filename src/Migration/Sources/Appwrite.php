@@ -1655,12 +1655,13 @@ class Appwrite extends Source
             $body = \json_decode($e->getMessage(), true);
             $code = $body['code'] ?? 0;
 
-            // Re-throw permission errors as they indicate configuration issues
+            // Re-throw permission errors (401/403) as they indicate configuration issues
             if ($code === 401 || $code === 403) {
                 throw new \Exception('Missing permission to access backup policies: ' . $e->getMessage(), previous: $e);
             }
 
-            // Feature not available (404/501) - skip gracefully for self-hosted
+            // For other errors (404/501), treat as feature not available - skip gracefully
+            // Backup policies are Cloud-only, may not be available on self-hosted
             $report[Resource::TYPE_BACKUP_POLICY] = 0;
         }
     }

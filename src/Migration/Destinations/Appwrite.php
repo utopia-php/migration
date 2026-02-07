@@ -210,7 +210,7 @@ class Appwrite extends Destination
             throw $e;
         }
 
-        // Backups (uses call() instead of SDK, so needs separate error handling)
+        // Backups use call() instead of the SDK, so they need separate error handling.
         if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
             try {
                 $scope = 'policies.read';
@@ -1494,32 +1494,42 @@ class Appwrite extends Destination
                     'schedule' => $resource->getSchedule(),
                 ];
 
-                if ($resource->getResourceId()) {
-                    $collection = match ($resource->getResourceType()) {
+                // Validate services - only databases, buckets, and functions are currently supported
+                $supportedServices = [Transfer::GROUP_DATABASES, Transfer::GROUP_STORAGE, Transfer::GROUP_FUNCTIONS];
+                $unsupportedServices = array_diff($resource->getServices(), $supportedServices);
+                if (!empty($unsupportedServices)) {
+                    throw new Exception(
+                        resourceName: $resource->getName(),
+                        resourceGroup: $resource->getGroup(),
+                        resourceId: $resource->getId(),
+                        message: 'Unsupported services in backup policy: ' . implode(', ', $unsupportedServices),
+                    );
+                }
+
+                $resourceType = $resource->getResourceType();
+                $resourceId = $resource->getResourceId();
+
+                if (!empty($resourceId)) {
+                    // Only databases and buckets support per-resource backup policies
+                    $collectionMap = [
                         Resource::TYPE_DATABASE => 'databases',
                         Resource::TYPE_BUCKET => 'buckets',
-                        default => null,
-                    };
+                    ];
 
-                    if ($collection !== null) {
-                        $doc = $this->database->getDocument($collection, $resource->getResourceId());
+                    if (isset($collectionMap[$resourceType])) {
+                        // Validate resource exists on destination
+                        $doc = $this->database->getDocument($collectionMap[$resourceType], $resourceId);
                         if ($doc->isEmpty()) {
                             throw new Exception(
                                 resourceName: $resource->getName(),
                                 resourceGroup: $resource->getGroup(),
                                 resourceId: $resource->getId(),
-                                message: 'Referenced ' . $resource->getResourceType() . ' "' . $resource->getResourceId() . '" not found on destination',
+                                message: 'Referenced ' . $resourceType . ' "' . $resourceId . '" not found on destination',
                             );
                         }
-
-                        $params['resourceId'] = $resource->getResourceId();
-                    } elseif ($resource->getResourceType()) {
-                        // Per-resource backup policies only supported for databases and buckets
-                        $resource->setStatus(
-                            Resource::STATUS_WARNING,
-                            'Per-resource backup policies not supported for resource type: ' . $resource->getResourceType() . '. Created as service-level policy instead.'
-                        );
                     }
+
+                    $params['resourceId'] = $resourceId;
                 }
 
                 $this->call('POST', '/backups/policies', [
