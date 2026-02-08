@@ -213,18 +213,11 @@ class API implements Reader
 
     /**
      * @param string $column
-     * @return Query
+     * @return string
      */
     public function querySelect(string $column): string
     {
         return Query::select([$column]);
-
-        return new Query('select', $column);
-
-        /**
-         * todo fix Query::select to get attribute not array
-         */
-        return Query::select($column);
     }
 
     /**
