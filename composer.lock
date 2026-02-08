@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6bc19f1cb5a8a9df0b603b6439a50c1d",
+    "content-hash": "29e79affc489fb76f06516f9821306d2",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -50,16 +50,16 @@
         },
         {
             "name": "brick/math",
-            "version": "0.14.3",
+            "version": "0.14.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brick/math.git",
-                "reference": "6af96b11de3f7d99730c118c200418c48274edb4"
+                "reference": "f05858549e5f9d7bb45875a75583240a38a281d0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brick/math/zipball/6af96b11de3f7d99730c118c200418c48274edb4",
-                "reference": "6af96b11de3f7d99730c118c200418c48274edb4",
+                "url": "https://api.github.com/repos/brick/math/zipball/f05858549e5f9d7bb45875a75583240a38a281d0",
+                "reference": "f05858549e5f9d7bb45875a75583240a38a281d0",
                 "shasum": ""
             },
             "require": {
@@ -98,7 +98,7 @@
             ],
             "support": {
                 "issues": "https://github.com/brick/math/issues",
-                "source": "https://github.com/brick/math/tree/0.14.3"
+                "source": "https://github.com/brick/math/tree/0.14.1"
             },
             "funding": [
                 {
@@ -106,7 +106,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-01T15:18:05+00:00"
+            "time": "2025-11-24T14:40:29+00:00"
         },
         {
             "name": "composer/semver",
@@ -2276,16 +2276,16 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "dev-joins8",
+            "version": "5.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "ff490a11574fc267b473168934711c2605343e61"
+                "reference": "221794bd7de027f9177cd325209e8162ca2520cb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/ff490a11574fc267b473168934711c2605343e61",
-                "reference": "ff490a11574fc267b473168934711c2605343e61",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/221794bd7de027f9177cd325209e8162ca2520cb",
+                "reference": "221794bd7de027f9177cd325209e8162ca2520cb",
                 "shasum": ""
             },
             "require": {
@@ -2328,9 +2328,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/joins8"
+                "source": "https://github.com/utopia-php/database/tree/5.0.0"
             },
-            "time": "2026-02-02T10:23:41+00:00"
+            "time": "2026-01-30T06:17:53+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -5032,18 +5032,9 @@
             "time": "2025-12-27T19:49:13+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "utopia-php/database",
-            "version": "dev-joins8",
-            "alias": "5.0.0",
-            "alias_normalized": "5.0.0.0"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "utopia-php/database": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
