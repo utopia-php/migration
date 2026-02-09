@@ -1100,8 +1100,6 @@ class Appwrite extends Destination
                 "/storage/buckets/{$bucketId}/files",
                 [
                     'content-type' => 'multipart/form-data',
-                    'X-Appwrite-Project' => $this->project,
-                    'X-Appwrite-Key' => $this->key,
                 ],
                 [
                     'bucketId' => $bucketId,
@@ -1123,8 +1121,6 @@ class Appwrite extends Destination
             [
                 'content-type' => 'multipart/form-data',
                 'content-range' => 'bytes ' . ($file->getStart()) . '-' . ($file->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $file->getEnd()) . '/' . $file->getSize(),
-                'x-appwrite-project' => $this->project,
-                'x-appwrite-key' => $this->key,
             ],
             [
                 'bucketId' => $bucketId,

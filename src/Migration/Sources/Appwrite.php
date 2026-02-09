@@ -115,8 +115,8 @@ class Appwrite extends Source
         $this->storage = new Storage($this->client);
         $this->functions = new Functions($this->client);
 
-        $this->headers['X-Appwrite-Project'] = $this->project;
-        $this->headers['X-Appwrite-Key'] = $this->key;
+        $this->headers['x-appwrite-project'] = $this->project;
+        $this->headers['x-appwrite-key'] = $this->key;
 
         $this->getDatabasesDB = $getDatabasesDB;
 
@@ -212,8 +212,8 @@ class Appwrite extends Source
                 'GET',
                 '/health/version',
                 [
-                    'X-Appwrite-Key' => '',
-                    'X-Appwrite-Project' => '',
+                    'x-appwrite-key' => '',
+                    'x-appwrite-project' => '',
                 ]
             )['version'];
         } catch (\Throwable $e) {
