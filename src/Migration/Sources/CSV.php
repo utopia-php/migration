@@ -373,6 +373,14 @@ class CSV extends Source
     }
 
     /**
+     * @throws \Exception
+     */
+    protected function exportGroupMessaging(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    /**
      * @param callable(resource $stream, string $delimiter): void $callback
      * @return void
      * @throws \Exception

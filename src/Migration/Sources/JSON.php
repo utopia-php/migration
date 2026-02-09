@@ -202,6 +202,14 @@ class JSON extends Source
     }
 
     /**
+     * @throws \Exception
+     */
+    protected function exportGroupMessaging(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    /**
      * @param callable(Items): void $callback
      * @throws \Exception|JsonMachineException
      */

@@ -16,6 +16,10 @@ class Message extends Resource
      * @param array<string, mixed> $data
      * @param string $messageStatus
      * @param string $scheduledAt
+     * @param string $deliveredAt
+     * @param array<string> $deliveryErrors
+     * @param int $deliveredTotal
+     * @param array<string, string> $targetUserMap Source target ID => source user ID mapping for ID resolution
      */
     public function __construct(
         string $id,
@@ -26,6 +30,10 @@ class Message extends Resource
         private readonly array $data = [],
         private readonly string $messageStatus = '',
         private readonly string $scheduledAt = '',
+        private readonly string $deliveredAt = '',
+        private readonly array $deliveryErrors = [],
+        private readonly int $deliveredTotal = 0,
+        private readonly array $targetUserMap = [],
         protected string $createdAt = '',
         protected string $updatedAt = '',
     ) {
@@ -47,6 +55,10 @@ class Message extends Resource
             $array['data'] ?? [],
             $array['messageStatus'] ?? $array['status'] ?? '',
             $array['scheduledAt'] ?? '',
+            $array['deliveredAt'] ?? '',
+            $array['deliveryErrors'] ?? [],
+            $array['deliveredTotal'] ?? 0,
+            $array['targetUserMap'] ?? [],
             $array['createdAt'] ?? '',
             $array['updatedAt'] ?? '',
         );
@@ -66,6 +78,10 @@ class Message extends Resource
             'data' => $this->data,
             'messageStatus' => $this->messageStatus,
             'scheduledAt' => $this->scheduledAt,
+            'deliveredAt' => $this->deliveredAt,
+            'deliveryErrors' => $this->deliveryErrors,
+            'deliveredTotal' => $this->deliveredTotal,
+            'targetUserMap' => $this->targetUserMap,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
         ];
@@ -126,5 +142,31 @@ class Message extends Resource
     public function getScheduledAt(): string
     {
         return $this->scheduledAt;
+    }
+
+    public function getDeliveredAt(): string
+    {
+        return $this->deliveredAt;
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function getDeliveryErrors(): array
+    {
+        return $this->deliveryErrors;
+    }
+
+    public function getDeliveredTotal(): int
+    {
+        return $this->deliveredTotal;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getTargetUserMap(): array
+    {
+        return $this->targetUserMap;
     }
 }

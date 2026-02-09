@@ -1593,7 +1593,7 @@ class Appwrite extends Destination
      * @throws AppwriteException
      * @throws \Exception
      */
-    protected function createProvider(Provider $resource): void
+    protected function createProvider(Provider $resource): bool
     {
         $credentials = $resource->getCredentials();
         $options = $resource->getOptions();
@@ -1608,30 +1608,30 @@ class Appwrite extends Destination
                 $credentials['apiKey'] ?? null,
                 $credentials['domain'] ?? null,
                 $credentials['isEuRegion'] ?? null,
-                $options['fromName'] ?? null,
-                $options['fromEmail'] ?? null,
-                $options['replyToName'] ?? null,
-                $options['replyToEmail'] ?? null,
+                $options['fromName'] ?: null,
+                $options['fromEmail'] ?: null,
+                $options['replyToName'] ?: null,
+                $options['replyToEmail'] ?: null,
                 $enabled,
             ),
             'sendgrid' => $this->messaging->createSendgridProvider(
                 $id,
                 $name,
                 $credentials['apiKey'] ?? null,
-                $options['fromName'] ?? null,
-                $options['fromEmail'] ?? null,
-                $options['replyToName'] ?? null,
-                $options['replyToEmail'] ?? null,
+                $options['fromName'] ?: null,
+                $options['fromEmail'] ?: null,
+                $options['replyToName'] ?: null,
+                $options['replyToEmail'] ?: null,
                 $enabled,
             ),
             'resend' => $this->messaging->createResendProvider(
                 $id,
                 $name,
                 $credentials['apiKey'] ?? null,
-                $options['fromName'] ?? null,
-                $options['fromEmail'] ?? null,
-                $options['replyToName'] ?? null,
-                $options['replyToEmail'] ?? null,
+                $options['fromName'] ?: null,
+                $options['fromEmail'] ?: null,
+                $options['replyToName'] ?: null,
+                $options['replyToEmail'] ?: null,
                 $enabled,
             ),
             'smtp' => $this->messaging->createSMTPProvider(
@@ -1639,8 +1639,8 @@ class Appwrite extends Destination
                 $name,
                 $credentials['host'] ?? '',
                 $credentials['port'] ?? null,
-                $credentials['username'] ?? null,
-                $credentials['password'] ?? null,
+                $credentials['username'] ?: null,
+                $credentials['password'] ?: null,
                 match ($options['encryption'] ?? '') {
                     'ssl' => SmtpEncryption::SSL(),
                     'tls' => SmtpEncryption::TLS(),
@@ -1648,10 +1648,10 @@ class Appwrite extends Destination
                 },
                 $options['autoTLS'] ?? null,
                 $options['mailer'] ?: null,
-                $options['fromName'] ?? null,
-                $options['fromEmail'] ?? null,
-                $options['replyToName'] ?? null,
-                $options['replyToEmail'] ?? null,
+                $options['fromName'] ?: null,
+                $options['fromEmail'] ?: null,
+                $options['replyToName'] ?: null,
+                $options['replyToEmail'] ?: null,
                 $enabled,
             ),
             'msg91' => $this->messaging->createMsg91Provider(
@@ -1665,7 +1665,7 @@ class Appwrite extends Destination
             'telesign' => $this->messaging->createTelesignProvider(
                 $id,
                 $name,
-                $options['from'] ?? null,
+                $options['from'] ?: null,
                 $credentials['customerId'] ?? null,
                 $credentials['apiKey'] ?? null,
                 $enabled,
@@ -1673,7 +1673,7 @@ class Appwrite extends Destination
             'textmagic' => $this->messaging->createTextmagicProvider(
                 $id,
                 $name,
-                $options['from'] ?? null,
+                $options['from'] ?: null,
                 $credentials['username'] ?? null,
                 $credentials['apiKey'] ?? null,
                 $enabled,
@@ -1681,7 +1681,7 @@ class Appwrite extends Destination
             'twilio' => $this->messaging->createTwilioProvider(
                 $id,
                 $name,
-                $options['from'] ?? null,
+                $options['from'] ?: null,
                 $credentials['accountSid'] ?? null,
                 $credentials['authToken'] ?? null,
                 $enabled,
@@ -1689,7 +1689,7 @@ class Appwrite extends Destination
             'vonage' => $this->messaging->createVonageProvider(
                 $id,
                 $name,
-                $options['from'] ?? null,
+                $options['from'] ?: null,
                 $credentials['apiKey'] ?? null,
                 $credentials['apiSecret'] ?? null,
                 $enabled,
@@ -1712,50 +1712,105 @@ class Appwrite extends Destination
             ),
             default => throw new \Exception('Unknown provider: ' . $resource->getProvider()),
         };
+
+        return true;
     }
 
     /**
      * @throws AppwriteException
      * @throws \Exception
      */
-    protected function createMessage(Message $resource): void
+    protected function createMessage(Message $resource): bool
     {
-        $id = $resource->getId();
+        $resolvedTargets = $this->resolveMessageTargets($resource);
+        $status = $resource->getMessageStatus();
+
+        // Use SDK for scheduled messages so the platform schedule document is created.
+        // Fall back to draft if scheduledAt is missing or in the past.
+        if ($status === 'scheduled') {
+            $scheduledAt = $resource->getScheduledAt();
+
+            if (!empty($scheduledAt) && new \DateTime($scheduledAt) > new \DateTime()) {
+                return $this->createScheduledMessage($resource, $resolvedTargets);
+            }
+
+            $status = 'draft';
+        }
+
+        // Processing messages have no worker on the destination, import as draft.
+        if ($status === 'processing') {
+            $status = 'draft';
+        }
+
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
+        $this->database->createDocument('messages', new UtopiaDocument([
+            '$id' => $resource->getId(),
+            '$createdAt' => $createdAt,
+            '$updatedAt' => $updatedAt,
+            'providerType' => $resource->getProviderType(),
+            'topics' => $resource->getTopics(),
+            'users' => $resource->getUsers(),
+            'targets' => $resolvedTargets,
+            'scheduledAt' => null,
+            'deliveredAt' => $resource->getDeliveredAt() ?: null,
+            'deliveryErrors' => $resource->getDeliveryErrors(),
+            'deliveredTotal' => $resource->getDeliveredTotal(),
+            'data' => $resource->getData(),
+            'status' => $status,
+        ]));
+
+        return true;
+    }
+
+    /**
+     * Create a scheduled message via SDK so the platform schedule document is created.
+     *
+     * @param array<string> $resolvedTargets
+     * @throws AppwriteException
+     * @throws \Exception
+     */
+    protected function createScheduledMessage(Message $resource, array $resolvedTargets): bool
+    {
         $data = $resource->getData();
         $topics = $resource->getTopics() ?: null;
         $users = $resource->getUsers() ?: null;
-        $targets = $resource->getTargets() ?: null;
+        $targets = $resolvedTargets ?: null;
+        $scheduledAt = $resource->getScheduledAt();
 
         match ($resource->getProviderType()) {
             'email' => $this->messaging->createEmail(
-                $id,
+                $resource->getId(),
                 $data['subject'] ?? '',
                 $data['content'] ?? '',
                 $topics,
                 $users,
                 $targets,
-                !empty($data['cc']) ? $data['cc'] : null,
-                !empty($data['bcc']) ? $data['bcc'] : null,
+                $data['cc'] ?? null,
+                $data['bcc'] ?? null,
                 null,
                 false,
                 $data['html'] ?? null,
+                $scheduledAt,
             ),
             'sms' => $this->messaging->createSMS(
-                $id,
+                $resource->getId(),
                 $data['content'] ?? '',
                 $topics,
                 $users,
                 $targets,
                 false,
+                $scheduledAt,
             ),
             'push' => $this->messaging->createPush(
-                $id,
+                $resource->getId(),
                 $data['title'] ?? null,
                 $data['body'] ?? null,
                 $topics,
                 $users,
                 $targets,
-                !empty($data['data']) ? $data['data'] : null,
+                $data['data'] ?? null,
                 $data['action'] ?? null,
                 $data['image'] ?? null,
                 $data['icon'] ?? null,
@@ -1764,9 +1819,49 @@ class Appwrite extends Destination
                 $data['tag'] ?? null,
                 $data['badge'] ?? null,
                 false,
+                $scheduledAt,
+                $data['contentAvailable'] ?? null,
+                $data['critical'] ?? null,
+                null,
             ),
-            default => throw new \Exception('Unknown message provider type: ' . $resource->getProviderType()),
+            default => throw new \Exception('Unknown provider type: ' . $resource->getProviderType()),
         };
+
+        return true;
+    }
+
+    /**
+     * Resolve source target IDs to destination target IDs for a message.
+     *
+     * @return array<string>
+     */
+    private function resolveMessageTargets(Message $resource): array
+    {
+        $targetUserMap = $resource->getTargetUserMap();
+        $providerType = $resource->getProviderType();
+        $resolvedTargets = [];
+        $targetCache = [];
+
+        foreach ($resource->getTargets() as $sourceTargetId) {
+            $userId = $targetUserMap[$sourceTargetId] ?? null;
+
+            if ($userId === null) {
+                continue;
+            }
+
+            if (!isset($targetCache[$userId])) {
+                $targetCache[$userId] = $this->users->listTargets($userId);
+            }
+
+            foreach ($targetCache[$userId]['targets'] as $target) {
+                if ($target['providerType'] === $providerType) {
+                    $resolvedTargets[] = $target['$id'];
+                    break;
+                }
+            }
+        }
+
+        return $resolvedTargets;
     }
 
     /**
@@ -1775,7 +1870,7 @@ class Appwrite extends Destination
      * User targets are auto-generated on the destination with new IDs,
      * so we look up the matching target by userId and providerType.
      */
-    protected function resolveTargetId(Subscriber $resource): string
+    private function resolveTargetId(Subscriber $resource): string
     {
         $response = $this->users->listTargets($resource->getUserId());
 

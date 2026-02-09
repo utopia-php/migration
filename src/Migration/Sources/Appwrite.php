@@ -1892,6 +1892,7 @@ class Appwrite extends Source
 
     private function exportMessages(int $batchSize): void
     {
+        $targetUserMap = $this->buildTargetUserMap();
         $lastDocument = null;
 
         while (true) {
@@ -1915,6 +1916,13 @@ class Appwrite extends Source
             }
 
             foreach ($response['messages'] as $message) {
+                $messageTargetMap = [];
+                foreach ($message['targets'] ?? [] as $targetId) {
+                    if (isset($targetUserMap[$targetId])) {
+                        $messageTargetMap[$targetId] = $targetUserMap[$targetId];
+                    }
+                }
+
                 $messages[] = new Message(
                     $message['$id'],
                     $message['providerType'] ?? '',
@@ -1924,6 +1932,10 @@ class Appwrite extends Source
                     $message['data'] ?? [],
                     $message['status'] ?? '',
                     $message['scheduledAt'] ?? '',
+                    $message['deliveredAt'] ?? '',
+                    $message['deliveryErrors'] ?? [],
+                    $message['deliveredTotal'] ?? 0,
+                    $messageTargetMap,
                     $message['$createdAt'] ?? '',
                     $message['$updatedAt'] ?? '',
                 );
@@ -1937,6 +1949,29 @@ class Appwrite extends Source
                 break;
             }
         }
+    }
+
+    /**
+     * Build a map of source target ID => source user ID
+     * by iterating cached users and listing their targets.
+     *
+     * @return array<string, string>
+     */
+    private function buildTargetUserMap(): array
+    {
+        $map = [];
+        $users = $this->cache->get(User::getName());
+
+        foreach ($users as $user) {
+            /** @var User $user */
+            $response = $this->users->listTargets($user->getId());
+
+            foreach ($response['targets'] as $target) {
+                $map[$target['$id']] = $user->getId();
+            }
+        }
+
+        return $map;
     }
 
     /**

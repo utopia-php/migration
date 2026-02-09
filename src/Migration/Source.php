@@ -168,7 +168,5 @@ abstract class Source extends Target
      * @param int $batchSize
      * @param array<string> $resources Resources to export
      */
-    protected function exportGroupMessaging(int $batchSize, array $resources): void
-    {
-    }
+    abstract protected function exportGroupMessaging(int $batchSize, array $resources): void;
 }
