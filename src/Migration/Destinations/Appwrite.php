@@ -1849,15 +1849,20 @@ class Appwrite extends Destination
                 continue;
             }
 
-            if (!isset($targetCache[$userId])) {
-                $targetCache[$userId] = $this->users->listTargets($userId);
-            }
-
-            foreach ($targetCache[$userId]['targets'] as $target) {
-                if ($target['providerType'] === $providerType) {
-                    $resolvedTargets[] = $target['$id'];
-                    break;
+            try {
+                if (!isset($targetCache[$userId])) {
+                    $targetCache[$userId] = $this->users->listTargets($userId);
                 }
+
+                foreach ($targetCache[$userId]['targets'] as $target) {
+                    if ($target['providerType'] === $providerType) {
+                        $resolvedTargets[] = $target['$id'];
+                        break;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Skip targets for users that don't exist on the destination
+                continue;
             }
         }
 
@@ -1880,6 +1885,6 @@ class Appwrite extends Destination
             }
         }
 
-        return $resource->getTargetId();
+        throw new \Exception('No matching target found for subscriber ' . $resource->getId() . ' with providerType ' . $resource->getProviderType());
     }
 }
