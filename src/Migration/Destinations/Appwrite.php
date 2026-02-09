@@ -1582,6 +1582,8 @@ class Appwrite extends Destination
                 /** @var Message $resource */
                 $this->createMessage($resource);
                 break;
+            default:
+                throw new \Exception('Unknown messaging resource type: ' . $resource->getName());
         }
 
         $resource->setStatus(Resource::STATUS_SUCCESS);

@@ -1964,10 +1964,25 @@ class Appwrite extends Source
 
         foreach ($users as $user) {
             /** @var User $user */
-            $response = $this->users->listTargets($user->getId());
+            $lastTarget = null;
 
-            foreach ($response['targets'] as $target) {
-                $map[$target['$id']] = $user->getId();
+            while (true) {
+                $queries = [Query::limit(self::DEFAULT_PAGE_LIMIT)];
+
+                if ($lastTarget !== null) {
+                    $queries[] = Query::cursorAfter($lastTarget);
+                }
+
+                $response = $this->users->listTargets($user->getId(), $queries);
+
+                foreach ($response['targets'] as $target) {
+                    $map[$target['$id']] = $user->getId();
+                    $lastTarget = $target['$id'];
+                }
+
+                if (\count($response['targets']) < self::DEFAULT_PAGE_LIMIT) {
+                    break;
+                }
             }
         }
 
