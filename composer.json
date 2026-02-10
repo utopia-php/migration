@@ -29,7 +29,6 @@
         "utopia-php/database": "5.*",
         "utopia-php/storage": "0.18.*",
         "utopia-php/dsn": "0.2.*",
-        "utopia-php/console": "0.0.*",
         "halaxa/json-machine": "^1.2"
     },
     "require-dev": {
