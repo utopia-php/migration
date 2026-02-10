@@ -72,6 +72,7 @@ class Integer extends Attribute
      *     },
      *     createdAt: string,
      *     updatedAt: string,
+     *     signed?: bool
      * } $array
      * @return self
      */
@@ -87,6 +88,7 @@ class Integer extends Attribute
             max: $array['formatOptions']['max'] ?? null,
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
+            signed: $array['signed'] ?? true
         );
     }
 

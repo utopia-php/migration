@@ -19,7 +19,8 @@ class VectorDB extends Database
      *     updatedAt: string,
      *     enabled: bool,
      *     originalId: string|null,
-     *     database: string
+     *     database: string,
+     *     type: string
      * } $array
      */
     public static function fromArray(array $array): self

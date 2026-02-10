@@ -61,7 +61,7 @@ class Polygon extends Attribute
             $array['key'],
             Collection::fromArray($array['table'] ?? $array['collection']),
             required: $array['required'],
-            default: $array['default'],
+            default: $array['default'] ?? null,
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );

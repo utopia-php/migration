@@ -87,6 +87,9 @@ class Database implements Reader
             if (in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY,Resource::TYPE_DATABASE_TABLESDB])) {
                 $databaseType = Resource::TYPE_DATABASE;
             }
+            if (!isset(Resource::DATABASE_TYPE_RESOURCE_MAP[$databaseType])) {
+                $databaseType = Resource::TYPE_DATABASE;
+            }
             if (Resource::isSupported($databaseType, $resources)) {
                 $report[$databaseType] += 1;
             }
@@ -94,8 +97,12 @@ class Database implements Reader
 
         // Process each database
         foreach ($databases as $database) {
-            $databaseType = $database->getAttribute('type');
-            if (in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY,Resource::TYPE_DATABASE_TABLESDB])) {
+            $databaseType = $database->getAttribute('type', Resource::TYPE_DATABASE);
+            if (\in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY, Resource::TYPE_DATABASE_TABLESDB], true)) {
+                $databaseType = Resource::TYPE_DATABASE;
+            }
+
+            if (!isset(Resource::DATABASE_TYPE_RESOURCE_MAP[$databaseType])) {
                 $databaseType = Resource::TYPE_DATABASE;
             }
 

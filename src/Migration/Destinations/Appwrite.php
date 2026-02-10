@@ -12,7 +12,6 @@ use Appwrite\Services\Functions;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
-use Dom\Document;
 use Override;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime;
@@ -81,7 +80,7 @@ class Appwrite extends Destination
      * @param string $key
      * @param UtopiaDatabase $dbForProject
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
-     * @param callable(string $databaseType):string $getDatabasesDSN
+     * @param callable(string $databaseType):string $getDatabaseDSN
      * @param array<array<string, mixed>> $collectionStructure
      */
     public function __construct(
@@ -90,7 +89,7 @@ class Appwrite extends Destination
         string $key,
         protected UtopiaDatabase $dbForProject,
         callable $getDatabasesDB,
-        callable $getDatabasesDSN,
+        callable $getDatabaseDSN,
         protected array $collectionStructure
     ) {
         $this->project = $project;
@@ -108,7 +107,7 @@ class Appwrite extends Destination
         $this->users = new Users($this->client);
 
         $this->getDatabasesDB = $getDatabasesDB;
-        $this->getDatabaseDSN = $getDatabasesDSN;
+        $this->getDatabaseDSN = $getDatabaseDSN;
     }
 
     public static function getName(): string
@@ -352,9 +351,6 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
-        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
-        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
-
         $database = $this->dbForProject->createDocument('databases', new UtopiaDocument([
             '$id' => $resource->getId(),
             'name' => $resource->getDatabaseName(),
@@ -425,9 +421,6 @@ class Appwrite extends Destination
                 message: 'Database not found',
             );
         }
-
-        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
-        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
@@ -808,8 +801,8 @@ class Appwrite extends Destination
             'attributes' => $resource->getColumns(),
             'lengths' => $lengths,
             'orders' => $resource->getOrders(),
-            '$createdAt' => $resource->getCreatedAt(),
-            '$updatedAt' => $resource->getUpdatedAt(),
+            '$createdAt' => $createdAt,
+            '$updatedAt' => $updatedAt,
         ]);
 
         /**
@@ -1534,7 +1527,6 @@ class Appwrite extends Destination
 
             $columnStatus = $oldColumns[$columnIndex]['status'];
             $columnType = $oldColumns[$columnIndex]['type'];
-            $columnSize = $oldColumns[$columnIndex]['size'];
             $columnArray = $oldColumns[$columnIndex]['array'] ?? false;
 
             if ($columnType === UtopiaDatabase::VAR_RELATIONSHIP) {

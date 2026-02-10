@@ -12,6 +12,7 @@ use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
+use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -650,7 +651,7 @@ class Appwrite extends Source
                 } catch (\Throwable $e) {
                     $this->addError(
                         new Exception(
-                            $resourceKey,
+                            $entityResource[$resourceKey],
                             Transfer::GROUP_DATABASES,
                             message: $e->getMessage(),
                             code: $e->getCode(),
@@ -836,7 +837,7 @@ class Appwrite extends Source
                         'updatedAt' => $table['$updatedAt'],
                         'database' => [
                             'id' => $database->getId(),
-                            'name' => $databaseName,
+                            'name' => $database->getDatabaseName(),
                             'type' => $database->getType(),
                             'database' => $database->getDatabase(),
                         ]
@@ -978,20 +979,13 @@ class Appwrite extends Source
     {
         $entities = $this->cache->get($entityName);
 
-        // $this->logDebugTrackedProject("exportRecords started | Entity: $entityName | Tables count: " . count($entities));
-
         foreach ($entities as $table) {
             /** @var Table $table */
             $lastRow = null;
             $iterationCount = 0;
 
-            // $this->logDebugTrackedProject("Starting table export | Table: {$table->getName()} | ID: {$table->getId()}");
-
             while (true) {
                 $iterationCount++;
-
-                $memUsage = round(memory_get_usage(true) / 1024 / 1024, 2);
-                // $this->logDebugTrackedProject("Table: {$table->getName()} | Iteration: $iterationCount | Memory: {$memUsage}MB | LastRow: " . ($lastRow ? $lastRow->getId() : 'null'));
 
                 $queries = [
                     $this->reader->queryLimit($batchSize),
@@ -1025,13 +1019,7 @@ class Appwrite extends Source
 
                 $queries[] = $this->reader->querySelect($selects);
 
-                $timestamp = microtime(true);
-                // $this->logDebugTrackedProject("BEFORE listRows() | Table: {$table->getName()} | Batch: $batchSize | Timestamp: {$timestamp}");
-
                 $response = $this->reader->listRows($table, $queries);
-
-                $timestamp = microtime(true);
-                // $this->logDebugTrackedProject("AFTER listRows() | Table: {$table->getName()} | Rows: " . count($response) . " | Timestamp: $timestamp");
 
                 foreach ($response as $row) {
                     // HACK: Handle many to many (only for schema-based databases)
@@ -1069,7 +1057,7 @@ class Appwrite extends Source
                     unset($row['$sequence']);
                     unset($row['$collection']);
 
-                    $row = self::getRecord($table->getDatabase()->getDatabaseName(), [
+                    $row = self::getRecord($table->getDatabase()->getType(), [
                         'id' => $id,
                         'table' => [
                             'id' => $table->getId(),
@@ -1091,24 +1079,13 @@ class Appwrite extends Source
                     $lastRow = $row;
                 }
 
-                // $this->logDebugTrackedProject("Processed rows from response | Table: {$table->getName()} | Rows in batch: " . count($rows));
-
-                // $this->logDebugTrackedProject("BEFORE callback() | Table: {$table->getName()} | Rows: " . count($rows));
-
                 $this->callback($rows);
 
-                // $this->logDebugTrackedProject("AFTER callback() | Table: {$table->getName()}");
-
                 if (count($response) < $batchSize) {
-                    // $this->logDebugTrackedProject("Table export completed | Table: {$table->getName()} | Response count: " . count($response) . " < Batch size: $batchSize");
                     break;
                 }
             }
-
-            // $this->logDebugTrackedProject("Finished table export | Table: {$table->getName()} | Total iterations: {$iterationCount}");
         }
-
-        // $this->logDebugTrackedProject("exportRecords completed | Entity: {$entityName}");
     }
 
     protected function exportGroupStorage(int $batchSize, array $resources): void

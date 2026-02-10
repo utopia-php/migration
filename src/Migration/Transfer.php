@@ -358,7 +358,6 @@ class Transfer
     public static function extractServices(array $services): array
     {
         $resources = [];
-        $groupDatabasesIndex = array_search(Transfer::GROUP_DATABASES, $services);
         foreach ($services as $service) {
             $resources = match ($service) {
                 self::GROUP_FUNCTIONS => array_merge($resources, self::GROUP_FUNCTIONS_RESOURCES),
