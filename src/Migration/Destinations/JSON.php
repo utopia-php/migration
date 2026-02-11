@@ -3,7 +3,6 @@
 namespace Utopia\Migration\Destinations;
 
 use Exception;
-use Utopia\Console;
 use Utopia\Database\Exception\Authorization;
 use Utopia\Database\Exception\Conflict;
 use Utopia\Database\Exception\Structure;
@@ -12,6 +11,7 @@ use Utopia\Migration\Exception as MigrationException;
 use Utopia\Migration\Resource as UtopiaResource;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Transfer;
+use Utopia\Migration\Warning;
 use Utopia\Storage\Device;
 use Utopia\Storage\Device\Local;
 
@@ -212,7 +212,12 @@ class JSON extends Destination
         } finally {
             // Clean up the temporary directory
             if (!$this->local->deletePath('') || $this->local->exists($this->local->getRoot())) {
-                Console::error('Error cleaning up: ' . $this->local->getRoot());
+                $this->addWarning(new Warning(
+                    UtopiaResource::TYPE_ROW,
+                    Transfer::GROUP_DATABASES,
+                    'Error cleaning up: ' . $this->local->getRoot(),
+                    $this->resourceId
+                ));
             }
         }
     }
