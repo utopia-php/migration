@@ -211,7 +211,7 @@ class Appwrite extends Source
             $this->reportStorage($resources, $report, $resourceIds);
             $this->reportFunctions($resources, $report, $resourceIds);
             $this->reportSites($resources, $report, $resourceIds);
-            $this->reportSettings($resources, $report);
+            $this->reportSettings($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1956,7 +1956,7 @@ class Appwrite extends Source
      * @param array $resources
      * @param array $report
      */
-    private function reportSettings(array $resources, array &$report): void
+    private function reportSettings(array $resources, array &$report, array $resourceIds = []): void
     {
         $consoleKey = $this->fetchConsoleKey();
 
@@ -1971,7 +1971,7 @@ class Appwrite extends Source
 
         if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
             try {
-                $response = $this->call('GET', '/projects/' . $this->project . '/platforms', $consoleHeaders, ['total' => true]);
+                $response = $this->call('GET', '/projects/' . $this->project . '/platforms', $consoleHeaders);
                 $report[Resource::TYPE_PLATFORM] = $response['total'] ?? 0;
             } catch (\Throwable) {
                 $report[Resource::TYPE_PLATFORM] = 0;
@@ -1980,7 +1980,9 @@ class Appwrite extends Source
 
         if (\in_array(Resource::TYPE_KEY, $resources)) {
             try {
-                $response = $this->call('GET', '/projects/' . $this->project . '/keys', $consoleHeaders, ['total' => true]);
+                $response = $this->call('GET', '/projects/' . $this->project . '/keys', $consoleHeaders, [
+                    'queries' => [Query::limit(1)],
+                ]);
                 $report[Resource::TYPE_KEY] = $response['total'] ?? 0;
             } catch (\Throwable) {
                 $report[Resource::TYPE_KEY] = 0;
@@ -1996,9 +1998,14 @@ class Appwrite extends Source
             return;
         }
 
+        $consoleHeaders = [
+            'x-appwrite-project' => 'console',
+            'x-appwrite-key' => $consoleKey,
+        ];
+
         try {
             if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
-                $this->exportPlatforms($batchSize);
+                $this->exportPlatforms($consoleHeaders);
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
@@ -2012,7 +2019,7 @@ class Appwrite extends Source
 
         try {
             if (\in_array(Resource::TYPE_KEY, $resources)) {
-                $this->exportKeys($batchSize);
+                $this->exportKeys($batchSize, $consoleHeaders);
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
@@ -2025,15 +2032,8 @@ class Appwrite extends Source
         }
     }
 
-    private function exportPlatforms(int $batchSize): void
+    private function exportPlatforms(array $consoleHeaders): void
     {
-        $consoleKey = $this->fetchConsoleKey();
-
-        $consoleHeaders = [
-            'x-appwrite-project' => 'console',
-            'x-appwrite-key' => $consoleKey,
-        ];
-
         $response = $this->call('GET', '/projects/' . $this->project . '/platforms', $consoleHeaders);
 
         if (empty($response['platforms'])) {
@@ -2056,15 +2056,8 @@ class Appwrite extends Source
         $this->callback($platforms);
     }
 
-    private function exportKeys(int $batchSize): void
+    private function exportKeys(int $batchSize, array $consoleHeaders): void
     {
-        $consoleKey = $this->fetchConsoleKey();
-
-        $consoleHeaders = [
-            'x-appwrite-project' => 'console',
-            'x-appwrite-key' => $consoleKey,
-        ];
-
         $lastDocument = null;
 
         while (true) {
