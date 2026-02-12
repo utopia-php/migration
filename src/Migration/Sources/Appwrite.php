@@ -13,7 +13,6 @@ use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
-use Utopia\Database\Query as UtopiaQuery;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -85,8 +84,8 @@ class Appwrite extends Source
         protected string $source = self::SOURCE_API,
         protected ?UtopiaDatabase $dbForProject = null,
         protected array $queries = [],
-        protected ?UtopiaDatabase $dbForPlatform = null,
-        protected string $projectInternalId = '',
+        protected string $consoleApiKey = '',
+        protected string $sourceProjectId = '',
     ) {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
@@ -1946,27 +1945,37 @@ class Appwrite extends Source
      */
     private function reportSettings(array $resources, array &$report): void
     {
-        if ($this->dbForPlatform === null || $this->projectInternalId === '') {
+        if (empty($this->consoleApiKey) || empty($this->sourceProjectId)) {
             return;
         }
 
+        $consoleHeaders = [
+            'x-appwrite-project' => 'console',
+            'x-appwrite-key' => $this->consoleApiKey,
+        ];
+
         if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
-            $report[Resource::TYPE_PLATFORM] = $this->dbForPlatform->count('platforms', [
-                UtopiaQuery::equal('projectInternalId', [$this->projectInternalId]),
-            ]);
+            try {
+                $response = $this->call('GET', '/projects/' . $this->sourceProjectId . '/platforms', $consoleHeaders, ['total' => true]);
+                $report[Resource::TYPE_PLATFORM] = $response['total'] ?? 0;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_PLATFORM] = 0;
+            }
         }
 
         if (\in_array(Resource::TYPE_KEY, $resources)) {
-            $report[Resource::TYPE_KEY] = $this->dbForPlatform->count('keys', [
-                UtopiaQuery::equal('resourceType', ['project']),
-                UtopiaQuery::equal('resourceInternalId', [$this->projectInternalId]),
-            ]);
+            try {
+                $response = $this->call('GET', '/projects/' . $this->sourceProjectId . '/keys', $consoleHeaders, ['total' => true]);
+                $report[Resource::TYPE_KEY] = $response['total'] ?? 0;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_KEY] = 0;
+            }
         }
     }
 
     protected function exportGroupSettings(int $batchSize, array $resources): void
     {
-        if ($this->dbForPlatform === null || $this->projectInternalId === '') {
+        if (empty($this->consoleApiKey) || empty($this->sourceProjectId)) {
             return;
         }
 
@@ -2001,87 +2010,78 @@ class Appwrite extends Source
 
     private function exportPlatforms(int $batchSize): void
     {
-        $lastDocument = null;
+        $consoleHeaders = [
+            'x-appwrite-project' => 'console',
+            'x-appwrite-key' => $this->consoleApiKey,
+        ];
 
-        while (true) {
-            $queries = [
-                UtopiaQuery::equal('projectInternalId', [$this->projectInternalId]),
-                UtopiaQuery::limit($batchSize),
-            ];
+        $response = $this->call('GET', '/projects/' . $this->sourceProjectId . '/platforms', $consoleHeaders);
 
-            if ($lastDocument) {
-                $queries[] = UtopiaQuery::cursorAfter($lastDocument);
-            }
-
-            $response = $this->dbForPlatform->find('platforms', $queries);
-
-            if (empty($response)) {
-                break;
-            }
-
-            $platforms = [];
-
-            foreach ($response as $platform) {
-                $platforms[] = new Platform(
-                    $platform->getId(),
-                    $platform->getAttribute('type', ''),
-                    $platform->getAttribute('name', ''),
-                    $platform->getAttribute('key', ''),
-                    $platform->getAttribute('store', ''),
-                    $platform->getAttribute('hostname', ''),
-                );
-
-                $lastDocument = $platform;
-            }
-
-            $this->callback($platforms);
-
-            if (\count($response) < $batchSize) {
-                break;
-            }
+        if (empty($response['platforms'])) {
+            return;
         }
+
+        $platforms = [];
+
+        foreach ($response['platforms'] as $platform) {
+            $platforms[] = new Platform(
+                $platform['$id'] ?? '',
+                $platform['type'] ?? '',
+                $platform['name'] ?? '',
+                $platform['key'] ?? '',
+                $platform['store'] ?? '',
+                $platform['hostname'] ?? '',
+            );
+        }
+
+        $this->callback($platforms);
     }
 
     private function exportKeys(int $batchSize): void
     {
+        $consoleHeaders = [
+            'x-appwrite-project' => 'console',
+            'x-appwrite-key' => $this->consoleApiKey,
+        ];
+
         $lastDocument = null;
 
         while (true) {
             $queries = [
-                UtopiaQuery::equal('resourceType', ['project']),
-                UtopiaQuery::equal('resourceInternalId', [$this->projectInternalId]),
-                UtopiaQuery::limit($batchSize),
+                Query::limit($batchSize),
             ];
 
             if ($lastDocument) {
-                $queries[] = UtopiaQuery::cursorAfter($lastDocument);
+                $queries[] = Query::cursorAfter($lastDocument);
             }
 
-            $response = $this->dbForPlatform->find('keys', $queries);
+            $response = $this->call('GET', '/projects/' . $this->sourceProjectId . '/keys', $consoleHeaders, [
+                'queries' => $queries,
+            ]);
 
-            if (empty($response)) {
+            if (empty($response['keys'])) {
                 break;
             }
 
             $keys = [];
 
-            foreach ($response as $key) {
+            foreach ($response['keys'] as $key) {
                 $keys[] = new Key(
-                    $key->getId(),
-                    $key->getAttribute('name', ''),
-                    $key->getAttribute('scopes', []),
-                    $key->getAttribute('secret', ''),
-                    $key->getAttribute('expire', null),
-                    $key->getAttribute('accessedAt', null),
-                    $key->getAttribute('sdks', []),
+                    $key['$id'] ?? '',
+                    $key['name'] ?? '',
+                    $key['scopes'] ?? [],
+                    $key['secret'] ?? '',
+                    $key['expire'] ?? null,
+                    $key['accessedAt'] ?? null,
+                    $key['sdks'] ?? [],
                 );
 
-                $lastDocument = $key;
+                $lastDocument = $key['$id'];
             }
 
             $this->callback($keys);
 
-            if (\count($response) < $batchSize) {
+            if (\count($response['keys']) < $batchSize) {
                 break;
             }
         }
