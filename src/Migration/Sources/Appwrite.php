@@ -74,6 +74,8 @@ class Appwrite extends Source
 
     private Reader $database;
 
+    private ?string $cachedConsoleKey = null;
+
     /**
      * @throws \Exception
      */
@@ -84,8 +86,6 @@ class Appwrite extends Source
         protected string $source = self::SOURCE_API,
         protected ?UtopiaDatabase $dbForProject = null,
         protected array $queries = [],
-        protected string $consoleApiKey = '',
-        protected string $sourceProjectId = '',
     ) {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
@@ -114,6 +114,27 @@ class Appwrite extends Source
             default:
                 throw new \Exception('Unknown source');
         }
+    }
+
+    /**
+     * Fetch a console-scoped API key from the source instance.
+     * Calls GET /v1/migrations/appwrite/settings-key with project headers.
+     * Result is cached for the lifetime of this adapter instance.
+     */
+    private function fetchConsoleKey(): string
+    {
+        if ($this->cachedConsoleKey !== null) {
+            return $this->cachedConsoleKey;
+        }
+
+        try {
+            $response = $this->call('GET', '/migrations/appwrite/settings-key');
+            $this->cachedConsoleKey = $response['key'] ?? '';
+        } catch (\Throwable) {
+            $this->cachedConsoleKey = '';
+        }
+
+        return $this->cachedConsoleKey;
     }
 
     public static function getName(): string
@@ -1945,18 +1966,20 @@ class Appwrite extends Source
      */
     private function reportSettings(array $resources, array &$report): void
     {
-        if (empty($this->consoleApiKey) || empty($this->sourceProjectId)) {
+        $consoleKey = $this->fetchConsoleKey();
+
+        if (empty($consoleKey)) {
             return;
         }
 
         $consoleHeaders = [
             'x-appwrite-project' => 'console',
-            'x-appwrite-key' => $this->consoleApiKey,
+            'x-appwrite-key' => $consoleKey,
         ];
 
         if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
             try {
-                $response = $this->call('GET', '/projects/' . $this->sourceProjectId . '/platforms', $consoleHeaders, ['total' => true]);
+                $response = $this->call('GET', '/projects/' . $this->project . '/platforms', $consoleHeaders, ['total' => true]);
                 $report[Resource::TYPE_PLATFORM] = $response['total'] ?? 0;
             } catch (\Throwable) {
                 $report[Resource::TYPE_PLATFORM] = 0;
@@ -1965,7 +1988,7 @@ class Appwrite extends Source
 
         if (\in_array(Resource::TYPE_KEY, $resources)) {
             try {
-                $response = $this->call('GET', '/projects/' . $this->sourceProjectId . '/keys', $consoleHeaders, ['total' => true]);
+                $response = $this->call('GET', '/projects/' . $this->project . '/keys', $consoleHeaders, ['total' => true]);
                 $report[Resource::TYPE_KEY] = $response['total'] ?? 0;
             } catch (\Throwable) {
                 $report[Resource::TYPE_KEY] = 0;
@@ -1975,7 +1998,9 @@ class Appwrite extends Source
 
     protected function exportGroupSettings(int $batchSize, array $resources): void
     {
-        if (empty($this->consoleApiKey) || empty($this->sourceProjectId)) {
+        $consoleKey = $this->fetchConsoleKey();
+
+        if (empty($consoleKey)) {
             return;
         }
 
@@ -2010,12 +2035,14 @@ class Appwrite extends Source
 
     private function exportPlatforms(int $batchSize): void
     {
+        $consoleKey = $this->fetchConsoleKey();
+
         $consoleHeaders = [
             'x-appwrite-project' => 'console',
-            'x-appwrite-key' => $this->consoleApiKey,
+            'x-appwrite-key' => $consoleKey,
         ];
 
-        $response = $this->call('GET', '/projects/' . $this->sourceProjectId . '/platforms', $consoleHeaders);
+        $response = $this->call('GET', '/projects/' . $this->project . '/platforms', $consoleHeaders);
 
         if (empty($response['platforms'])) {
             return;
@@ -2039,9 +2066,11 @@ class Appwrite extends Source
 
     private function exportKeys(int $batchSize): void
     {
+        $consoleKey = $this->fetchConsoleKey();
+
         $consoleHeaders = [
             'x-appwrite-project' => 'console',
-            'x-appwrite-key' => $this->consoleApiKey,
+            'x-appwrite-key' => $consoleKey,
         ];
 
         $lastDocument = null;
@@ -2055,7 +2084,7 @@ class Appwrite extends Source
                 $queries[] = Query::cursorAfter($lastDocument);
             }
 
-            $response = $this->call('GET', '/projects/' . $this->sourceProjectId . '/keys', $consoleHeaders, [
+            $response = $this->call('GET', '/projects/' . $this->project . '/keys', $consoleHeaders, [
                 'queries' => $queries,
             ]);
 
