@@ -27,6 +27,7 @@ use Utopia\Database\Exception\Limit as LimitException;
 use Utopia\Database\Exception\Structure as StructureException;
 use Utopia\Database\Helpers\ID;
 use Utopia\Database\Helpers\Permission;
+use Utopia\Database\Helpers\Role;
 use Utopia\Database\Query;
 use Utopia\Database\Validator\Index as IndexValidator;
 use Utopia\Database\Validator\Structure;
@@ -1771,6 +1772,11 @@ class Appwrite extends Destination
         try {
             $this->dbForPlatform->createDocument('platforms', new UtopiaDocument([
                 '$id' => $resource->getId() === 'unique()' ? ID::unique() : $resource->getId(),
+                '$permissions' => [
+                    Permission::read(Role::any()),
+                    Permission::update(Role::any()),
+                    Permission::delete(Role::any()),
+                ],
                 'projectInternalId' => $this->projectInternalId,
                 'projectId' => $this->project,
                 'type' => $resource->getType(),
@@ -1796,7 +1802,12 @@ class Appwrite extends Destination
         try {
             $this->dbForPlatform->createDocument('keys', new UtopiaDocument([
                 '$id' => $resource->getId() === 'unique()' ? ID::unique() : $resource->getId(),
-                'resourceType' => 'project',
+                '$permissions' => [
+                    Permission::read(Role::any()),
+                    Permission::update(Role::any()),
+                    Permission::delete(Role::any()),
+                ],
+                'resourceType' => 'projects',
                 'resourceId' => $this->project,
                 'resourceInternalId' => $this->projectInternalId,
                 'name' => $resource->getKeyName(),
