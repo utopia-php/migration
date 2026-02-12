@@ -1780,6 +1780,8 @@ class Appwrite extends Destination
                 'store' => $resource->getStore(),
                 'hostname' => $resource->getHostname(),
             ]));
+
+            $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
         } finally {
             $this->dbForPlatform->setPreserveDates(false);
         }
@@ -1808,6 +1810,8 @@ class Appwrite extends Destination
                 'accessedAt' => $resource->getAccessedAt(),
                 'sdks' => $resource->getSdks(),
             ]));
+
+            $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
         } finally {
             $this->dbForPlatform->setPreserveDates(false);
         }
