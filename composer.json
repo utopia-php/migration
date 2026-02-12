@@ -4,7 +4,7 @@
     "type": "library",
     "keywords": ["php", "framework", "upf", "utopia", "migration"],
     "license": "MIT",
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "autoload": {
         "psr-4": {
             "Utopia\\Migration\\": "src/Migration"

@@ -13,6 +13,7 @@ use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
+use Utopia\Database\Query as UtopiaQuery;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -40,6 +41,8 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Settings\Key;
+use Utopia\Migration\Resources\Settings\Platform;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
@@ -82,6 +85,8 @@ class Appwrite extends Source
         protected string $source = self::SOURCE_API,
         protected ?UtopiaDatabase $dbForProject = null,
         protected array $queries = [],
+        protected ?UtopiaDatabase $dbForPlatform = null,
+        protected string $projectInternalId = '',
     ) {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
@@ -155,6 +160,8 @@ class Appwrite extends Source
             Resource::TYPE_SITE_VARIABLE,
 
             // Settings
+            Resource::TYPE_PLATFORM,
+            Resource::TYPE_KEY,
         ];
     }
 
@@ -192,6 +199,7 @@ class Appwrite extends Source
             $this->reportStorage($resources, $report, $resourceIds);
             $this->reportFunctions($resources, $report, $resourceIds);
             $this->reportSites($resources, $report, $resourceIds);
+            $this->reportSettings($resources, $report);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1928,6 +1936,153 @@ class Appwrite extends Source
 
             if ($end > $fileSize) {
                 $end = $fileSize - 1;
+            }
+        }
+    }
+
+    /**
+     * @param array $resources
+     * @param array $report
+     */
+    private function reportSettings(array $resources, array &$report): void
+    {
+        if ($this->dbForPlatform === null || $this->projectInternalId === '') {
+            return;
+        }
+
+        if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
+            $report[Resource::TYPE_PLATFORM] = $this->dbForPlatform->count('platforms', [
+                UtopiaQuery::equal('projectInternalId', [$this->projectInternalId]),
+            ]);
+        }
+
+        if (\in_array(Resource::TYPE_KEY, $resources)) {
+            $report[Resource::TYPE_KEY] = $this->dbForPlatform->count('keys', [
+                UtopiaQuery::equal('resourceType', ['project']),
+                UtopiaQuery::equal('resourceInternalId', [$this->projectInternalId]),
+            ]);
+        }
+    }
+
+    protected function exportGroupSettings(int $batchSize, array $resources): void
+    {
+        if ($this->dbForPlatform === null || $this->projectInternalId === '') {
+            return;
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
+                $this->exportPlatforms($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_PLATFORM,
+                Transfer::GROUP_SETTINGS,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_KEY, $resources)) {
+                $this->exportKeys($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_KEY,
+                Transfer::GROUP_SETTINGS,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+    }
+
+    private function exportPlatforms(int $batchSize): void
+    {
+        $lastDocument = null;
+
+        while (true) {
+            $queries = [
+                UtopiaQuery::equal('projectInternalId', [$this->projectInternalId]),
+                UtopiaQuery::limit($batchSize),
+            ];
+
+            if ($lastDocument) {
+                $queries[] = UtopiaQuery::cursorAfter($lastDocument);
+            }
+
+            $response = $this->dbForPlatform->find('platforms', $queries);
+
+            if (empty($response)) {
+                break;
+            }
+
+            $platforms = [];
+
+            foreach ($response as $platform) {
+                $platforms[] = new Platform(
+                    $platform->getId(),
+                    $platform->getAttribute('type', ''),
+                    $platform->getAttribute('name', ''),
+                    $platform->getAttribute('key', ''),
+                    $platform->getAttribute('store', ''),
+                    $platform->getAttribute('hostname', ''),
+                );
+
+                $lastDocument = $platform;
+            }
+
+            $this->callback($platforms);
+
+            if (\count($response) < $batchSize) {
+                break;
+            }
+        }
+    }
+
+    private function exportKeys(int $batchSize): void
+    {
+        $lastDocument = null;
+
+        while (true) {
+            $queries = [
+                UtopiaQuery::equal('resourceType', ['project']),
+                UtopiaQuery::equal('resourceInternalId', [$this->projectInternalId]),
+                UtopiaQuery::limit($batchSize),
+            ];
+
+            if ($lastDocument) {
+                $queries[] = UtopiaQuery::cursorAfter($lastDocument);
+            }
+
+            $response = $this->dbForPlatform->find('keys', $queries);
+
+            if (empty($response)) {
+                break;
+            }
+
+            $keys = [];
+
+            foreach ($response as $key) {
+                $keys[] = new Key(
+                    $key->getId(),
+                    $key->getAttribute('name', ''),
+                    $key->getAttribute('scopes', []),
+                    $key->getAttribute('secret', ''),
+                    $key->getAttribute('expire', null),
+                    $key->getAttribute('accessedAt', null),
+                    $key->getAttribute('sdks', []),
+                );
+
+                $lastDocument = $key;
+            }
+
+            $this->callback($keys);
+
+            if (\count($response) < $batchSize) {
+                break;
             }
         }
     }

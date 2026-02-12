@@ -41,6 +41,11 @@ abstract class Source extends Target
         return static::$defaultBatchSize;
     }
 
+    public function getSettingsBatchSize(): int
+    {
+        return static::$defaultBatchSize;
+    }
+
     /**
      * @param array<Resource> $resources
      * @return void
@@ -95,6 +100,7 @@ abstract class Source extends Target
                 Transfer::GROUP_STORAGE => Transfer::GROUP_STORAGE_RESOURCES,
                 Transfer::GROUP_FUNCTIONS => Transfer::GROUP_FUNCTIONS_RESOURCES,
                 Transfer::GROUP_SITES => Transfer::GROUP_SITES_RESOURCES,
+                Transfer::GROUP_SETTINGS => Transfer::GROUP_SETTINGS_RESOURCES,
             ];
 
             foreach ($mapping as $group => $resources) {
@@ -125,6 +131,9 @@ abstract class Source extends Target
                     break;
                 case Transfer::GROUP_SITES:
                     $this->exportGroupSites($this->getSitesBatchSize(), $resources);
+                    break;
+                case Transfer::GROUP_SETTINGS:
+                    $this->exportGroupSettings($this->getSettingsBatchSize(), $resources);
                     break;
             }
         }
@@ -169,4 +178,12 @@ abstract class Source extends Target
      * @param array<string> $resources Resources to export
      */
     abstract protected function exportGroupSites(int $batchSize, array $resources): void;
+
+    /**
+     * Export Settings Group
+     *
+     * @param int $batchSize
+     * @param array<string> $resources Resources to export
+     */
+    abstract protected function exportGroupSettings(int $batchSize, array $resources): void;
 }

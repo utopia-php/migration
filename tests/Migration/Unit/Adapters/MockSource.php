@@ -80,6 +80,8 @@ class MockSource extends Source
             Resource::TYPE_ENVIRONMENT_VARIABLE,
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
+            Resource::TYPE_PLATFORM,
+            Resource::TYPE_KEY,
 
             // legacy
             Resource::TYPE_DOCUMENT,
@@ -175,6 +177,23 @@ class MockSource extends Source
             }
 
             $this->handleResourceTransfer(Transfer::GROUP_SITES, $resource);
+        }
+    }
+
+    /**
+     * Export Settings Group
+     *
+     * @param  int  $batchSize  Max 100
+     * @param  string[]  $resources  Resources to export
+     */
+    protected function exportGroupSettings(int $batchSize, array $resources): void
+    {
+        foreach (Transfer::GROUP_SETTINGS_RESOURCES as $resource) {
+            if (!\in_array($resource, $resources)) {
+                continue;
+            }
+
+            $this->handleResourceTransfer(Transfer::GROUP_SETTINGS, $resource);
         }
     }
 }

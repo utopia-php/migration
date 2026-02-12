@@ -46,6 +46,8 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Settings\Key;
+use Utopia\Migration\Resources\Settings\Platform;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
@@ -83,7 +85,9 @@ class Appwrite extends Destination
         string $endpoint,
         string $key,
         protected UtopiaDatabase $database,
-        protected array $collectionStructure
+        protected array $collectionStructure,
+        protected ?UtopiaDatabase $dbForPlatform = null,
+        protected string $projectInternalId = '',
     ) {
         $this->project = $project;
         $this->endpoint = $endpoint;
@@ -142,6 +146,10 @@ class Appwrite extends Destination
             Resource::TYPE_SITE,
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
+
+            // Settings
+            Resource::TYPE_PLATFORM,
+            Resource::TYPE_KEY,
         ];
     }
 
@@ -260,6 +268,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_AUTH => $this->importAuthResource($resource),
                     Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
                     Transfer::GROUP_SITES => $this->importSiteResource($resource),
+                    Transfer::GROUP_SETTINGS => $this->importSettingsResource($resource),
                     default => throw new \Exception('Invalid resource group'),
                 };
             } catch (\Throwable $e) {
@@ -1725,5 +1734,82 @@ class Appwrite extends Destination
         }
 
         return $deployment;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function importSettingsResource(Resource $resource): Resource
+    {
+        if ($this->dbForPlatform === null || $this->projectInternalId === '') {
+            throw new \Exception('Platform database not available for settings migration');
+        }
+
+        switch ($resource->getName()) {
+            case Resource::TYPE_PLATFORM:
+                /** @var Platform $resource */
+                $this->createPlatform($resource);
+                break;
+            case Resource::TYPE_KEY:
+                /** @var Key $resource */
+                $this->createKey($resource);
+                break;
+        }
+
+        $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
+    }
+
+    /**
+     * @throws \Throwable
+     */
+    protected function createPlatform(Platform $resource): bool
+    {
+        $this->dbForPlatform->setPreserveDates(true);
+
+        try {
+            $this->dbForPlatform->createDocument('platforms', new UtopiaDocument([
+                '$id' => $resource->getId() === 'unique()' ? ID::unique() : $resource->getId(),
+                'projectInternalId' => $this->projectInternalId,
+                'projectId' => $this->project,
+                'type' => $resource->getType(),
+                'name' => $resource->getPlatformName(),
+                'key' => $resource->getKey(),
+                'store' => $resource->getStore(),
+                'hostname' => $resource->getHostname(),
+            ]));
+        } finally {
+            $this->dbForPlatform->setPreserveDates(false);
+        }
+
+        return true;
+    }
+
+    /**
+     * @throws \Throwable
+     */
+    protected function createKey(Key $resource): bool
+    {
+        $this->dbForPlatform->setPreserveDates(true);
+
+        try {
+            $this->dbForPlatform->createDocument('keys', new UtopiaDocument([
+                '$id' => $resource->getId() === 'unique()' ? ID::unique() : $resource->getId(),
+                'resourceType' => 'project',
+                'resourceId' => $this->project,
+                'resourceInternalId' => $this->projectInternalId,
+                'name' => $resource->getKeyName(),
+                'scopes' => $resource->getScopes(),
+                'secret' => $resource->getSecret(),
+                'expire' => $resource->getExpire(),
+                'accessedAt' => $resource->getAccessedAt(),
+                'sdks' => $resource->getSdks(),
+            ]));
+        } finally {
+            $this->dbForPlatform->setPreserveDates(false);
+        }
+
+        return true;
     }
 }

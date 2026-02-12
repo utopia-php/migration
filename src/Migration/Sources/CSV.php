@@ -380,6 +380,11 @@ class CSV extends Source
         throw new \Exception('Not Implemented');
     }
 
+    protected function exportGroupSettings(int $batchSize, array $resources): void
+    {
+        // Settings migration not supported for this source
+    }
+
     /**
      * @param callable(resource $stream, string $delimiter): void $callback
      * @return void
