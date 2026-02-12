@@ -1770,7 +1770,7 @@ class Appwrite extends Destination
 
         try {
             $this->dbForPlatform->createDocument('platforms', new UtopiaDocument([
-                '$id' => $resource->getId() === 'unique()' ? ID::unique() : $resource->getId(),
+                '$id' => ID::unique(),
                 '$permissions' => $resource->getPermissions(),
                 'projectInternalId' => $this->projectInternalId,
                 'projectId' => $this->project,
@@ -1798,7 +1798,7 @@ class Appwrite extends Destination
 
         try {
             $this->dbForPlatform->createDocument('keys', new UtopiaDocument([
-                '$id' => $resource->getId() === 'unique()' ? ID::unique() : $resource->getId(),
+                '$id' => ID::unique(),
                 '$permissions' => $resource->getPermissions(),
                 'resourceType' => 'projects',
                 'resourceId' => $this->project,
