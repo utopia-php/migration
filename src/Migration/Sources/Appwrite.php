@@ -74,8 +74,6 @@ class Appwrite extends Source
 
     private Reader $database;
 
-    private ?string $cachedConsoleKey = null;
-
     /**
      * @throws \Exception
      */
@@ -117,24 +115,18 @@ class Appwrite extends Source
     }
 
     /**
-     * Fetch a console-scoped API key from the source instance.
+     * Fetch a short-lived console-scoped API key from the source instance.
      * Calls GET /v1/migrations/appwrite/settings-key with project headers.
-     * Result is cached for the lifetime of this adapter instance.
+     * Always fetches a fresh key (no caching) since the key has a short TTL.
      */
     private function fetchConsoleKey(): string
     {
-        if ($this->cachedConsoleKey !== null) {
-            return $this->cachedConsoleKey;
-        }
-
         try {
             $response = $this->call('GET', '/migrations/appwrite/settings-key');
-            $this->cachedConsoleKey = $response['key'] ?? '';
+            return $response['key'] ?? '';
         } catch (\Throwable) {
-            $this->cachedConsoleKey = '';
+            return '';
         }
-
-        return $this->cachedConsoleKey;
     }
 
     public static function getName(): string
