@@ -49,6 +49,8 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_FUNCTION = 'function';
 
+    public const TYPE_SITE = 'site';
+
     public const TYPE_INDEX = 'index';
 
     // Children (Resources that are created by other resources)
@@ -56,6 +58,10 @@ abstract class Resource implements \JsonSerializable
     public const TYPE_COLUMN = 'column';
 
     public const TYPE_DEPLOYMENT = 'deployment';
+
+    public const TYPE_SITE_DEPLOYMENT = 'site-deployment';
+
+    public const TYPE_SITE_VARIABLE = 'site-variable';
 
     public const TYPE_HASH = 'hash';
 
@@ -83,6 +89,9 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_FILE,
         self::TYPE_FUNCTION,
         self::TYPE_DEPLOYMENT,
+        self::TYPE_SITE,
+        self::TYPE_SITE_DEPLOYMENT,
+        self::TYPE_SITE_VARIABLE,
         self::TYPE_HASH,
         self::TYPE_INDEX,
         self::TYPE_USER,

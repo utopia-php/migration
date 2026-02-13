@@ -7,6 +7,7 @@ use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
+use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Storage\File;
 
 /**
@@ -70,6 +71,11 @@ class Cache
                 $keys[] = $resource->getFunction()->getSequence();
                 break;
 
+            case Resource::TYPE_SITE_DEPLOYMENT:
+                /** @var SiteDeployment $resource */
+                $keys[] = $resource->getSite()->getSequence();
+                break;
+
             default:
                 break;
         }
@@ -100,8 +106,8 @@ class Cache
             return;
         }
 
-        if ($resource->getName() == Resource::TYPE_FILE || $resource->getName() == Resource::TYPE_DEPLOYMENT) {
-            /** @var File|Deployment $resource */
+        if ($resource->getName() == Resource::TYPE_FILE || $resource->getName() == Resource::TYPE_DEPLOYMENT || $resource->getName() == Resource::TYPE_SITE_DEPLOYMENT) {
+            /** @var File|Deployment|SiteDeployment $resource */
             $resource->setData(''); // Prevent Memory Leak
         }
 
