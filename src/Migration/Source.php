@@ -69,6 +69,14 @@ abstract class Source extends Target
                 if (!in_array($resource->getName(), $resources)) {
                     $resource->setStatus(Resource::STATUS_SKIPPED);
                 } else {
+                    /**
+                     * Rows and documents are counted in cache in an aggregated way (per status count)
+                     * to prevent memory blowups. Destination updates already account for these, and
+                     * adding them here causes double counting (source + destination).
+                     */
+                    if (\in_array($resource->getName(), [Resource::TYPE_ROW, Resource::TYPE_DOCUMENT], true)) {
+                        continue;
+                    }
                     $prunedResources[] = $resource;
                 }
             }
