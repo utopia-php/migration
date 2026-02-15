@@ -71,6 +71,9 @@ class MockSource extends Source
             Resource::TYPE_FILE,
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
+            Resource::TYPE_SITE,
+            Resource::TYPE_SITE_DEPLOYMENT,
+            Resource::TYPE_SITE_VARIABLE,
             Resource::TYPE_HASH,
             Resource::TYPE_INDEX,
             Resource::TYPE_USER,
@@ -170,6 +173,23 @@ class MockSource extends Source
             }
 
             $this->handleResourceTransfer(Transfer::GROUP_MESSAGING, $resource);
+        }
+    }
+
+    /**
+     * Export Sites Group
+     *
+     * @param  int  $batchSize  Max 100
+     * @param  string[]  $resources  Resources to export
+     */
+    protected function exportGroupSites(int $batchSize, array $resources): void
+    {
+        foreach (Transfer::GROUP_SITES_RESOURCES as $resource) {
+            if (!\in_array($resource, $resources)) {
+                continue;
+            }
+
+            $this->handleResourceTransfer(Transfer::GROUP_SITES, $resource);
         }
     }
 }
