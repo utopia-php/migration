@@ -169,7 +169,8 @@ class CSVTest extends TestCase
             'mixed_field' => 'Text with "quotes", commas, and\nnewlines'
         ]);
 
-        $csvDestination->testableImport([$row], function ($resources) {});
+        $csvDestination->testableImport([$row], function ($resources) {
+        });
         $csvDestination->shutdown();
 
         $csvFile = $csvDestination->getLocalRoot() . '/test_db_test_table_id.csv';
@@ -215,7 +216,8 @@ class CSVTest extends TestCase
             'nested' => [['id' => 1], ['id' => 2]]
         ]);
 
-        $csvDestination->testableImport([$row], function ($resources) {});
+        $csvDestination->testableImport([$row], function ($resources) {
+        });
         $csvDestination->shutdown();
 
         $csvFile = $csvDestination->getLocalRoot() . '/test_db_test_table_id.csv';
@@ -262,7 +264,8 @@ class CSVTest extends TestCase
             'false_bool' => false
         ]);
 
-        $csvDestination->testableImport([$row], function ($resources) {});
+        $csvDestination->testableImport([$row], function ($resources) {
+        });
         $csvDestination->shutdown();
 
         $csvFile = $csvDestination->getLocalRoot() . '/test_db_test_table_id.csv';
@@ -309,7 +312,8 @@ class CSVTest extends TestCase
             'secret' => 'should_not_appear'
         ]);
 
-        $csvDestination->testableImport([$row], function ($resources) {});
+        $csvDestination->testableImport([$row], function ($resources) {
+        });
         $csvDestination->shutdown();
 
         $csvFile = $csvDestination->getLocalRoot() . '/test_db_test_table_id.csv';
@@ -365,7 +369,8 @@ class CSVTest extends TestCase
         $row = new Row('compat_row', $table, $originalData);
         $row->setPermissions(['read("user:123")']);
 
-        $csvDestination->testableImport([$row], function ($resources) {});
+        $csvDestination->testableImport([$row], function ($resources) {
+        });
         $csvDestination->shutdown();
 
         // Verify the exported CSV can be parsed by PHP's built-in CSV functions
