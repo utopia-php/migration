@@ -36,6 +36,7 @@ use Utopia\Migration\Resources\Database\Columns\RegularText;
 use Utopia\Migration\Resources\Database\Columns\Relationship;
 use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Columns\URL;
+use Utopia\Migration\Resources\Database\Columns\Varchar;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Row;
@@ -1089,6 +1090,19 @@ class Appwrite extends Source
                                 $table,
                                 required: $column['required'],
                                 default: $column['default'],
+                                createdAt: $column['$createdAt'] ?? '',
+                                updatedAt: $column['$updatedAt'] ?? '',
+                            );
+                            break;
+
+                        case Column::TYPE_VARCHAR:
+                            $col = new Varchar(
+                                $column['key'],
+                                $table,
+                                required: $column['required'],
+                                default: $column['default'],
+                                array: $column['array'],
+                                size: $column['size'] ?? 255,
                                 createdAt: $column['$createdAt'] ?? '',
                                 updatedAt: $column['$updatedAt'] ?? '',
                             );

@@ -9,6 +9,7 @@ abstract class Column extends Resource
 {
     public const TYPE_STRING = 'string';
     public const TYPE_TEXT = 'text';
+    public const TYPE_VARCHAR = 'varchar';
     public const TYPE_MEDIUMTEXT = 'mediumtext';
     public const TYPE_LONGTEXT = 'longtext';
 

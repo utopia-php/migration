@@ -471,6 +471,7 @@ class Appwrite extends Destination
             Column::TYPE_LINE => UtopiaDatabase::VAR_LINESTRING,
             Column::TYPE_POLYGON => UtopiaDatabase::VAR_POLYGON,
             Column::TYPE_TEXT => UtopiaDatabase::VAR_TEXT,
+            Column::TYPE_VARCHAR => UtopiaDatabase::VAR_VARCHAR,
             Column::TYPE_MEDIUMTEXT => UtopiaDatabase::VAR_MEDIUMTEXT,
             Column::TYPE_LONGTEXT => UtopiaDatabase::VAR_LONGTEXT,
             default => throw new \Exception('Invalid resource type '.$resource->getType()),
