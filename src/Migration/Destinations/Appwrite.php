@@ -229,44 +229,20 @@ class Appwrite extends Destination
                 $this->sites->create('', '', Framework::OTHER(), BuildRuntime::STATIC1());
             }
 
+            // Backups
+            if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
+                $scope = 'policies.read';
+                $this->backups->listPolicies();
+
+                $scope = 'policies.write';
+                $this->backups->createPolicy('', [], 0, '');
+            }
+
         } catch (AppwriteException $e) {
             if ($e->getCode() === 403) {
                 throw new \Exception('Missing scope: ' . $scope, previous: $e);
             }
             throw $e;
-        }
-
-        // Backups use call() instead of the SDK, so they need separate error handling.
-        if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
-            try {
-                $scope = 'policies.read';
-                $this->call('GET', '/backups/policies', [
-                    'Content-Type' => 'application/json',
-                    'X-Appwrite-Project' => $this->project,
-                    'X-Appwrite-Key' => $this->key,
-                ]);
-
-                $scope = 'policies.write';
-                $this->call('POST', '/backups/policies', [
-                    'Content-Type' => 'application/json',
-                    'X-Appwrite-Project' => $this->project,
-                    'X-Appwrite-Key' => $this->key,
-                ], []);
-            } catch (\Throwable $e) {
-                $body = \json_decode($e->getMessage(), true);
-                $code = $body['code'] ?? 0;
-                $type = $body['type'] ?? '';
-
-                if ($type === 'additional_resource_not_allowed') {
-                    throw new \Exception('Backups are not available on the destination project\'s plan', previous: $e);
-                }
-
-                if ($code === 401 || $code === 403) {
-                    throw new \Exception('Missing scope: ' . $scope, previous: $e);
-                }
-
-                throw $e;
-            }
         }
 
         return [];
