@@ -4,11 +4,15 @@ namespace Utopia\Migration\Destinations;
 
 use Appwrite\AppwriteException;
 use Appwrite\Client;
+use Appwrite\Enums\Adapter;
+use Appwrite\Enums\BuildRuntime;
 use Appwrite\Enums\Compression;
+use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\Runtime;
 use Appwrite\InputFile;
 use Appwrite\Services\Functions;
+use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
@@ -43,6 +47,9 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
+use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
+use Utopia\Migration\Resources\Sites\Site;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Transfer;
@@ -55,6 +62,7 @@ class Appwrite extends Destination
     protected string $key;
 
     private Functions $functions;
+    private Sites $sites;
     private Storage $storage;
     private Teams $teams;
     private Users $users;
@@ -88,6 +96,7 @@ class Appwrite extends Destination
             ->setKey($key);
 
         $this->functions = new Functions($this->client);
+        $this->sites = new Sites($this->client);
         $this->storage = new Storage($this->client);
         $this->teams = new Teams($this->client);
         $this->users = new Users($this->client);
@@ -132,6 +141,11 @@ class Appwrite extends Destination
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
+
+            // Sites
+            Resource::TYPE_SITE,
+            Resource::TYPE_SITE_DEPLOYMENT,
+            Resource::TYPE_SITE_VARIABLE,
         ];
     }
 
@@ -201,6 +215,15 @@ class Appwrite extends Destination
 
                 $scope = 'functions.write';
                 $this->functions->create('', '', Runtime::NODE180());
+            }
+
+            // Sites
+            if (\in_array(Resource::TYPE_SITE, $resources)) {
+                $scope = 'sites.read';
+                $this->sites->list();
+
+                $scope = 'sites.write';
+                $this->sites->create('', '', Framework::OTHER(), BuildRuntime::STATIC1());
             }
 
         } catch (AppwriteException $e) {
@@ -274,6 +297,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_AUTH => $this->importAuthResource($resource),
                     Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
                     Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
+                    Transfer::GROUP_SITES => $this->importSiteResource($resource),
                     default => throw new \Exception('Invalid resource group'),
                 };
             } catch (\Throwable $e) {
@@ -1593,6 +1617,207 @@ class Appwrite extends Destination
 
         if (!\is_array($response) || !isset($response['$id'])) {
             throw new \Exception('Deployment creation failed');
+        }
+
+        if ($deployment->getStart() === 0) {
+            $deployment->setId($response['$id']);
+        }
+
+        if ($deployment->getEnd() == ($deployment->getSize() - 1)) {
+            $deployment->setStatus(Resource::STATUS_SUCCESS);
+        } else {
+            $deployment->setStatus(Resource::STATUS_PENDING);
+        }
+
+        return $deployment;
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    public function importSiteResource(Resource $resource): Resource
+    {
+        switch ($resource->getName()) {
+            case Resource::TYPE_SITE:
+                /** @var Site $resource */
+
+                $buildRuntime = match ($resource->getBuildRuntime()) {
+                    'node-14.5' => BuildRuntime::NODE145(),
+                    'node-16.0' => BuildRuntime::NODE160(),
+                    'node-18.0' => BuildRuntime::NODE180(),
+                    'node-19.0' => BuildRuntime::NODE190(),
+                    'node-20.0' => BuildRuntime::NODE200(),
+                    'node-21.0' => BuildRuntime::NODE210(),
+                    'node-22' => BuildRuntime::NODE22(),
+                    'php-8.0' => BuildRuntime::PHP80(),
+                    'php-8.1' => BuildRuntime::PHP81(),
+                    'php-8.2' => BuildRuntime::PHP82(),
+                    'php-8.3' => BuildRuntime::PHP83(),
+                    'ruby-3.0' => BuildRuntime::RUBY30(),
+                    'ruby-3.1' => BuildRuntime::RUBY31(),
+                    'ruby-3.2' => BuildRuntime::RUBY32(),
+                    'ruby-3.3' => BuildRuntime::RUBY33(),
+                    'python-3.8' => BuildRuntime::PYTHON38(),
+                    'python-3.9' => BuildRuntime::PYTHON39(),
+                    'python-3.10' => BuildRuntime::PYTHON310(),
+                    'python-3.11' => BuildRuntime::PYTHON311(),
+                    'python-3.12' => BuildRuntime::PYTHON312(),
+                    'python-ml-3.11' => BuildRuntime::PYTHONML311(),
+                    'python-ml-3.12' => BuildRuntime::PYTHONML312(),
+                    'dart-3.0' => BuildRuntime::DART30(),
+                    'dart-3.1' => BuildRuntime::DART31(),
+                    'dart-3.3' => BuildRuntime::DART33(),
+                    'dart-3.5' => BuildRuntime::DART35(),
+                    'dart-3.8' => BuildRuntime::DART38(),
+                    'dart-3.9' => BuildRuntime::DART39(),
+                    'dart-2.15' => BuildRuntime::DART215(),
+                    'dart-2.16' => BuildRuntime::DART216(),
+                    'dart-2.17' => BuildRuntime::DART217(),
+                    'dart-2.18' => BuildRuntime::DART218(),
+                    'dart-2.19' => BuildRuntime::DART219(),
+                    'deno-1.21' => BuildRuntime::DENO121(),
+                    'deno-1.24' => BuildRuntime::DENO124(),
+                    'deno-1.35' => BuildRuntime::DENO135(),
+                    'deno-1.40' => BuildRuntime::DENO140(),
+                    'deno-1.46' => BuildRuntime::DENO146(),
+                    'deno-2.0' => BuildRuntime::DENO20(),
+                    'dotnet-6.0' => BuildRuntime::DOTNET60(),
+                    'dotnet-7.0' => BuildRuntime::DOTNET70(),
+                    'dotnet-8.0' => BuildRuntime::DOTNET80(),
+                    'java-8.0' => BuildRuntime::JAVA80(),
+                    'java-11.0' => BuildRuntime::JAVA110(),
+                    'java-17.0' => BuildRuntime::JAVA170(),
+                    'java-18.0' => BuildRuntime::JAVA180(),
+                    'java-21.0' => BuildRuntime::JAVA210(),
+                    'java-22' => BuildRuntime::JAVA22(),
+                    'swift-5.5' => BuildRuntime::SWIFT55(),
+                    'swift-5.8' => BuildRuntime::SWIFT58(),
+                    'swift-5.9' => BuildRuntime::SWIFT59(),
+                    'swift-5.10' => BuildRuntime::SWIFT510(),
+                    'kotlin-1.6' => BuildRuntime::KOTLIN16(),
+                    'kotlin-1.8' => BuildRuntime::KOTLIN18(),
+                    'kotlin-1.9' => BuildRuntime::KOTLIN19(),
+                    'kotlin-2.0' => BuildRuntime::KOTLIN20(),
+                    'cpp-17' => BuildRuntime::CPP17(),
+                    'cpp-20' => BuildRuntime::CPP20(),
+                    'bun-1.0' => BuildRuntime::BUN10(),
+                    'bun-1.1' => BuildRuntime::BUN11(),
+                    'go-1.23' => BuildRuntime::GO123(),
+                    'static-1' => BuildRuntime::STATIC1(),
+                    'flutter-3.24' => BuildRuntime::FLUTTER324(),
+                    'flutter-3.27' => BuildRuntime::FLUTTER327(),
+                    'flutter-3.29' => BuildRuntime::FLUTTER329(),
+                    'flutter-3.32' => BuildRuntime::FLUTTER332(),
+                    'flutter-3.35' => BuildRuntime::FLUTTER335(),
+                    default => throw new \Exception('Invalid Build Runtime: ' . $resource->getBuildRuntime()),
+                };
+
+                $framework = match ($resource->getFramework()) {
+                    'analog' => Framework::ANALOG(),
+                    'angular' => Framework::ANGULAR(),
+                    'astro' => Framework::ASTRO(),
+                    'flutter', 'flutter-web' => Framework::FLUTTER(),
+                    'lynx' => Framework::LYNX(),
+                    'nextjs' => Framework::NEXTJS(),
+                    'nuxt' => Framework::NUXT(),
+                    'react' => Framework::REACT(),
+                    'react-native' => Framework::REACTNATIVE(),
+                    'remix' => Framework::REMIX(),
+                    'svelte-kit' => Framework::SVELTEKIT(),
+                    'tanstack-start' => Framework::TANSTACKSTART(),
+                    'vite' => Framework::VITE(),
+                    'vue' => Framework::VUE(),
+                    default => Framework::OTHER(),
+                };
+
+                $adapter = match ($resource->getAdapter()) {
+                    'static' => Adapter::STATIC(),
+                    'ssr' => Adapter::SSR(),
+                    default => null,
+                };
+
+                $this->sites->create(
+                    $resource->getId(),
+                    $resource->getSiteName(),
+                    $framework,
+                    $buildRuntime,
+                    $resource->getEnabled(),
+                    $resource->getLogging(),
+                    $resource->getTimeout(),
+                    $resource->getInstallCommand(),
+                    $resource->getBuildCommand(),
+                    $resource->getOutputDirectory(),
+                    $adapter,
+                    fallbackFile: $resource->getFallbackFile(),
+                    specification: $resource->getSpecification(),
+                );
+                break;
+            case Resource::TYPE_SITE_VARIABLE:
+                /** @var SiteEnvVar $resource */
+                $this->sites->createVariable(
+                    $resource->getSite()->getId(),
+                    $resource->getKey(),
+                    $resource->getValue()
+                );
+                break;
+            case Resource::TYPE_SITE_DEPLOYMENT:
+                /** @var SiteDeployment $resource */
+                return $this->importSiteDeployment($resource);
+        }
+
+        $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
+    }
+
+    /**
+     * @throws AppwriteException
+     * @throws \Exception
+     */
+    private function importSiteDeployment(SiteDeployment $deployment): Resource
+    {
+        $siteId = $deployment->getSite()->getId();
+
+        if ($deployment->getSize() <= Transfer::STORAGE_MAX_CHUNK_SIZE) {
+            $response = $this->client->call(
+                'POST',
+                "/sites/{$siteId}/deployments",
+                [
+                    'content-type' => 'multipart/form-data',
+                ],
+                [
+                    'siteId' => $siteId,
+                    'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
+                    'activate' => $deployment->getActivated(),
+                ]
+            );
+
+            if (!\is_array($response) || !isset($response['$id'])) {
+                throw new \Exception('Site deployment creation failed');
+            }
+
+            $deployment->setStatus(Resource::STATUS_SUCCESS);
+
+            return $deployment;
+        }
+
+        $response = $this->client->call(
+            'POST',
+            "/sites/{$siteId}/deployments",
+            [
+                'content-type' => 'multipart/form-data',
+                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . ($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()) . '/' . $deployment->getSize(),
+                'x-appwrite-id' => $deployment->getId(),
+            ],
+            [
+                'siteId' => $siteId,
+                'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
+                'activate' => $deployment->getActivated(),
+            ]
+        );
+
+        if (!\is_array($response) || !isset($response['$id'])) {
+            throw new \Exception('Site deployment creation failed');
         }
 
         if ($deployment->getStart() === 0) {

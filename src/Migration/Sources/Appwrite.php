@@ -7,6 +7,7 @@ use Appwrite\Client;
 use Appwrite\Query;
 use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
+use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
@@ -40,6 +41,9 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
+use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
+use Utopia\Migration\Resources\Sites\Site;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
@@ -65,6 +69,8 @@ class Appwrite extends Source
 
     private Functions $functions;
 
+    private Sites $sites;
+
     private Reader $database;
 
     /**
@@ -87,6 +93,7 @@ class Appwrite extends Source
         $this->teams = new Teams($this->client);
         $this->storage = new Storage($this->client);
         $this->functions = new Functions($this->client);
+        $this->sites = new Sites($this->client);
 
         $this->headers['x-appwrite-project'] = $this->project;
         $this->headers['x-appwrite-key'] = $this->key;
@@ -145,6 +152,13 @@ class Appwrite extends Source
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
+
+            // Sites
+            Resource::TYPE_SITE,
+            Resource::TYPE_SITE_DEPLOYMENT,
+            Resource::TYPE_SITE_VARIABLE,
+
+            // Settings
         ];
     }
 
@@ -182,6 +196,7 @@ class Appwrite extends Source
             $this->reportStorage($resources, $report, $resourceIds);
             $this->reportFunctions($resources, $report, $resourceIds);
             $this->reportBackups($resources, $report, $resourceIds);
+            $this->reportSites($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -402,6 +417,70 @@ class Appwrite extends Source
             foreach ($functions as $function) {
                 // function model contains `vars`, we don't need to fetch the list again.
                 $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += count($function['vars'] ?? []);
+            }
+        }
+    }
+
+    private function reportSites(array $resources, array &$report, array $resourceIds = []): void
+    {
+        $needVarsOrDeployments = (
+            \in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources) ||
+            \in_array(Resource::TYPE_SITE_VARIABLE, $resources)
+        );
+
+        $sites = [];
+        $totalSites = 0;
+
+        if (!$needVarsOrDeployments && \in_array(Resource::TYPE_SITE, $resources)) {
+            $siteQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_SITE,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            $report[Resource::TYPE_SITE] = $this->sites->list($siteQueries)['total'];
+            return;
+        }
+
+        if ($needVarsOrDeployments) {
+            $lastSite = null;
+            while (true) {
+                $params = $this->buildQueries(
+                    resourceType: Resource::TYPE_SITE,
+                    resourceIds: $resourceIds,
+                    cursor: $lastSite,
+                );
+                $siteList = $this->sites->list($params);
+
+                $totalSites = $siteList['total'];
+                $currentSites = $siteList['sites'];
+                $sites = array_merge($sites, $currentSites);
+
+                if (count($currentSites) === 0 || count($currentSites) < self::DEFAULT_PAGE_LIMIT) {
+                    break;
+                }
+
+                $lastSite = $currentSites[count($currentSites) - 1]['$id'];
+            }
+        }
+
+        if (\in_array(Resource::TYPE_SITE, $resources)) {
+            $report[Resource::TYPE_SITE] = $totalSites;
+        }
+
+        if (\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources)) {
+            $report[Resource::TYPE_SITE_DEPLOYMENT] = 0;
+            foreach ($sites as $site) {
+                if (!empty($site['deploymentId'])) {
+                    $report[Resource::TYPE_SITE_DEPLOYMENT] += 1;
+                }
+            }
+        }
+
+        if (\in_array(Resource::TYPE_SITE_VARIABLE, $resources)) {
+            $report[Resource::TYPE_SITE_VARIABLE] = 0;
+            foreach ($sites as $site) {
+                $variables = $this->sites->listVariables($site['$id']);
+                $report[Resource::TYPE_SITE_VARIABLE] += $variables['total'] ?? 0;
             }
         }
     }
@@ -1402,6 +1481,37 @@ class Appwrite extends Source
         }
     }
 
+    protected function exportGroupSites(int $batchSize, array $resources): void
+    {
+        try {
+            if (\in_array(Resource::TYPE_SITE, $resources)) {
+                $this->exportSites($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_SITE,
+                Transfer::GROUP_SITES,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources)) {
+                $this->exportSiteDeployments($batchSize, true);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_SITE_DEPLOYMENT,
+                Transfer::GROUP_SITES,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+    }
+
     /**
      * @throws AppwriteException
      */
@@ -1696,6 +1806,216 @@ class Appwrite extends Source
         }
 
         $this->callback($policies);
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportSites(int $batchSize): void
+    {
+        $this->sites = new Sites($this->client);
+        /** @var Site|null $lastSite */
+        $lastSite = null;
+
+        while (true) {
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_SITE) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastSite) {
+                $queries[] = Query::cursorAfter($lastSite->getId());
+            }
+
+            $response = $this->sites->list($queries);
+
+            if ($response['total'] === 0) {
+                return;
+            }
+
+            $sites = [];
+            $convertedResources = [];
+
+            foreach ($response['sites'] as $site) {
+                $convertedSite = new Site(
+                    $site['$id'],
+                    $site['name'],
+                    $site['framework'],
+                    $site['buildRuntime'],
+                    $site['enabled'],
+                    $site['logging'],
+                    $site['timeout'],
+                    $site['installCommand'] ?? '',
+                    $site['buildCommand'] ?? '',
+                    $site['outputDirectory'] ?? '',
+                    $site['adapter'] ?? 'static',
+                    $site['fallbackFile'] ?? '',
+                    $site['specification'] ?? '',
+                    $site['deploymentId'] ?? ''
+                );
+                $sites[] = $convertedSite;
+                $convertedResources[] = $convertedSite;
+
+                $variables = $this->sites->listVariables($site['$id']);
+                foreach ($variables['variables'] ?? [] as $var) {
+                    $convertedResources[] = new SiteEnvVar(
+                        $var['$id'],
+                        $convertedSite,
+                        $var['key'],
+                        $var['value']
+                    );
+                }
+            }
+
+            $lastSite = $sites[count($sites) - 1];
+
+            $this->callback($convertedResources);
+
+            if (count($sites) < $batchSize) {
+                return;
+            }
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportSiteDeployments(int $batchSize, bool $exportOnlyActive = false): void
+    {
+        $this->sites = new Sites($this->client);
+        $sites = $this->cache->get(Site::getName());
+
+        foreach ($sites as $site) {
+            /** @var Site $site */
+            $lastDocument = null;
+
+            if ($exportOnlyActive && $site->getActiveDeployment()) {
+                $deployment = $this->sites->getDeployment($site->getId(), $site->getActiveDeployment());
+
+                try {
+                    $this->exportSiteDeploymentData($site, $deployment);
+                } catch (\Throwable $e) {
+                    $site->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                }
+
+                continue;
+            }
+
+            while (true) {
+                $queries = [Query::limit($batchSize)];
+
+                if ($lastDocument) {
+                    $queries[] = Query::cursorAfter($lastDocument);
+                }
+
+                $response = $this->sites->listDeployments(
+                    $site->getId(),
+                    $queries
+                );
+
+                foreach ($response['deployments'] as $deployment) {
+                    try {
+                        $this->exportSiteDeploymentData($site, $deployment);
+                    } catch (\Throwable $e) {
+                        $site->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                    }
+
+                    $lastDocument = $deployment['$id'];
+                }
+
+                if (count($response['deployments']) < $batchSize) {
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function exportSiteDeploymentData(Site $site, array $deployment): void
+    {
+        $start = 0;
+        $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
+
+        $responseHeaders = [];
+
+        $this->call(
+            'HEAD',
+            "/sites/{$site->getId()}/deployments/{$deployment['$id']}/download",
+            [],
+            [],
+            $responseHeaders
+        );
+
+        if (!\array_key_exists('Content-Length', $responseHeaders)) {
+            $file = $this->call(
+                'GET',
+                "/sites/{$site->getId()}/deployments/{$deployment['$id']}/download",
+                [],
+                [],
+                $responseHeaders
+            );
+
+            $size = mb_strlen($file);
+
+            if ($end > $size) {
+                $end = $size - 1;
+            }
+
+            $siteDeployment = new SiteDeployment(
+                $deployment['$id'],
+                $site,
+                $size,
+                $start,
+                $end,
+                $file,
+                $deployment['$id'] === $site->getActiveDeployment()
+            );
+            $siteDeployment->setSequence($siteDeployment->getId());
+
+            $this->callback([$siteDeployment]);
+
+            return;
+        }
+
+        $fileSize = $responseHeaders['Content-Length'];
+
+        $siteDeployment = new SiteDeployment(
+            $deployment['$id'],
+            $site,
+            $fileSize,
+            $start,
+            $end,
+            '',
+            $deployment['$id'] === $site->getActiveDeployment()
+        );
+
+        $siteDeployment->setSequence($siteDeployment->getId());
+
+        while ($start < $fileSize) {
+            $chunkData = $this->call(
+                'GET',
+                "/sites/{$site->getId()}/deployments/{$siteDeployment->getSequence()}/download",
+                ['range' => "bytes=$start-$end"]
+            );
+
+            $siteDeployment
+                ->setData($chunkData)
+                ->setStart($start)
+                ->setEnd($end);
+
+            $this->callback([$siteDeployment]);
+
+            $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
+            $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
+
+            if ($end > $fileSize) {
+                $end = $fileSize - 1;
+            }
+        }
     }
 
     /**

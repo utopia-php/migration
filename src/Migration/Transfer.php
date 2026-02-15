@@ -12,6 +12,8 @@ class Transfer
 
     public const GROUP_FUNCTIONS = 'functions';
 
+    public const GROUP_SITES = 'sites';
+
     public const GROUP_DATABASES = 'databases';
 
     public const GROUP_SETTINGS = 'settings';
@@ -34,6 +36,12 @@ class Transfer
         Resource::TYPE_FUNCTION,
         Resource::TYPE_ENVIRONMENT_VARIABLE,
         Resource::TYPE_DEPLOYMENT
+    ];
+
+    public const GROUP_SITES_RESOURCES = [
+        Resource::TYPE_SITE,
+        Resource::TYPE_SITE_VARIABLE,
+        Resource::TYPE_SITE_DEPLOYMENT
     ];
 
     public const GROUP_DATABASES_RESOURCES = [
@@ -59,6 +67,9 @@ class Transfer
         Resource::TYPE_FUNCTION,
         Resource::TYPE_ENVIRONMENT_VARIABLE,
         Resource::TYPE_DEPLOYMENT,
+        Resource::TYPE_SITE,
+        Resource::TYPE_SITE_VARIABLE,
+        Resource::TYPE_SITE_DEPLOYMENT,
         Resource::TYPE_DATABASE,
         Resource::TYPE_TABLE,
         Resource::TYPE_INDEX,
@@ -76,6 +87,7 @@ class Transfer
         Resource::TYPE_BUCKET,
         Resource::TYPE_DATABASE,
         Resource::TYPE_FUNCTION,
+        Resource::TYPE_SITE,
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
     ];
@@ -332,6 +344,7 @@ class Transfer
         foreach ($services as $service) {
             $resources = match ($service) {
                 self::GROUP_FUNCTIONS => array_merge($resources, self::GROUP_FUNCTIONS_RESOURCES),
+                self::GROUP_SITES => array_merge($resources, self::GROUP_SITES_RESOURCES),
                 self::GROUP_STORAGE => array_merge($resources, self::GROUP_STORAGE_RESOURCES),
                 self::GROUP_GENERAL => array_merge($resources, []),
                 self::GROUP_AUTH => array_merge($resources, self::GROUP_AUTH_RESOURCES),

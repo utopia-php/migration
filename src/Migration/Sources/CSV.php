@@ -2,7 +2,6 @@
 
 namespace Utopia\Migration\Sources;
 
-use Utopia\Console;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource as UtopiaResource;
@@ -15,6 +14,7 @@ use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Appwrite\Reader;
 use Utopia\Migration\Sources\Appwrite\Reader\Database as DatabaseReader;
 use Utopia\Migration\Transfer;
+use Utopia\Migration\Warning;
 use Utopia\Storage\Device;
 use Utopia\Storage\Storage;
 
@@ -380,6 +380,11 @@ class CSV extends Source
         throw new \Exception('Not Implemented');
     }
 
+    protected function exportGroupSites(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
     /**
      * @param callable(resource $stream, string $delimiter): void $callback
      * @return void
@@ -446,7 +451,12 @@ class CSV extends Source
             $messages[] = "$label: '" . \implode("', '", $unknown) . "' (will be ignored)";
         }
         if (!empty($unknown)) {
-            Console::warning(\implode(', ', $messages));
+            $this->addWarning(new Warning(
+                UtopiaResource::TYPE_ROW,
+                Transfer::GROUP_DATABASES,
+                \implode(', ', $messages),
+                $this->resourceId
+            ));
         }
     }
 
