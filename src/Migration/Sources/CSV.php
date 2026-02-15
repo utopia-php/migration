@@ -375,6 +375,11 @@ class CSV extends Source
     /**
      * @throws \Exception
      */
+    protected function exportGroupBackups(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
     protected function exportGroupSites(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
