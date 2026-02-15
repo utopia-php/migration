@@ -28,6 +28,7 @@ use Utopia\Migration\Resources\Database\Columns\Enum;
 use Utopia\Migration\Resources\Database\Columns\Integer;
 use Utopia\Migration\Resources\Database\Columns\IP;
 use Utopia\Migration\Resources\Database\Columns\Line;
+use Utopia\Migration\Resources\Database\Columns\LongText;
 use Utopia\Migration\Resources\Database\Columns\MediumText;
 use Utopia\Migration\Resources\Database\Columns\Point;
 use Utopia\Migration\Resources\Database\Columns\Polygon;
@@ -1120,7 +1121,7 @@ class Appwrite extends Source
                             break;
 
                         case Column::TYPE_LONGTEXT:
-                            $col = new MediumText(
+                            $col = new LongText(
                                 $column['key'],
                                 $table,
                                 required: $column['required'],

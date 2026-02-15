@@ -14,7 +14,7 @@ class MediumText extends Column
         bool    $required = false,
         ?string $default = null,
         bool    $array = false,
-        int     $size = Database::LENGTH_KEY,
+        int     $size = 16777215,
         string  $format = '',
         string  $createdAt = '',
         string  $updatedAt = ''
@@ -82,7 +82,7 @@ class MediumText extends Column
 
     public function getType(): string
     {
-        return Column::TYPE_STRING;
+        return Column::TYPE_MEDIUMTEXT;
     }
 
     public function getSize(): int
