@@ -28,8 +28,10 @@ use Utopia\Migration\Resources\Database\Columns\Enum;
 use Utopia\Migration\Resources\Database\Columns\Integer;
 use Utopia\Migration\Resources\Database\Columns\IP;
 use Utopia\Migration\Resources\Database\Columns\Line;
+use Utopia\Migration\Resources\Database\Columns\MediumText;
 use Utopia\Migration\Resources\Database\Columns\Point;
 use Utopia\Migration\Resources\Database\Columns\Polygon;
+use Utopia\Migration\Resources\Database\Columns\RegularText;
 use Utopia\Migration\Resources\Database\Columns\Relationship;
 use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Columns\URL;
@@ -1086,6 +1088,45 @@ class Appwrite extends Source
                                 $table,
                                 required: $column['required'],
                                 default: $column['default'],
+                                createdAt: $column['$createdAt'] ?? '',
+                                updatedAt: $column['$updatedAt'] ?? '',
+                            );
+                            break;
+
+                        case Column::TYPE_TEXT:
+                            $col = new RegularText(
+                                $column['key'],
+                                $table,
+                                required: $column['required'],
+                                default: $column['default'],
+                                array: $column['array'],
+                                size: $column['size'] ?? 65535,
+                                createdAt: $column['$createdAt'] ?? '',
+                                updatedAt: $column['$updatedAt'] ?? '',
+                            );
+                            break;
+
+                        case Column::TYPE_MEDIUMTEXT:
+                            $col = new MediumText(
+                                $column['key'],
+                                $table,
+                                required: $column['required'],
+                                default: $column['default'],
+                                array: $column['array'],
+                                size: $column['size'] ?? 16777215,
+                                createdAt: $column['$createdAt'] ?? '',
+                                updatedAt: $column['$updatedAt'] ?? '',
+                            );
+                            break;
+
+                        case Column::TYPE_LONGTEXT:
+                            $col = new MediumText(
+                                $column['key'],
+                                $table,
+                                required: $column['required'],
+                                default: $column['default'],
+                                array: $column['array'],
+                                size: $column['size'] ?? 2147483647,
                                 createdAt: $column['$createdAt'] ?? '',
                                 updatedAt: $column['$updatedAt'] ?? '',
                             );
