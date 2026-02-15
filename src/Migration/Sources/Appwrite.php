@@ -5,6 +5,7 @@ namespace Utopia\Migration\Sources;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Query;
+use Appwrite\Services\Backups;
 use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Sites;
@@ -71,6 +72,8 @@ class Appwrite extends Source
 
     private Sites $sites;
 
+    private Backups $backups;
+
     private Reader $database;
 
     /**
@@ -94,6 +97,7 @@ class Appwrite extends Source
         $this->storage = new Storage($this->client);
         $this->functions = new Functions($this->client);
         $this->sites = new Sites($this->client);
+        $this->backups = new Backups($this->client);
 
         $this->headers['x-appwrite-project'] = $this->project;
         $this->headers['x-appwrite-key'] = $this->key;
@@ -1756,17 +1760,12 @@ class Appwrite extends Source
         }
 
         try {
-            $response = $this->call('GET', '/backups/policies', [
-                'Content-Type' => 'application/json',
-            ]);
+            $response = $this->backups->listPolicies();
 
             $report[Resource::TYPE_BACKUP_POLICY] = $response['total'] ?? 0;
-        } catch (\Throwable $e) {
-            $body = \json_decode($e->getMessage(), true);
-            $code = $body['code'] ?? 0;
-
+        } catch (AppwriteException $e) {
             // Re-throw permission errors (401/403) as they indicate configuration issues
-            if ($code === 401 || $code === 403) {
+            if ($e->getCode() === 401 || $e->getCode() === 403) {
                 throw new \Exception('Missing permission to access backup policies: ' . $e->getMessage(), previous: $e);
             }
 
@@ -1782,9 +1781,7 @@ class Appwrite extends Source
      */
     private function exportBackupPolicies(int $batchSize): void
     {
-        $response = $this->call('GET', '/backups/policies', [
-            'Content-Type' => 'application/json',
-        ]);
+        $response = $this->backups->listPolicies();
 
         if (empty($response['policies'])) {
             return;

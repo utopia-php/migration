@@ -11,6 +11,7 @@ use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\Runtime;
 use Appwrite\InputFile;
+use Appwrite\Services\Backups;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
@@ -61,6 +62,7 @@ class Appwrite extends Destination
 
     protected string $key;
 
+    private Backups $backups;
     private Functions $functions;
     private Sites $sites;
     private Storage $storage;
@@ -95,6 +97,7 @@ class Appwrite extends Destination
             ->setProject($project)
             ->setKey($key);
 
+        $this->backups = new Backups($this->client);
         $this->functions = new Functions($this->client);
         $this->sites = new Sites($this->client);
         $this->storage = new Storage($this->client);
@@ -1509,58 +1512,15 @@ class Appwrite extends Destination
         switch ($resource->getName()) {
             case Resource::TYPE_BACKUP_POLICY:
                 /** @var Policy $resource */
-                $params = [
-                    'policyId' => $resource->getId(),
-                    'name' => $resource->getPolicyName(),
-                    'services' => $resource->getServices(),
-                    'enabled' => $resource->getEnabled(),
-                    'retention' => $resource->getRetention(),
-                    'schedule' => $resource->getSchedule(),
-                ];
-
-                // Validate services - only databases, buckets, and functions are currently supported
-                $supportedServices = [Transfer::GROUP_DATABASES, Transfer::GROUP_STORAGE, Transfer::GROUP_FUNCTIONS];
-                $unsupportedServices = array_diff($resource->getServices(), $supportedServices);
-                if (!empty($unsupportedServices)) {
-                    throw new Exception(
-                        resourceName: $resource->getName(),
-                        resourceGroup: $resource->getGroup(),
-                        resourceId: $resource->getId(),
-                        message: 'Unsupported services in backup policy: ' . implode(', ', $unsupportedServices),
-                    );
-                }
-
-                $resourceType = $resource->getResourceType();
-                $resourceId = $resource->getResourceId();
-
-                if (!empty($resourceId)) {
-                    // Only databases and buckets support per-resource backup policies
-                    $collectionMap = [
-                        Resource::TYPE_DATABASE => 'databases',
-                        Resource::TYPE_BUCKET => 'buckets',
-                    ];
-
-                    if (isset($collectionMap[$resourceType])) {
-                        // Validate resource exists on destination
-                        $doc = $this->database->getDocument($collectionMap[$resourceType], $resourceId);
-                        if ($doc->isEmpty()) {
-                            throw new Exception(
-                                resourceName: $resource->getName(),
-                                resourceGroup: $resource->getGroup(),
-                                resourceId: $resource->getId(),
-                                message: 'Referenced ' . $resourceType . ' "' . $resourceId . '" not found on destination',
-                            );
-                        }
-                    }
-
-                    $params['resourceId'] = $resourceId;
-                }
-
-                $this->call('POST', '/backups/policies', [
-                    'Content-Type' => 'application/json',
-                    'X-Appwrite-Project' => $this->project,
-                    'X-Appwrite-Key' => $this->key,
-                ], $params);
+                $this->backups->createPolicy(
+                    policyId: 'unique()',
+                    services: $resource->getServices(),
+                    retention: $resource->getRetention(),
+                    schedule: $resource->getSchedule(),
+                    name: $resource->getPolicyName() ?: null,
+                    resourceId: $resource->getResourceId() ?: null,
+                    enabled: $resource->getEnabled(),
+                );
                 break;
         }
 
