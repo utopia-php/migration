@@ -1816,9 +1816,12 @@ class Appwrite extends Source
         }
 
         try {
-            $response = $this->backups->listPolicies();
-
-            $report[Resource::TYPE_BACKUP_POLICY] = $response['total'] ?? 0;
+            $queries = $this->buildQueries(
+                resourceType: Resource::TYPE_BACKUP_POLICY,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            $report[Resource::TYPE_BACKUP_POLICY] = $this->backups->listPolicies($queries)['total'];
         } catch (AppwriteException $e) {
             // Re-throw permission errors (401/403) as they indicate configuration issues
             if ($e->getCode() === 401 || $e->getCode() === 403) {
@@ -1832,12 +1835,18 @@ class Appwrite extends Source
     }
 
     /**
-     * @param int $batchSize
-     * @throws \Exception
+     * @throws AppwriteException
      */
     private function exportBackupPolicies(int $batchSize): void
     {
-        $response = $this->backups->listPolicies();
+        $queries = [];
+
+        if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_BACKUP_POLICY) {
+            $queries[] = Query::equal('$id', $this->rootResourceId);
+            $queries[] = Query::limit(1);
+        }
+
+        $response = $this->backups->listPolicies($queries);
 
         if (empty($response['policies'])) {
             return;

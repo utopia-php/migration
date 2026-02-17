@@ -1490,7 +1490,7 @@ class Appwrite extends Destination
             case Resource::TYPE_BACKUP_POLICY:
                 /** @var Policy $resource */
                 $this->backups->createPolicy(
-                    policyId: 'unique()',
+                    policyId: $resource->getId(),
                     services: $resource->getServices(),
                     retention: $resource->getRetention(),
                     schedule: $resource->getSchedule(),

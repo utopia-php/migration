@@ -37,7 +37,7 @@ class Policy extends Resource
     public static function fromArray(array $array): self
     {
         return new self(
-            $array['id'] ?? '',
+            $array['id'],
             $array['name'] ?? '',
             $array['services'] ?? [],
             $array['retention'] ?? 0,
