@@ -5,6 +5,7 @@ namespace Utopia\Migration\Sources;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Query;
+use Appwrite\Services\Backups;
 use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Sites;
@@ -19,6 +20,7 @@ use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
+use Utopia\Migration\Resources\Backups\Policy;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Columns\Boolean;
 use Utopia\Migration\Resources\Database\Columns\DateTime;
@@ -74,6 +76,8 @@ class Appwrite extends Source
 
     private Sites $sites;
 
+    private Backups $backups;
+
     private Reader $database;
 
     /**
@@ -97,6 +101,7 @@ class Appwrite extends Source
         $this->storage = new Storage($this->client);
         $this->functions = new Functions($this->client);
         $this->sites = new Sites($this->client);
+        $this->backups = new Backups($this->client);
 
         $this->headers['x-appwrite-project'] = $this->project;
         $this->headers['x-appwrite-key'] = $this->key;
@@ -153,6 +158,9 @@ class Appwrite extends Source
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_ENVIRONMENT_VARIABLE,
 
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
+
             // Sites
             Resource::TYPE_SITE,
             Resource::TYPE_SITE_DEPLOYMENT,
@@ -195,6 +203,7 @@ class Appwrite extends Source
             $this->reportDatabases($resources, $report, $resourceIds);
             $this->reportStorage($resources, $report, $resourceIds);
             $this->reportFunctions($resources, $report, $resourceIds);
+            $this->reportBackups($resources, $report, $resourceIds);
             $this->reportSites($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
@@ -1776,6 +1785,89 @@ class Appwrite extends Source
                 $end = $fileSize - 1;
             }
         }
+    }
+
+    protected function exportGroupBackups(int $batchSize, array $resources): void
+    {
+        try {
+            if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
+                $this->exportBackupPolicies($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_BACKUP_POLICY,
+                Transfer::GROUP_BACKUPS,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+    }
+
+    /**
+     * @param array<string> $resources
+     * @param array<string, mixed> $report
+     * @param array<string, array<string>> $resourceIds
+     */
+    private function reportBackups(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (!\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
+            return;
+        }
+
+        try {
+            $queries = $this->buildQueries(
+                resourceType: Resource::TYPE_BACKUP_POLICY,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            $report[Resource::TYPE_BACKUP_POLICY] = $this->backups->listPolicies($queries)['total'];
+        } catch (AppwriteException $e) {
+            // Re-throw permission errors (401/403) as they indicate configuration issues
+            if ($e->getCode() === 401 || $e->getCode() === 403) {
+                throw new \Exception('Missing permission to access backup policies: ' . $e->getMessage(), previous: $e);
+            }
+
+            // For other errors (404/501), treat as feature not available - skip gracefully
+            // Backup policies are Cloud-only, may not be available on self-hosted
+            $report[Resource::TYPE_BACKUP_POLICY] = 0;
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportBackupPolicies(int $batchSize): void
+    {
+        $queries = [];
+
+        if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_BACKUP_POLICY) {
+            $queries[] = Query::equal('$id', $this->rootResourceId);
+            $queries[] = Query::limit(1);
+        }
+
+        $response = $this->backups->listPolicies($queries);
+
+        if (empty($response['policies'])) {
+            return;
+        }
+
+        $policies = [];
+
+        foreach ($response['policies'] as $policy) {
+            $policies[] = new Policy(
+                $policy['$id'],
+                $policy['name'] ?? '',
+                $policy['services'] ?? [],
+                $policy['retention'] ?? 0,
+                $policy['schedule'] ?? '',
+                $policy['enabled'] ?? true,
+                $policy['resourceId'] ?? '',
+                $policy['resourceType'] ?? '',
+            );
+        }
+
+        $this->callback($policies);
     }
 
     /**

@@ -36,6 +36,11 @@ abstract class Source extends Target
         return static::$defaultBatchSize;
     }
 
+    public function getBackupsBatchSize(): int
+    {
+        return static::$defaultBatchSize;
+    }
+
     public function getSitesBatchSize(): int
     {
         return static::$defaultBatchSize;
@@ -94,6 +99,7 @@ abstract class Source extends Target
                 Transfer::GROUP_DATABASES => Transfer::GROUP_DATABASES_RESOURCES,
                 Transfer::GROUP_STORAGE => Transfer::GROUP_STORAGE_RESOURCES,
                 Transfer::GROUP_FUNCTIONS => Transfer::GROUP_FUNCTIONS_RESOURCES,
+                Transfer::GROUP_BACKUPS => Transfer::GROUP_BACKUPS_RESOURCES,
                 Transfer::GROUP_SITES => Transfer::GROUP_SITES_RESOURCES,
             ];
 
@@ -122,6 +128,9 @@ abstract class Source extends Target
                     break;
                 case Transfer::GROUP_FUNCTIONS:
                     $this->exportGroupFunctions($this->getFunctionsBatchSize(), $resources);
+                    break;
+                case Transfer::GROUP_BACKUPS:
+                    $this->exportGroupBackups($this->getBackupsBatchSize(), $resources);
                     break;
                 case Transfer::GROUP_SITES:
                     $this->exportGroupSites($this->getSitesBatchSize(), $resources);
@@ -161,6 +170,14 @@ abstract class Source extends Target
      * @param array<string> $resources Resources to export
      */
     abstract protected function exportGroupFunctions(int $batchSize, array $resources): void;
+
+    /**
+     * Export Backups Group
+     *
+     * @param int $batchSize
+     * @param array<string> $resources Resources to export
+     */
+    abstract protected function exportGroupBackups(int $batchSize, array $resources): void;
 
     /**
      * Export Sites Group

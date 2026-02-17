@@ -11,6 +11,7 @@ use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\Runtime;
 use Appwrite\InputFile;
+use Appwrite\Services\Backups;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
@@ -38,6 +39,7 @@ use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
+use Utopia\Migration\Resources\Backups\Policy;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Index;
@@ -60,6 +62,7 @@ class Appwrite extends Destination
 
     protected string $key;
 
+    private Backups $backups;
     private Functions $functions;
     private Sites $sites;
     private Storage $storage;
@@ -94,6 +97,7 @@ class Appwrite extends Destination
             ->setProject($project)
             ->setKey($key);
 
+        $this->backups = new Backups($this->client);
         $this->functions = new Functions($this->client);
         $this->sites = new Sites($this->client);
         $this->storage = new Storage($this->client);
@@ -137,6 +141,9 @@ class Appwrite extends Destination
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_ENVIRONMENT_VARIABLE,
+
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
 
             // Sites
             Resource::TYPE_SITE,
@@ -222,6 +229,15 @@ class Appwrite extends Destination
                 $this->sites->create('', '', Framework::OTHER(), BuildRuntime::STATIC1());
             }
 
+            // Backups
+            if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
+                $scope = 'policies.read';
+                $this->backups->listPolicies();
+
+                $scope = 'policies.write';
+                $this->backups->createPolicy('', [], 0, '');
+            }
+
         } catch (AppwriteException $e) {
             if ($e->getCode() === 403) {
                 throw new \Exception('Missing scope: ' . $scope, previous: $e);
@@ -259,6 +275,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_STORAGE => $this->importFileResource($resource),
                     Transfer::GROUP_AUTH => $this->importAuthResource($resource),
                     Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
+                    Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
                     Transfer::GROUP_SITES => $this->importSiteResource($resource),
                     default => throw new \Exception('Invalid resource group'),
                 };
@@ -1406,9 +1423,6 @@ class Appwrite extends Destination
                     'dart-2.17' => Runtime::DART217(),
                     'dart-2.18' => Runtime::DART218(),
                     'dart-2.19' => Runtime::DART219(),
-                    'deno-1.21' => Runtime::DENO121(),
-                    'deno-1.24' => Runtime::DENO124(),
-                    'deno-1.35' => Runtime::DENO135(),
                     'deno-1.40' => Runtime::DENO140(),
                     'deno-1.46' => Runtime::DENO146(),
                     'deno-2.0' => Runtime::DENO20(),
@@ -1460,6 +1474,31 @@ class Appwrite extends Destination
             case Resource::TYPE_DEPLOYMENT:
                 /** @var Deployment $resource */
                 return $this->importDeployment($resource);
+        }
+
+        $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function importBackupResource(Resource $resource): Resource
+    {
+        switch ($resource->getName()) {
+            case Resource::TYPE_BACKUP_POLICY:
+                /** @var Policy $resource */
+                $this->backups->createPolicy(
+                    policyId: $resource->getId(),
+                    services: $resource->getServices(),
+                    retention: $resource->getRetention(),
+                    schedule: $resource->getSchedule(),
+                    name: $resource->getPolicyName() ?: null,
+                    resourceId: $resource->getResourceId() ?: null,
+                    enabled: $resource->getEnabled(),
+                );
+                break;
         }
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
@@ -1573,9 +1612,6 @@ class Appwrite extends Destination
                     'dart-2.17' => BuildRuntime::DART217(),
                     'dart-2.18' => BuildRuntime::DART218(),
                     'dart-2.19' => BuildRuntime::DART219(),
-                    'deno-1.21' => BuildRuntime::DENO121(),
-                    'deno-1.24' => BuildRuntime::DENO124(),
-                    'deno-1.35' => BuildRuntime::DENO135(),
                     'deno-1.40' => BuildRuntime::DENO140(),
                     'deno-1.46' => BuildRuntime::DENO146(),
                     'deno-2.0' => BuildRuntime::DENO20(),

@@ -18,6 +18,8 @@ class Transfer
 
     public const GROUP_SETTINGS = 'settings';
 
+    public const GROUP_BACKUPS = 'backups';
+
     public const GROUP_AUTH_RESOURCES = [
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
@@ -52,6 +54,10 @@ class Transfer
 
     public const GROUP_SETTINGS_RESOURCES = [];
 
+    public const GROUP_BACKUPS_RESOURCES = [
+        Resource::TYPE_BACKUP_POLICY,
+    ];
+
     public const ALL_PUBLIC_RESOURCES = [
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
@@ -69,6 +75,7 @@ class Transfer
         Resource::TYPE_INDEX,
         Resource::TYPE_COLUMN,
         Resource::TYPE_ROW,
+        Resource::TYPE_BACKUP_POLICY,
 
         // legacy
         Resource::TYPE_DOCUMENT,
@@ -343,6 +350,7 @@ class Transfer
                 self::GROUP_AUTH => array_merge($resources, self::GROUP_AUTH_RESOURCES),
                 self::GROUP_DATABASES => array_merge($resources, self::GROUP_DATABASES_RESOURCES),
                 self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
+                self::GROUP_BACKUPS => array_merge($resources, self::GROUP_BACKUPS_RESOURCES),
                 default => throw new \Exception('No service group found'),
             };
         }
