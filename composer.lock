@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "37980b9001fbbd4f213f3102c1332727",
+    "content-hash": "e3368b236fd868a1473bb88f2fe77593",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -2182,20 +2182,20 @@
         },
         {
             "name": "utopia-php/compression",
-            "version": "0.1.3",
+            "version": "0.1.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/compression.git",
-                "reference": "66f093557ba66d98245e562036182016c7dcfe8a"
+                "reference": "68045cb9d714c1259582d2dfd0e76bd34f83e713"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/compression/zipball/66f093557ba66d98245e562036182016c7dcfe8a",
-                "reference": "66f093557ba66d98245e562036182016c7dcfe8a",
+                "url": "https://api.github.com/repos/utopia-php/compression/zipball/68045cb9d714c1259582d2dfd0e76bd34f83e713",
+                "reference": "68045cb9d714c1259582d2dfd0e76bd34f83e713",
                 "shasum": ""
             },
             "require": {
-                "php": ">=8.0"
+                "php": ">=8.1"
             },
             "require-dev": {
                 "laravel/pint": "1.2.*",
@@ -2222,22 +2222,22 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/compression/issues",
-                "source": "https://github.com/utopia-php/compression/tree/0.1.3"
+                "source": "https://github.com/utopia-php/compression/tree/0.1.4"
             },
-            "time": "2025-01-15T15:15:51+00:00"
+            "time": "2026-02-17T05:53:40+00:00"
         },
         {
             "name": "utopia-php/database",
-            "version": "5.2.1",
+            "version": "dev-joins8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "adfdf201144353a1d2ce14bb197ab746079894e0"
+                "reference": "2672aaa1cf77d292b56ceb1723df04655dad2c8f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/adfdf201144353a1d2ce14bb197ab746079894e0",
-                "reference": "adfdf201144353a1d2ce14bb197ab746079894e0",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/2672aaa1cf77d292b56ceb1723df04655dad2c8f",
+                "reference": "2672aaa1cf77d292b56ceb1723df04655dad2c8f",
                 "shasum": ""
             },
             "require": {
@@ -2280,9 +2280,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/5.2.1"
+                "source": "https://github.com/utopia-php/database/tree/joins8"
             },
-            "time": "2026-02-16T11:01:13+00:00"
+            "time": "2026-02-18T10:39:50+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -3547,16 +3547,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "11.5.53",
+            "version": "11.5.54",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "a997a653a82845f1240d73ee73a8a4e97e4b0607"
+                "reference": "eb7d132e95d824bbfd728eb2c8589191424f178a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/a997a653a82845f1240d73ee73a8a4e97e4b0607",
-                "reference": "a997a653a82845f1240d73ee73a8a4e97e4b0607",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/eb7d132e95d824bbfd728eb2c8589191424f178a",
+                "reference": "eb7d132e95d824bbfd728eb2c8589191424f178a",
                 "shasum": ""
             },
             "require": {
@@ -3629,7 +3629,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.5.53"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.5.54"
             },
             "funding": [
                 {
@@ -3653,7 +3653,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-02-10T12:28:25+00:00"
+            "time": "2026-02-18T08:57:05+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -4995,9 +4995,18 @@
             "time": "2025-12-27T19:49:13+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "utopia-php/database",
+            "version": "dev-joins8",
+            "alias": "5.3.1",
+            "alias_normalized": "5.3.1.0"
+        }
+    ],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "utopia-php/database": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
