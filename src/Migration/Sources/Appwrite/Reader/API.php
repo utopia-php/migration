@@ -212,12 +212,12 @@ class API implements Reader
     }
 
     /**
-     * @param array $columns
+     * @param string $column
      * @return string
      */
-    public function querySelect(array $columns): string
+    public function querySelect(string $column): string
     {
-        return Query::select($columns);
+        return Query::select([$column]);
     }
 
     /**
