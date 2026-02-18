@@ -21,21 +21,6 @@ use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
 use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Attribute\Boolean as AttributeBoolean;
-use Utopia\Migration\Resources\Database\Attribute\DateTime as AttributeDateTime;
-use Utopia\Migration\Resources\Database\Attribute\Decimal as AttributeDecimal;
-use Utopia\Migration\Resources\Database\Attribute\Email as AttributeEmail;
-use Utopia\Migration\Resources\Database\Attribute\Enum as AttributeEnum;
-use Utopia\Migration\Resources\Database\Attribute\Integer as AttributeInteger;
-use Utopia\Migration\Resources\Database\Attribute\IP as AttributeIP;
-use Utopia\Migration\Resources\Database\Attribute\Line as AttributeLine;
-use Utopia\Migration\Resources\Database\Attribute\ObjectType as AttributeObjectType;
-use Utopia\Migration\Resources\Database\Attribute\Point as AttributePoint;
-use Utopia\Migration\Resources\Database\Attribute\Polygon as AttributePolygon;
-use Utopia\Migration\Resources\Database\Attribute\Relationship as AttributeRelationship;
-use Utopia\Migration\Resources\Database\Attribute\Text as AttributeText;
-use Utopia\Migration\Resources\Database\Attribute\URL as AttributeURL;
-use Utopia\Migration\Resources\Database\Attribute\Vector as AttributeVector;
 use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Columns\Boolean;
@@ -972,7 +957,7 @@ class Appwrite extends Source
 
                     /** @var Table $table */
                     $col = match($table->getDatabase()->getType()) {
-                        Resource::TYPE_DATABASE_VECTORDB => self::getAttribute($table, $column),
+                        Resource::TYPE_DATABASE_VECTORDB => self::getColumn($table, $column)->getAttribute(),
                         default => self::getColumn($table, $column),
                     };
 
@@ -2082,168 +2067,20 @@ class Appwrite extends Source
 
     }
 
+    /**
+     * Convert a raw attribute array to an Attribute resource.
+     * This is now a thin wrapper that uses getColumn() and then converts to Attribute.
+     * Since Collection extends Table, we can pass it directly to getColumn().
+     *
+     * @param Collection $collection
+     * @param mixed $attribute
+     * @return Attribute
+     */
     public static function getAttribute(Collection $collection, mixed $attribute): Attribute
     {
-        return match ($attribute['type']) {
-            Attribute::TYPE_STRING => match ($attribute['format'] ?? '') {
-                Attribute::TYPE_EMAIL => new AttributeEmail(
-                    $attribute['key'],
-                    $collection,
-                    required: $attribute['required'],
-                    default: $attribute['default'],
-                    array: $attribute['array'],
-                    size: $attribute['size'] ?? 254,
-                    createdAt: $attribute['$createdAt'] ?? '',
-                    updatedAt: $attribute['$updatedAt'] ?? '',
-                ),
-                Attribute::TYPE_ENUM => new AttributeEnum(
-                    $attribute['key'],
-                    $collection,
-                    elements: $attribute['elements'],
-                    required: $attribute['required'],
-                    default: $attribute['default'],
-                    array: $attribute['array'],
-                    size: $attribute['size'] ?? UtopiaDatabase::LENGTH_KEY,
-                    createdAt: $attribute['$createdAt'] ?? '',
-                    updatedAt: $attribute['$updatedAt'] ?? '',
-                ),
-                Attribute::TYPE_URL => new AttributeURL(
-                    $attribute['key'],
-                    $collection,
-                    required: $attribute['required'],
-                    default: $attribute['default'],
-                    array: $attribute['array'],
-                    size: $attribute['size'] ?? 2000,
-                    createdAt: $attribute['$createdAt'] ?? '',
-                    updatedAt: $attribute['$updatedAt'] ?? '',
-                ),
-                Attribute::TYPE_IP => new AttributeIP(
-                    $attribute['key'],
-                    $collection,
-                    required: $attribute['required'],
-                    default: $attribute['default'],
-                    array: $attribute['array'],
-                    size: $attribute['size'] ?? 39,
-                    createdAt: $attribute['$createdAt'] ?? '',
-                    updatedAt: $attribute['$updatedAt'] ?? '',
-                ),
-                default => new AttributeText(
-                    $attribute['key'],
-                    $collection,
-                    required: $attribute['required'],
-                    default: $attribute['default'],
-                    array: $attribute['array'],
-                    size: $attribute['size'] ?? 0,
-                    createdAt: $attribute['$createdAt'] ?? '',
-                    updatedAt: $attribute['$updatedAt'] ?? '',
-                ),
-            },
-
-            Attribute::TYPE_BOOLEAN => new AttributeBoolean(
-                $attribute['key'],
-                $collection,
-                required: $attribute['required'],
-                default: $attribute['default'],
-                array: $attribute['array'],
-                createdAt: $attribute['$createdAt'] ?? '',
-                updatedAt: $attribute['$updatedAt'] ?? '',
-            ),
-
-            Attribute::TYPE_INTEGER => new AttributeInteger(
-                $attribute['key'],
-                $collection,
-                required: $attribute['required'],
-                default: $attribute['default'],
-                array: $attribute['array'],
-                min: $attribute['min'] ?? null,
-                max: $attribute['max'] ?? null,
-                createdAt: $attribute['$createdAt'] ?? '',
-                updatedAt: $attribute['$updatedAt'] ?? '',
-            ),
-
-            Attribute::TYPE_FLOAT => new AttributeDecimal(
-                $attribute['key'],
-                $collection,
-                required: $attribute['required'],
-                default: $attribute['default'],
-                array: $attribute['array'],
-                min: $attribute['min'] ?? null,
-                max: $attribute['max'] ?? null,
-                createdAt: $attribute['$createdAt'] ?? '',
-                updatedAt: $attribute['$updatedAt'] ?? '',
-            ),
-
-            Attribute::TYPE_RELATIONSHIP => new AttributeRelationship(
-                $attribute['key'],
-                $collection,
-                relatedTable: $attribute['relatedTable'] ?? $attribute['relatedCollection'],
-                relationType: $attribute['relationType'],
-                twoWay: $attribute['twoWay'],
-                twoWayKey: $attribute['twoWayKey'],
-                onDelete: $attribute['onDelete'],
-                side: $attribute['side'],
-                createdAt: $attribute['$createdAt'] ?? '',
-                updatedAt: $attribute['$updatedAt'] ?? '',
-            ),
-
-            Attribute::TYPE_DATETIME => new AttributeDateTime(
-                $attribute['key'],
-                $collection,
-                required: $attribute['required'],
-                default: $attribute['default'],
-                array: $attribute['array'],
-                createdAt: $attribute['$createdAt'] ?? '',
-                updatedAt: $attribute['$updatedAt'] ?? '',
-            ),
-
-            Attribute::TYPE_POINT => new AttributePoint(
-                $attribute['key'],
-                $collection,
-                required: $attribute['required'],
-                default: $attribute['default'],
-                createdAt: $attribute['$createdAt'] ?? '',
-                updatedAt: $attribute['$updatedAt'] ?? '',
-            ),
-
-            Attribute::TYPE_LINE => new AttributeLine(
-                $attribute['key'],
-                $collection,
-                required: $attribute['required'],
-                default: $attribute['default'],
-                createdAt: $attribute['$createdAt'] ?? '',
-                updatedAt: $attribute['$updatedAt'] ?? '',
-            ),
-
-            Attribute::TYPE_POLYGON => new AttributePolygon(
-                $attribute['key'],
-                $collection,
-                required: $attribute['required'],
-                default: $attribute['default'],
-                createdAt: $attribute['$createdAt'] ?? '',
-                updatedAt: $attribute['$updatedAt'] ?? '',
-            ),
-
-            Attribute::TYPE_OBJECT => new AttributeObjectType(
-                $attribute['key'],
-                $collection,
-                required: $attribute['required'],
-                default: $attribute['default'],
-                createdAt: $attribute['$createdAt'] ?? '',
-                updatedAt: $attribute['$updatedAt'] ?? '',
-            ),
-
-            Attribute::TYPE_VECTOR => new AttributeVector(
-                $attribute['key'],
-                $collection,
-                size: $attribute['size'],
-                required: $attribute['required'],
-                default: $attribute['default'],
-                createdAt: $attribute['$createdAt'] ?? '',
-                updatedAt: $attribute['$updatedAt'] ?? '',
-            ),
-
-            default => throw new \InvalidArgumentException("Unsupported attribute type: {$attribute['type']}"),
-        };
+        // Use getColumn() to create the Column resource, then convert to Attribute
+        // This eliminates duplication - all type-specific logic is in getColumn()
+        return self::getColumn($collection, $attribute)->getAttribute();
     }
 
     /**

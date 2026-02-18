@@ -155,4 +155,16 @@ abstract class Column extends Resource
     {
         return $this->options;
     }
+
+    /**
+     * Convert this Column resource to an Attribute resource.
+     * This provides a deterministic way to derive attributes from columns,
+     * eliminating the need to maintain duplicate per-type Attribute implementations.
+     *
+     * @return Attribute
+     */
+    public function getAttribute(): Attribute
+    {
+        return GenericAttribute::fromColumn($this);
+    }
 }
