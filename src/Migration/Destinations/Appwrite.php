@@ -499,13 +499,13 @@ class Appwrite extends Destination
             Column::TYPE_INTEGER => UtopiaDatabase::VAR_INTEGER,
             Column::TYPE_FLOAT => UtopiaDatabase::VAR_FLOAT,
             Column::TYPE_RELATIONSHIP => UtopiaDatabase::VAR_RELATIONSHIP,
-        
+
             Column::TYPE_STRING,
             Column::TYPE_IP,
             Column::TYPE_EMAIL,
             Column::TYPE_URL,
             Column::TYPE_ENUM => UtopiaDatabase::VAR_STRING,
-        
+
             Column::TYPE_POINT => UtopiaDatabase::VAR_POINT,
             Column::TYPE_LINE => UtopiaDatabase::VAR_LINESTRING,
             Column::TYPE_POLYGON => UtopiaDatabase::VAR_POLYGON,
@@ -515,7 +515,7 @@ class Appwrite extends Destination
             Column::TYPE_LONGTEXT => UtopiaDatabase::VAR_LONGTEXT,
             Column::TYPE_OBJECT => UtopiaDatabase::VAR_OBJECT,
             Column::TYPE_VECTOR => UtopiaDatabase::VAR_VECTOR,
-        
+
             default => throw new \Exception('Invalid resource type ' . $resource->getType()),
         };
 
