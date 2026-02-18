@@ -36,7 +36,8 @@ class TransferTest extends TestCase
          * Make sure we can't create a transfer with multiple root resources when supplying a rootResourceId
          */
         try {
-            $this->transfer->run([Resource::TYPE_USER, Resource::TYPE_DATABASE], function () {}, 'rootResourceId');
+            $this->transfer->run([Resource::TYPE_USER, Resource::TYPE_DATABASE], function () {
+            }, 'rootResourceId');
             $this->fail('Multiple root resources should not be allowed');
         } catch (\Exception $e) {
             $this->assertSame('Resource type must be set when resource ID is set.', $e->getMessage());
@@ -50,7 +51,8 @@ class TransferTest extends TestCase
          */
         $this->transfer->run(
             [Resource::TYPE_DATABASE],
-            function () {},
+            function () {
+            },
             'test',
             Resource::TYPE_DATABASE
         );

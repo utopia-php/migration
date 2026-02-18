@@ -509,6 +509,10 @@ class Appwrite extends Destination
             Column::TYPE_POINT => UtopiaDatabase::VAR_POINT,
             Column::TYPE_LINE => UtopiaDatabase::VAR_LINESTRING,
             Column::TYPE_POLYGON => UtopiaDatabase::VAR_POLYGON,
+            Column::TYPE_TEXT => UtopiaDatabase::VAR_TEXT,
+            Column::TYPE_VARCHAR => UtopiaDatabase::VAR_VARCHAR,
+            Column::TYPE_MEDIUMTEXT => UtopiaDatabase::VAR_MEDIUMTEXT,
+            Column::TYPE_LONGTEXT => UtopiaDatabase::VAR_LONGTEXT,
             Column::TYPE_OBJECT => UtopiaDatabase::VAR_OBJECT,
             Column::TYPE_VECTOR => UtopiaDatabase::VAR_VECTOR,
         
