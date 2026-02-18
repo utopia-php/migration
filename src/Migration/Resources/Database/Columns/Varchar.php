@@ -1,27 +1,27 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attribute;
+namespace Utopia\Migration\Resources\Database\Columns;
 
 use Utopia\Database\Database;
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
-class Text extends Attribute
+class Varchar extends Column
 {
     public function __construct(
         string  $key,
-        Collection   $collection,
+        Table   $table,
         bool    $required = false,
         ?string $default = null,
         bool    $array = false,
-        int     $size = Database::LENGTH_KEY,
+        int     $size = 255,
         string  $format = '',
         string  $createdAt = '',
         string  $updatedAt = ''
     ) {
         parent::__construct(
             $key,
-            $collection,
+            $table,
             size: $size,
             required: $required,
             default: $default,
@@ -69,7 +69,7 @@ class Text extends Attribute
     {
         return new self(
             $array['key'],
-            Collection::fromArray($array['table'] ?? $array['collection']),
+            Table::fromArray($array['table'] ?? $array['collection']),
             required: $array['required'],
             default: $array['default'] ?? null,
             array: $array['array'],
@@ -82,7 +82,7 @@ class Text extends Attribute
 
     public function getType(): string
     {
-        return Attribute::TYPE_STRING;
+        return Column::TYPE_VARCHAR;
     }
 
     public function getSize(): int

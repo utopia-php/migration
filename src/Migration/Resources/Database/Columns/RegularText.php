@@ -1,40 +1,32 @@
 <?php
 
-namespace Utopia\Migration\Resources\Database\Attribute;
+namespace Utopia\Migration\Resources\Database\Columns;
 
-use Utopia\Migration\Resources\Database\Attribute;
-use Utopia\Migration\Resources\Database\Collection;
+use Utopia\Database\Database;
+use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Table;
 
-class Integer extends Attribute
+class RegularText extends Column
 {
     public function __construct(
-        string $key,
-        Collection $collection,
-        bool   $required = false,
-        ?int   $default = null,
-        bool   $array = false,
-        ?int   $min = null,
-        ?int   $max = null,
-        bool   $signed = true,
-        string $createdAt = '',
-        string $updatedAt = ''
+        string  $key,
+        Table   $table,
+        bool    $required = false,
+        ?string $default = null,
+        bool    $array = false,
+        int     $size = 65535,
+        string  $format = '',
+        string  $createdAt = '',
+        string  $updatedAt = ''
     ) {
-        $min ??= PHP_INT_MIN;
-        $max ??= PHP_INT_MAX;
-        $size = $max > 2147483647 ? 8 : 4;
-
         parent::__construct(
             $key,
-            $collection,
+            $table,
             size: $size,
             required: $required,
             default: $default,
             array: $array,
-            signed: $signed,
-            formatOptions: [
-                'min' => $min,
-                'max' => $max,
-            ],
+            format: $format,
             createdAt: $createdAt,
             updatedAt: $updatedAt
         );
@@ -64,15 +56,12 @@ class Integer extends Attribute
      *         permissions: ?array<string>
      *     },
      *     required: bool,
+     *     default: ?string,
      *     array: bool,
-     *     default: ?int,
-     *     formatOptions: array{
-     *         min: ?int,
-     *         max: ?int
-     *     },
+     *     size: int,
+     *     format: string,
      *     createdAt: string,
      *     updatedAt: string,
-     *     signed?: bool
      * } $array
      * @return self
      */
@@ -80,30 +69,29 @@ class Integer extends Attribute
     {
         return new self(
             $array['key'],
-            Collection::fromArray($array['table'] ?? $array['collection']),
+            Table::fromArray($array['table'] ?? $array['collection']),
             required: $array['required'],
-            default: $array['default'],
+            default: $array['default'] ?? null,
             array: $array['array'],
-            min: $array['formatOptions']['min'] ?? null,
-            max: $array['formatOptions']['max'] ?? null,
+            size: $array['size'],
+            format: $array['format'],
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
-            signed: $array['signed'] ?? true
         );
     }
 
     public function getType(): string
     {
-        return Attribute::TYPE_INTEGER;
+        return Column::TYPE_TEXT;
     }
 
-    public function getMin(): ?int
+    public function getSize(): int
     {
-        return (int)$this->formatOptions['min'];
+        return $this->size;
     }
 
-    public function getMax(): ?int
+    public function getFormat(): string
     {
-        return (int)$this->formatOptions['max'];
+        return $this->format;
     }
 }
