@@ -10,8 +10,10 @@ use Appwrite\Enums\Compression;
 use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\Runtime;
+use Appwrite\Enums\SmtpEncryption;
 use Appwrite\InputFile;
 use Appwrite\Services\Functions;
+use Appwrite\Services\Messaging;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
@@ -46,6 +48,10 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Messaging\Message;
+use Utopia\Migration\Resources\Messaging\Provider;
+use Utopia\Migration\Resources\Messaging\Subscriber;
+use Utopia\Migration\Resources\Messaging\Topic;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
@@ -61,6 +67,7 @@ class Appwrite extends Destination
     protected string $key;
 
     private Functions $functions;
+    private Messaging $messaging;
     private Sites $sites;
     private Storage $storage;
     private Teams $teams;
@@ -95,6 +102,7 @@ class Appwrite extends Destination
             ->setKey($key);
 
         $this->functions = new Functions($this->client);
+        $this->messaging = new Messaging($this->client);
         $this->sites = new Sites($this->client);
         $this->storage = new Storage($this->client);
         $this->teams = new Teams($this->client);
@@ -137,6 +145,12 @@ class Appwrite extends Destination
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_ENVIRONMENT_VARIABLE,
+
+            // Messaging
+            Resource::TYPE_PROVIDER,
+            Resource::TYPE_TOPIC,
+            Resource::TYPE_SUBSCRIBER,
+            Resource::TYPE_MESSAGE,
 
             // Sites
             Resource::TYPE_SITE,
@@ -213,6 +227,39 @@ class Appwrite extends Destination
                 $this->functions->create('', '', Runtime::NODE180());
             }
 
+            // Messaging
+            if (\in_array(Resource::TYPE_PROVIDER, $resources)) {
+                $scope = 'providers.read';
+                $this->messaging->listProviders();
+
+                $scope = 'providers.write';
+                $this->messaging->createSendgridProvider('', '');
+            }
+
+            if (\in_array(Resource::TYPE_TOPIC, $resources)) {
+                $scope = 'topics.read';
+                $this->messaging->listTopics();
+
+                $scope = 'topics.write';
+                $this->messaging->createTopic('', '');
+            }
+
+            if (\in_array(Resource::TYPE_SUBSCRIBER, $resources)) {
+                $scope = 'subscribers.read';
+                $this->messaging->listSubscribers('');
+
+                $scope = 'subscribers.write';
+                $this->messaging->createSubscriber('', '', '');
+            }
+
+            if (\in_array(Resource::TYPE_MESSAGE, $resources)) {
+                $scope = 'messages.read';
+                $this->messaging->listMessages();
+
+                $scope = 'messages.write';
+                $this->messaging->createEmail('', '', '', draft: true);
+            }
+
             // Sites
             if (\in_array(Resource::TYPE_SITE, $resources)) {
                 $scope = 'sites.read';
@@ -259,6 +306,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_STORAGE => $this->importFileResource($resource),
                     Transfer::GROUP_AUTH => $this->importAuthResource($resource),
                     Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
+                    Transfer::GROUP_MESSAGING => $this->importMessagingResource($resource),
                     Transfer::GROUP_SITES => $this->importSiteResource($resource),
                     default => throw new \Exception('Invalid resource group'),
                 };
@@ -1532,6 +1580,47 @@ class Appwrite extends Destination
 
     /**
      * @throws AppwriteException
+     * @throws \Exception
+     */
+    public function importMessagingResource(Resource $resource): Resource
+    {
+        switch ($resource->getName()) {
+            case Resource::TYPE_PROVIDER:
+                /** @var Provider $resource */
+                $this->createProvider($resource);
+                break;
+            case Resource::TYPE_TOPIC:
+                /** @var Topic $resource */
+                $this->messaging->createTopic(
+                    $resource->getId(),
+                    $resource->getTopicName(),
+                    $resource->getSubscribe(),
+                );
+                break;
+            case Resource::TYPE_SUBSCRIBER:
+                /** @var Subscriber $resource */
+                $targetId = $this->resolveTargetId($resource);
+                $this->messaging->createSubscriber(
+                    $resource->getTopicId(),
+                    $resource->getId(),
+                    $targetId,
+                );
+                break;
+            case Resource::TYPE_MESSAGE:
+                /** @var Message $resource */
+                $this->createMessage($resource);
+                break;
+            default:
+                throw new \Exception('Unknown messaging resource type: ' . $resource->getName());
+        }
+
+        $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
+    }
+
+    /**
+     * @throws AppwriteException
      */
     public function importSiteResource(Resource $resource): Resource
     {
@@ -1672,6 +1761,301 @@ class Appwrite extends Destination
      * @throws AppwriteException
      * @throws \Exception
      */
+    protected function createProvider(Provider $resource): bool
+    {
+        $credentials = $resource->getCredentials();
+        $options = $resource->getOptions();
+        $id = $resource->getId();
+        $name = $resource->getProviderName();
+        $enabled = $resource->getEnabled();
+
+        match ($resource->getProvider()) {
+            'mailgun' => $this->messaging->createMailgunProvider(
+                $id,
+                $name,
+                $credentials['apiKey'] ?? null,
+                $credentials['domain'] ?? null,
+                $credentials['isEuRegion'] ?? null,
+                ($options['fromName'] ?? '') ?: null,
+                ($options['fromEmail'] ?? '') ?: null,
+                ($options['replyToName'] ?? '') ?: null,
+                ($options['replyToEmail'] ?? '') ?: null,
+                $enabled,
+            ),
+            'sendgrid' => $this->messaging->createSendgridProvider(
+                $id,
+                $name,
+                $credentials['apiKey'] ?? null,
+                ($options['fromName'] ?? '') ?: null,
+                ($options['fromEmail'] ?? '') ?: null,
+                ($options['replyToName'] ?? '') ?: null,
+                ($options['replyToEmail'] ?? '') ?: null,
+                $enabled,
+            ),
+            'resend' => $this->messaging->createResendProvider(
+                $id,
+                $name,
+                $credentials['apiKey'] ?? null,
+                ($options['fromName'] ?? '') ?: null,
+                ($options['fromEmail'] ?? '') ?: null,
+                ($options['replyToName'] ?? '') ?: null,
+                ($options['replyToEmail'] ?? '') ?: null,
+                $enabled,
+            ),
+            'smtp' => $this->messaging->createSMTPProvider(
+                $id,
+                $name,
+                $credentials['host'] ?? '',
+                $credentials['port'] ?? null,
+                ($credentials['username'] ?? '') ?: null,
+                ($credentials['password'] ?? '') ?: null,
+                match ($options['encryption'] ?? '') {
+                    'ssl' => SmtpEncryption::SSL(),
+                    'tls' => SmtpEncryption::TLS(),
+                    default => SmtpEncryption::NONE(),
+                },
+                $options['autoTLS'] ?? null,
+                ($options['mailer'] ?? '') ?: null,
+                ($options['fromName'] ?? '') ?: null,
+                ($options['fromEmail'] ?? '') ?: null,
+                ($options['replyToName'] ?? '') ?: null,
+                ($options['replyToEmail'] ?? '') ?: null,
+                $enabled,
+            ),
+            'msg91' => $this->messaging->createMsg91Provider(
+                $id,
+                $name,
+                $credentials['templateId'] ?? null,
+                $credentials['senderId'] ?? null,
+                $credentials['authKey'] ?? null,
+                $enabled,
+            ),
+            'telesign' => $this->messaging->createTelesignProvider(
+                $id,
+                $name,
+                ($options['from'] ?? '') ?: null,
+                $credentials['customerId'] ?? null,
+                $credentials['apiKey'] ?? null,
+                $enabled,
+            ),
+            'textmagic' => $this->messaging->createTextmagicProvider(
+                $id,
+                $name,
+                ($options['from'] ?? '') ?: null,
+                $credentials['username'] ?? null,
+                $credentials['apiKey'] ?? null,
+                $enabled,
+            ),
+            'twilio' => $this->messaging->createTwilioProvider(
+                $id,
+                $name,
+                ($options['from'] ?? '') ?: null,
+                $credentials['accountSid'] ?? null,
+                $credentials['authToken'] ?? null,
+                $enabled,
+            ),
+            'vonage' => $this->messaging->createVonageProvider(
+                $id,
+                $name,
+                ($options['from'] ?? '') ?: null,
+                $credentials['apiKey'] ?? null,
+                $credentials['apiSecret'] ?? null,
+                $enabled,
+            ),
+            'fcm' => $this->messaging->createFCMProvider(
+                $id,
+                $name,
+                $credentials['serviceAccountJSON'] ?? null,
+                $enabled,
+            ),
+            'apns' => $this->messaging->createAPNSProvider(
+                $id,
+                $name,
+                $credentials['authKey'] ?? null,
+                $credentials['authKeyId'] ?? null,
+                $credentials['teamId'] ?? null,
+                $credentials['bundleId'] ?? null,
+                $options['sandbox'] ?? null,
+                $enabled,
+            ),
+            default => throw new \Exception('Unknown provider: ' . $resource->getProvider()),
+        };
+
+        return true;
+    }
+
+    /**
+     * @throws AppwriteException
+     * @throws \Exception
+     */
+    protected function createMessage(Message $resource): bool
+    {
+        $resolvedTargets = $this->resolveMessageTargets($resource);
+        $status = $resource->getMessageStatus();
+
+        // Use SDK for scheduled messages so the platform schedule document is created.
+        // Fall back to draft if scheduledAt is missing or in the past.
+        if ($status === 'scheduled') {
+            $scheduledAt = $resource->getScheduledAt();
+
+            if (!empty($scheduledAt) && new \DateTime($scheduledAt) > new \DateTime()) {
+                return $this->createScheduledMessage($resource, $resolvedTargets);
+            }
+
+            $status = 'draft';
+        }
+
+        // Processing messages have no worker on the destination, import as draft.
+        if ($status === 'processing') {
+            $status = 'draft';
+        }
+
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
+        $this->database->createDocument('messages', new UtopiaDocument([
+            '$id' => $resource->getId(),
+            '$createdAt' => $createdAt,
+            '$updatedAt' => $updatedAt,
+            'providerType' => $resource->getProviderType(),
+            'topics' => $resource->getTopics(),
+            'users' => $resource->getUsers(),
+            'targets' => $resolvedTargets,
+            'scheduledAt' => null,
+            'deliveredAt' => $resource->getDeliveredAt() ?: null,
+            'deliveryErrors' => $resource->getDeliveryErrors(),
+            'deliveredTotal' => $resource->getDeliveredTotal(),
+            'data' => $resource->getData(),
+            'status' => $status,
+        ]));
+
+        return true;
+    }
+
+    /**
+     * Create a scheduled message via SDK so the platform schedule document is created.
+     *
+     * @param array<string> $resolvedTargets
+     * @throws AppwriteException
+     * @throws \Exception
+     */
+    protected function createScheduledMessage(Message $resource, array $resolvedTargets): bool
+    {
+        $data = $resource->getData();
+        $topics = $resource->getTopics() ?: null;
+        $users = $resource->getUsers() ?: null;
+        $targets = $resolvedTargets ?: null;
+        $scheduledAt = $resource->getScheduledAt();
+
+        match ($resource->getProviderType()) {
+            'email' => $this->messaging->createEmail(
+                $resource->getId(),
+                $data['subject'] ?? '',
+                $data['content'] ?? '',
+                $topics,
+                $users,
+                $targets,
+                $data['cc'] ?? null,
+                $data['bcc'] ?? null,
+                null,
+                false,
+                $data['html'] ?? null,
+                $scheduledAt,
+            ),
+            'sms' => $this->messaging->createSMS(
+                $resource->getId(),
+                $data['content'] ?? '',
+                $topics,
+                $users,
+                $targets,
+                false,
+                $scheduledAt,
+            ),
+            'push' => $this->messaging->createPush(
+                $resource->getId(),
+                $data['title'] ?? null,
+                $data['body'] ?? null,
+                $topics,
+                $users,
+                $targets,
+                $data['data'] ?? null,
+                $data['action'] ?? null,
+                $data['image'] ?? null,
+                $data['icon'] ?? null,
+                $data['sound'] ?? null,
+                $data['color'] ?? null,
+                $data['tag'] ?? null,
+                $data['badge'] ?? null,
+                false,
+                $scheduledAt,
+                $data['contentAvailable'] ?? null,
+                $data['critical'] ?? null,
+                null,
+            ),
+            default => throw new \Exception('Unknown provider type: ' . $resource->getProviderType()),
+        };
+
+        return true;
+    }
+
+    /**
+     * Resolve source target IDs to destination target IDs for a message.
+     *
+     * @return array<string>
+     */
+    private function resolveMessageTargets(Message $resource): array
+    {
+        $targetUserMap = $resource->getTargetUserMap();
+        $providerType = $resource->getProviderType();
+        $resolvedTargets = [];
+        $targetCache = [];
+
+        foreach ($resource->getTargets() as $sourceTargetId) {
+            $userId = $targetUserMap[$sourceTargetId] ?? null;
+
+            if ($userId === null) {
+                continue;
+            }
+
+            try {
+                if (!isset($targetCache[$userId])) {
+                    $targetCache[$userId] = $this->users->listTargets($userId);
+                }
+
+                foreach ($targetCache[$userId]['targets'] as $target) {
+                    if ($target['providerType'] === $providerType) {
+                        $resolvedTargets[] = $target['$id'];
+                        break;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Skip targets for users that don't exist on the destination
+                continue;
+            }
+        }
+
+        return $resolvedTargets;
+    }
+
+    /**
+     * Resolve the destination target ID for a subscriber.
+     *
+     * User targets are auto-generated on the destination with new IDs,
+     * so we look up the matching target by userId and providerType.
+     */
+    private function resolveTargetId(Subscriber $resource): string
+    {
+        $response = $this->users->listTargets($resource->getUserId());
+
+        foreach ($response['targets'] as $target) {
+            if ($target['providerType'] === $resource->getProviderType()) {
+                return $target['$id'];
+            }
+        }
+
+        throw new \Exception('No matching target found for subscriber ' . $resource->getId() . ' with providerType ' . $resource->getProviderType());
+    }
+
     private function importSiteDeployment(SiteDeployment $deployment): Resource
     {
         $siteId = $deployment->getSite()->getId();
