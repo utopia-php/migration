@@ -5,7 +5,7 @@ namespace Utopia\Migration\Resources\Database;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
-abstract class Attribute extends Resource
+class Attribute extends Resource
 {
     public const TYPE_STRING = 'string';
     public const TYPE_INTEGER = 'integer';
@@ -28,6 +28,7 @@ abstract class Attribute extends Resource
     /**
      * @param string $key
      * @param Table $table
+     * @param string $fieldType The actual field type (e.g., 'string', 'integer', 'email')
      * @param int $size
      * @param bool $required
      * @param mixed|null $default
@@ -43,6 +44,7 @@ abstract class Attribute extends Resource
     public function __construct(
         protected readonly string $key,
         protected readonly Table  $table,
+        protected readonly string $fieldType = '',
         protected readonly int    $size = 0,
         protected readonly bool   $required = false,
         protected readonly mixed  $default = null,
@@ -85,7 +87,36 @@ abstract class Attribute extends Resource
         return Resource::TYPE_ATTRIBUTE;
     }
 
-    abstract public function getType(): string;
+    public function getType(): string
+    {
+        return $this->fieldType;
+    }
+
+    /**
+     * Convert a Column resource to an Attribute resource.
+     *
+     * @param Column $column
+     * @return self
+     */
+    public static function fromColumn(Column $column): self
+    {
+        return new self(
+            $column->getKey(),
+            $column->getTable(),
+            $column->getType(),
+            $column->getSize(),
+            $column->isRequired(),
+            $column->getDefault(),
+            $column->isArray(),
+            $column->isSigned(),
+            $column->getFormat(),
+            $column->getFormatOptions(),
+            $column->getFilters(),
+            $column->getOptions(),
+            $column->getCreatedAt(),
+            $column->getUpdatedAt()
+        );
+    }
 
     public function getGroup(): string
     {

@@ -89,7 +89,8 @@ class SupabaseTest extends Base
     {
         $this->transfer->run(
             $this->source->getSupportedResources(),
-            function () {}
+            function () {
+            }
         );
 
         $this->assertCount(0, $this->transfer->getReport('error'));

@@ -491,24 +491,32 @@ class Appwrite extends Destination
             $resource->setStatus(Resource::STATUS_SKIPPED, 'Columns not supported for DocumentsDB');
             return false;
         }
-
+        // column will be matching attribute as well
+        // column type will be matching attribute type as well
         $type = match ($resource->getType()) {
-            Column::TYPE_DATETIME, Attribute::TYPE_DATETIME => UtopiaDatabase::VAR_DATETIME,
-            Column::TYPE_BOOLEAN, Attribute::TYPE_BOOLEAN => UtopiaDatabase::VAR_BOOLEAN,
-            Column::TYPE_INTEGER, Attribute::TYPE_INTEGER => UtopiaDatabase::VAR_INTEGER,
-            Column::TYPE_FLOAT, Attribute::TYPE_FLOAT => UtopiaDatabase::VAR_FLOAT,
-            Column::TYPE_RELATIONSHIP, Attribute::TYPE_RELATIONSHIP => UtopiaDatabase::VAR_RELATIONSHIP,
-            Column::TYPE_STRING, Attribute::TYPE_STRING,
-            Column::TYPE_IP, Attribute::TYPE_IP,
-            Column::TYPE_EMAIL, Attribute::TYPE_EMAIL,
-            Column::TYPE_URL, Attribute::TYPE_URL,
-            Column::TYPE_ENUM, Attribute::TYPE_ENUM => UtopiaDatabase::VAR_STRING,
-            Column::TYPE_POINT, Attribute::TYPE_POINT => UtopiaDatabase::VAR_POINT,
-            Column::TYPE_LINE, Attribute::TYPE_LINE => UtopiaDatabase::VAR_LINESTRING,
-            Column::TYPE_POLYGON, Attribute::TYPE_POLYGON => UtopiaDatabase::VAR_POLYGON,
-            Column::TYPE_OBJECT, Attribute::TYPE_OBJECT => UtopiaDatabase::VAR_OBJECT,
-            Column::TYPE_VECTOR, Attribute::TYPE_VECTOR => UtopiaDatabase::VAR_VECTOR,
-            default => throw new \Exception('Invalid resource type '.$resource->getType()),
+            Column::TYPE_DATETIME => UtopiaDatabase::VAR_DATETIME,
+            Column::TYPE_BOOLEAN => UtopiaDatabase::VAR_BOOLEAN,
+            Column::TYPE_INTEGER => UtopiaDatabase::VAR_INTEGER,
+            Column::TYPE_FLOAT => UtopiaDatabase::VAR_FLOAT,
+            Column::TYPE_RELATIONSHIP => UtopiaDatabase::VAR_RELATIONSHIP,
+
+            Column::TYPE_STRING,
+            Column::TYPE_IP,
+            Column::TYPE_EMAIL,
+            Column::TYPE_URL,
+            Column::TYPE_ENUM => UtopiaDatabase::VAR_STRING,
+
+            Column::TYPE_POINT => UtopiaDatabase::VAR_POINT,
+            Column::TYPE_LINE => UtopiaDatabase::VAR_LINESTRING,
+            Column::TYPE_POLYGON => UtopiaDatabase::VAR_POLYGON,
+            Column::TYPE_TEXT => UtopiaDatabase::VAR_TEXT,
+            Column::TYPE_VARCHAR => UtopiaDatabase::VAR_VARCHAR,
+            Column::TYPE_MEDIUMTEXT => UtopiaDatabase::VAR_MEDIUMTEXT,
+            Column::TYPE_LONGTEXT => UtopiaDatabase::VAR_LONGTEXT,
+            Column::TYPE_OBJECT => UtopiaDatabase::VAR_OBJECT,
+            Column::TYPE_VECTOR => UtopiaDatabase::VAR_VECTOR,
+
+            default => throw new \Exception('Invalid resource type ' . $resource->getType()),
         };
 
         $database = $this->dbForProject->getDocument(
