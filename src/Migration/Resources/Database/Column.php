@@ -170,6 +170,6 @@ abstract class Column extends Resource
      */
     public function getAttribute(): Attribute
     {
-        return GenericAttribute::fromColumn($this);
+        return Attribute::fromColumn($this);
     }
 }
