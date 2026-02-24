@@ -232,7 +232,6 @@ class Transfer
         }
 
         /** @var array<string> $computedResources */
-        $computedResources = array_map('strtolower', $computedResources);
 
         if ($rootResourceId !== '') {
             if ($rootResourceType === '') {
