@@ -52,13 +52,13 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_DEPLOYMENT = 'deployment';
 
-    public const TYPE_SITE_DEPLOYMENT = 'site-deployment';
+    public const TYPE_SITE_DEPLOYMENT = 'siteDeployment';
 
-    public const TYPE_SITE_VARIABLE = 'site-variable';
+    public const TYPE_SITE_VARIABLE = 'siteVariable';
 
     public const TYPE_HASH = 'hash';
 
-    public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
+    public const TYPE_ENVIRONMENT_VARIABLE = 'environmentVariable';
 
     // legacy terminologies
     public const TYPE_DOCUMENT = 'document';
