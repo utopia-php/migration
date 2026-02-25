@@ -1480,7 +1480,7 @@ class Appwrite extends Source
         // Get the file size
         $fileSize = $file->getSize();
 
-        if ($end > $fileSize) {
+        if ($end >= $fileSize) {
             $end = $fileSize - 1;
         }
 
@@ -1504,7 +1504,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
             }
         }
@@ -1713,8 +1713,8 @@ class Appwrite extends Source
             $responseHeaders
         );
 
-        // Content-Length header was missing, file is less than max buffer size.
-        if (!array_key_exists('Content-Length', $responseHeaders)) {
+        // content-length header missing, file is less than max buffer size
+        if (!array_key_exists('content-length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
@@ -1723,7 +1723,7 @@ class Appwrite extends Source
                 $responseHeaders
             );
 
-            $size = mb_strlen($file);
+            $size = strlen($file);
 
             if ($end > $size) {
                 $end = $size - 1;
@@ -1746,7 +1746,11 @@ class Appwrite extends Source
             return;
         }
 
-        $fileSize = $responseHeaders['Content-Length'];
+        $fileSize = $responseHeaders['content-length'];
+
+        if ($end >= $fileSize) {
+            $end = $fileSize - 1;
+        }
 
         $deployment = new Deployment(
             $deployment['$id'],
@@ -1781,7 +1785,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
             }
         }
@@ -2012,7 +2016,7 @@ class Appwrite extends Source
             $responseHeaders
         );
 
-        if (!\array_key_exists('Content-Length', $responseHeaders)) {
+        if (!\array_key_exists('content-length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/sites/{$site->getId()}/deployments/{$deployment['$id']}/download",
@@ -2021,7 +2025,7 @@ class Appwrite extends Source
                 $responseHeaders
             );
 
-            $size = mb_strlen($file);
+            $size = strlen($file);
 
             if ($end > $size) {
                 $end = $size - 1;
@@ -2043,7 +2047,11 @@ class Appwrite extends Source
             return;
         }
 
-        $fileSize = $responseHeaders['Content-Length'];
+        $fileSize = $responseHeaders['content-length'];
+
+        if ($end >= $fileSize) {
+            $end = $fileSize - 1;
+        }
 
         $siteDeployment = new SiteDeployment(
             $deployment['$id'],
@@ -2074,7 +2082,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
             }
         }
