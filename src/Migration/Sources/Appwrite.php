@@ -1471,7 +1471,7 @@ class Appwrite extends Source
         // Get the file size
         $fileSize = $file->getSize();
 
-        if ($end > $fileSize) {
+        if ($end >= $fileSize) {
             $end = $fileSize - 1;
         }
 
@@ -1495,7 +1495,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
             }
         }
@@ -1704,7 +1704,7 @@ class Appwrite extends Source
             $responseHeaders
         );
 
-        // content-length header was missing, file is less than max buffer size.
+        // content-length header missing, file is less than max buffer size
         if (!array_key_exists('content-length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
@@ -1739,7 +1739,7 @@ class Appwrite extends Source
 
         $fileSize = $responseHeaders['content-length'];
 
-        if ($end > $fileSize - 1) {
+        if ($end >= $fileSize) {
             $end = $fileSize - 1;
         }
 
@@ -1776,7 +1776,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
             }
         }
@@ -1957,7 +1957,7 @@ class Appwrite extends Source
 
         $fileSize = $responseHeaders['content-length'];
 
-        if ($end > $fileSize - 1) {
+        if ($end >= $fileSize) {
             $end = $fileSize - 1;
         }
 
@@ -1990,7 +1990,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
             }
         }
