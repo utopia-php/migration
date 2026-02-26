@@ -1518,9 +1518,8 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
-                $this->exportDeployments($batchSize, true);
-            }
+            $exportOnlyActive = !\in_array(Resource::TYPE_DEPLOYMENT, $resources);
+            $this->exportDeployments($batchSize, $exportOnlyActive);
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_DEPLOYMENT,
@@ -1549,9 +1548,8 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources)) {
-                $this->exportSiteDeployments($batchSize, true);
-            }
+            $exportOnlyActive = !\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources);
+            $this->exportSiteDeployments($batchSize, $exportOnlyActive);
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_SITE_DEPLOYMENT,
