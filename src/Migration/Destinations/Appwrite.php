@@ -1451,8 +1451,19 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
                 /** @var EnvVar $resource */
+                $function = $resource->getFunc();
+
+                if ($function->getStatus() === Resource::STATUS_ERROR) {
+                    throw new Exception(
+                        resourceName: $resource->getName(),
+                        resourceGroup: $resource->getGroup(),
+                        resourceId: $resource->getId(),
+                        message: 'Parent function "' . $function->getId() . '" failed to import',
+                    );
+                }
+
                 $this->functions->createVariable(
-                    $resource->getFunc()->getId(),
+                    $function->getId(),
                     $resource->getKey(),
                     $resource->getValue()
                 );
@@ -1480,7 +1491,7 @@ class Appwrite extends Destination
                 resourceName: $deployment->getName(),
                 resourceGroup: $deployment->getGroup(),
                 resourceId: $deployment->getId(),
-                message: 'Function "' . $function->getId() . '" already exists in destination',
+                message: 'Parent function "' . $function->getId() . '" failed to import',
             );
         }
 
@@ -1663,8 +1674,19 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_SITE_VARIABLE:
                 /** @var SiteEnvVar $resource */
+                $site = $resource->getSite();
+
+                if ($site->getStatus() === Resource::STATUS_ERROR) {
+                    throw new Exception(
+                        resourceName: $resource->getName(),
+                        resourceGroup: $resource->getGroup(),
+                        resourceId: $resource->getId(),
+                        message: 'Parent site "' . $site->getId() . '" failed to import',
+                    );
+                }
+
                 $this->sites->createVariable(
-                    $resource->getSite()->getId(),
+                    $site->getId(),
                     $resource->getKey(),
                     $resource->getValue()
                 );
@@ -1692,7 +1714,7 @@ class Appwrite extends Destination
                 resourceName: $deployment->getName(),
                 resourceGroup: $deployment->getGroup(),
                 resourceId: $deployment->getId(),
-                message: 'Site "' . $site->getId() . '" already exists in destination',
+                message: 'Parent site "' . $site->getId() . '" failed to import',
             );
         }
 
