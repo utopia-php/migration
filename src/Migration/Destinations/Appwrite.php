@@ -1473,7 +1473,18 @@ class Appwrite extends Destination
      */
     private function importDeployment(Deployment $deployment): Resource
     {
-        $functionId = $deployment->getFunction()->getId();
+        $function = $deployment->getFunction();
+
+        if ($function->getStatus() === Resource::STATUS_ERROR) {
+            throw new Exception(
+                resourceName: $deployment->getName(),
+                resourceGroup: $deployment->getGroup(),
+                resourceId: $deployment->getId(),
+                message: 'Function "' . $function->getId() . '" already exists in destination',
+            );
+        }
+
+        $functionId = $function->getId();
 
         $response = null;
 
@@ -1674,7 +1685,18 @@ class Appwrite extends Destination
      */
     private function importSiteDeployment(SiteDeployment $deployment): Resource
     {
-        $siteId = $deployment->getSite()->getId();
+        $site = $deployment->getSite();
+
+        if ($site->getStatus() === Resource::STATUS_ERROR) {
+            throw new Exception(
+                resourceName: $deployment->getName(),
+                resourceGroup: $deployment->getGroup(),
+                resourceId: $deployment->getId(),
+                message: 'Site "' . $site->getId() . '" already exists in destination',
+            );
+        }
+
+        $siteId = $site->getId();
 
         if ($deployment->getSize() <= Transfer::STORAGE_MAX_CHUNK_SIZE) {
             $response = $this->client->call(
