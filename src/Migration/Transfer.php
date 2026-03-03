@@ -16,7 +16,7 @@ class Transfer
 
     public const GROUP_DATABASES = 'databases';
 
-    public const GROUP_SETTINGS = 'settings';
+    public const GROUP_INTEGRATIONS = 'integrations';
 
     public const GROUP_AUTH_RESOURCES = [
         Resource::TYPE_USER,
@@ -50,7 +50,9 @@ class Transfer
         Resource::TYPE_ROW,
     ];
 
-    public const GROUP_SETTINGS_RESOURCES = [];
+    public const GROUP_INTEGRATIONS_RESOURCES = [
+        Resource::TYPE_PLATFORM,
+    ];
 
     public const ALL_PUBLIC_RESOURCES = [
         Resource::TYPE_USER,
@@ -70,6 +72,9 @@ class Transfer
         Resource::TYPE_COLUMN,
         Resource::TYPE_ROW,
 
+        // Integrations
+        Resource::TYPE_PLATFORM,
+
         // legacy
         Resource::TYPE_DOCUMENT,
         Resource::TYPE_ATTRIBUTE,
@@ -83,6 +88,7 @@ class Transfer
         Resource::TYPE_SITE,
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
+        Resource::TYPE_PLATFORM,
     ];
 
     public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
@@ -342,7 +348,7 @@ class Transfer
                 self::GROUP_GENERAL => array_merge($resources, []),
                 self::GROUP_AUTH => array_merge($resources, self::GROUP_AUTH_RESOURCES),
                 self::GROUP_DATABASES => array_merge($resources, self::GROUP_DATABASES_RESOURCES),
-                self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
+                self::GROUP_INTEGRATIONS => array_merge($resources, self::GROUP_INTEGRATIONS_RESOURCES),
                 default => throw new \Exception('No service group found'),
             };
         }

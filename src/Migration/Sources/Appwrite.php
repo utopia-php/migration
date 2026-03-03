@@ -44,6 +44,7 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Integrations\Platform;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
@@ -75,6 +76,10 @@ class Appwrite extends Source
     private Sites $sites;
 
     private Reader $database;
+
+    private bool $consoleKeyFetched = false;
+
+    private ?string $consoleKey = null;
 
     /**
      * @throws \Exception
@@ -114,6 +119,38 @@ class Appwrite extends Source
             default:
                 throw new \Exception('Unknown source');
         }
+    }
+
+    public function setConsoleKey(string $key): void
+    {
+        $this->consoleKey = $key;
+        $this->consoleKeyFetched = true;
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    protected function getConsoleHeaders(): ?array
+    {
+        if (!$this->consoleKeyFetched) {
+            $this->consoleKeyFetched = true;
+
+            try {
+                $response = $this->call('GET', '/migrations/appwrite/console-key');
+                $this->consoleKey = $response['key'] ?? null;
+            } catch (\Throwable) {
+                $this->consoleKey = null;
+            }
+        }
+
+        if ($this->consoleKey === null) {
+            return null;
+        }
+
+        return [
+            'x-appwrite-project' => 'console',
+            'x-appwrite-key' => $this->consoleKey,
+        ];
     }
 
     public static function getName(): string
@@ -158,7 +195,8 @@ class Appwrite extends Source
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
 
-            // Settings
+            // Integrations
+            Resource::TYPE_PLATFORM,
         ];
     }
 
@@ -196,6 +234,7 @@ class Appwrite extends Source
             $this->reportStorage($resources, $report, $resourceIds);
             $this->reportFunctions($resources, $report, $resourceIds);
             $this->reportSites($resources, $report, $resourceIds);
+            $this->reportIntegrations($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1994,6 +2033,99 @@ class Appwrite extends Source
                 $end = $fileSize - 1;
             }
         }
+    }
+
+    /**
+     * @param array<string> $resources
+     * @param array<string, int> $report
+     * @param array<string, array<string>> $resourceIds
+     */
+    private function reportIntegrations(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
+            $consoleHeaders = $this->getConsoleHeaders();
+
+            if ($consoleHeaders === null) {
+                return;
+            }
+
+            try {
+                $response = $this->call('GET', '/projects/' . $this->project . '/platforms', $consoleHeaders);
+                $report[Resource::TYPE_PLATFORM] = $response['total'] ?? 0;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_PLATFORM] = 0;
+            }
+        }
+    }
+
+    /**
+     * @param int $batchSize
+     * @param array<string> $resources
+     */
+    protected function exportGroupIntegrations(int $batchSize, array $resources): void
+    {
+        if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
+            $this->exportWithConsoleHeaders(
+                Resource::TYPE_PLATFORM,
+                Transfer::GROUP_INTEGRATIONS,
+                $this->exportPlatforms(...)
+            );
+        }
+    }
+
+    protected function exportWithConsoleHeaders(string $resourceType, string $group, callable $callback): void
+    {
+        $consoleHeaders = $this->getConsoleHeaders();
+
+        if ($consoleHeaders === null) {
+            $this->addError(new Exception(
+                $resourceType,
+                $group,
+                message: 'Console key unavailable for source instance',
+            ));
+            return;
+        }
+
+        try {
+            $callback($consoleHeaders);
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                $resourceType,
+                $group,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportPlatforms(array $consoleHeaders): void
+    {
+        $response = $this->call('GET', '/projects/' . $this->project . '/platforms', $consoleHeaders);
+
+        if (empty($response['platforms'])) {
+            return;
+        }
+
+        $platforms = [];
+
+        foreach ($response['platforms'] as $platform) {
+            $platforms[] = new Platform(
+                $platform['$id'] ?? '',
+                $platform['type'] ?? '',
+                $platform['name'] ?? '',
+                $platform['key'] ?? '',
+                $platform['store'] ?? '',
+                $platform['hostname'] ?? '',
+                createdAt: $platform['$createdAt'] ?? '',
+                updatedAt: $platform['$updatedAt'] ?? '',
+            );
+        }
+
+        $this->callback($platforms);
     }
 
     /**
