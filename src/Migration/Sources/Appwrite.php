@@ -1641,8 +1641,13 @@ class Appwrite extends Source
             /** @var Func $func */
             $lastDocument = null;
 
-            if ($exportOnlyActive && $func->getActiveDeployment()) {
-                $deployment = $this->functions->getDeployment($func->getId(), $func->getActiveDeployment());
+            if ($exportOnlyActive) {
+                $activeDeploymentId = $func->getActiveDeployment();
+                if (empty($activeDeploymentId)) {
+                    continue; // active-only mode: nothing to export for this function
+                }
+
+                $deployment = $this->functions->getDeployment($func->getId(), $activeDeploymentId);
 
                 try {
                     $this->exportDeploymentData($func, $deployment);
@@ -1863,8 +1868,13 @@ class Appwrite extends Source
             /** @var Site $site */
             $lastDocument = null;
 
-            if ($exportOnlyActive && $site->getActiveDeployment()) {
-                $deployment = $this->sites->getDeployment($site->getId(), $site->getActiveDeployment());
+            if ($exportOnlyActive) {
+                $activeDeploymentId = $site->getActiveDeployment();
+                if (empty($activeDeploymentId)) {
+                    continue; // active-only mode: nothing to export for this site
+                }
+
+                $deployment = $this->sites->getDeployment($site->getId(), $activeDeploymentId);
 
                 try {
                     $this->exportSiteDeploymentData($site, $deployment);
