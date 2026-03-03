@@ -1451,19 +1451,8 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
                 /** @var EnvVar $resource */
-                $function = $resource->getFunc();
-
-                if ($function->getStatus() === Resource::STATUS_ERROR) {
-                    throw new Exception(
-                        resourceName: $resource->getName(),
-                        resourceGroup: $resource->getGroup(),
-                        resourceId: $resource->getId(),
-                        message: 'Parent function "' . $function->getId() . '" failed to import',
-                    );
-                }
-
                 $this->functions->createVariable(
-                    $function->getId(),
+                    $resource->getFunc()->getId(),
                     $resource->getKey(),
                     $resource->getValue()
                 );
@@ -1486,13 +1475,12 @@ class Appwrite extends Destination
     {
         $function = $deployment->getFunction();
 
+        // Deployment API always creates a new deployment, so unlike other resources
+        // there's no duplicate detection. Skip if the parent function failed to import.
         if ($function->getStatus() === Resource::STATUS_ERROR) {
-            throw new Exception(
-                resourceName: $deployment->getName(),
-                resourceGroup: $deployment->getGroup(),
-                resourceId: $deployment->getId(),
-                message: 'Parent function "' . $function->getId() . '" failed to import',
-            );
+            $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent function "' . $function->getId() . '" failed to import');
+
+            return $deployment;
         }
 
         $functionId = $function->getId();
@@ -1674,19 +1662,8 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_SITE_VARIABLE:
                 /** @var SiteEnvVar $resource */
-                $site = $resource->getSite();
-
-                if ($site->getStatus() === Resource::STATUS_ERROR) {
-                    throw new Exception(
-                        resourceName: $resource->getName(),
-                        resourceGroup: $resource->getGroup(),
-                        resourceId: $resource->getId(),
-                        message: 'Parent site "' . $site->getId() . '" failed to import',
-                    );
-                }
-
                 $this->sites->createVariable(
-                    $site->getId(),
+                    $resource->getSite()->getId(),
                     $resource->getKey(),
                     $resource->getValue()
                 );
@@ -1709,13 +1686,12 @@ class Appwrite extends Destination
     {
         $site = $deployment->getSite();
 
+        // Deployment API always creates a new deployment, so unlike other resources
+        // there's no duplicate detection. Skip if the parent site failed to import.
         if ($site->getStatus() === Resource::STATUS_ERROR) {
-            throw new Exception(
-                resourceName: $deployment->getName(),
-                resourceGroup: $deployment->getGroup(),
-                resourceId: $deployment->getId(),
-                message: 'Parent site "' . $site->getId() . '" failed to import',
-            );
+            $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent site "' . $site->getId() . '" failed to import');
+
+            return $deployment;
         }
 
         $siteId = $site->getId();
