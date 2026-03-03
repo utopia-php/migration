@@ -1476,8 +1476,8 @@ class Appwrite extends Destination
         $function = $deployment->getFunction();
 
         // Deployment API always creates a new deployment, so unlike other resources
-        // there's no duplicate detection. Skip if the parent function failed to import.
-        if ($function->getStatus() === Resource::STATUS_ERROR) {
+        // there's no duplicate detection. Skip if the parent function wasn't imported successfully.
+        if ($function->getStatus() !== Resource::STATUS_SUCCESS) {
             $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent function "' . $function->getId() . '" failed to import');
 
             return $deployment;
@@ -1687,8 +1687,8 @@ class Appwrite extends Destination
         $site = $deployment->getSite();
 
         // Deployment API always creates a new deployment, so unlike other resources
-        // there's no duplicate detection. Skip if the parent site failed to import.
-        if ($site->getStatus() === Resource::STATUS_ERROR) {
+        // there's no duplicate detection. Skip if the parent site wasn't imported successfully.
+        if ($site->getStatus() !== Resource::STATUS_SUCCESS) {
             $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent site "' . $site->getId() . '" failed to import');
 
             return $deployment;
