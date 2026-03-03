@@ -136,7 +136,7 @@ class Appwrite extends Source
             $this->consoleKeyFetched = true;
 
             try {
-                $response = $this->call('GET', '/migrations/appwrite/console-key');
+                $response = $this->call('POST', '/migrations/appwrite/console-key');
                 $this->consoleKey = $response['key'] ?? null;
             } catch (\Throwable) {
                 $this->consoleKey = null;
