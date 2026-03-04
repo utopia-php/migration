@@ -1518,9 +1518,8 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
-                $this->exportDeployments($batchSize, true);
-            }
+            $exportOnlyActive = !\in_array(Resource::TYPE_DEPLOYMENT, $resources);
+            $this->exportDeployments($batchSize, $exportOnlyActive);
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_DEPLOYMENT,
@@ -1549,9 +1548,8 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources)) {
-                $this->exportSiteDeployments($batchSize, true);
-            }
+            $exportOnlyActive = !\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources);
+            $this->exportSiteDeployments($batchSize, $exportOnlyActive);
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_SITE_DEPLOYMENT,
@@ -1643,8 +1641,13 @@ class Appwrite extends Source
             /** @var Func $func */
             $lastDocument = null;
 
-            if ($exportOnlyActive && $func->getActiveDeployment()) {
-                $deployment = $this->functions->getDeployment($func->getId(), $func->getActiveDeployment());
+            if ($exportOnlyActive) {
+                $activeDeploymentId = $func->getActiveDeployment();
+                if (empty($activeDeploymentId)) {
+                    continue; // active-only mode: nothing to export for this function
+                }
+
+                $deployment = $this->functions->getDeployment($func->getId(), $activeDeploymentId);
 
                 try {
                     $this->exportDeploymentData($func, $deployment);
@@ -1865,8 +1868,13 @@ class Appwrite extends Source
             /** @var Site $site */
             $lastDocument = null;
 
-            if ($exportOnlyActive && $site->getActiveDeployment()) {
-                $deployment = $this->sites->getDeployment($site->getId(), $site->getActiveDeployment());
+            if ($exportOnlyActive) {
+                $activeDeploymentId = $site->getActiveDeployment();
+                if (empty($activeDeploymentId)) {
+                    continue; // active-only mode: nothing to export for this site
+                }
+
+                $deployment = $this->sites->getDeployment($site->getId(), $activeDeploymentId);
 
                 try {
                     $this->exportSiteDeploymentData($site, $deployment);
