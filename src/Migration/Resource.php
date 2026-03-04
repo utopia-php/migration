@@ -46,6 +46,10 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_INDEX = 'index';
 
+    public const TYPE_PROVIDER = 'provider';
+
+    public const TYPE_TOPIC = 'topic';
+
     // Children (Resources that are created by other resources)
 
     public const TYPE_COLUMN = 'column';
@@ -59,6 +63,10 @@ abstract class Resource implements \JsonSerializable
     public const TYPE_HASH = 'hash';
 
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
+
+    public const TYPE_SUBSCRIBER = 'subscriber';
+
+    public const TYPE_MESSAGE = 'message';
 
     // legacy terminologies
     public const TYPE_DOCUMENT = 'document';
@@ -89,6 +97,10 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_ENVIRONMENT_VARIABLE,
         self::TYPE_TEAM,
         self::TYPE_MEMBERSHIP,
+        self::TYPE_PROVIDER,
+        self::TYPE_TOPIC,
+        self::TYPE_SUBSCRIBER,
+        self::TYPE_MESSAGE,
 
         // legacy
         self::TYPE_DOCUMENT,
