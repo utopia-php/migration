@@ -68,6 +68,7 @@ class Database extends Resource
             'updatedAt' => $this->updatedAt,
             'enabled' => $this->enabled,
             'type' => $this->type,
+            'database' => $this->database
         ];
     }
 

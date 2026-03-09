@@ -73,11 +73,6 @@ class Appwrite extends Destination
     protected $getDatabasesDB;
 
     /**
-     * @var callable(string $databaseType):string
-    */
-    protected $getDatabaseDSN;
-
-    /**
      * @var array<UtopiaDocument>
      */
     private array $rowBuffer = [];
@@ -88,7 +83,6 @@ class Appwrite extends Destination
      * @param string $key
      * @param UtopiaDatabase $dbForProject
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
-     * @param callable(string $databaseType):string $getDatabaseDSN
      * @param array<array<string, mixed>> $collectionStructure
      */
     public function __construct(
@@ -97,7 +91,6 @@ class Appwrite extends Destination
         string $key,
         protected UtopiaDatabase $dbForProject,
         callable $getDatabasesDB,
-        callable $getDatabaseDSN,
         protected array $collectionStructure
     ) {
         $this->project = $project;
@@ -116,7 +109,6 @@ class Appwrite extends Destination
         $this->users = new Users($this->client);
 
         $this->getDatabasesDB = $getDatabasesDB;
-        $this->getDatabaseDSN = $getDatabaseDSN;
     }
 
     public static function getName(): string
@@ -385,7 +377,7 @@ class Appwrite extends Destination
             'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
             'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
             // source and destination can be in different location
-            'database' => ($this->getDatabaseDSN)($resource->getType())
+            'database' => $resource->getDatabase()
         ]));
 
         $resource->setSequence($database->getSequence());
