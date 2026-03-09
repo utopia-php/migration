@@ -224,7 +224,7 @@ class Appwrite extends Destination
 
         } catch (AppwriteException $e) {
             if ($e->getCode() === 403) {
-                throw new \Exception('Missing scope: ' . $scope, previous: $e);
+                throw new \Exception('Missing scope: ' . $scope, $e->getCode(), $e);
             }
             throw $e;
         }
