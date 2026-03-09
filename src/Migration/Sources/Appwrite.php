@@ -1804,6 +1804,7 @@ class Appwrite extends Source
      * @param array<string> $resources
      * @param array<string, int> $report
      * @param array<string, array<string>> $resourceIds
+     * @throws AppwriteException
      */
     private function reportMessaging(array $resources, array &$report, array $resourceIds = []): void
     {
@@ -1922,7 +1923,9 @@ class Appwrite extends Source
         }
     }
 
-
+    /**
+     * @throws AppwriteException
+     */
     private function exportProviders(int $batchSize): void
     {
         $lastDocument = null;
@@ -1971,6 +1974,9 @@ class Appwrite extends Source
         }
     }
 
+    /**
+     * @throws AppwriteException
+     */
     private function exportTopics(int $batchSize): void
     {
         $lastDocument = null;
@@ -2015,6 +2021,9 @@ class Appwrite extends Source
         }
     }
 
+    /**
+     * @throws AppwriteException
+     */
     private function exportSubscribers(int $batchSize): void
     {
         $topics = $this->cache->get(Topic::getName());
@@ -2062,9 +2071,11 @@ class Appwrite extends Source
         }
     }
 
+    /**
+     * @throws AppwriteException
+     */
     private function exportMessages(int $batchSize): void
     {
-        $targetUserMap = $this->buildTargetUserMap();
         $lastDocument = null;
 
         while (true) {
@@ -2088,13 +2099,6 @@ class Appwrite extends Source
             }
 
             foreach ($response['messages'] as $message) {
-                $messageTargetMap = [];
-                foreach ($message['targets'] ?? [] as $targetId) {
-                    if (isset($targetUserMap[$targetId])) {
-                        $messageTargetMap[$targetId] = $targetUserMap[$targetId];
-                    }
-                }
-
                 $messages[] = new Message(
                     $message['$id'],
                     $message['providerType'] ?? '',
@@ -2107,7 +2111,6 @@ class Appwrite extends Source
                     $message['deliveredAt'] ?? '',
                     $message['deliveryErrors'] ?? [],
                     $message['deliveredTotal'] ?? 0,
-                    $messageTargetMap,
                     $message['$createdAt'] ?? '',
                     $message['$updatedAt'] ?? '',
                 );
@@ -2121,44 +2124,6 @@ class Appwrite extends Source
                 break;
             }
         }
-    }
-
-    /**
-     * Build a map of source target ID => source user ID
-     * by iterating cached users and listing their targets.
-     *
-     * @return array<string, string>
-     */
-    private function buildTargetUserMap(): array
-    {
-        $map = [];
-        $users = $this->cache->get(User::getName());
-
-        foreach ($users as $user) {
-            /** @var User $user */
-            $lastTarget = null;
-
-            while (true) {
-                $queries = [Query::limit(self::DEFAULT_PAGE_LIMIT)];
-
-                if ($lastTarget !== null) {
-                    $queries[] = Query::cursorAfter($lastTarget);
-                }
-
-                $response = $this->users->listTargets($user->getId(), $queries);
-
-                foreach ($response['targets'] as $target) {
-                    $map[$target['$id']] = $user->getId();
-                    $lastTarget = $target['$id'];
-                }
-
-                if (\count($response['targets']) < self::DEFAULT_PAGE_LIMIT) {
-                    break;
-                }
-            }
-        }
-
-        return $map;
     }
 
     /**

@@ -1602,11 +1602,7 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_TOPIC:
                 /** @var Topic $resource */
-                $this->messaging->createTopic(
-                    $resource->getId(),
-                    $resource->getTopicName(),
-                    $resource->getSubscribe(),
-                );
+                $this->createTopic($resource);
                 break;
             case Resource::TYPE_SUBSCRIBER:
                 /** @var Subscriber $resource */
@@ -1767,7 +1763,7 @@ class Appwrite extends Destination
      * @throws AppwriteException
      * @throws \Exception
      */
-    protected function createProvider(Provider $resource): bool
+    protected function createProvider(Provider $resource): void
     {
         $credentials = $resource->getCredentials();
         $options = $resource->getOptions();
@@ -1886,26 +1882,39 @@ class Appwrite extends Destination
             ),
             default => throw new \Exception('Unknown provider: ' . $resource->getProvider()),
         };
-
-        return true;
     }
 
     /**
-     * @throws \Exception
+     * @throws AppwriteException
+     */
+    protected function createTopic(Topic $resource): void
+    {
+        $this->messaging->createTopic(
+            $resource->getId(),
+            $resource->getTopicName(),
+            $resource->getSubscribe(),
+        );
+    }
+
+    /**
+     * @throws AuthorizationException
+     * @throws StructureException
+     * @throws DatabaseException|\Exception
      */
     protected function createSubscriber(Subscriber $resource): void
     {
-        $target = $this->database->find('targets', [
-            Query::equal('userId', [$resource->getUserId()]),
-            Query::equal('providerType', [$resource->getProviderType()]),
-            Query::limit(1),
-        ]);
+        $target = match ($resource->getProviderType()) {
+            'push' => $this->database->getDocument('targets', $resource->getTargetId()),
+            'email', 'sms' => $this->database->findOne('targets', [
+                Query::equal('userId', [$resource->getUserId()]),
+                Query::equal('providerType', [$resource->getProviderType()]),
+            ]),
+            default => throw new \Exception('Unknown provider type: ' . $resource->getProviderType()),
+        };
 
-        if (empty($target)) {
-            throw new \Exception('No matching target found for subscriber ' . $resource->getId() . ' with providerType ' . $resource->getProviderType());
+        if (!$target || $target->isEmpty()) {
+            throw new \Exception('Target not found for subscriber: ' . $resource->getId());
         }
-
-        $target = $target[0];
 
         $topic = $this->database->getDocument('topics', $resource->getTopicId());
         if ($topic->isEmpty()) {
@@ -1957,16 +1966,18 @@ class Appwrite extends Destination
      * @throws AppwriteException
      * @throws \Exception
      */
-    protected function createMessage(Message $resource): bool
+    protected function createMessage(Message $resource): void
     {
-        $resolvedTargets = $this->resolveMessageTargets($resource);
+        $resolvedTargets = $resource->getTargets();
         $status = $resource->getMessageStatus();
 
         if ($status === 'scheduled') {
             $scheduledAt = $resource->getScheduledAt();
 
             if (!empty($scheduledAt) && new \DateTime($scheduledAt) > new \DateTime()) {
-                return $this->createScheduledMessage($resource, $resolvedTargets);
+                $this->createScheduledMessage($resource, $resolvedTargets);
+
+                return;
             }
 
             $status = 'draft';
@@ -1979,10 +1990,19 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
+        $data = $resource->getData();
+        $searchContent = match ($resource->getProviderType()) {
+            'email' => $data['subject'] ?? '',
+            'sms' => $data['content'] ?? '',
+            'push' => $data['title'] ?? '',
+            default => '',
+        };
+
         $this->database->createDocument('messages', new UtopiaDocument([
             '$id' => $resource->getId(),
             '$createdAt' => $createdAt,
             '$updatedAt' => $updatedAt,
+            '$permissions' => [],
             'providerType' => $resource->getProviderType(),
             'topics' => $resource->getTopics(),
             'users' => $resource->getUsers(),
@@ -1991,11 +2011,16 @@ class Appwrite extends Destination
             'deliveredAt' => $resource->getDeliveredAt() ?: null,
             'deliveryErrors' => $resource->getDeliveryErrors(),
             'deliveredTotal' => $resource->getDeliveredTotal(),
-            'data' => $resource->getData(),
+            'data' => $data,
             'status' => $status,
+            'search' => implode(' ', array_filter([
+                $resource->getId(),
+                $data['description'] ?? '',
+                $status,
+                $searchContent,
+                $resource->getProviderType(),
+            ])),
         ]));
-
-        return true;
     }
 
     /**
@@ -2003,7 +2028,7 @@ class Appwrite extends Destination
      * @throws AppwriteException
      * @throws \Exception
      */
-    protected function createScheduledMessage(Message $resource, array $resolvedTargets): bool
+    protected function createScheduledMessage(Message $resource, array $resolvedTargets): void
     {
         $data = $resource->getData();
         $topics = $resource->getTopics() ?: null;
@@ -2058,33 +2083,7 @@ class Appwrite extends Destination
             ),
             default => throw new \Exception('Unknown provider type: ' . $resource->getProviderType()),
         };
-
-        return true;
     }
-
-    /**
-     * @return array<string>
-     */
-    private function resolveMessageTargets(Message $resource): array
-    {
-        $targetUserMap = $resource->getTargetUserMap();
-
-        $userIds = array_values(array_unique(array_filter(
-            array_map(fn ($sourceTargetId) => $targetUserMap[$sourceTargetId] ?? null, $resource->getTargets())
-        )));
-
-        if (empty($userIds)) {
-            return [];
-        }
-
-        $targets = $this->database->find('targets', [
-            Query::equal('userId', $userIds),
-            Query::equal('providerType', [$resource->getProviderType()]),
-        ]);
-
-        return array_map(fn (UtopiaDocument $target) => $target->getId(), $targets);
-    }
-
 
     private function importSiteDeployment(SiteDeployment $deployment): Resource
     {

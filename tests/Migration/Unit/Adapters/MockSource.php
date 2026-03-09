@@ -165,6 +165,12 @@ class MockSource extends Source
         }
     }
 
+    /**
+     * Export Messaging Group
+     *
+     * @param  int  $batchSize  Max 100
+     * @param  string[]  $resources  Resources to export
+     */
     protected function exportGroupMessaging(int $batchSize, array $resources): void
     {
         foreach (Transfer::GROUP_MESSAGING_RESOURCES as $resource) {
