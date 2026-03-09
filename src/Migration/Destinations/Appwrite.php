@@ -1432,7 +1432,17 @@ class Appwrite extends Destination
      */
     private function importDeployment(Deployment $deployment): Resource
     {
-        $functionId = $deployment->getFunction()->getId();
+        $function = $deployment->getFunction();
+
+        // Deployment API always creates a new deployment, so unlike other resources
+        // there's no duplicate detection. Skip if the parent function wasn't imported successfully.
+        if ($function->getStatus() !== Resource::STATUS_SUCCESS) {
+            $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent function "' . $function->getId() . '" failed to import');
+
+            return $deployment;
+        }
+
+        $functionId = $function->getId();
 
         $response = null;
 
@@ -1467,7 +1477,7 @@ class Appwrite extends Destination
             [
                 'functionId' => $functionId,
                 'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
-                'activate' => $deployment->getActivated(),
+                'activate' => $deployment->getActivated() ? 'true' : 'false',
                 'entrypoint' => $deployment->getEntrypoint(),
             ]
         );
@@ -1633,7 +1643,17 @@ class Appwrite extends Destination
      */
     private function importSiteDeployment(SiteDeployment $deployment): Resource
     {
-        $siteId = $deployment->getSite()->getId();
+        $site = $deployment->getSite();
+
+        // Deployment API always creates a new deployment, so unlike other resources
+        // there's no duplicate detection. Skip if the parent site wasn't imported successfully.
+        if ($site->getStatus() !== Resource::STATUS_SUCCESS) {
+            $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent site "' . $site->getId() . '" failed to import');
+
+            return $deployment;
+        }
+
+        $siteId = $site->getId();
 
         if ($deployment->getSize() <= Transfer::STORAGE_MAX_CHUNK_SIZE) {
             $response = $this->client->call(
@@ -1645,7 +1665,7 @@ class Appwrite extends Destination
                 [
                     'siteId' => $siteId,
                     'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
-                    'activate' => $deployment->getActivated(),
+                    'activate' => $deployment->getActivated() ? 'true' : 'false',
                 ]
             );
 
@@ -1669,7 +1689,7 @@ class Appwrite extends Destination
             [
                 'siteId' => $siteId,
                 'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
-                'activate' => $deployment->getActivated(),
+                'activate' => $deployment->getActivated() ? 'true' : 'false',
             ]
         );
 

@@ -1294,7 +1294,7 @@ class Appwrite extends Source
         // Get the file size
         $fileSize = $file->getSize();
 
-        if ($end > $fileSize) {
+        if ($end >= $fileSize) {
             $end = $fileSize - 1;
         }
 
@@ -1318,7 +1318,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
             }
         }
@@ -1341,9 +1341,8 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
-                $this->exportDeployments($batchSize, true);
-            }
+            $exportOnlyActive = !\in_array(Resource::TYPE_DEPLOYMENT, $resources);
+            $this->exportDeployments($batchSize, $exportOnlyActive);
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_DEPLOYMENT,
@@ -1372,9 +1371,8 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources)) {
-                $this->exportSiteDeployments($batchSize, true);
-            }
+            $exportOnlyActive = !\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources);
+            $this->exportSiteDeployments($batchSize, $exportOnlyActive);
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_SITE_DEPLOYMENT,
@@ -1466,8 +1464,13 @@ class Appwrite extends Source
             /** @var Func $func */
             $lastDocument = null;
 
-            if ($exportOnlyActive && $func->getActiveDeployment()) {
-                $deployment = $this->functions->getDeployment($func->getId(), $func->getActiveDeployment());
+            if ($exportOnlyActive) {
+                $activeDeploymentId = $func->getActiveDeployment();
+                if (empty($activeDeploymentId)) {
+                    continue; // active-only mode: nothing to export for this function
+                }
+
+                $deployment = $this->functions->getDeployment($func->getId(), $activeDeploymentId);
 
                 try {
                     $this->exportDeploymentData($func, $deployment);
@@ -1527,8 +1530,8 @@ class Appwrite extends Source
             $responseHeaders
         );
 
-        // Content-Length header was missing, file is less than max buffer size.
-        if (!array_key_exists('Content-Length', $responseHeaders)) {
+        // content-length header missing, file is less than max buffer size
+        if (!array_key_exists('content-length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
@@ -1537,7 +1540,7 @@ class Appwrite extends Source
                 $responseHeaders
             );
 
-            $size = mb_strlen($file);
+            $size = strlen($file);
 
             if ($end > $size) {
                 $end = $size - 1;
@@ -1560,7 +1563,11 @@ class Appwrite extends Source
             return;
         }
 
-        $fileSize = $responseHeaders['Content-Length'];
+        $fileSize = $responseHeaders['content-length'];
+
+        if ($end >= $fileSize) {
+            $end = $fileSize - 1;
+        }
 
         $deployment = new Deployment(
             $deployment['$id'],
@@ -1595,7 +1602,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
             }
         }
@@ -1684,8 +1691,13 @@ class Appwrite extends Source
             /** @var Site $site */
             $lastDocument = null;
 
-            if ($exportOnlyActive && $site->getActiveDeployment()) {
-                $deployment = $this->sites->getDeployment($site->getId(), $site->getActiveDeployment());
+            if ($exportOnlyActive) {
+                $activeDeploymentId = $site->getActiveDeployment();
+                if (empty($activeDeploymentId)) {
+                    continue; // active-only mode: nothing to export for this site
+                }
+
+                $deployment = $this->sites->getDeployment($site->getId(), $activeDeploymentId);
 
                 try {
                     $this->exportSiteDeploymentData($site, $deployment);
@@ -1743,7 +1755,7 @@ class Appwrite extends Source
             $responseHeaders
         );
 
-        if (!\array_key_exists('Content-Length', $responseHeaders)) {
+        if (!\array_key_exists('content-length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/sites/{$site->getId()}/deployments/{$deployment['$id']}/download",
@@ -1752,7 +1764,7 @@ class Appwrite extends Source
                 $responseHeaders
             );
 
-            $size = mb_strlen($file);
+            $size = strlen($file);
 
             if ($end > $size) {
                 $end = $size - 1;
@@ -1774,7 +1786,11 @@ class Appwrite extends Source
             return;
         }
 
-        $fileSize = $responseHeaders['Content-Length'];
+        $fileSize = $responseHeaders['content-length'];
+
+        if ($end >= $fileSize) {
+            $end = $fileSize - 1;
+        }
 
         $siteDeployment = new SiteDeployment(
             $deployment['$id'],
@@ -1805,7 +1821,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
             }
         }
