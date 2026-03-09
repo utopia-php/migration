@@ -32,7 +32,7 @@ class VectorsDB extends Database
             updatedAt: $array['updatedAt'] ?? '',
             enabled: $array['enabled'] ?? true,
             originalId: $array['originalId'] ?? '',
-            type: $array['type'] ?? Resource::TYPE_DATABASE_VECTORDB,
+            type: $array['type'] ?? Resource::TYPE_DATABASE_VECTORSDB,
             database: $array['database']
         );
     }
