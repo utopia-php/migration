@@ -207,7 +207,7 @@ class Appwrite extends Source
             )['version'];
         } catch (\Throwable $e) {
             if ($e->getCode() === 403) {
-                throw new \Exception("Missing required scopes.");
+                throw new \Exception('Missing required scopes.', $e->getCode(), $e);
             } else {
                 throw new \Exception($e->getMessage(), $e->getCode(), $e);
             }
