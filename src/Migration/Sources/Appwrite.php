@@ -48,7 +48,7 @@ use Utopia\Migration\Resources\Database\DocumentsDB;
 use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Resources\Database\Table;
-use Utopia\Migration\Resources\Database\VectorDB;
+use Utopia\Migration\Resources\Database\VectorsDB;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
@@ -155,8 +155,8 @@ class Appwrite extends Source
 
             // documentsdb
             Resource::TYPE_DATABASE_DOCUMENTSDB,
-            // vectordb
-            Resource::TYPE_DATABASE_VECTORDB,
+            // vectorsdb
+            Resource::TYPE_DATABASE_VECTORSDB,
 
             // Storage
             Resource::TYPE_BUCKET,
@@ -961,7 +961,7 @@ class Appwrite extends Source
 
                     /** @var Table $table */
                     $col = match($table->getDatabase()->getType()) {
-                        Resource::TYPE_DATABASE_VECTORDB => self::getColumn($table, $column)->getAttribute(),
+                        Resource::TYPE_DATABASE_VECTORSDB => self::getColumn($table, $column)->getAttribute(),
                         default => self::getColumn($table, $column),
                     };
 
@@ -1828,8 +1828,8 @@ class Appwrite extends Source
         switch ($databaseType) {
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
                 return DocumentsDB::fromArray($database);
-            case Resource::TYPE_DATABASE_VECTORDB:
-                return VectorDB::fromArray($database);
+            case Resource::TYPE_DATABASE_VECTORSDB:
+                return VectorsDB::fromArray($database);
             default:
                 return Database::fromArray($database);
         }
@@ -1858,7 +1858,7 @@ class Appwrite extends Source
         switch ($databaseType) {
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
                 return Collection::fromArray($entity);
-            case Resource::TYPE_DATABASE_VECTORDB:
+            case Resource::TYPE_DATABASE_VECTORSDB:
                 return Collection::fromArray($entity);
             default:
                 return Table::fromArray($entity);
@@ -1899,7 +1899,7 @@ class Appwrite extends Source
         switch ($databaseType) {
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
                 return Document::fromArray($record);
-            case Resource::TYPE_DATABASE_VECTORDB:
+            case Resource::TYPE_DATABASE_VECTORSDB:
                 return Document::fromArray($record);
             default:
                 return Row::fromArray($record);

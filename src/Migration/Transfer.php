@@ -20,7 +20,7 @@ class Transfer
     public const GROUP_DATABASES_TABLES_DB = 'tablesdb';
     public const GROUP_DATABASES_DOCUMENTS_DB = 'documentsdb';
 
-    public const GROUP_DATABASES_VECTOR_DB = 'vectordb';
+    public const GROUP_DATABASES_VECTOR_DB = 'vectorsdb';
 
     public const GROUP_SETTINGS = 'settings';
 
@@ -63,8 +63,8 @@ class Transfer
         Resource::TYPE_DOCUMENT
     ];
 
-    public const GROUP_VECTORDB_RESOURCES = [
-        Resource::TYPE_DATABASE_VECTORDB,
+    public const GROUP_VECTORSDB_RESOURCES = [
+        Resource::TYPE_DATABASE_VECTORSDB,
         Resource::TYPE_COLLECTION,
         Resource::TYPE_ATTRIBUTE,
         Resource::TYPE_INDEX,
@@ -74,7 +74,7 @@ class Transfer
     public const GROUP_DATABASES_RESOURCES = [
         Resource::TYPE_DATABASE,
         Resource::TYPE_DATABASE_DOCUMENTSDB,
-        Resource::TYPE_DATABASE_VECTORDB,
+        Resource::TYPE_DATABASE_VECTORSDB,
         Resource::TYPE_TABLE,
         Resource::TYPE_INDEX,
         Resource::TYPE_COLUMN,
@@ -114,7 +114,7 @@ class Transfer
         Resource::TYPE_BUCKET,
         Resource::TYPE_DATABASE,
         Resource::TYPE_DATABASE_DOCUMENTSDB,
-        Resource::TYPE_DATABASE_VECTORDB,
+        Resource::TYPE_DATABASE_VECTORSDB,
         Resource::TYPE_FUNCTION,
         Resource::TYPE_SITE,
         Resource::TYPE_USER,
@@ -380,7 +380,7 @@ class Transfer
                 self::GROUP_DATABASES => array_merge($resources, self::GROUP_DATABASES_RESOURCES),
                 self::GROUP_DATABASES_TABLES_DB => array_merge($resources, self::GROUP_TABLESDB_RESOURCES),
                 self::GROUP_DATABASES_DOCUMENTS_DB => array_merge($resources, self::GROUP_DOCUMENTSDB_RESOURCES),
-                self::GROUP_DATABASES_VECTOR_DB => array_merge($resources, self::GROUP_VECTORDB_RESOURCES),
+                self::GROUP_DATABASES_VECTOR_DB => array_merge($resources, self::GROUP_VECTORSDB_RESOURCES),
                 self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
                 default => throw new \Exception('No service group found'),
             };

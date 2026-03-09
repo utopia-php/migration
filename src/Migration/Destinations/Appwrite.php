@@ -138,7 +138,7 @@ class Appwrite extends Destination
             // Database
             Resource::TYPE_DATABASE,
             Resource::TYPE_DATABASE_DOCUMENTSDB,
-            Resource::TYPE_DATABASE_VECTORDB,
+            Resource::TYPE_DATABASE_VECTORSDB,
             Resource::TYPE_TABLE,
             Resource::TYPE_COLUMN,
             Resource::TYPE_INDEX,
@@ -315,7 +315,7 @@ class Appwrite extends Destination
         switch ($resource->getName()) {
             case Resource::TYPE_DATABASE:
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
-            case Resource::TYPE_DATABASE_VECTORDB:
+            case Resource::TYPE_DATABASE_VECTORSDB:
                 /** @var Database $resource */
                 $success = $this->createDatabase($resource);
                 break;

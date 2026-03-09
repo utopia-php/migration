@@ -35,7 +35,7 @@ abstract class Resource implements \JsonSerializable
     public const TYPE_DATABASE_TABLESDB = 'tablesdb';
 
     public const TYPE_DATABASE_DOCUMENTSDB = 'documentsdb';
-    public const TYPE_DATABASE_VECTORDB = 'vectordb';
+    public const TYPE_DATABASE_VECTORSDB = 'vectorsdb';
 
     public const TYPE_ROW = 'row';
 
@@ -83,7 +83,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_BUCKET,
         self::TYPE_TABLE,
         self::TYPE_DATABASE,
-        self::TYPE_DATABASE_VECTORDB,
+        self::TYPE_DATABASE_VECTORSDB,
         self::TYPE_DATABASE_DOCUMENTSDB,
         self::TYPE_ROW,
         self::TYPE_FILE,
@@ -118,7 +118,7 @@ abstract class Resource implements \JsonSerializable
             'field' => self::TYPE_ATTRIBUTE,
             'record' => self::TYPE_DOCUMENT,
         ],
-        self::TYPE_DATABASE_VECTORDB => [
+        self::TYPE_DATABASE_VECTORSDB => [
             'entity' => self::TYPE_COLLECTION,
             'field' => self::TYPE_ATTRIBUTE,
             'record' => self::TYPE_DOCUMENT,

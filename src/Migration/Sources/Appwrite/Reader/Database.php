@@ -44,8 +44,8 @@ class Database implements Reader
             Resource::TYPE_ROW,
             Resource::TYPE_COLUMN,
             Resource::TYPE_INDEX,
-            // vectordb
-            Resource::TYPE_DATABASE_VECTORDB,
+            // vectorsdb
+            Resource::TYPE_DATABASE_VECTORSDB,
             // Documentsdb
             Resource::TYPE_DATABASE_DOCUMENTSDB,
             Resource::TYPE_COLLECTION,

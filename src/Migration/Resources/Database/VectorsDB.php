@@ -4,11 +4,11 @@ namespace Utopia\Migration\Resources\Database;
 
 use Utopia\Migration\Resource;
 
-class VectorDB extends Database
+class VectorsDB extends Database
 {
     public static function getName(): string
     {
-        return Resource::TYPE_DATABASE_VECTORDB;
+        return Resource::TYPE_DATABASE_VECTORSDB;
     }
 
     /**

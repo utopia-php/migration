@@ -32,7 +32,7 @@ class Collection extends Table
     {
         $database = match ($array['database']['type']) {
             Resource::TYPE_DATABASE_DOCUMENTSDB => DocumentsDB::fromArray($array['database']),
-            Resource::TYPE_DATABASE_VECTORDB => VectorDB::fromArray($array['database']),
+            Resource::TYPE_DATABASE_VECTORSDB => VectorsDB::fromArray($array['database']),
             default => Database::fromArray($array['database'])
         };
 
