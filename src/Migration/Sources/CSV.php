@@ -113,7 +113,7 @@ class CSV extends Source
                     UtopiaResource::TYPE_ROW,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -247,7 +247,7 @@ class CSV extends Source
 
             while (($row = \fgetcsv($stream, 0, $delimiter, '"', '"')) !== false) {
                 if (\count($row) !== \count($headers)) {
-                    throw new \Exception('CSV row does not match the number of header columns.');
+                    throw new \Exception('CSV row does not match the number of header columns.', Exception::CODE_VALIDATION);
                 }
 
                 $data = \array_combine($headers, $row);
@@ -296,7 +296,7 @@ class CSV extends Source
                             }
 
                             if (!\is_array($arrayValues)) {
-                                throw new \Exception("Invalid array format for column '$key': $parsedValue");
+                                throw new \Exception("Invalid array format for column '$key': $parsedValue", Exception::CODE_VALIDATION);
                             }
 
                             $parsedData[$key] = array_map(function ($item) use ($type) {
@@ -416,6 +416,14 @@ class CSV extends Source
     /**
      * @throws \Exception
      */
+    protected function exportGroupMessaging(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    /**
+     * @throws \Exception
+     */
     protected function exportGroupSites(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
@@ -477,7 +485,7 @@ class CSV extends Source
             $messages[] = "$label: '" . \implode("', '", $missingRequired) . "'";
         }
         if (!empty($missingRequired)) {
-            throw new \Exception('CSV header validation failed: ' . \implode('. ', $messages));
+            throw new \Exception('CSV header validation failed: ' . \implode('. ', $messages), Exception::CODE_VALIDATION);
         }
 
         // If there are unknown columns but no missing required columns, just log a warning
@@ -520,7 +528,11 @@ class CSV extends Source
         }
 
         if (!$success) {
-            throw new \Exception('Failed to transfer CSV file from device to local storage.', previous: $e ?? null);
+            throw new \Exception(
+                'Failed to transfer CSV file from device to local storage.',
+                Exception::CODE_INTERNAL,
+                $e ?? null
+            );
         }
 
         $this->downloaded = true;
