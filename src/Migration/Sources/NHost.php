@@ -25,6 +25,72 @@ use Utopia\Migration\Warning;
 
 class NHost extends Source
 {
+    protected static function statusCodeFromSqlState(?string $sqlState): int
+    {
+        if ($sqlState === null || $sqlState === '') {
+            return Exception::CODE_INTERNAL;
+        }
+
+        // Common Postgres SQLSTATE mappings → HTTP-ish status codes
+        // Ref: https://www.postgresql.org/docs/current/errcodes-appendix.html
+        return match ($sqlState) {
+            // AuthN/AuthZ
+            '28P01', // invalid_password
+            '28000', // invalid_authorization_specification
+            => Exception::CODE_UNAUTHORIZED,
+
+            '42501', // insufficient_privilege
+            => Exception::CODE_FORBIDDEN,
+
+            // Not found
+            '3D000', // invalid_catalog_name (db does not exist)
+            '42P01', // undefined_table
+            => Exception::CODE_NOT_FOUND,
+
+            // Validation-ish
+            '42703', // undefined_column
+            '42601', // syntax_error
+            => Exception::CODE_VALIDATION,
+
+            // Conflict
+            '23505', // unique_violation
+            => Exception::CODE_CONFLICT,
+
+            // Resource / service constraints
+            '53300', // too_many_connections
+            => Exception::CODE_RATE_LIMITED,
+
+            // Connection exceptions (class 08) are typically user-side config/network issues
+            default => \str_starts_with($sqlState, '08')
+                ? Exception::CODE_VALIDATION
+                : Exception::CODE_INTERNAL,
+        };
+    }
+
+    protected static function statusCodeFromThrowable(\Throwable $e): int
+    {
+        $code = $e->getCode();
+
+        // PDO / Postgres typically exposes SQLSTATE as the exception code (string)
+        if (\is_string($code)) {
+            return self::statusCodeFromSqlState($code);
+        }
+
+        if (\is_int($code) && $code > 0) {
+            return $code;
+        }
+
+        return Exception::CODE_INTERNAL;
+    }
+
+    /**
+     * @param array<int, mixed>|null $errorInfo PDOStatement::errorInfo()
+     */
+    protected static function statusCodeFromErrorInfo(?array $errorInfo): int
+    {
+        $sqlState = $errorInfo[0] ?? null;
+        return self::statusCodeFromSqlState(\is_string($sqlState) ? $sqlState : null);
+    }
     /**
      * @var \PDO
      */
@@ -64,7 +130,7 @@ class NHost extends Source
             try {
                 $this->pdo = new \PDO('pgsql:host='.$this->subdomain.'.db.'.$this->region.'.nhost.run'.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
             } catch (\PDOException $e) {
-                throw new \Exception('Failed to connect to database: '.$e->getMessage());
+                throw new \Exception('Failed to connect to database: '.$e->getMessage(), self::statusCodeFromThrowable($e), $e);
             }
         }
 
@@ -111,11 +177,14 @@ class NHost extends Source
         try {
             $db = $this->getDatabase();
         } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database. PDO Code: '.$e->getCode().' Error: '.$e->getMessage());
+            throw new \Exception('Failed to connect to database. PDO Code: '.$e->getCode().' Error: '.$e->getMessage(), self::statusCodeFromThrowable($e), $e);
         }
 
         if (! empty($db->errorCode())) {
-            throw new \Exception('Failed to connect to database. PDO Code: '.$db->errorCode().(empty($db->errorInfo()[2]) ? '' : ' Error: '.$db->errorInfo()[2]));
+            throw new \Exception(
+                'Failed to connect to database. PDO Code: '.$db->errorCode().(empty($db->errorInfo()[2]) ? '' : ' Error: '.$db->errorInfo()[2]),
+                self::statusCodeFromSqlState($db->errorCode())
+            );
         }
 
         // Auth
@@ -124,7 +193,10 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access users table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access users table. Error: '.$statement->errorInfo()[2],
+                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_USER] = $statement->fetchColumn();
@@ -140,7 +212,10 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access tables table. Error: '.$statement->errorInfo()[2],
+                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_TABLE] = $statement->fetchColumn();
@@ -151,7 +226,10 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access columns table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access columns table. Error: '.$statement->errorInfo()[2],
+                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_COLUMN] = $statement->fetchColumn();
@@ -162,7 +240,10 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access indexes table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access indexes table. Error: '.$statement->errorInfo()[2],
+                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
@@ -173,7 +254,10 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access tables table. Error: '.$statement->errorInfo()[2],
+                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_ROW] = $statement->fetchColumn();
@@ -185,7 +269,10 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access buckets table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access buckets table. Error: '.$statement->errorInfo()[2],
+                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_BUCKET] = $statement->fetchColumn();
@@ -196,7 +283,10 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access files table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access files table. Error: '.$statement->errorInfo()[2],
+                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_FILE] = $statement->fetchColumn();
@@ -205,7 +295,10 @@ class NHost extends Source
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access files table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access files table. Error: '.$statement->errorInfo()[2],
+                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report['size'] = ($statement->fetchColumn()) / 1024 / 1024; // MB;
@@ -227,7 +320,7 @@ class NHost extends Source
                 Resource::TYPE_USER,
                 Transfer::GROUP_AUTH,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: self::statusCodeFromThrowable($e),
                 previous: $e
             ));
         }
@@ -293,7 +386,7 @@ class NHost extends Source
                     Resource::TYPE_DATABASE,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: self::statusCodeFromThrowable($e),
                     previous: $e
                 )
             );
@@ -309,7 +402,7 @@ class NHost extends Source
                     Resource::TYPE_TABLE,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: self::statusCodeFromThrowable($e),
                     previous: $e
                 )
             );
@@ -325,7 +418,7 @@ class NHost extends Source
                     Resource::TYPE_COLUMN,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: self::statusCodeFromThrowable($e),
                     previous: $e
                 )
             );
@@ -341,7 +434,7 @@ class NHost extends Source
                     Resource::TYPE_ROW,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: self::statusCodeFromThrowable($e),
                     previous: $e
                 )
             );
@@ -357,7 +450,7 @@ class NHost extends Source
                     Resource::TYPE_INDEX,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: self::statusCodeFromThrowable($e),
                     previous: $e
                 )
             );
@@ -705,7 +798,7 @@ class NHost extends Source
                     Resource::TYPE_BUCKET,
                     Transfer::GROUP_STORAGE,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: self::statusCodeFromThrowable($e),
                     previous: $e
                 )
             );
@@ -721,7 +814,7 @@ class NHost extends Source
                     Resource::TYPE_FILE,
                     Transfer::GROUP_STORAGE,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: self::statusCodeFromThrowable($e),
                     previous: $e
                 )
             );

@@ -209,74 +209,6 @@ class Supabase extends NHost
 
     protected string $host;
 
-    private static function statusCodeFromSqlState(?string $sqlState): int
-    {
-        if ($sqlState === null || $sqlState === '') {
-            return Exception::CODE_INTERNAL;
-        }
-
-        // Common Postgres SQLSTATE mappings → HTTP-ish status codes
-        // Ref: https://www.postgresql.org/docs/current/errcodes-appendix.html
-        return match ($sqlState) {
-            // AuthN/AuthZ
-            '28P01', // invalid_password
-            '28000', // invalid_authorization_specification
-            => Exception::CODE_UNAUTHORIZED,
-
-            '42501', // insufficient_privilege
-            => Exception::CODE_FORBIDDEN,
-
-            // Not found
-            '3D000', // invalid_catalog_name (db does not exist)
-            '42P01', // undefined_table
-            => Exception::CODE_NOT_FOUND,
-
-            // Validation-ish
-            '42703', // undefined_column
-            '42601', // syntax_error
-            => Exception::CODE_VALIDATION,
-
-            // Conflict
-            '23505', // unique_violation
-            => Exception::CODE_CONFLICT,
-
-            // Resource / service constraints
-            '53300', // too_many_connections
-            => Exception::CODE_RATE_LIMITED,
-
-            // Connection exceptions (class 08) are typically user-side config/network issues
-            // (wrong host/port, blocked egress, DNS issues), so treat as validation/user actionable.
-            default => \str_starts_with($sqlState, '08')
-                ? Exception::CODE_VALIDATION
-                : Exception::CODE_INTERNAL,
-        };
-    }
-
-    private static function statusCodeFromThrowable(\Throwable $e): int
-    {
-        $code = $e->getCode();
-
-        // PDO / Postgres typically exposes SQLSTATE as the exception code (string)
-        if (\is_string($code)) {
-            return self::statusCodeFromSqlState($code);
-        }
-
-        if (\is_int($code) && $code > 0) {
-            return $code;
-        }
-
-        return Exception::CODE_INTERNAL;
-    }
-
-    /**
-     * @param array<int, mixed>|null $errorInfo PDOStatement::errorInfo()
-     */
-    private static function statusCodeFromErrorInfo(?array $errorInfo): int
-    {
-        $sqlState = $errorInfo[0] ?? null;
-        return self::statusCodeFromSqlState(\is_string($sqlState) ? $sqlState : null);
-    }
-
     public function __construct(string $endpoint, string $key, string $host, string $databaseName, string $username, string $password, string $port = '5432')
     {
         $this->endpoint = $endpoint;
@@ -293,7 +225,7 @@ class Supabase extends NHost
         try {
             $this->pdo = new \PDO('pgsql:host='.$this->host.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
         } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database: '.$e->getMessage(), self::statusCodeFromThrowable($e), $e);
+            throw new \Exception('Failed to connect to database: '.$e->getMessage(), parent::statusCodeFromThrowable($e), $e);
         }
     }
 
@@ -308,13 +240,13 @@ class Supabase extends NHost
         try {
             $this->pdo = new \PDO('pgsql:host='.$this->host.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
         } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database. PDO Code: '.$e->getCode().' Error: '.$e->getMessage(), self::statusCodeFromThrowable($e), $e);
+            throw new \Exception('Failed to connect to database. PDO Code: '.$e->getCode().' Error: '.$e->getMessage(), parent::statusCodeFromThrowable($e), $e);
         }
 
         if (! empty($this->pdo->errorCode())) {
             throw new \Exception(
                 'Failed to connect to database. PDO Code: '.$this->pdo->errorCode().(empty($this->pdo->errorInfo()[2]) ? '' : ' Error: '.$this->pdo->errorInfo()[2]),
-                self::statusCodeFromSqlState($this->pdo->errorCode())
+                parent::statusCodeFromSqlState($this->pdo->errorCode())
             );
         }
 
@@ -326,7 +258,7 @@ class Supabase extends NHost
             if ($statement->errorCode() !== '00000') {
                 throw new \Exception(
                     'Failed to access users table. Error: '.$statement->errorInfo()[2],
-                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
                 );
             }
 
@@ -345,7 +277,7 @@ class Supabase extends NHost
             if ($statement->errorCode() !== '00000') {
                 throw new \Exception(
                     'Failed to access tables table. Error: '.$statement->errorInfo()[2],
-                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
                 );
             }
 
@@ -359,7 +291,7 @@ class Supabase extends NHost
             if ($statement->errorCode() !== '00000') {
                 throw new \Exception(
                     'Failed to access columns table. Error: '.$statement->errorInfo()[2],
-                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
                 );
             }
 
@@ -373,7 +305,7 @@ class Supabase extends NHost
             if ($statement->errorCode() !== '00000') {
                 throw new \Exception(
                     'Failed to access indexes table. Error: '.$statement->errorInfo()[2],
-                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
                 );
             }
 
@@ -387,7 +319,7 @@ class Supabase extends NHost
             if ($statement->errorCode() !== '00000') {
                 throw new \Exception(
                     'Failed to access tables table. Error: '.$statement->errorInfo()[2],
-                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
                 );
             }
 
@@ -402,7 +334,7 @@ class Supabase extends NHost
             if ($statement->errorCode() !== '00000') {
                 throw new \Exception(
                     'Failed to access buckets table. Error: '.$statement->errorInfo()[2],
-                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
                 );
             }
 
@@ -416,7 +348,7 @@ class Supabase extends NHost
             if ($statement->errorCode() !== '00000') {
                 throw new \Exception(
                     'Failed to access files table. Error: '.$statement->errorInfo()[2],
-                    self::statusCodeFromErrorInfo($statement->errorInfo())
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
                 );
             }
 
@@ -449,7 +381,7 @@ class Supabase extends NHost
                 Resource::TYPE_BUCKET,
                 Transfer::GROUP_STORAGE,
                 message: $e->getMessage(),
-                code: self::statusCodeFromThrowable($e),
+                code: parent::statusCodeFromThrowable($e),
                 previous: $e
             ));
         }
@@ -523,7 +455,7 @@ class Supabase extends NHost
                 Resource::TYPE_BUCKET,
                 Transfer::GROUP_STORAGE,
                 message: $e->getMessage(),
-                code: self::statusCodeFromThrowable($e),
+                code: parent::statusCodeFromThrowable($e),
                 previous: $e
             ));
         }
@@ -537,7 +469,7 @@ class Supabase extends NHost
                 Resource::TYPE_BUCKET,
                 Transfer::GROUP_STORAGE,
                 message: $e->getMessage(),
-                code: self::statusCodeFromThrowable($e),
+                code: parent::statusCodeFromThrowable($e),
                 previous: $e
             ));
         }

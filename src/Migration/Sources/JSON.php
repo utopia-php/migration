@@ -105,7 +105,7 @@ class JSON extends Source
                     UtopiaResource::TYPE_ROW,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
