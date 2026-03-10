@@ -105,7 +105,7 @@ class JSON extends Source
                     UtopiaResource::TYPE_ROW,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -129,7 +129,7 @@ class JSON extends Source
 
             foreach ($items as $index => $item) {
                 if (!\is_array($item)) {
-                    throw new \Exception("JSON item at index $index is not an object.");
+                    throw new \Exception("JSON item at index $index is not an object.", Exception::CODE_VALIDATION);
                 }
 
                 $rowId = $item['$id'] ?? 'unique()';
@@ -265,7 +265,11 @@ class JSON extends Source
         }
 
         if (!$success) {
-            throw new \Exception('Failed to transfer JSON file from device to local storage.', previous: $e ?? null);
+            throw new \Exception(
+                'Failed to transfer JSON file from device to local storage.',
+                Exception::CODE_INTERNAL,
+                $e ?? null
+            );
         }
 
         $this->downloaded = true;
@@ -278,12 +282,12 @@ class JSON extends Source
     private function validatePermissions(mixed $permissions): array
     {
         if (!\is_array($permissions)) {
-            throw new \Exception('Invalid permissions format; expected an array of strings.');
+            throw new \Exception('Invalid permissions format; expected an array of strings.', Exception::CODE_VALIDATION);
         }
 
         foreach ($permissions as $value) {
             if (!\is_string($value)) {
-                throw new \Exception('Invalid permission value; expected string.');
+                throw new \Exception('Invalid permission value; expected string.', Exception::CODE_VALIDATION);
             }
         }
 

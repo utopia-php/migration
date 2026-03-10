@@ -130,7 +130,7 @@ class Database implements Reader
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             );
         }
@@ -155,7 +155,7 @@ class Database implements Reader
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             );
         }
@@ -202,7 +202,7 @@ class Database implements Reader
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             );
         }
@@ -264,7 +264,7 @@ class Database implements Reader
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             );
         }
@@ -310,7 +310,7 @@ class Database implements Reader
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             );
         }

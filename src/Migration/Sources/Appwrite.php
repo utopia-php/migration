@@ -115,12 +115,12 @@ class Appwrite extends Source
                 break;
             case static::SOURCE_DATABASE:
                 if (\is_null($dbForProject)) {
-                    throw new \Exception('Database is required for database source');
+                    throw new \Exception('Database is required for database source', Exception::CODE_VALIDATION);
                 }
                 $this->database = new DatabaseReader($dbForProject);
                 break;
             default:
-                throw new \Exception('Unknown source');
+                throw new \Exception('Unknown source', Exception::CODE_VALIDATION);
         }
     }
 
@@ -222,9 +222,9 @@ class Appwrite extends Source
             )['version'];
         } catch (\Throwable $e) {
             if ($e->getCode() === 403) {
-                throw new \Exception("Missing required scopes.");
+                throw new \Exception('Missing required scopes.', $e->getCode(), $e);
             } else {
-                throw new \Exception($e->getMessage(), previous: $e);
+                throw new \Exception($e->getMessage(), $e->getCode(), $e);
             }
         }
 
@@ -516,7 +516,7 @@ class Appwrite extends Source
                 Resource::TYPE_USER,
                 Transfer::GROUP_AUTH,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -530,7 +530,7 @@ class Appwrite extends Source
                 Resource::TYPE_TEAM,
                 Transfer::GROUP_AUTH,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -544,7 +544,7 @@ class Appwrite extends Source
                 Resource::TYPE_MEMBERSHIP,
                 Transfer::GROUP_AUTH,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -684,7 +684,7 @@ class Appwrite extends Source
                 foreach ($response['memberships'] as $membership) {
                     $user = $cacheUsers[$membership['userId']] ?? null;
                     if ($user === null) {
-                        throw new \Exception('User not found');
+                        throw new \Exception('User not found', Exception::CODE_NOT_FOUND);
                     }
 
                     $memberships[] = new Membership(
@@ -719,7 +719,7 @@ class Appwrite extends Source
                     Resource::TYPE_DATABASE,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -737,7 +737,7 @@ class Appwrite extends Source
                     Resource::TYPE_TABLE,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -755,7 +755,7 @@ class Appwrite extends Source
                     Resource::TYPE_COLUMN,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -773,7 +773,7 @@ class Appwrite extends Source
                     Resource::TYPE_INDEX,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -791,7 +791,7 @@ class Appwrite extends Source
                     Resource::TYPE_ROW,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -1358,7 +1358,7 @@ class Appwrite extends Source
                     Resource::TYPE_BUCKET,
                     Transfer::GROUP_STORAGE,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -1374,7 +1374,7 @@ class Appwrite extends Source
                     Resource::TYPE_FILE,
                     Transfer::GROUP_STORAGE,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -1527,7 +1527,7 @@ class Appwrite extends Source
                 Resource::TYPE_FUNCTION,
                 Transfer::GROUP_FUNCTIONS,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -1540,7 +1540,7 @@ class Appwrite extends Source
                 Resource::TYPE_DEPLOYMENT,
                 Transfer::GROUP_FUNCTIONS,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -1557,7 +1557,7 @@ class Appwrite extends Source
                 Resource::TYPE_SITE,
                 Transfer::GROUP_SITES,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -1570,7 +1570,7 @@ class Appwrite extends Source
                 Resource::TYPE_SITE_DEPLOYMENT,
                 Transfer::GROUP_SITES,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }

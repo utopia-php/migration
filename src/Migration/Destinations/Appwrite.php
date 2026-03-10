@@ -272,7 +272,11 @@ class Appwrite extends Destination
 
         } catch (AppwriteException $e) {
             if ($e->getCode() === 403) {
-                throw new \Exception('Missing scope: ' . $scope, previous: $e);
+                throw new \Exception(
+                    'Missing scope: ' . $scope,
+                    (int) $e->getCode() ?: Exception::CODE_FORBIDDEN,
+                    $e
+                );
             }
             throw $e;
         }
@@ -309,7 +313,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
                     Transfer::GROUP_MESSAGING => $this->importMessagingResource($resource),
                     Transfer::GROUP_SITES => $this->importSiteResource($resource),
-                    default => throw new \Exception('Invalid resource group'),
+                    default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
             } catch (\Throwable $e) {
                 $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
@@ -523,7 +527,7 @@ class Appwrite extends Destination
             Column::TYPE_VARCHAR => UtopiaDatabase::VAR_VARCHAR,
             Column::TYPE_MEDIUMTEXT => UtopiaDatabase::VAR_MEDIUMTEXT,
             Column::TYPE_LONGTEXT => UtopiaDatabase::VAR_LONGTEXT,
-            default => throw new \Exception('Invalid resource type '.$resource->getType()),
+            default => throw new \Exception('Invalid resource type '.$resource->getType(), Exception::CODE_VALIDATION),
         };
 
         $database = $this->database->getDocument(
@@ -743,7 +747,7 @@ class Appwrite extends Destination
                         $resource->getFormatOptions(),
                         $resource->getFilters(),
                     )) {
-                        throw new \Exception('Failed to create Column');
+                        throw new \Exception('Failed to create Column', Exception::CODE_INTERNAL);
                     }
             }
         } catch (\Throwable) {
@@ -1165,7 +1169,7 @@ class Appwrite extends Destination
                     'none' => Compression::NONE(),
                     'gzip' => Compression::GZIP(),
                     'zstd' => Compression::ZSTD(),
-                    default => throw new \Exception('Invalid Compression: ' . $resource->getCompression()),
+                    default => throw new \Exception('Invalid Compression: ' . $resource->getCompression(), Exception::CODE_VALIDATION),
                 };
 
                 $response = $this->storage->createBucket(
@@ -1339,7 +1343,7 @@ class Appwrite extends Destination
         $result = null;
 
         if (!$hash) {
-            throw new \Exception('Password hash is missing');
+            throw new \Exception('Password hash is missing', Exception::CODE_VALIDATION);
         }
 
         switch ($hash->getAlgorithm()) {
@@ -1483,7 +1487,7 @@ class Appwrite extends Destination
                     'bun-1.0' => Runtime::BUN10(),
                     'bun-1.1' => Runtime::BUN11(),
                     'go-1.23' => Runtime::GO123(),
-                    default => throw new \Exception('Invalid Runtime: ' . $resource->getRuntime()),
+                    default => throw new \Exception('Invalid Runtime: ' . $resource->getRuntime(), Exception::CODE_VALIDATION),
                 };
 
                 $this->functions->create(
@@ -1573,7 +1577,7 @@ class Appwrite extends Destination
         );
 
         if (!\is_array($response) || !isset($response['$id'])) {
-            throw new \Exception('Deployment creation failed');
+            throw new \Exception('Deployment creation failed', Exception::CODE_INTERNAL);
         }
 
         if ($deployment->getStart() === 0) {
@@ -1698,7 +1702,7 @@ class Appwrite extends Destination
                     'flutter-3.29' => BuildRuntime::FLUTTER329(),
                     'flutter-3.32' => BuildRuntime::FLUTTER332(),
                     'flutter-3.35' => BuildRuntime::FLUTTER335(),
-                    default => throw new \Exception('Invalid Build Runtime: ' . $resource->getBuildRuntime()),
+                    default => throw new \Exception('Invalid Build Runtime: ' . $resource->getBuildRuntime(), Exception::CODE_VALIDATION),
                 };
 
                 $framework = match ($resource->getFramework()) {
@@ -2114,7 +2118,7 @@ class Appwrite extends Destination
             );
 
             if (!\is_array($response) || !isset($response['$id'])) {
-                throw new \Exception('Site deployment creation failed');
+                throw new \Exception('Site deployment creation failed', Exception::CODE_INTERNAL);
             }
 
             $deployment->setStatus(Resource::STATUS_SUCCESS);
@@ -2138,7 +2142,7 @@ class Appwrite extends Destination
         );
 
         if (!\is_array($response) || !isset($response['$id'])) {
-            throw new \Exception('Site deployment creation failed');
+            throw new \Exception('Site deployment creation failed', Exception::CODE_INTERNAL);
         }
 
         if ($deployment->getStart() === 0) {
