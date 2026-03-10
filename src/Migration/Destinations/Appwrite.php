@@ -1867,8 +1867,8 @@ class Appwrite extends Destination
     protected function createSubscriber(Subscriber $resource): void
     {
         $target = match ($resource->getProviderType()) {
-            'push' => $this->database->getDocument('targets', $resource->getTargetId()),
-            'email', 'sms' => $this->database->findOne('targets', [
+            'push' => $this->dbForProject->getDocument('targets', $resource->getTargetId()),
+            'email', 'sms' => $this->dbForProject->findOne('targets', [
                 Query::equal('userId', [$resource->getUserId()]),
                 Query::equal('providerType', [$resource->getProviderType()]),
             ]),
@@ -1879,12 +1879,12 @@ class Appwrite extends Destination
             throw new \Exception('Target not found for subscriber: ' . $resource->getId());
         }
 
-        $topic = $this->database->getDocument('topics', $resource->getTopicId());
+        $topic = $this->dbForProject->getDocument('topics', $resource->getTopicId());
         if ($topic->isEmpty()) {
             throw new \Exception('Topic not found: ' . $resource->getTopicId());
         }
 
-        $user = $this->database->getDocument('users', $resource->getUserId());
+        $user = $this->dbForProject->getDocument('users', $resource->getUserId());
         if ($user->isEmpty()) {
             throw new \Exception('User not found: ' . $resource->getUserId());
         }
@@ -1892,7 +1892,7 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
-        $this->database->createDocument('subscribers', new UtopiaDocument([
+        $this->dbForProject->createDocument('subscribers', new UtopiaDocument([
             '$id' => $resource->getId(),
             '$createdAt' => $createdAt,
             '$updatedAt' => $updatedAt,
@@ -1922,7 +1922,7 @@ class Appwrite extends Destination
             default => throw new \Exception('Unknown provider type: ' . $resource->getProviderType()),
         };
 
-        $this->database->increaseDocumentAttribute('topics', $resource->getTopicId(), $totalAttribute);
+        $this->dbForProject->increaseDocumentAttribute('topics', $resource->getTopicId(), $totalAttribute);
     }
 
     /**
@@ -1961,7 +1961,7 @@ class Appwrite extends Destination
             default => '',
         };
 
-        $this->database->createDocument('messages', new UtopiaDocument([
+        $this->dbForProject->createDocument('messages', new UtopiaDocument([
             '$id' => $resource->getId(),
             '$createdAt' => $createdAt,
             '$updatedAt' => $updatedAt,
