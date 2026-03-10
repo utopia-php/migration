@@ -860,6 +860,7 @@ class Appwrite extends Source
                         'name' => $database['name'],
                         'createdAt' => $database['$createdAt'],
                         'updatedAt' => $database['$updatedAt'],
+                        'enabled' => $database['enabled'] ?? true,
                         'type' => $databaseType,
                         'database' => $database['database']
                     ]);
@@ -930,6 +931,7 @@ class Appwrite extends Source
                         'permissions' => $table['$permissions'],
                         'createdAt' => $table['$createdAt'],
                         'updatedAt' => $table['$updatedAt'],
+                        'enabled' => $table['enabled'] ?? true,
                         'database' => [
                             'id' => $database->getId(),
                             'name' => $database->getDatabaseName(),
