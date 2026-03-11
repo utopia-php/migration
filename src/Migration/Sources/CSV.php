@@ -479,26 +479,24 @@ class CSV extends Source
 
         $messages = [];
 
-        // If there are missing required columns, throw an exception
+        // If there are missing required columns, log a warning (the database layer will enforce constraints per-row)
         if (!empty($missingRequired)) {
             $label = \count($missingRequired) === 1 ? 'Missing required column' : 'Missing required columns';
             $messages[] = "$label: '" . \implode("', '", $missingRequired) . "'";
         }
-        if (!empty($missingRequired)) {
-            throw new \Exception('CSV header validation failed: ' . \implode('. ', $messages), Exception::CODE_VALIDATION);
-        }
 
-        // If there are unknown columns but no missing required columns, just log a warning
+        // If there are unknown columns, log a warning
         $unknown = \array_diff($headers, $allKnown, $internals);
         if (!empty($unknown)) {
             $label = \count($unknown) === 1 ? 'Unknown column' : 'Unknown columns';
             $messages[] = "$label: '" . \implode("', '", $unknown) . "' (will be ignored)";
         }
-        if (!empty($unknown)) {
+
+        if (!empty($messages)) {
             $this->addWarning(new Warning(
                 UtopiaResource::TYPE_ROW,
                 Transfer::GROUP_DATABASES,
-                \implode(', ', $messages),
+                \implode('. ', $messages),
                 $this->resourceId
             ));
         }
