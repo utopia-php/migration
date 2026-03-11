@@ -850,18 +850,20 @@ class Appwrite extends Source
             $response = $this->reader->listDatabases($queries);
 
             foreach ($response as $database) {
-                $databaseType = $database['type'];
-                if (in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY,Resource::TYPE_DATABASE_TABLESDB])) {
-                    $databaseType = Resource::TYPE_DATABASE;
+                $originalType = $database['type'] ?? Resource::TYPE_DATABASE_LEGACY;
+
+                $databaseFamilyType = $originalType;
+                if (\in_array($databaseFamilyType, [Resource::TYPE_DATABASE_LEGACY, Resource::TYPE_DATABASE_TABLESDB], true)) {
+                    $databaseFamilyType = Resource::TYPE_DATABASE;
                 }
-                if (Resource::isSupported($databaseType, $resources)) {
-                    $newDatabase = self::getDatabase($databaseType, [
+
+                if (Resource::isSupported($databaseFamilyType, $resources)) {
+                    $newDatabase = self::getDatabase($databaseFamilyType, [
                         'id' => $database['$id'],
                         'name' => $database['name'],
                         'createdAt' => $database['$createdAt'],
                         'updatedAt' => $database['$updatedAt'],
-                        'enabled' => $database['enabled'] ?? true,
-                        'type' => $databaseType,
+                        'type' => $originalType,
                         'database' => $database['database']
                     ]);
                     $databases[] = $newDatabase;
@@ -931,7 +933,6 @@ class Appwrite extends Source
                         'permissions' => $table['$permissions'],
                         'createdAt' => $table['$createdAt'],
                         'updatedAt' => $table['$updatedAt'],
-                        'enabled' => $table['enabled'] ?? true,
                         'database' => [
                             'id' => $database->getId(),
                             'name' => $database->getDatabaseName(),
