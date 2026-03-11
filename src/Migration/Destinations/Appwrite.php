@@ -431,7 +431,10 @@ class Appwrite extends Destination
             'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
             '$createdAt' => $createdAt,
             '$updatedAt' => $updatedAt,
-            'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId()
+            'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
+            'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
+            // source and destination can be in different location
+            'database' => $resource->getDatabase()
         ]));
 
         $resource->setSequence($database->getSequence());
@@ -1419,6 +1422,9 @@ class Appwrite extends Destination
                     'dart-2.17' => Runtime::DART217(),
                     'dart-2.18' => Runtime::DART218(),
                     'dart-2.19' => Runtime::DART219(),
+                    'deno-1.21' => Runtime::DENO121(),
+                    'deno-1.24' => Runtime::DENO124(),
+                    'deno-1.35' => Runtime::DENO135(),
                     'deno-1.40' => Runtime::DENO140(),
                     'deno-1.46' => Runtime::DENO146(),
                     'deno-2.0' => Runtime::DENO20(),
@@ -1632,6 +1638,9 @@ class Appwrite extends Destination
                     'dart-2.17' => BuildRuntime::DART217(),
                     'dart-2.18' => BuildRuntime::DART218(),
                     'dart-2.19' => BuildRuntime::DART219(),
+                    'deno-1.21' => BuildRuntime::DENO121(),
+                    'deno-1.24' => BuildRuntime::DENO124(),
+                    'deno-1.35' => BuildRuntime::DENO135(),
                     'deno-1.40' => BuildRuntime::DENO140(),
                     'deno-1.46' => BuildRuntime::DENO146(),
                     'deno-2.0' => BuildRuntime::DENO20(),
