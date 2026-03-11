@@ -1067,10 +1067,27 @@ class Appwrite extends Destination
                         }
                     }
                 }
-                $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->createDocuments(
-                    'database_' . $databaseInternalId . '_collection_' . $tableInternalId,
-                    $this->rowBuffer
-                ));
+                $collectionId = 'database_' . $databaseInternalId . '_collection_' . $tableInternalId;
+
+                try {
+                    $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->createDocuments(
+                        $collectionId,
+                        $this->rowBuffer
+                    ));
+                } catch (DuplicateException) {
+                    // Batch insert failed due to a duplicate document.
+                    // Fall back to inserting one-by-one, skipping duplicates.
+                    foreach ($this->rowBuffer as $row) {
+                        try {
+                            $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->createDocument(
+                                $collectionId,
+                                $row
+                            ));
+                        } catch (DuplicateException) {
+                            // Document already exists, skip it
+                        }
+                    }
+                }
 
             } finally {
                 $this->rowBuffer = [];
