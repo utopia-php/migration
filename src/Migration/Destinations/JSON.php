@@ -139,6 +139,7 @@ class JSON extends Destination
                         resourceGroup: $resource->getGroup(),
                         resourceId: $resource->getId(),
                         message: $e->getMessage(),
+                        code: MigrationException::CODE_VALIDATION,
                         previous: $e,
                     ));
                     continue;

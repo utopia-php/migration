@@ -147,16 +147,16 @@ abstract class Target
         }
 
         if (\curl_errno($ch)) {
-            throw new \Exception(\curl_error($ch));
+            throw new \Exception(\curl_error($ch), Exception::CODE_INTERNAL);
         }
 
         \curl_close($ch);
 
         if ($responseStatus >= 400) {
             if (\is_array($responseBody)) {
-                throw new \Exception(\json_encode($responseBody));
+                throw new \Exception(\json_encode($responseBody), $responseStatus);
             } else {
-                throw new \Exception($responseStatus.': '.$responseBody);
+                throw new \Exception($responseStatus.': '.$responseBody, $responseStatus);
             }
         }
 
