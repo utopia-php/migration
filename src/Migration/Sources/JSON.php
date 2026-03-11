@@ -201,17 +201,11 @@ class JSON extends Source
         throw new \Exception('Not Implemented');
     }
 
-    /**
-     * @throws \Exception
-     */
     protected function exportGroupMessaging(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
     }
 
-    /**
-     * @throws \Exception
-     */
     protected function exportGroupBackups(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');

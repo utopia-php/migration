@@ -12,7 +12,6 @@ use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\Runtime;
 use Appwrite\Enums\SmtpEncryption;
 use Appwrite\InputFile;
-use Appwrite\Services\Backups;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
 use Appwrite\Services\Sites;
@@ -42,7 +41,6 @@ use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
-use Utopia\Migration\Resources\Backups\Policy;
 use Utopia\Migration\Resources\Database\Attribute;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Database;
@@ -70,7 +68,6 @@ class Appwrite extends Destination
 
     protected string $key;
 
-    private Backups $backups;
     private Functions $functions;
     private Messaging $messaging;
     private Sites $sites;
@@ -101,8 +98,8 @@ class Appwrite extends Destination
         string $endpoint,
         string $key,
         protected UtopiaDatabase $dbForProject,
-        callable $getDatabasesDB,
-        protected array $collectionStructure
+        ?callable $getDatabasesDB = null,
+        protected array $collectionStructure = []
     ) {
         $this->project = $project;
         $this->endpoint = $endpoint;
@@ -113,7 +110,6 @@ class Appwrite extends Destination
             ->setProject($project)
             ->setKey($key);
 
-        $this->backups = new Backups($this->client);
         $this->functions = new Functions($this->client);
         $this->messaging = new Messaging($this->client);
         $this->sites = new Sites($this->client);
@@ -169,13 +165,13 @@ class Appwrite extends Destination
             Resource::TYPE_SUBSCRIBER,
             Resource::TYPE_MESSAGE,
 
-            // Backups
-            Resource::TYPE_BACKUP_POLICY,
-
             // Sites
             Resource::TYPE_SITE,
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
+
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
         ];
     }
 
@@ -287,15 +283,6 @@ class Appwrite extends Destination
 
                 $scope = 'sites.write';
                 $this->sites->create('', '', Framework::OTHER(), BuildRuntime::STATIC1());
-            }
-
-            // Backups
-            if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
-                $scope = 'policies.read';
-                $this->backups->listPolicies();
-
-                $scope = 'policies.write';
-                $this->backups->createPolicy('', [], 0, '');
             }
 
         } catch (AppwriteException $e) {
@@ -444,10 +431,7 @@ class Appwrite extends Destination
             'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
             '$createdAt' => $createdAt,
             '$updatedAt' => $updatedAt,
-            'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
-            'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
-            // source and destination can be in different location
-            'database' => $resource->getDatabase()
+            'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId()
         ]));
 
         $resource->setSequence($database->getSequence());
@@ -1493,26 +1477,8 @@ class Appwrite extends Destination
         return $resource;
     }
 
-    /**
-     * @throws \Exception
-     */
     public function importBackupResource(Resource $resource): Resource
     {
-        switch ($resource->getName()) {
-            case Resource::TYPE_BACKUP_POLICY:
-                /** @var Policy $resource */
-                $this->backups->createPolicy(
-                    policyId: $resource->getId(),
-                    services: $resource->getServices(),
-                    retention: $resource->getRetention(),
-                    schedule: $resource->getSchedule(),
-                    name: $resource->getPolicyName() ?: null,
-                    resourceId: $resource->getResourceId() ?: null,
-                    enabled: $resource->getEnabled(),
-                );
-                break;
-        }
-
         $resource->setStatus(Resource::STATUS_SUCCESS);
 
         return $resource;

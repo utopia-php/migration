@@ -52,7 +52,7 @@ class Database extends Resource
             enabled: $array['enabled'] ?? true,
             originalId: $array['originalId'] ?? '',
             type: $array['type'] ?? 'legacy',
-            database: $array['database']
+            database: $array['database'] ?? ''
         );
     }
 

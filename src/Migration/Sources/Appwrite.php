@@ -5,7 +5,6 @@ namespace Utopia\Migration\Sources;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Query;
-use Appwrite\Services\Backups;
 use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
@@ -15,14 +14,12 @@ use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
-use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
-use Utopia\Migration\Resources\Backups\Policy;
 use Utopia\Migration\Resources\Database\Attribute;
 use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Column;
@@ -93,12 +90,7 @@ class Appwrite extends Source
 
     private Sites $sites;
 
-    private Backups $backups;
-
-    /**
-     * @var callable(UtopiaDocument $database|null): UtopiaDatabase
-     */
-    protected mixed $getDatabasesDB;
+    private Reader $database;
 
     /**
      * @throws \Exception
@@ -107,7 +99,7 @@ class Appwrite extends Source
         protected string $project,
         protected string $endpoint,
         protected string $key,
-        callable $getDatabasesDB,
+        ?callable $getDatabasesDB = null,
         protected string $source = self::SOURCE_API,
         protected ?UtopiaDatabase $dbForProject = null,
         protected array $queries = [],
@@ -123,7 +115,6 @@ class Appwrite extends Source
         $this->functions = new Functions($this->client);
         $this->messaging = new Messaging($this->client);
         $this->sites = new Sites($this->client);
-        $this->backups = new Backups($this->client);
 
         $this->headers['x-appwrite-project'] = $this->project;
         $this->headers['x-appwrite-key'] = $this->key;
@@ -200,13 +191,13 @@ class Appwrite extends Source
             Resource::TYPE_SUBSCRIBER,
             Resource::TYPE_MESSAGE,
 
-            // Backups
-            Resource::TYPE_BACKUP_POLICY,
-
             // Sites
             Resource::TYPE_SITE,
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
+
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
 
             // Settings
         ];
@@ -246,8 +237,8 @@ class Appwrite extends Source
             $this->reportStorage($resources, $report, $resourceIds);
             $this->reportFunctions($resources, $report, $resourceIds);
             $this->reportMessaging($resources, $report, $resourceIds);
-            $this->reportBackups($resources, $report, $resourceIds);
             $this->reportSites($resources, $report, $resourceIds);
+            $this->reportBackups($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -533,6 +524,13 @@ class Appwrite extends Source
                 $variables = $this->sites->listVariables($site['$id']);
                 $report[Resource::TYPE_SITE_VARIABLE] += $variables['total'] ?? 0;
             }
+        }
+    }
+
+    protected function reportBackups(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
+            $report[Resource::TYPE_BACKUP_POLICY] = 0;
         }
     }
 
@@ -1334,7 +1332,7 @@ class Appwrite extends Source
         // Get the file size
         $fileSize = $file->getSize();
 
-        if ($end >= $fileSize) {
+        if ($end > $fileSize) {
             $end = $fileSize - 1;
         }
 
@@ -1358,7 +1356,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end >= $fileSize) {
+            if ($end > $fileSize) {
                 $end = $fileSize - 1;
             }
         }
@@ -1570,8 +1568,8 @@ class Appwrite extends Source
             $responseHeaders
         );
 
-        // content-length header missing, file is less than max buffer size
-        if (!array_key_exists('content-length', $responseHeaders)) {
+        // Content-Length header was missing, file is less than max buffer size.
+        if (!array_key_exists('Content-Length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
@@ -1580,7 +1578,7 @@ class Appwrite extends Source
                 $responseHeaders
             );
 
-            $size = strlen($file);
+            $size = mb_strlen($file);
 
             if ($end > $size) {
                 $end = $size - 1;
@@ -1603,11 +1601,7 @@ class Appwrite extends Source
             return;
         }
 
-        $fileSize = $responseHeaders['content-length'];
-
-        if ($end >= $fileSize) {
-            $end = $fileSize - 1;
-        }
+        $fileSize = $responseHeaders['Content-Length'];
 
         $deployment = new Deployment(
             $deployment['$id'],
@@ -1642,7 +1636,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end >= $fileSize) {
+            if ($end > $fileSize) {
                 $end = $fileSize - 1;
             }
         }
@@ -1650,85 +1644,7 @@ class Appwrite extends Source
 
     protected function exportGroupBackups(int $batchSize, array $resources): void
     {
-        try {
-            if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
-                $this->exportBackupPolicies($batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(new Exception(
-                Resource::TYPE_BACKUP_POLICY,
-                Transfer::GROUP_BACKUPS,
-                message: $e->getMessage(),
-                code: $e->getCode(),
-                previous: $e
-            ));
-        }
-    }
-
-    /**
-     * @param array<string> $resources
-     * @param array<string, mixed> $report
-     * @param array<string, array<string>> $resourceIds
-     */
-    private function reportBackups(array $resources, array &$report, array $resourceIds = []): void
-    {
-        if (!\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
-            return;
-        }
-
-        try {
-            $queries = $this->buildQueries(
-                resourceType: Resource::TYPE_BACKUP_POLICY,
-                resourceIds: $resourceIds,
-                limit: 1
-            );
-            $report[Resource::TYPE_BACKUP_POLICY] = $this->backups->listPolicies($queries)['total'];
-        } catch (AppwriteException $e) {
-            // Re-throw permission errors (401/403) as they indicate configuration issues
-            if ($e->getCode() === 401 || $e->getCode() === 403) {
-                throw new \Exception('Missing permission to access backup policies: ' . $e->getMessage(), previous: $e);
-            }
-
-            // For other errors (404/501), treat as feature not available - skip gracefully
-            // Backup policies are Cloud-only, may not be available on self-hosted
-            $report[Resource::TYPE_BACKUP_POLICY] = 0;
-        }
-    }
-
-    /**
-     * @throws AppwriteException
-     */
-    private function exportBackupPolicies(int $batchSize): void
-    {
-        $queries = [];
-
-        if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_BACKUP_POLICY) {
-            $queries[] = Query::equal('$id', $this->rootResourceId);
-            $queries[] = Query::limit(1);
-        }
-
-        $response = $this->backups->listPolicies($queries);
-
-        if (empty($response['policies'])) {
-            return;
-        }
-
-        $policies = [];
-
-        foreach ($response['policies'] as $policy) {
-            $policies[] = new Policy(
-                $policy['$id'],
-                $policy['name'] ?? '',
-                $policy['services'] ?? [],
-                $policy['retention'] ?? 0,
-                $policy['schedule'] ?? '',
-                $policy['enabled'] ?? true,
-                $policy['resourceId'] ?? '',
-                $policy['resourceType'] ?? '',
-            );
-        }
-
-        $this->callback($policies);
+        // No-op: backup policies are Cloud-only
     }
 
     /**
@@ -2204,7 +2120,7 @@ class Appwrite extends Source
             $responseHeaders
         );
 
-        if (!\array_key_exists('content-length', $responseHeaders)) {
+        if (!\array_key_exists('Content-Length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/sites/{$site->getId()}/deployments/{$deployment['$id']}/download",
@@ -2213,7 +2129,7 @@ class Appwrite extends Source
                 $responseHeaders
             );
 
-            $size = strlen($file);
+            $size = mb_strlen($file);
 
             if ($end > $size) {
                 $end = $size - 1;
@@ -2235,11 +2151,7 @@ class Appwrite extends Source
             return;
         }
 
-        $fileSize = $responseHeaders['content-length'];
-
-        if ($end >= $fileSize) {
-            $end = $fileSize - 1;
-        }
+        $fileSize = $responseHeaders['Content-Length'];
 
         $siteDeployment = new SiteDeployment(
             $deployment['$id'],
@@ -2270,7 +2182,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end >= $fileSize) {
+            if ($end > $fileSize) {
                 $end = $fileSize - 1;
             }
         }
@@ -2600,7 +2512,7 @@ class Appwrite extends Source
     /**
      * Build queries with optional filtering by resource IDs
      */
-    private function buildQueries(
+    protected function buildQueries(
         string $resourceType,
         array $resourceIds,
         ?string $cursor = null,
