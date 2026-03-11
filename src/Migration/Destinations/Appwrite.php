@@ -1745,8 +1745,13 @@ class Appwrite extends Destination
                 case 'push':
                     $userDoc ??= $this->dbForProject->getDocument('users', $userId);
 
+                    $createdAt = $this->normalizeDateTime($target['$createdAt'] ?? null);
+                    $updatedAt = $this->normalizeDateTime($target['$updatedAt'] ?? null, $createdAt);
+
                     $this->dbForProject->createDocument('targets', new UtopiaDocument([
                         '$id' => $target['$id'],
+                        '$createdAt' => $createdAt,
+                        '$updatedAt' => $updatedAt,
                         '$permissions' => [
                             Permission::read(Role::user($userId)),
                             Permission::update(Role::user($userId)),
@@ -1901,9 +1906,16 @@ class Appwrite extends Destination
             Query::isNull('providerInternalId'),
         ]);
 
+        $userIds = [];
+
         foreach ($targets as $target) {
             $target->setAttribute('providerInternalId', $provider->getSequence());
             $this->dbForProject->updateDocument('targets', $target->getId(), $target);
+            $userIds[$target->getAttribute('userId')] = true;
+        }
+
+        foreach (array_keys($userIds) as $userId) {
+            $this->dbForProject->purgeCachedDocument('users', $userId);
         }
     }
 
