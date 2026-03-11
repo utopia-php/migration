@@ -469,7 +469,9 @@ class CSV extends Source
         $internals = ['$id', '$permissions', '$createdAt', '$updatedAt'];
         $allKnown = \array_keys($columnTypes);
 
-        // Only validate that required columns are present
+        $messages = [];
+
+        // Check for missing required columns — warn but don't fail
         $missingRequired = [];
         foreach (\array_keys($requiredColumns) as $requiredColumn) {
             if (!\in_array($requiredColumn, $headers)) {
@@ -477,28 +479,23 @@ class CSV extends Source
             }
         }
 
-        $messages = [];
-
-        // If there are missing required columns, throw an exception
         if (!empty($missingRequired)) {
             $label = \count($missingRequired) === 1 ? 'Missing required column' : 'Missing required columns';
-            $messages[] = "$label: '" . \implode("', '", $missingRequired) . "'";
-        }
-        if (!empty($missingRequired)) {
-            throw new \Exception('CSV header validation failed: ' . \implode('. ', $messages), Exception::CODE_VALIDATION);
+            $messages[] = "$label: '" . \implode("', '", $missingRequired) . "' (rows will have null values)";
         }
 
-        // If there are unknown columns but no missing required columns, just log a warning
+        // Check for unknown columns
         $unknown = \array_diff($headers, $allKnown, $internals);
         if (!empty($unknown)) {
             $label = \count($unknown) === 1 ? 'Unknown column' : 'Unknown columns';
             $messages[] = "$label: '" . \implode("', '", $unknown) . "' (will be ignored)";
         }
-        if (!empty($unknown)) {
+
+        if (!empty($messages)) {
             $this->addWarning(new Warning(
                 UtopiaResource::TYPE_ROW,
                 Transfer::GROUP_DATABASES,
-                \implode(', ', $messages),
+                \implode('. ', $messages),
                 $this->resourceId
             ));
         }
