@@ -75,6 +75,9 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_MESSAGE = 'message';
 
+    // Backups
+    public const TYPE_BACKUP_POLICY = 'backup-policy';
+
     // legacy terminologies
     public const TYPE_DOCUMENT = 'document';
     public const TYPE_ATTRIBUTE = 'attribute';
@@ -110,6 +113,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_TOPIC,
         self::TYPE_SUBSCRIBER,
         self::TYPE_MESSAGE,
+        self::TYPE_BACKUP_POLICY,
 
         // legacy
         self::TYPE_DOCUMENT,

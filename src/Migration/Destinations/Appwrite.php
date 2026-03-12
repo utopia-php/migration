@@ -169,6 +169,9 @@ class Appwrite extends Destination
             Resource::TYPE_SITE,
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
+
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
         ];
     }
 
@@ -325,6 +328,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
                     Transfer::GROUP_MESSAGING => $this->importMessagingResource($resource),
                     Transfer::GROUP_SITES => $this->importSiteResource($resource),
+                    Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
                     default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
             } catch (\Throwable $e) {
@@ -1479,6 +1483,13 @@ class Appwrite extends Destination
         }
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
+    }
+
+    public function importBackupResource(Resource $resource): Resource
+    {
+        $resource->setStatus(Resource::STATUS_SKIPPED);
 
         return $resource;
     }
