@@ -1489,7 +1489,7 @@ class Appwrite extends Destination
 
     public function importBackupResource(Resource $resource): Resource
     {
-        $resource->setStatus(Resource::STATUS_SUCCESS);
+        $resource->setStatus(Resource::STATUS_SKIPPED);
 
         return $resource;
     }
