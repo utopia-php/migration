@@ -617,6 +617,7 @@ class Appwrite extends Source
                     $user['phoneVerification'] ?? false,
                     !$user['status'],
                     $user['prefs'] ?? [],
+                    $user['targets'] ?? [],
                 );
 
                 $lastDocument = $user['$id'];

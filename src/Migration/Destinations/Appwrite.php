@@ -1264,6 +1264,10 @@ class Appwrite extends Destination
                     $this->users->updateLabels($resource->getId(), $resource->getLabels());
                 }
 
+                if (!empty($resource->getTargets())) {
+                    $this->importUserTargets($resource->getId(), $resource->getTargets());
+                }
+
                 break;
             case Resource::TYPE_TEAM:
                 /** @var Team $resource */
@@ -1723,6 +1727,54 @@ class Appwrite extends Destination
     }
 
     /**
+     * Import user targets not auto-created by the server (e.g. push).
+     * providerInternalId is resolved later in createProvider().
+     *
+     * @param array<array<string, mixed>> $targets
+     */
+    protected function importUserTargets(string $userId, array $targets): void
+    {
+        $userDoc = null;
+
+        foreach ($targets as $target) {
+            switch ($target['providerType'] ?? '') {
+                case 'email':
+                case 'sms':
+                    // Auto-created by the server when a user is created with an email/phone
+                    break;
+                case 'push':
+                    $userDoc ??= $this->dbForProject->getDocument('users', $userId);
+
+                    $createdAt = $this->normalizeDateTime($target['$createdAt'] ?? null);
+                    $updatedAt = $this->normalizeDateTime($target['$updatedAt'] ?? null, $createdAt);
+
+                    $this->dbForProject->createDocument('targets', new UtopiaDocument([
+                        '$id' => $target['$id'],
+                        '$createdAt' => $createdAt,
+                        '$updatedAt' => $updatedAt,
+                        '$permissions' => [
+                            Permission::read(Role::user($userId)),
+                            Permission::update(Role::user($userId)),
+                            Permission::delete(Role::user($userId)),
+                        ],
+                        'userId' => $userId,
+                        'userInternalId' => $userDoc->getSequence(),
+                        'providerType' => $target['providerType'],
+                        'providerId' => $target['providerId'] ?? null,
+                        'identifier' => $target['identifier'],
+                        'name' => $target['name'] ?? null,
+                        'expired' => $target['expired'] ?? false,
+                    ]));
+                    break;
+            }
+        }
+
+        if ($userDoc !== null) {
+            $this->dbForProject->purgeCachedDocument('users', $userId);
+        }
+    }
+
+    /**
      * @throws AppwriteException
      * @throws \Exception
      */
@@ -1845,6 +1897,26 @@ class Appwrite extends Destination
             ),
             default => throw new \Exception('Unknown provider: ' . $resource->getProvider()),
         };
+
+        // Resolve providerInternalId for push targets that were written during GROUP_AUTH
+        // before the provider existed on the destination.
+        $provider = $this->dbForProject->getDocument('providers', $id);
+        $targets = $this->dbForProject->find('targets', [
+            Query::equal('providerId', [$id]),
+            Query::isNull('providerInternalId'),
+        ]);
+
+        $userIds = [];
+
+        foreach ($targets as $target) {
+            $target->setAttribute('providerInternalId', $provider->getSequence());
+            $this->dbForProject->updateDocument('targets', $target->getId(), $target);
+            $userIds[$target->getAttribute('userId')] = true;
+        }
+
+        foreach (array_keys($userIds) as $userId) {
+            $this->dbForProject->purgeCachedDocument('users', $userId);
+        }
     }
 
     /**
