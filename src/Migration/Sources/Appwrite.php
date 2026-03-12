@@ -200,6 +200,9 @@ class Appwrite extends Source
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
 
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
+
             // Settings
         ];
     }
@@ -239,6 +242,7 @@ class Appwrite extends Source
             $this->reportFunctions($resources, $report, $resourceIds);
             $this->reportMessaging($resources, $report, $resourceIds);
             $this->reportSites($resources, $report, $resourceIds);
+            $this->reportBackups($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1416,6 +1420,18 @@ class Appwrite extends Source
                 code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
+        }
+    }
+
+    protected function exportGroupBackups(int $batchSize, array $resources): void
+    {
+        // No-op: backup policies are Cloud-only
+    }
+
+    protected function reportBackups(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
+            $report[Resource::TYPE_BACKUP_POLICY] = 0;
         }
     }
 
