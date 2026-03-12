@@ -850,19 +850,22 @@ class Appwrite extends Source
             $response = $this->reader->listDatabases($queries);
 
             foreach ($response as $database) {
-                $databaseType = $database['type'];
-                if (in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY,Resource::TYPE_DATABASE_TABLESDB])) {
-                    $databaseType = Resource::TYPE_DATABASE;
+                $originalType = $database['type'] ?? Resource::TYPE_DATABASE_LEGACY;
+
+                $databaseFamilyType = $originalType;
+                if (\in_array($databaseFamilyType, [Resource::TYPE_DATABASE_LEGACY, Resource::TYPE_DATABASE_TABLESDB], true)) {
+                    $databaseFamilyType = Resource::TYPE_DATABASE;
                 }
-                if (Resource::isSupported($databaseType, $resources)) {
-                    $newDatabase = self::getDatabase($databaseType, [
+
+                if (Resource::isSupported($databaseFamilyType, $resources)) {
+                    $newDatabase = self::getDatabase($databaseFamilyType, [
                         'id' => $database['$id'],
                         'name' => $database['name'],
                         'createdAt' => $database['$createdAt'],
                         'updatedAt' => $database['$updatedAt'],
+                        'type' => $originalType,
+                        'database' => $database['database'],
                         'enabled' => $database['enabled'] ?? true,
-                        'type' => $databaseType,
-                        'database' => $database['database']
                     ]);
                     $databases[] = $newDatabase;
 
