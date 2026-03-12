@@ -55,6 +55,7 @@ class MockDestination extends Destination
             Resource::TYPE_TOPIC,
             Resource::TYPE_SUBSCRIBER,
             Resource::TYPE_MESSAGE,
+            Resource::TYPE_BACKUP_POLICY,
         ];
     }
 

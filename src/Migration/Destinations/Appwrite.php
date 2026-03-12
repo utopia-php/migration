@@ -98,8 +98,8 @@ class Appwrite extends Destination
         string $endpoint,
         string $key,
         protected UtopiaDatabase $dbForProject,
-        callable $getDatabasesDB,
-        protected array $collectionStructure
+        ?callable $getDatabasesDB = null,
+        protected array $collectionStructure = []
     ) {
         $this->project = $project;
         $this->endpoint = $endpoint;
@@ -169,6 +169,9 @@ class Appwrite extends Destination
             Resource::TYPE_SITE,
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
+
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
         ];
     }
 
@@ -324,6 +327,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_AUTH => $this->importAuthResource($resource),
                     Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
                     Transfer::GROUP_MESSAGING => $this->importMessagingResource($resource),
+                    Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
                     Transfer::GROUP_SITES => $this->importSiteResource($resource),
                     default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
@@ -1478,6 +1482,13 @@ class Appwrite extends Destination
                 return $this->importDeployment($resource);
         }
 
+        $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
+    }
+
+    public function importBackupResource(Resource $resource): Resource
+    {
         $resource->setStatus(Resource::STATUS_SUCCESS);
 
         return $resource;

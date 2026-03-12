@@ -85,6 +85,9 @@ class MockSource extends Source
             Resource::TYPE_SUBSCRIBER,
             Resource::TYPE_MESSAGE,
 
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
+
             // legacy
             Resource::TYPE_DOCUMENT,
             Resource::TYPE_ATTRIBUTE,
@@ -179,6 +182,23 @@ class MockSource extends Source
             }
 
             $this->handleResourceTransfer(Transfer::GROUP_MESSAGING, $resource);
+        }
+    }
+
+    /**
+     * Export Backups Group
+     *
+     * @param  int  $batchSize  Max 100
+     * @param  string[]  $resources  Resources to export
+     */
+    protected function exportGroupBackups(int $batchSize, array $resources): void
+    {
+        foreach (Transfer::GROUP_BACKUPS_RESOURCES as $resource) {
+            if (!\in_array($resource, $resources)) {
+                continue;
+            }
+
+            $this->handleResourceTransfer(Transfer::GROUP_BACKUPS, $resource);
         }
     }
 
