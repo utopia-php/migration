@@ -1141,7 +1141,8 @@ class Appwrite extends Destination
                     $resource->getAllowedFileExtensions(),
                     $compression,
                     $resource->getEncryption(),
-                    $resource->getAntiVirus()
+                    $resource->getAntiVirus(),
+                    $resource->getTransformations()
                 );
 
                 $resource->setId($response['$id']);
@@ -1462,7 +1463,11 @@ class Appwrite extends Destination
                     $resource->getSchedule(),
                     $resource->getTimeout(),
                     $resource->getEnabled(),
-                    entrypoint: $resource->getEntrypoint(),
+                    $resource->getLogging(),
+                    $resource->getEntrypoint(),
+                    $resource->getCommands(),
+                    $resource->getScopes(),
+                    specification: $resource->getSpecification() ?: null,
                 );
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
