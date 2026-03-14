@@ -2247,6 +2247,10 @@ class Appwrite extends Source
             } catch (\Throwable) {
                 $report[Resource::TYPE_PLATFORM] = 0;
             }
+        }
+    }
+
+    /**
      * @param string $databaseType
      * @param array $database {
      *     id: string,
@@ -2308,6 +2312,10 @@ class Appwrite extends Source
                 code: $e->getCode(),
                 previous: $e
             ));
+        }
+    }
+
+    /**
      * eg., tables,collections
      * @param string $databaseType
      * @param array{
@@ -2364,6 +2372,9 @@ class Appwrite extends Source
         }
 
         $this->callback($platforms);
+    }
+
+    /**
      * eg.,documents/attributes
      * @param string $databaseType
      * @param array{

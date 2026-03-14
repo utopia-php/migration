@@ -102,6 +102,7 @@ class Appwrite extends Destination
         callable $getDatabasesDB,
         protected array $collectionStructure,
         protected UtopiaDatabase $dbForPlatform,
+        protected string $projectInternalId,
     ) {
         $this->project = $project;
         $this->endpoint = $endpoint;
@@ -2237,7 +2238,7 @@ class Appwrite extends Destination
             $this->dbForPlatform->createDocument('platforms', new UtopiaDocument([
                 '$id' => ID::unique(),
                 '$permissions' => $resource->getPermissions(),
-                'projectInternalId' => $this->dbForPlatform->getDocument('projects', $this->project)->getInternalId(),
+                'projectInternalId' => $this->projectInternalId,
                 'projectId' => $this->project,
                 'type' => $resource->getType(),
                 'name' => $resource->getPlatformName(),
@@ -2255,6 +2256,8 @@ class Appwrite extends Destination
         $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
 
         return true;
+    }
+
     private function validateFieldsForIndexes(Index $resource, UtopiaDocument $table, array &$lengths)
     {
         /**
