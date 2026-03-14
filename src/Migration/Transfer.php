@@ -22,7 +22,7 @@ class Transfer
 
     public const GROUP_DATABASES_VECTOR_DB = 'vectorsdb';
 
-    public const GROUP_SETTINGS = 'settings';
+    public const GROUP_INTEGRATIONS = 'integrations';
 
     public const GROUP_MESSAGING = 'messaging';
 
@@ -58,6 +58,9 @@ class Transfer
         Resource::TYPE_ROW,
     ];
 
+    public const GROUP_INTEGRATIONS_RESOURCES = [
+        Resource::TYPE_PLATFORM,
+    ];
     public const GROUP_DOCUMENTSDB_RESOURCES = [
         Resource::TYPE_DATABASE_DOCUMENTSDB,
         Resource::TYPE_COLLECTION,
@@ -117,6 +120,9 @@ class Transfer
         Resource::TYPE_SUBSCRIBER,
         Resource::TYPE_MESSAGE,
 
+        // Integrations
+        Resource::TYPE_PLATFORM,
+
         // legacy
         Resource::TYPE_DOCUMENT,
         Resource::TYPE_ATTRIBUTE,
@@ -132,6 +138,7 @@ class Transfer
         Resource::TYPE_SITE,
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
+        Resource::TYPE_PLATFORM,
         Resource::TYPE_PROVIDER,
         Resource::TYPE_TOPIC,
         Resource::TYPE_MESSAGE,
@@ -394,10 +401,10 @@ class Transfer
                 self::GROUP_GENERAL => array_merge($resources, []),
                 self::GROUP_AUTH => array_merge($resources, self::GROUP_AUTH_RESOURCES),
                 self::GROUP_DATABASES => array_merge($resources, self::GROUP_DATABASES_RESOURCES),
+                self::GROUP_INTEGRATIONS => array_merge($resources, self::GROUP_INTEGRATIONS_RESOURCES),
                 self::GROUP_DATABASES_TABLES_DB => array_merge($resources, self::GROUP_TABLESDB_RESOURCES),
                 self::GROUP_DATABASES_DOCUMENTS_DB => array_merge($resources, self::GROUP_DOCUMENTSDB_RESOURCES),
                 self::GROUP_DATABASES_VECTOR_DB => array_merge($resources, self::GROUP_VECTORSDB_RESOURCES),
-                self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
                 self::GROUP_MESSAGING => array_merge($resources, self::GROUP_MESSAGING_RESOURCES),
                 default => throw new \Exception('No service group found'),
             };
