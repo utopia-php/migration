@@ -53,14 +53,11 @@ use Utopia\Migration\Resources\Database\VectorsDB;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
-<<<<<<< HEAD
 use Utopia\Migration\Resources\Integrations\Platform;
-=======
 use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
 use Utopia\Migration\Resources\Messaging\Topic;
->>>>>>> origin/main
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
@@ -2231,7 +2228,6 @@ class Appwrite extends Source
     }
 
     /**
-<<<<<<< HEAD
      * @param array<string> $resources
      * @param array<string, int> $report
      * @param array<string, array<string>> $resourceIds
@@ -2251,7 +2247,6 @@ class Appwrite extends Source
             } catch (\Throwable) {
                 $report[Resource::TYPE_PLATFORM] = 0;
             }
-=======
      * @param string $databaseType
      * @param array $database {
      *     id: string,
@@ -2272,12 +2267,10 @@ class Appwrite extends Source
                 return VectorsDB::fromArray($database);
             default:
                 return Database::fromArray($database);
->>>>>>> origin/main
         }
     }
 
     /**
-<<<<<<< HEAD
      * @param int $batchSize
      * @param array<string> $resources
      */
@@ -2315,7 +2308,6 @@ class Appwrite extends Source
                 code: $e->getCode(),
                 previous: $e
             ));
-=======
      * eg., tables,collections
      * @param string $databaseType
      * @param array{
@@ -2342,12 +2334,10 @@ class Appwrite extends Source
                 return Collection::fromArray($entity);
             default:
                 return Table::fromArray($entity);
->>>>>>> origin/main
         }
     }
 
     /**
-<<<<<<< HEAD
      * @throws AppwriteException
      */
     private function exportPlatforms(array $consoleHeaders): void
@@ -2374,7 +2364,6 @@ class Appwrite extends Source
         }
 
         $this->callback($platforms);
-=======
      * eg.,documents/attributes
      * @param string $databaseType
      * @param array{
@@ -2639,7 +2628,6 @@ class Appwrite extends Source
         // Use getColumn() to create the Column resource, then convert to Attribute
         // This eliminates duplication - all type-specific logic is in getColumn()
         return self::getColumn($collection, $attribute)->getAttribute();
->>>>>>> origin/main
     }
 
     /**

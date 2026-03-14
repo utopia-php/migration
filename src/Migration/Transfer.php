@@ -58,11 +58,9 @@ class Transfer
         Resource::TYPE_ROW,
     ];
 
-<<<<<<< HEAD
     public const GROUP_INTEGRATIONS_RESOURCES = [
         Resource::TYPE_PLATFORM,
     ];
-=======
     public const GROUP_DOCUMENTSDB_RESOURCES = [
         Resource::TYPE_DATABASE_DOCUMENTSDB,
         Resource::TYPE_COLLECTION,
@@ -92,7 +90,6 @@ class Transfer
     ];
 
     public const GROUP_SETTINGS_RESOURCES = [];
->>>>>>> origin/main
 
     public const GROUP_MESSAGING_RESOURCES = [
         Resource::TYPE_PROVIDER,
@@ -141,13 +138,10 @@ class Transfer
         Resource::TYPE_SITE,
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
-<<<<<<< HEAD
         Resource::TYPE_PLATFORM,
-=======
         Resource::TYPE_PROVIDER,
         Resource::TYPE_TOPIC,
         Resource::TYPE_MESSAGE,
->>>>>>> origin/main
     ];
 
     public const STORAGE_MAX_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
@@ -407,15 +401,11 @@ class Transfer
                 self::GROUP_GENERAL => array_merge($resources, []),
                 self::GROUP_AUTH => array_merge($resources, self::GROUP_AUTH_RESOURCES),
                 self::GROUP_DATABASES => array_merge($resources, self::GROUP_DATABASES_RESOURCES),
-<<<<<<< HEAD
                 self::GROUP_INTEGRATIONS => array_merge($resources, self::GROUP_INTEGRATIONS_RESOURCES),
-=======
                 self::GROUP_DATABASES_TABLES_DB => array_merge($resources, self::GROUP_TABLESDB_RESOURCES),
                 self::GROUP_DATABASES_DOCUMENTS_DB => array_merge($resources, self::GROUP_DOCUMENTSDB_RESOURCES),
                 self::GROUP_DATABASES_VECTOR_DB => array_merge($resources, self::GROUP_VECTORSDB_RESOURCES),
-                self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
                 self::GROUP_MESSAGING => array_merge($resources, self::GROUP_MESSAGING_RESOURCES),
->>>>>>> origin/main
                 default => throw new \Exception('No service group found'),
             };
         }
