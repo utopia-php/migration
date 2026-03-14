@@ -19,6 +19,7 @@ class User extends Resource
      * @param bool $phoneVerified
      * @param bool $disabled
      * @param array<string, mixed> $preferences
+     * @param array<array<string, mixed>> $targets
      */
     public function __construct(
         string $id,
@@ -31,7 +32,8 @@ class User extends Resource
         private readonly bool $emailVerified = false,
         private readonly bool $phoneVerified = false,
         private readonly bool $disabled = false,
-        private readonly array $preferences = []
+        private readonly array $preferences = [],
+        private readonly array $targets = [],
     ) {
         $this->id = $id;
     }
@@ -53,7 +55,8 @@ class User extends Resource
             $array['emailVerified'] ?? false,
             $array['phoneVerified'] ?? false,
             $array['disabled'] ?? false,
-            $array['preferences'] ?? []
+            $array['preferences'] ?? [],
+            $array['targets'] ?? [],
         );
     }
 
@@ -74,6 +77,7 @@ class User extends Resource
             'phoneVerified' => $this->phoneVerified,
             'disabled' => $this->disabled,
             'preferences' => $this->preferences,
+            'targets' => $this->targets,
         ];
     }
 
@@ -171,5 +175,15 @@ class User extends Resource
     public function getPreferences(): array
     {
         return $this->preferences;
+    }
+
+    /**
+     * Get Targets
+     *
+     * @return array<array<string, mixed>>
+     */
+    public function getTargets(): array
+    {
+        return $this->targets;
     }
 }

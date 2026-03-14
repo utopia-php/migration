@@ -6,6 +6,7 @@ use Utopia\Database\Exception\Authorization;
 use Utopia\Database\Exception\Conflict;
 use Utopia\Database\Exception\Structure;
 use Utopia\Migration\Destination;
+use Utopia\Migration\Exception as MigrationException;
 use Utopia\Migration\Resource as UtopiaResource;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Transfer;
@@ -90,13 +91,13 @@ class CSV extends Destination
                 if (!isset($handle)) {
                     $handle = \fopen($log, 'a');
                     if ($handle === false) {
-                        throw new \Exception("Failed to open file for writing: $log");
+                        throw new \Exception("Failed to open file for writing: $log", MigrationException::CODE_INTERNAL);
                     }
                 }
 
                 foreach ($buffer['lines'] as $line) {
                     if (!$this->writeCSVLine($handle, $line)) {
-                        throw new \Exception("Failed to write CSV line to file: $log");
+                        throw new \Exception("Failed to write CSV line to file: $log", MigrationException::CODE_INTERNAL);
                     }
                 }
 
@@ -167,7 +168,7 @@ class CSV extends Destination
         $destPath = $this->deviceForFiles->getPath($this->directory . '/' . $filename);
 
         if (!$this->local->exists($sourcePath)) {
-            throw new \Exception("No data to export for resource: $this->resourceId");
+            throw new \Exception("No data to export for resource: $this->resourceId", MigrationException::CODE_NOT_FOUND);
         }
 
         try {
@@ -177,10 +178,13 @@ class CSV extends Destination
                 $this->deviceForFiles
             );
             if ($result === false) {
-                throw new \Exception('Error transferring to ' . $this->deviceForFiles->getRoot() . '/' . $filename);
+                throw new \Exception(
+                    'Error transferring to ' . $this->deviceForFiles->getRoot() . '/' . $filename,
+                    MigrationException::CODE_INTERNAL
+                );
             }
             if (!$this->deviceForFiles->exists($destPath)) {
-                throw new \Exception('File not found on destination: ' . $destPath);
+                throw new \Exception('File not found on destination: ' . $destPath, MigrationException::CODE_NOT_FOUND);
             }
         } finally {
             // Clean up the temporary directory
@@ -226,7 +230,7 @@ class CSV extends Destination
     {
         if (!\file_exists($path)) {
             if (!\mkdir($path, 0755, true)) {
-                throw new \Exception('Error creating directory: ' . $path);
+                throw new \Exception('Error creating directory: ' . $path, MigrationException::CODE_INTERNAL);
             }
         }
     }

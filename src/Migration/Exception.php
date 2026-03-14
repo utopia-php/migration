@@ -4,6 +4,14 @@ namespace Utopia\Migration;
 
 class Exception extends \Exception implements \JsonSerializable
 {
+    public const CODE_VALIDATION = 400;
+    public const CODE_UNAUTHORIZED = 401;
+    public const CODE_FORBIDDEN = 403;
+    public const CODE_NOT_FOUND = 404;
+    public const CODE_CONFLICT = 409;
+    public const CODE_RATE_LIMITED = 429;
+    public const CODE_INTERNAL = 500;
+
     public string $resourceName;
 
     public string $resourceGroup;
@@ -26,7 +34,7 @@ class Exception extends \Exception implements \JsonSerializable
             if (\is_numeric($code)) {
                 $code = (int) $code;
             } else {
-                $code = 500; // PDOException
+                $code = self::CODE_INTERNAL; // PDOException
             }
         }
 

@@ -145,7 +145,7 @@ class Firebase extends Source
     {
         // Check our service account is valid
         if (! isset($this->serviceAccount['project_id'])) {
-            throw new \Exception('Invalid Firebase Service Account');
+            throw new \Exception('Invalid Firebase Service Account', Exception::CODE_UNAUTHORIZED);
         }
 
         $this->authenticate();
@@ -155,15 +155,15 @@ class Firebase extends Source
         $scopes = explode(' ', $scopes);
 
         if (! in_array('https://www.googleapis.com/auth/firebase', $scopes)) {
-            throw new \Exception('Firebase Scope Missing');
+            throw new \Exception('Firebase Scope Missing', Exception::CODE_VALIDATION);
         }
 
         if (! in_array('https://www.googleapis.com/auth/cloud-platform', $scopes)) {
-            throw new \Exception('Cloud Platform Scope Missing');
+            throw new \Exception('Cloud Platform Scope Missing', Exception::CODE_VALIDATION);
         }
 
         if (! in_array('https://www.googleapis.com/auth/datastore', $scopes)) {
-            throw new \Exception('Datastore Scope Missing');
+            throw new \Exception('Datastore Scope Missing', Exception::CODE_VALIDATION);
         }
 
         return [];
@@ -195,7 +195,7 @@ class Firebase extends Source
                     Resource::TYPE_USER,
                     Transfer::GROUP_AUTH,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -293,7 +293,7 @@ class Firebase extends Source
                     Resource::TYPE_DATABASE,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -310,7 +310,7 @@ class Firebase extends Source
                     Resource::TYPE_TABLE,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -469,7 +469,7 @@ class Firebase extends Source
         } elseif (array_key_exists('arrayValue', $field)) {
             return $this->calculateArrayType($column, $key, $field['arrayValue']);
         } else {
-            throw new \Exception('Unknown field type');
+            throw new \Exception('Unknown field type', Exception::CODE_VALIDATION);
         }
     }
 
@@ -592,7 +592,7 @@ class Firebase extends Source
         } elseif (array_key_exists('referenceValue', $field)) {
             //TODO:
         } else {
-            throw new \Exception('Unknown field type');
+            throw new \Exception('Unknown field type', Exception::CODE_VALIDATION);
         }
     }
 
@@ -649,7 +649,7 @@ class Firebase extends Source
                 Resource::TYPE_BUCKET,
                 Transfer::GROUP_STORAGE,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -663,7 +663,7 @@ class Firebase extends Source
                 Resource::TYPE_FILE,
                 Transfer::GROUP_STORAGE,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -804,6 +804,11 @@ class Firebase extends Source
     }
 
     protected function exportGroupFunctions(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not implemented');
+    }
+
+    protected function exportGroupMessaging(int $batchSize, array $resources): void
     {
         throw new \Exception('Not implemented');
     }

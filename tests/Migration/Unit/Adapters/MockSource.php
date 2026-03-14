@@ -80,7 +80,14 @@ class MockSource extends Source
             Resource::TYPE_ENVIRONMENT_VARIABLE,
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
+<<<<<<< HEAD
             Resource::TYPE_PLATFORM,
+=======
+            Resource::TYPE_PROVIDER,
+            Resource::TYPE_TOPIC,
+            Resource::TYPE_SUBSCRIBER,
+            Resource::TYPE_MESSAGE,
+>>>>>>> origin/main
 
             // legacy
             Resource::TYPE_DOCUMENT,
@@ -159,6 +166,23 @@ class MockSource extends Source
             }
 
             $this->handleResourceTransfer(Transfer::GROUP_FUNCTIONS, $resource);
+        }
+    }
+
+    /**
+     * Export Messaging Group
+     *
+     * @param  int  $batchSize  Max 100
+     * @param  string[]  $resources  Resources to export
+     */
+    protected function exportGroupMessaging(int $batchSize, array $resources): void
+    {
+        foreach (Transfer::GROUP_MESSAGING_RESOURCES as $resource) {
+            if (!\in_array($resource, $resources)) {
+                continue;
+            }
+
+            $this->handleResourceTransfer(Transfer::GROUP_MESSAGING, $resource);
         }
     }
 

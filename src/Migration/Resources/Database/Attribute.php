@@ -5,14 +5,9 @@ namespace Utopia\Migration\Resources\Database;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
-abstract class Column extends Resource
+class Attribute extends Resource
 {
     public const TYPE_STRING = 'string';
-    public const TYPE_TEXT = 'text';
-    public const TYPE_VARCHAR = 'varchar';
-    public const TYPE_MEDIUMTEXT = 'mediumtext';
-    public const TYPE_LONGTEXT = 'longtext';
-
     public const TYPE_INTEGER = 'integer';
     public const TYPE_FLOAT = 'double';
     public const TYPE_BOOLEAN = 'boolean';
@@ -33,6 +28,7 @@ abstract class Column extends Resource
     /**
      * @param string $key
      * @param Table $table
+     * @param string $fieldType The actual field type (e.g., 'string', 'integer', 'email')
      * @param int $size
      * @param bool $required
      * @param mixed|null $default
@@ -48,6 +44,7 @@ abstract class Column extends Resource
     public function __construct(
         protected readonly string $key,
         protected readonly Table  $table,
+        protected readonly string $fieldType = '',
         protected readonly int    $size = 0,
         protected readonly bool   $required = false,
         protected readonly mixed  $default = null,
@@ -87,10 +84,39 @@ abstract class Column extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_COLUMN;
+        return Resource::TYPE_ATTRIBUTE;
     }
 
-    abstract public function getType(): string;
+    public function getType(): string
+    {
+        return $this->fieldType;
+    }
+
+    /**
+     * Convert a Column resource to an Attribute resource.
+     *
+     * @param Column $column
+     * @return self
+     */
+    public static function fromColumn(Column $column): self
+    {
+        return new self(
+            $column->getKey(),
+            $column->getTable(),
+            $column->getType(),
+            $column->getSize(),
+            $column->isRequired(),
+            $column->getDefault(),
+            $column->isArray(),
+            $column->isSigned(),
+            $column->getFormat(),
+            $column->getFormatOptions(),
+            $column->getFilters(),
+            $column->getOptions(),
+            $column->getCreatedAt(),
+            $column->getUpdatedAt()
+        );
+    }
 
     public function getGroup(): string
     {
@@ -159,17 +185,5 @@ abstract class Column extends Resource
     public function &getOptions(): array
     {
         return $this->options;
-    }
-
-    /**
-     * Convert this Column resource to an Attribute resource.
-     * This provides a deterministic way to derive attributes from columns,
-     * eliminating the need to maintain duplicate per-type Attribute implementations.
-     *
-     * @return Attribute
-     */
-    public function getAttribute(): Attribute
-    {
-        return Attribute::fromColumn($this);
     }
 }
