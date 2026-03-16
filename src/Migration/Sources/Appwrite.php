@@ -53,6 +53,7 @@ use Utopia\Migration\Resources\Database\VectorsDB;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Integrations\ApiKey;
 use Utopia\Migration\Resources\Integrations\Platform;
 use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
@@ -239,6 +240,7 @@ class Appwrite extends Source
 
             // Integrations
             Resource::TYPE_PLATFORM,
+            Resource::TYPE_API_KEY,
         ];
     }
 
@@ -2234,18 +2236,27 @@ class Appwrite extends Source
      */
     private function reportIntegrations(array $resources, array &$report, array $resourceIds = []): void
     {
+        $consoleHeaders = $this->getConsoleHeaders();
+
+        if ($consoleHeaders === null) {
+            return;
+        }
+
         if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
-            $consoleHeaders = $this->getConsoleHeaders();
-
-            if ($consoleHeaders === null) {
-                return;
-            }
-
             try {
                 $response = $this->call('GET', '/projects/' . $this->project . '/platforms', $consoleHeaders);
                 $report[Resource::TYPE_PLATFORM] = $response['total'] ?? 0;
             } catch (\Throwable) {
                 $report[Resource::TYPE_PLATFORM] = 0;
+            }
+        }
+
+        if (\in_array(Resource::TYPE_API_KEY, $resources)) {
+            try {
+                $response = $this->call('GET', '/projects/' . $this->project . '/keys', $consoleHeaders);
+                $report[Resource::TYPE_API_KEY] = $response['total'] ?? 0;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_API_KEY] = 0;
             }
         }
     }
@@ -2285,6 +2296,14 @@ class Appwrite extends Source
                 Resource::TYPE_PLATFORM,
                 Transfer::GROUP_INTEGRATIONS,
                 $this->exportPlatforms(...)
+            );
+        }
+
+        if (\in_array(Resource::TYPE_API_KEY, $resources)) {
+            $this->exportWithConsoleHeaders(
+                Resource::TYPE_API_KEY,
+                Transfer::GROUP_INTEGRATIONS,
+                $this->exportApiKeys(...)
             );
         }
     }
@@ -2372,6 +2391,32 @@ class Appwrite extends Source
         }
 
         $this->callback($platforms);
+    }
+
+    private function exportApiKeys(array $consoleHeaders): void
+    {
+        $response = $this->call('GET', '/projects/' . $this->project . '/keys', $consoleHeaders);
+
+        if (empty($response['keys'])) {
+            return;
+        }
+
+        $apiKeys = [];
+
+        foreach ($response['keys'] as $key) {
+            $apiKeys[] = new ApiKey(
+                $key['$id'] ?? '',
+                $key['name'] ?? '',
+                $key['scopes'] ?? [],
+                $key['expire'] ?? '',
+                $key['accessedAt'] ?? '',
+                $key['sdks'] ?? [],
+                createdAt: $key['$createdAt'] ?? '',
+                updatedAt: $key['$updatedAt'] ?? '',
+            );
+        }
+
+        $this->callback($apiKeys);
     }
 
     /**

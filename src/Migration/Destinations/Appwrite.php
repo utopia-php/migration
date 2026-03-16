@@ -50,6 +50,7 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Integrations\ApiKey;
 use Utopia\Migration\Resources\Integrations\Platform;
 use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
@@ -80,6 +81,11 @@ class Appwrite extends Destination
      * @var callable(UtopiaDocument $database): UtopiaDatabase
     */
     protected $getDatabasesDB;
+
+    private bool $consoleKeyFetched = false;
+
+    private ?string $consoleKey = null;
+
 
     /**
      * @var array<UtopiaDocument>
@@ -120,7 +126,37 @@ class Appwrite extends Destination
         $this->teams = new Teams($this->client);
         $this->users = new Users($this->client);
 
+        $this->headers['x-appwrite-project'] = $this->project;
+        $this->headers['x-appwrite-key'] = $this->key;
+
         $this->getDatabasesDB = $getDatabasesDB;
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    protected function getConsoleHeaders(): ?array
+    {
+        if (!$this->consoleKeyFetched) {
+            $this->consoleKeyFetched = true;
+
+            try {
+                $response = $this->call('POST', '/migrations/appwrite/console-key');
+                $this->consoleKey = $response['key'] ?? null;
+            } catch (\Throwable) {
+                $this->consoleKey = null;
+            }
+        }
+
+        if ($this->consoleKey === null) {
+            return null;
+        }
+
+        return [
+            'Content-Type' => 'application/json',
+            'x-appwrite-project' => 'console',
+            'x-appwrite-key' => $this->consoleKey,
+        ];
     }
 
     public static function getName(): string
@@ -175,6 +211,7 @@ class Appwrite extends Destination
 
             // Integrations
             Resource::TYPE_PLATFORM,
+            Resource::TYPE_API_KEY,
         ];
     }
 
@@ -2206,9 +2243,13 @@ class Appwrite extends Destination
                 /** @var Platform $resource */
                 $this->createPlatform($resource);
                 break;
+            case Resource::TYPE_API_KEY:
+                /** @var ApiKey $resource */
+                $this->createApiKey($resource);
+                break;
         }
 
-        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED && $resource->getStatus() !== Resource::STATUS_ERROR) {
             $resource->setStatus(Resource::STATUS_SUCCESS);
         }
 
@@ -2254,6 +2295,44 @@ class Appwrite extends Destination
         }
 
         $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
+
+        return true;
+    }
+
+    protected function createApiKey(ApiKey $resource): bool
+    {
+        $consoleHeaders = $this->getConsoleHeaders();
+
+        if ($consoleHeaders === null) {
+            throw new \Exception('Failed to get console headers');
+        }
+
+        try {
+            $params = [
+                'keyId' => ID::unique(),
+                'name' => $resource->getApiKeyName(),
+                'scopes' => $resource->getScopes(),
+            ];
+
+            $expire = $resource->getExpire();
+            if (!empty($expire)) {
+                $params['expire'] = $expire;
+            }
+
+            $this->call(
+                'POST',
+                '/projects/' . $this->project . '/keys',
+                $consoleHeaders,
+                $params
+            );
+        } catch (\Throwable $e) {
+            if ($e->getCode() === 409) {
+                $resource->setStatus(Resource::STATUS_SKIPPED, 'API key already exists');
+                return false;
+            }
+
+            throw $e;
+        }
 
         return true;
     }
