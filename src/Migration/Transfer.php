@@ -60,6 +60,7 @@ class Transfer
 
     public const GROUP_INTEGRATIONS_RESOURCES = [
         Resource::TYPE_PLATFORM,
+        Resource::TYPE_DEV_KEY,
     ];
     public const GROUP_DOCUMENTSDB_RESOURCES = [
         Resource::TYPE_DATABASE_DOCUMENTSDB,
@@ -122,6 +123,7 @@ class Transfer
 
         // Integrations
         Resource::TYPE_PLATFORM,
+        Resource::TYPE_DEV_KEY,
 
         // legacy
         Resource::TYPE_DOCUMENT,
@@ -139,6 +141,7 @@ class Transfer
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
         Resource::TYPE_PLATFORM,
+        Resource::TYPE_DEV_KEY,
         Resource::TYPE_PROVIDER,
         Resource::TYPE_TOPIC,
         Resource::TYPE_MESSAGE,

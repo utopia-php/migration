@@ -50,6 +50,7 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Integrations\DevKey;
 use Utopia\Migration\Resources\Integrations\Platform;
 use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
@@ -120,6 +121,9 @@ class Appwrite extends Destination
         $this->teams = new Teams($this->client);
         $this->users = new Users($this->client);
 
+        $this->headers['x-appwrite-project'] = $this->project;
+        $this->headers['x-appwrite-key'] = $this->key;
+
         $this->getDatabasesDB = $getDatabasesDB;
     }
 
@@ -175,6 +179,7 @@ class Appwrite extends Destination
 
             // Integrations
             Resource::TYPE_PLATFORM,
+            Resource::TYPE_DEV_KEY,
         ];
     }
 
@@ -2206,9 +2211,13 @@ class Appwrite extends Destination
                 /** @var Platform $resource */
                 $this->createPlatform($resource);
                 break;
+            case Resource::TYPE_DEV_KEY:
+                /** @var DevKey $resource */
+                $this->createDevKey($resource);
+                break;
         }
 
-        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED && $resource->getStatus() !== Resource::STATUS_ERROR) {
             $resource->setStatus(Resource::STATUS_SUCCESS);
         }
 
@@ -2250,6 +2259,45 @@ class Appwrite extends Destination
             ]));
         } catch (DuplicateException) {
             $resource->setStatus(Resource::STATUS_SKIPPED, 'Platform already exists');
+            return false;
+        }
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
+
+        return true;
+    }
+
+    protected function createDevKey(DevKey $resource): bool
+    {
+        $existing = $this->dbForPlatform->findOne('devKeys', [
+            Query::equal('projectInternalId', [$this->projectInternalId]),
+            Query::equal('name', [$resource->getDevKeyName()]),
+        ]);
+
+        if ($existing !== false && !$existing->isEmpty()) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Dev key already exists');
+            return false;
+        }
+
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
+        try {
+            $this->dbForPlatform->createDocument('devKeys', new UtopiaDocument([
+                '$id' => ID::unique(),
+                '$permissions' => [],
+                'projectInternalId' => $this->projectInternalId,
+                'projectId' => $this->project,
+                'name' => $resource->getDevKeyName(),
+                'secret' => \bin2hex(\random_bytes(128)),
+                'expire' => $resource->getExpire() ?: null,
+                'accessedAt' => null,
+                'sdks' => [],
+                '$createdAt' => $createdAt,
+                '$updatedAt' => $updatedAt,
+            ]));
+        } catch (DuplicateException) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Dev key already exists');
             return false;
         }
 
