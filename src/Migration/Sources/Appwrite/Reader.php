@@ -108,4 +108,6 @@ interface Reader
      * @return QueryType|string
      */
     public function queryLimit(int $limit): mixed;
+    public function getSupportForAttributes(): bool;
+
 }
