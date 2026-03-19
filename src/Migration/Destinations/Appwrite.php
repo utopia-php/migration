@@ -512,6 +512,8 @@ class Appwrite extends Destination
             'search' => implode(' ', [$resource->getId(), $resource->getTableName()]),
             '$createdAt' => $createdAt,
             '$updatedAt' => $updatedAt,
+            'attributes' => null,
+            'indexes' => null,
         ]));
 
         $resource->setSequence($table->getSequence());
