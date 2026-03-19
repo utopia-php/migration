@@ -97,7 +97,7 @@ class Database extends Resource
         return $this->type;
     }
 
-    public function getDatabase(): mixed
+    public function getDatabase(): ?string
     {
         return $this->database;
     }
