@@ -1123,16 +1123,16 @@ class Appwrite extends Source
                     }
                 }
 
-                $response = $this->database->listRows($table, $queries);
+                $response = $this->reader->listRows($table, $queries);
 
                 foreach ($response as $row) {
                     // HACK: Handle many to many (only for schema-based databases)
                     if (!empty($manyToMany)) {
                         $queries = [];
-                        $queries[] = $this->database->querySelect('$id'); // Adding $id because we can't select only relations
+                        $queries[] = $this->reader->querySelect('$id'); // Adding $id because we can't select only relations
 
                         foreach ($manyToMany as $relation) {
-                            $queries[] = $this->database->querySelect($relation . '.$id');
+                            $queries[] = $this->reader->querySelect($relation . '.$id');
                         }
 
                         $rowItem = $this->reader->getRow(
