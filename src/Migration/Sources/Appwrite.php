@@ -1102,7 +1102,7 @@ class Appwrite extends Source
                 $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want relations flat!
 
                 foreach ($selects as $select) {
-                    $queries[] = $this->database->querySelect($select);
+                    $queries[] = $this->reader->querySelect($select);
                 }
 
                 $manyToMany = [];
