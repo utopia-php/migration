@@ -71,6 +71,8 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
 
+    // Integrations
+    public const TYPE_PLATFORM = 'platform';
     public const TYPE_SUBSCRIBER = 'subscriber';
 
     public const TYPE_MESSAGE = 'message';
@@ -106,6 +108,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_ENVIRONMENT_VARIABLE,
         self::TYPE_TEAM,
         self::TYPE_MEMBERSHIP,
+        self::TYPE_PLATFORM,
         self::TYPE_PROVIDER,
         self::TYPE_TOPIC,
         self::TYPE_SUBSCRIBER,

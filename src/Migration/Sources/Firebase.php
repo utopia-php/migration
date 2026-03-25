@@ -667,7 +667,6 @@ class Firebase extends Source
                 previous: $e
             ));
         }
-
     }
 
     private function exportBuckets(int $batchsize): void
@@ -815,6 +814,11 @@ class Firebase extends Source
     }
 
     protected function exportGroupSites(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not implemented');
+    }
+
+    protected function exportGroupIntegrations(int $batchSize, array $resources): void
     {
         throw new \Exception('Not implemented');
     }
