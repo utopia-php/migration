@@ -14,6 +14,7 @@ abstract class Column extends Resource
     public const TYPE_LONGTEXT = 'longtext';
 
     public const TYPE_INTEGER = 'integer';
+    public const TYPE_BIG_INT = 'bigint';
     public const TYPE_FLOAT = 'double';
     public const TYPE_BOOLEAN = 'boolean';
     public const TYPE_DATETIME = 'datetime';
