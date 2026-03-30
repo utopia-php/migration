@@ -85,9 +85,11 @@ class BigInt extends Column
             array: $array['array'],
             min: $array['formatOptions']['min'] ?? null,
             max: $array['formatOptions']['max'] ?? null,
+            signed: $array['signed'] ?? true,
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );
+    }
     }
 
     public function getType(): string
