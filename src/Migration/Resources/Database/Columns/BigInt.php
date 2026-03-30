@@ -90,7 +90,6 @@ class BigInt extends Column
             updatedAt: $array['updatedAt'] ?? '',
         );
     }
-    }
 
     public function getType(): string
     {
