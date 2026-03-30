@@ -8,6 +8,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\User;
 use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Columns\BigInt;
 use Utopia\Migration\Resources\Database\Columns\Boolean;
 use Utopia\Migration\Resources\Database\Columns\DateTime;
 use Utopia\Migration\Resources\Database\Columns\Decimal;
@@ -679,7 +680,7 @@ class NHost extends Source
                     $column['column_default'] = null;
                 }
 
-                return new Integer(
+                return new BigInt(
                     $column['column_name'],
                     $table,
                     required: $column['is_nullable'] === 'NO',

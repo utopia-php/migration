@@ -542,6 +542,7 @@ class Appwrite extends Destination
             Column::TYPE_DATETIME => UtopiaDatabase::VAR_DATETIME,
             Column::TYPE_BOOLEAN => UtopiaDatabase::VAR_BOOLEAN,
             Column::TYPE_INTEGER => UtopiaDatabase::VAR_INTEGER,
+            Column::TYPE_BIG_INT => UtopiaDatabase::VAR_BIGINT,
             Column::TYPE_FLOAT => UtopiaDatabase::VAR_FLOAT,
             Column::TYPE_RELATIONSHIP => UtopiaDatabase::VAR_RELATIONSHIP,
 
