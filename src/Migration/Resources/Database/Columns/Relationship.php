@@ -2,9 +2,10 @@
 
 namespace Utopia\Migration\Resources\Database\Columns;
 
-use Utopia\Database\Database;
+use Utopia\Database\RelationSide;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Table;
+use Utopia\Query\Schema\ForeignKeyAction;
 
 class Relationship extends Column
 {
@@ -15,8 +16,8 @@ class Relationship extends Column
         string  $relationType,
         bool    $twoWay = false,
         ?string $twoWayKey = null,
-        string  $onDelete = Database::RELATION_MUTATE_RESTRICT,
-        string  $side = Database::RELATION_SIDE_PARENT,
+        string  $onDelete = ForeignKeyAction::Restrict->value,
+        string  $side = RelationSide::Parent->value,
         string  $createdAt = '',
         string  $updatedAt = ''
     ) {

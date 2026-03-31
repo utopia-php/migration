@@ -4,7 +4,8 @@
     "type": "library",
     "keywords": ["php", "framework", "upf", "utopia", "migration"],
     "license": "MIT",
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Utopia\\Migration\\": "src/Migration"
@@ -26,7 +27,7 @@
         "ext-curl": "*",
         "ext-openssl": "*",
         "appwrite/appwrite": "19.*",
-        "utopia-php/database": "5.*",
+        "utopia-php/database": "dev-feat-query-lib as 5.3.17",
         "utopia-php/storage": "1.0.*",
         "utopia-php/dsn": "0.2.*",
         "halaxa/json-machine": "^1.2"
@@ -41,6 +42,16 @@
     "platform": {
         "php": "8.1"
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/utopia-php/database.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/utopia-php/async.git"
+        }
+    ],
     "config": {
         "allow-plugins": {
             "php-http/discovery": true,

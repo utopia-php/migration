@@ -19,6 +19,10 @@ use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Override;
+use Utopia\Database\Adapter\Feature\SchemaAttributes;
+use Utopia\Database\Adapter\Feature\Spatial;
+use Utopia\Database\Attribute as UtopiaAttribute;
+use Utopia\Database\Capability;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime;
 use Utopia\Database\Document as UtopiaDocument;
@@ -31,6 +35,8 @@ use Utopia\Database\Helpers\ID;
 use Utopia\Database\Helpers\Permission;
 use Utopia\Database\Helpers\Role;
 use Utopia\Database\Query;
+use Utopia\Database\Relationship as UtopiaRelationship;
+use Utopia\Database\RelationSide;
 use Utopia\Database\Validator\Index as IndexValidator;
 use Utopia\Database\Validator\Structure;
 use Utopia\Database\Validator\UID;
@@ -60,6 +66,7 @@ use Utopia\Migration\Resources\Sites\Site;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Transfer;
+use Utopia\Query\Schema\ColumnType;
 
 class Appwrite extends Destination
 {
@@ -436,12 +443,20 @@ class Appwrite extends Destination
         $resource->setSequence($database->getSequence());
 
         $columns = \array_map(
-            fn ($attr) => new UtopiaDocument($attr),
+            function ($attr) {
+                if ($attr instanceof UtopiaAttribute) {
+                    return $attr;
+                }
+                if ($attr instanceof UtopiaDocument) {
+                    return UtopiaAttribute::fromDocument($attr);
+                }
+                return UtopiaAttribute::fromArray($attr);
+            },
             $this->collectionStructure['attributes']
         );
 
         $indexes = \array_map(
-            fn ($index) => new UtopiaDocument($index),
+            fn ($index) => $index instanceof UtopiaDocument ? $index : new UtopiaDocument($index),
             $this->collectionStructure['indexes']
         );
 
@@ -539,27 +554,27 @@ class Appwrite extends Destination
         // column will be matching attribute as well
         // column type will be matching attribute type as well
         $type = match ($resource->getType()) {
-            Column::TYPE_DATETIME => UtopiaDatabase::VAR_DATETIME,
-            Column::TYPE_BOOLEAN => UtopiaDatabase::VAR_BOOLEAN,
-            Column::TYPE_INTEGER => UtopiaDatabase::VAR_INTEGER,
-            Column::TYPE_FLOAT => UtopiaDatabase::VAR_FLOAT,
-            Column::TYPE_RELATIONSHIP => UtopiaDatabase::VAR_RELATIONSHIP,
+            Column::TYPE_DATETIME => ColumnType::Datetime->value,
+            Column::TYPE_BOOLEAN => ColumnType::Boolean->value,
+            Column::TYPE_INTEGER => ColumnType::Integer->value,
+            Column::TYPE_FLOAT => ColumnType::Double->value,
+            Column::TYPE_RELATIONSHIP => ColumnType::Relationship->value,
 
             Column::TYPE_STRING,
             Column::TYPE_IP,
             Column::TYPE_EMAIL,
             Column::TYPE_URL,
-            Column::TYPE_ENUM => UtopiaDatabase::VAR_STRING,
+            Column::TYPE_ENUM => ColumnType::String->value,
 
-            Column::TYPE_POINT => UtopiaDatabase::VAR_POINT,
-            Column::TYPE_LINE => UtopiaDatabase::VAR_LINESTRING,
-            Column::TYPE_POLYGON => UtopiaDatabase::VAR_POLYGON,
-            Column::TYPE_TEXT => UtopiaDatabase::VAR_TEXT,
-            Column::TYPE_VARCHAR => UtopiaDatabase::VAR_VARCHAR,
-            Column::TYPE_MEDIUMTEXT => UtopiaDatabase::VAR_MEDIUMTEXT,
-            Column::TYPE_LONGTEXT => UtopiaDatabase::VAR_LONGTEXT,
-            Column::TYPE_OBJECT => UtopiaDatabase::VAR_OBJECT,
-            Column::TYPE_VECTOR => UtopiaDatabase::VAR_VECTOR,
+            Column::TYPE_POINT => ColumnType::Point->value,
+            Column::TYPE_LINE => ColumnType::Linestring->value,
+            Column::TYPE_POLYGON => ColumnType::Polygon->value,
+            Column::TYPE_TEXT => ColumnType::Text->value,
+            Column::TYPE_VARCHAR => ColumnType::Varchar->value,
+            Column::TYPE_MEDIUMTEXT => ColumnType::MediumText->value,
+            Column::TYPE_LONGTEXT => ColumnType::LongText->value,
+            Column::TYPE_OBJECT => ColumnType::Object->value,
+            Column::TYPE_VECTOR => ColumnType::Vector->value,
 
             default => throw new \Exception('Invalid resource type ' . $resource->getType(), Exception::CODE_VALIDATION),
         };
@@ -621,8 +636,8 @@ class Appwrite extends Destination
             );
         }
 
-        if ($type === UtopiaDatabase::VAR_RELATIONSHIP) {
-            $resource->getOptions()['side'] = UtopiaDatabase::RELATION_SIDE_PARENT;
+        if ($type === ColumnType::Relationship->value) {
+            $resource->getOptions()['side'] = RelationSide::Parent->value;
             $relatedTable = $this->dbForProject->getDocument(
                 'database_' . $database->getSequence(),
                 $resource->getOptions()['relatedCollection']
@@ -692,11 +707,11 @@ class Appwrite extends Destination
 
         $twoWayKey = null;
 
-        if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
+        if ($type === ColumnType::Relationship->value && $options['twoWay']) {
             $twoWayKey = $options['twoWayKey'];
             $options['relatedCollection'] = $table->getId();
             $options['twoWayKey'] = $resource->getKey();
-            $options['side'] = UtopiaDatabase::RELATION_SIDE_CHILD;
+            $options['side'] = RelationSide::Child->value;
 
             try {
                 $twoWayAttribute = new UtopiaDocument([
@@ -749,15 +764,17 @@ class Appwrite extends Destination
 
         try {
             switch ($type) {
-                case UtopiaDatabase::VAR_RELATIONSHIP:
+                case ColumnType::Relationship->value:
                     if (!$dbForDatabases->createRelationship(
-                        collection: 'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
-                        relatedCollection: 'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence(),
-                        type: $options['relationType'],
-                        twoWay: $options['twoWay'],
-                        id: $resource->getKey(),
-                        twoWayKey: $options['twoWay'] ? $twoWayKey : $options['twoWayKey'] ?? null,
-                        onDelete: $options['onDelete'],
+                        new UtopiaRelationship(
+                            collection: 'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
+                            relatedCollection: 'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence(),
+                            type: \Utopia\Database\RelationType::from($options['relationType']),
+                            twoWay: $options['twoWay'],
+                            key: $resource->getKey(),
+                            twoWayKey: $options['twoWay'] ? $twoWayKey : $options['twoWayKey'] ?? '',
+                            onDelete: \Utopia\Query\Schema\ForeignKeyAction::from($options['onDelete']),
+                        )
                     )) {
                         throw new Exception(
                             resourceName: $resource->getName(),
@@ -770,16 +787,18 @@ class Appwrite extends Destination
                 default:
                     if (!$dbForDatabases->createAttribute(
                         'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
-                        $resource->getKey(),
-                        $type,
-                        $resource->getSize(),
-                        $resource->isRequired(),
-                        $resource->getDefault(),
-                        $resource->isSigned(),
-                        $resource->isArray(),
-                        $resource->getFormat(),
-                        $resource->getFormatOptions(),
-                        $resource->getFilters(),
+                        new UtopiaAttribute(
+                            key: $resource->getKey(),
+                            type: ColumnType::from($type),
+                            size: $resource->getSize(),
+                            required: $resource->isRequired(),
+                            default: $resource->getDefault(),
+                            signed: $resource->isSigned(),
+                            array: $resource->isArray(),
+                            format: $resource->getFormat(),
+                            formatOptions: $resource->getFormatOptions(),
+                            filters: $resource->getFilters(),
+                        ),
                     )) {
                         throw new \Exception('Failed to create Column', Exception::CODE_INTERNAL);
                     }
@@ -799,7 +818,7 @@ class Appwrite extends Destination
             );
         }
 
-        if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
+        if ($type === ColumnType::Relationship->value && $options['twoWay']) {
             $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
         }
 
@@ -859,7 +878,7 @@ class Appwrite extends Destination
         // Lengths hidden by default
         $lengths = [];
 
-        if ($dbForDatabases->getAdapter()->getSupportForAttributes()) {
+        if ($dbForDatabases->getAdapter() instanceof SchemaAttributes) {
             $this->validateFieldsForIndexes($resource, $table, $lengths);
         }
 
@@ -888,24 +907,27 @@ class Appwrite extends Destination
         $tableColumns = $table->getAttribute('attributes', []);
         $tableIndexes = $table->getAttribute('indexes', []);
 
+        $adapter = $dbForDatabases->getAdapter();
         $validator = new IndexValidator(
             $tableColumns,
             $tableIndexes,
-            $dbForDatabases->getAdapter()->getMaxIndexLength(),
-            $dbForDatabases->getAdapter()->getInternalIndexesKeys(),
-            $dbForDatabases->getAdapter()->getSupportForIndexArray(),
-            $dbForDatabases->getAdapter()->getSupportForSpatialIndexNull(),
-            $dbForDatabases->getAdapter()->getSupportForSpatialIndexOrder(),
-            $dbForDatabases->getAdapter()->getSupportForVectors(),
-            $dbForDatabases->getAdapter()->getSupportForAttributes(),
-            $dbForDatabases->getAdapter()->getSupportForMultipleFulltextIndexes(),
-            $dbForDatabases->getAdapter()->getSupportForIdenticalIndexes(),
-            $dbForDatabases->getAdapter()->getSupportForObjectIndexes(),
-            $dbForDatabases->getAdapter()->getSupportForTrigramIndex(),
-            $dbForDatabases->getAdapter()->getSupportForSpatialAttributes(),
-            $dbForDatabases->getAdapter()->getSupportForIndex(),
-            $dbForDatabases->getAdapter()->getSupportForUniqueIndex(),
-            $dbForDatabases->getAdapter()->getSupportForFulltextIndex()
+            $adapter->getMaxIndexLength(),
+            $adapter->getInternalIndexesKeys(),
+            $adapter->supports(Capability::IndexArray),
+            $adapter->supports(Capability::SpatialIndexNull),
+            $adapter->supports(Capability::SpatialIndexOrder),
+            $adapter->supports(Capability::Vectors),
+            $adapter instanceof SchemaAttributes,
+            $adapter->supports(Capability::MultipleFulltextIndexes),
+            $adapter->supports(Capability::IdenticalIndexes),
+            $adapter->supports(Capability::ObjectIndexes),
+            $adapter->supports(Capability::TrigramIndex),
+            $adapter instanceof Spatial,
+            $adapter->supports(Capability::Index),
+            $adapter->supports(Capability::UniqueIndex),
+            $adapter->supports(Capability::Fulltext),
+            $adapter->supports(Capability::TTLIndexes),
+            $adapter->supports(Capability::Objects),
         );
 
 
@@ -923,11 +945,13 @@ class Appwrite extends Destination
         try {
             $result = $dbForDatabases->createIndex(
                 'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
-                $resource->getKey(),
-                $resource->getType(),
-                $resource->getColumns(),
-                $lengths,
-                $resource->getOrders()
+                new \Utopia\Database\Index(
+                    key: $resource->getKey(),
+                    type: \Utopia\Query\Schema\IndexType::from($resource->getType()),
+                    attributes: $resource->getColumns(),
+                    lengths: $lengths,
+                    orders: $resource->getOrders(),
+                ),
             );
 
             if (!$result) {
@@ -1045,17 +1069,19 @@ class Appwrite extends Destination
                  * This is in case an attribute was deleted from Appwrite attributes collection but was not deleted from the table
                  * When creating an archive we select * which will include orphan attribute from the schema
                  */
-                if ($dbForDatabases->getAdapter()->getSupportForAttributes()) {
+                if ($dbForDatabases->getAdapter() instanceof SchemaAttributes) {
                     foreach ($this->rowBuffer as $row) {
                         foreach ($row as $key => $value) {
                             if (\str_starts_with($key, '$')) {
                                 continue;
                             }
 
-                            /** @var \Utopia\Database\Document $attribute */
                             $found = false;
                             foreach ($table->getAttribute('attributes', []) as $attribute) {
-                                if ($attribute->getAttribute('key') == $key) {
+                                $attrKey = $attribute instanceof UtopiaAttribute
+                                    ? $attribute->key
+                                    : $attribute->getAttribute('key');
+                                if ($attrKey == $key) {
                                     $found = true;
                                     break;
                                 }
@@ -2202,13 +2228,18 @@ class Appwrite extends Destination
         $tableColumns = $table->getAttribute('attributes', []);
 
         $oldColumns = \array_map(
-            fn ($attr) => $attr->getArrayCopy(),
+            function ($attr) {
+                if ($attr instanceof UtopiaAttribute) {
+                    return $attr->toDocument()->getArrayCopy();
+                }
+                return $attr->getArrayCopy();
+            },
             $tableColumns
         );
 
         $oldColumns[] = [
             'key' => '$id',
-            'type' => UtopiaDatabase::VAR_STRING,
+            'type' => ColumnType::String->value,
             'status' => 'available',
             'required' => true,
             'array' => false,
@@ -2218,7 +2249,7 @@ class Appwrite extends Destination
 
         $oldColumns[] = [
             'key' => '$createdAt',
-            'type' => UtopiaDatabase::VAR_DATETIME,
+            'type' => ColumnType::Datetime->value,
             'status' => 'available',
             'signed' => false,
             'required' => false,
@@ -2229,7 +2260,7 @@ class Appwrite extends Destination
 
         $oldColumns[] = [
             'key' => '$updatedAt',
-            'type' => UtopiaDatabase::VAR_DATETIME,
+            'type' => ColumnType::Datetime->value,
             'status' => 'available',
             'signed' => false,
             'required' => false,
@@ -2258,7 +2289,7 @@ class Appwrite extends Destination
             $columnType = $oldColumns[$columnIndex]['type'];
             $columnArray = $oldColumns[$columnIndex]['array'] ?? false;
 
-            if ($columnType === UtopiaDatabase::VAR_RELATIONSHIP) {
+            if ($columnType === ColumnType::Relationship->value) {
                 throw new Exception(
                     resourceName: $resource->getName(),
                     resourceGroup: $resource->getGroup(),
