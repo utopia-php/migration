@@ -456,7 +456,15 @@ class Appwrite extends Destination
         );
 
         $indexes = \array_map(
-            fn ($index) => $index instanceof UtopiaDocument ? $index : new UtopiaDocument($index),
+            function ($index) {
+                if ($index instanceof UtopiaDocument) {
+                    return $index;
+                }
+                if ($index instanceof \Utopia\Database\Index) {
+                    return $index;
+                }
+                return new UtopiaDocument(\is_array($index) ? $index : $index->toDocument()->getArrayCopy());
+            },
             $this->collectionStructure['indexes']
         );
 
