@@ -1100,6 +1100,11 @@ class Appwrite extends Source
                 }
 
                 $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want relations flat!
+
+                foreach ($selects as $select) {
+                    $queries[] = $this->reader->querySelect($select);
+                }
+
                 $manyToMany = [];
 
                 if ($this->reader->getSupportForAttributes()) {
@@ -1118,22 +1123,22 @@ class Appwrite extends Source
                     }
                 }
 
-                $queries[] = $this->reader->querySelect($selects);
-
                 $response = $this->reader->listRows($table, $queries);
 
                 foreach ($response as $row) {
                     // HACK: Handle many to many (only for schema-based databases)
                     if (!empty($manyToMany)) {
-                        $stack = ['$id']; // Adding $id because we can't select only relations
+                        $queries = [];
+                        $queries[] = $this->reader->querySelect('$id'); // Adding $id because we can't select only relations
+
                         foreach ($manyToMany as $relation) {
-                            $stack[] = $relation . '.$id';
+                            $queries[] = $this->reader->querySelect($relation . '.$id');
                         }
 
                         $rowItem = $this->reader->getRow(
                             $table,
                             $row['$id'],
-                            [$this->reader->querySelect($stack)]
+                            $queries
                         );
 
                         foreach ($manyToMany as $key) {

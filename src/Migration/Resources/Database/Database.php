@@ -39,6 +39,7 @@ class Database extends Resource
      *     updatedAt: string,
      *     enabled: bool,
      *     originalId: string|null,
+     *     type: string|null,
      *     database: string
      * } $array
      */
