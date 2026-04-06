@@ -1257,6 +1257,8 @@ class Appwrite extends Source
                 $bucket['compression'],
                 $bucket['encryption'],
                 $bucket['antivirus'],
+                false,
+                $bucket['transformations'] ?? false,
             );
             $convertedBuckets[] = $bucket;
         }
@@ -1467,7 +1469,11 @@ class Appwrite extends Source
                     $function['schedule'],
                     $function['timeout'],
                     $function['deploymentId'] ?? '',
-                    $function['entrypoint']
+                    $function['entrypoint'],
+                    $function['commands'] ?? '',
+                    $function['logging'] ?? true,
+                    $function['scopes'] ?? [],
+                    $function['specification'] ?? '',
                 );
                 $functions[] = $convertedFunc;
 
