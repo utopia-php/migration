@@ -71,6 +71,21 @@ class Appwrite extends Destination
      */
     private array $rowBuffer = [];
 
+    private bool $overwrite = false;
+    private bool $skip = false;
+
+    public function setOverwrite(bool $overwrite): self
+    {
+        $this->overwrite = $overwrite;
+        return $this;
+    }
+
+    public function setSkip(bool $skip): self
+    {
+        $this->skip = $skip;
+        return $this;
+    }
+
     /**
      * @param string $project
      * @param string $endpoint
@@ -1055,10 +1070,20 @@ class Appwrite extends Destination
                     }
                 }
 
-                $this->database->skipRelationshipsExistCheck(fn () => $this->database->createDocuments(
-                    'database_' . $databaseInternalId . '_collection_' . $tableInternalId,
-                    $this->rowBuffer
-                ));
+                $collectionName = 'database_' . $databaseInternalId . '_collection_' . $tableInternalId;
+
+                if ($this->overwrite) {
+                    $this->database->skipRelationshipsExistCheck(fn () => $this->database->upsertDocuments(
+                        $collectionName,
+                        $this->rowBuffer
+                    ));
+                } else {
+                    $this->database->skipRelationshipsExistCheck(fn () => $this->database->createDocuments(
+                        $collectionName,
+                        $this->rowBuffer,
+                        ignore: $this->skip
+                    ));
+                }
 
             } finally {
                 $this->rowBuffer = [];
