@@ -90,12 +90,18 @@ class Appwrite extends Destination
 
     public function setOverwrite(bool $overwrite): self
     {
+        if ($overwrite && $this->skip) {
+            throw new \InvalidArgumentException('Cannot set both overwrite and skip to true.');
+        }
         $this->overwrite = $overwrite;
         return $this;
     }
 
     public function setSkip(bool $skip): self
     {
+        if ($skip && $this->overwrite) {
+            throw new \InvalidArgumentException('Cannot set both skip and overwrite to true.');
+        }
         $this->skip = $skip;
         return $this;
     }
@@ -1001,7 +1007,7 @@ class Appwrite extends Destination
             $this->cache->get($resource->getName())
         );
 
-        if ($exists) {
+        if ($exists && !$this->overwrite) {
             $resource->setStatus(
                 Resource::STATUS_SKIPPED,
                 'Row has already been created'
