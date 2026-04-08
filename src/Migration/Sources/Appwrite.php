@@ -7,18 +7,22 @@ use Appwrite\Client;
 use Appwrite\Query;
 use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
+use Appwrite\Services\Messaging;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
+use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
+use Utopia\Migration\Resources\Database\Attribute;
+use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Columns\Boolean;
 use Utopia\Migration\Resources\Database\Columns\DateTime;
@@ -30,6 +34,7 @@ use Utopia\Migration\Resources\Database\Columns\IP;
 use Utopia\Migration\Resources\Database\Columns\Line;
 use Utopia\Migration\Resources\Database\Columns\LongText;
 use Utopia\Migration\Resources\Database\Columns\MediumText;
+use Utopia\Migration\Resources\Database\Columns\ObjectType;
 use Utopia\Migration\Resources\Database\Columns\Point;
 use Utopia\Migration\Resources\Database\Columns\Polygon;
 use Utopia\Migration\Resources\Database\Columns\RegularText;
@@ -37,13 +42,21 @@ use Utopia\Migration\Resources\Database\Columns\Relationship;
 use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Columns\URL;
 use Utopia\Migration\Resources\Database\Columns\Varchar;
+use Utopia\Migration\Resources\Database\Columns\Vector;
 use Utopia\Migration\Resources\Database\Database;
+use Utopia\Migration\Resources\Database\Document;
+use Utopia\Migration\Resources\Database\DocumentsDB;
 use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Resources\Database\Table;
+use Utopia\Migration\Resources\Database\VectorsDB;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Messaging\Message;
+use Utopia\Migration\Resources\Messaging\Provider;
+use Utopia\Migration\Resources\Messaging\Subscriber;
+use Utopia\Migration\Resources\Messaging\Topic;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
@@ -64,6 +77,8 @@ class Appwrite extends Source
 
     protected Client $client;
 
+    private Reader $reader;
+
     private Users $users;
 
     private Teams $teams;
@@ -72,9 +87,14 @@ class Appwrite extends Source
 
     private Functions $functions;
 
+    private Messaging $messaging;
+
     private Sites $sites;
 
-    private Reader $database;
+    /**
+     * @var callable(UtopiaDocument $database|null): UtopiaDatabase
+     */
+    protected mixed $getDatabasesDB;
 
     /**
      * @throws \Exception
@@ -83,6 +103,7 @@ class Appwrite extends Source
         protected string $project,
         protected string $endpoint,
         protected string $key,
+        callable $getDatabasesDB,
         protected string $source = self::SOURCE_API,
         protected ?UtopiaDatabase $dbForProject = null,
         protected array $queries = [],
@@ -96,24 +117,34 @@ class Appwrite extends Source
         $this->teams = new Teams($this->client);
         $this->storage = new Storage($this->client);
         $this->functions = new Functions($this->client);
+        $this->messaging = new Messaging($this->client);
         $this->sites = new Sites($this->client);
 
         $this->headers['x-appwrite-project'] = $this->project;
         $this->headers['x-appwrite-key'] = $this->key;
 
+        $this->getDatabasesDB = $getDatabasesDB;
+
         switch ($this->source) {
             case static::SOURCE_API:
-                $this->database = new APIReader(new Databases($this->client));
+                $this->reader = new APIReader(new Databases($this->client));
                 break;
+
             case static::SOURCE_DATABASE:
                 if (\is_null($dbForProject)) {
-                    throw new \Exception('Database is required for database source');
+                    throw new \Exception('Database is required for database source', Exception::CODE_VALIDATION);
                 }
-                $this->database = new DatabaseReader($dbForProject);
+                $this->reader = new DatabaseReader(
+                    $this->dbForProject,
+                    $this->getDatabasesDB,
+                    $this->project
+                );
                 break;
+
             default:
-                throw new \Exception('Unknown source');
+                throw new \Exception('Unknown source', Exception::CODE_VALIDATION);
         }
+
     }
 
     public static function getName(): string
@@ -144,6 +175,11 @@ class Appwrite extends Source
             Resource::TYPE_ATTRIBUTE,
             Resource::TYPE_COLLECTION,
 
+            // documentsdb
+            Resource::TYPE_DATABASE_DOCUMENTSDB,
+            // vectorsdb
+            Resource::TYPE_DATABASE_VECTORSDB,
+
             // Storage
             Resource::TYPE_BUCKET,
             Resource::TYPE_FILE,
@@ -152,6 +188,12 @@ class Appwrite extends Source
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_ENVIRONMENT_VARIABLE,
+
+            // Messaging
+            Resource::TYPE_PROVIDER,
+            Resource::TYPE_TOPIC,
+            Resource::TYPE_SUBSCRIBER,
+            Resource::TYPE_MESSAGE,
 
             // Sites
             Resource::TYPE_SITE,
@@ -195,6 +237,7 @@ class Appwrite extends Source
             $this->reportDatabases($resources, $report, $resourceIds);
             $this->reportStorage($resources, $report, $resourceIds);
             $this->reportFunctions($resources, $report, $resourceIds);
+            $this->reportMessaging($resources, $report, $resourceIds);
             $this->reportSites($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
@@ -207,9 +250,9 @@ class Appwrite extends Source
             )['version'];
         } catch (\Throwable $e) {
             if ($e->getCode() === 403) {
-                throw new \Exception("Missing required scopes.");
+                throw new \Exception('Missing required scopes.', $e->getCode(), $e);
             } else {
-                throw new \Exception($e->getMessage(), previous: $e);
+                throw new \Exception($e->getMessage(), $e->getCode(), $e);
             }
         }
 
@@ -300,7 +343,7 @@ class Appwrite extends Source
      */
     private function reportDatabases(array $resources, array &$report, array $resourceIds = []): void
     {
-        $this->database->report($resources, $report, $resourceIds);
+        $this->reader->report($resources, $report, $resourceIds);
     }
 
     /**
@@ -501,7 +544,7 @@ class Appwrite extends Source
                 Resource::TYPE_USER,
                 Transfer::GROUP_AUTH,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -515,7 +558,7 @@ class Appwrite extends Source
                 Resource::TYPE_TEAM,
                 Transfer::GROUP_AUTH,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -529,7 +572,7 @@ class Appwrite extends Source
                 Resource::TYPE_MEMBERSHIP,
                 Transfer::GROUP_AUTH,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -574,6 +617,7 @@ class Appwrite extends Source
                     $user['phoneVerification'] ?? false,
                     !$user['status'],
                     $user['prefs'] ?? [],
+                    $user['targets'] ?? [],
                 );
 
                 $lastDocument = $user['$id'];
@@ -669,7 +713,7 @@ class Appwrite extends Source
                 foreach ($response['memberships'] as $membership) {
                     $user = $cacheUsers[$membership['userId']] ?? null;
                     if ($user === null) {
-                        throw new \Exception('User not found');
+                        throw new \Exception('User not found', Exception::CODE_NOT_FOUND);
                     }
 
                     $memberships[] = new Membership(
@@ -694,9 +738,32 @@ class Appwrite extends Source
 
     protected function exportGroupDatabases(int $batchSize, array $resources): void
     {
+        $handleExportEntityScopedResources = function (string $resourceKey, callable $callback) use ($resources) {
+            foreach (Resource::ENTITY_TYPE_RESOURCE_MAP as $entityKey => $entityResource) {
+                try {
+                    if (\in_array($entityResource[$resourceKey], $resources)) {
+                        $callback($entityKey, $entityResource);
+                    }
+                } catch (\Throwable $e) {
+                    $this->addError(
+                        new Exception(
+                            $entityResource[$resourceKey],
+                            Transfer::GROUP_DATABASES,
+                            message: $e->getMessage(),
+                            code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                            previous: $e
+                        )
+                    );
+
+                    return false;
+                }
+            }
+            return true;
+        };
+
         try {
-            if (\in_array(Resource::TYPE_DATABASE, $resources)) {
-                $this->exportDatabases($batchSize);
+            if (Resource::isSupported(array_keys(Resource::DATABASE_TYPE_RESOURCE_MAP), $resources)) {
+                $this->exportDatabases($batchSize, $resources);
             }
         } catch (\Throwable $e) {
             $this->addError(
@@ -704,7 +771,7 @@ class Appwrite extends Source
                     Resource::TYPE_DATABASE,
                     Transfer::GROUP_DATABASES,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -712,91 +779,55 @@ class Appwrite extends Source
             return;
         }
 
-        try {
-            if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
-                $this->exportTables($batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_TABLE,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
+        foreach (Resource::DATABASE_TYPE_RESOURCE_MAP as $databaseKey => $databaseResource) {
+            try {
+                if (\in_array($databaseResource['entity'], $resources)) {
+                    $this->exportEntities($databaseKey, $batchSize);
+                }
+            } catch (\Throwable $e) {
+                $this->addError(
+                    new Exception(
+                        $databaseResource['entity'],
+                        Transfer::GROUP_DATABASES,
+                        message: $e->getMessage(),
+                        code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                        previous: $e
+                    )
+                );
 
+                return;
+            }
+        }
+
+        // field
+        if (!$handleExportEntityScopedResources('field', fn ($entityKey) => $this->exportFields($entityKey, $batchSize))) {
             return;
         }
 
-        try {
-            if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
-                $this->exportColumns($batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_COLUMN,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
+        // index
+        if (!$handleExportEntityScopedResources('index', fn ($entityKey) => $this->exportIndexes($entityKey, $batchSize))) {
             return;
         }
 
-        try {
-            if (\in_array(Resource::TYPE_INDEX, $resources)) {
-                $this->exportIndexes($batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_INDEX,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
-            return;
-        }
-
-        try {
-            if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
-                $this->exportRows($batchSize);
-            }
-        } catch (\Throwable $e) {
-            $this->addError(
-                new Exception(
-                    Resource::TYPE_ROW,
-                    Transfer::GROUP_DATABASES,
-                    message: $e->getMessage(),
-                    code: $e->getCode(),
-                    previous: $e
-                )
-            );
-
+        // record
+        if (!$handleExportEntityScopedResources('record', fn ($entityKey, $entityResource) => $this->exportRecords($entityKey, $entityResource['field'], $batchSize))) {
             return;
         }
     }
 
     /**
      * @param int $batchSize
+     * @param array $resources
      * @throws Exception
      */
-    private function exportDatabases(int $batchSize): void
+    private function exportDatabases(int $batchSize, array $resources = []): void
     {
         $lastDatabase = null;
 
         while (true) {
-            $queries = [$this->database->queryLimit($batchSize)];
+            $queries = [$this->reader->queryLimit($batchSize)];
 
-            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_DATABASE) {
+            if ($this->rootResourceId !== '' && ($this->rootResourceType === Resource::TYPE_DATABASE || $this->rootResourceType === Resource::TYPE_DATABASE_DOCUMENTSDB)) {
                 $targetDatabaseId = $this->rootResourceId;
 
                 // Handle database:collection format - extract database ID
@@ -807,28 +838,39 @@ class Appwrite extends Source
                     }
                 }
 
-                $queries[] = $this->database->queryEqual('$id', [$targetDatabaseId]);
-                $queries[] = $this->database->queryLimit(1);
+                $queries[] = $this->reader->queryEqual('$id', [$targetDatabaseId]);
+                $queries[] = $this->reader->queryLimit(1);
             }
 
             $databases = [];
 
             if ($lastDatabase) {
-                $queries[] = $this->database->queryCursorAfter($lastDatabase);
+                $queries[] = $this->reader->queryCursorAfter($lastDatabase);
             }
 
-            $response = $this->database->listDatabases($queries);
+            $response = $this->reader->listDatabases($queries);
 
             foreach ($response as $database) {
-                $newDatabase = new Database(
-                    $database['$id'],
-                    $database['name'],
-                    $database['$createdAt'],
-                    $database['$updatedAt'],
-                    type: $database['type'] ?? 'legacy'
-                );
+                $originalType = $database['type'] ?? Resource::TYPE_DATABASE_LEGACY;
 
-                $databases[] = $newDatabase;
+                $databaseFamilyType = $originalType;
+                if (\in_array($databaseFamilyType, [Resource::TYPE_DATABASE_LEGACY, Resource::TYPE_DATABASE_TABLESDB], true)) {
+                    $databaseFamilyType = Resource::TYPE_DATABASE;
+                }
+
+                if (Resource::isSupported($databaseFamilyType, $resources)) {
+                    $newDatabase = self::getDatabase($databaseFamilyType, [
+                        'id' => $database['$id'],
+                        'name' => $database['name'],
+                        'createdAt' => $database['$createdAt'],
+                        'updatedAt' => $database['$updatedAt'],
+                        'type' => $originalType,
+                        'database' => $database['database'],
+                        'enabled' => $database['enabled'] ?? true,
+                    ]);
+                    $databases[] = $newDatabase;
+
+                }
             }
 
             if (empty($databases)) {
@@ -846,19 +888,19 @@ class Appwrite extends Source
     }
 
     /**
+     * @param string $databaseName
      * @param int $batchSize
      * @throws Exception
      */
-    private function exportTables(int $batchSize): void
+    private function exportEntities(string $databaseName, int $batchSize): void
     {
-        $databases = $this->cache->get(Database::getName());
-
+        $databases = $this->cache->get($databaseName);
         foreach ($databases as $database) {
             /** @var Database $database */
             $lastTable = null;
 
             while (true) {
-                $queries = [$this->database->queryLimit($batchSize)];
+                $queries = [$this->reader->queryLimit($batchSize)];
                 $tables = [];
 
                 // Filter to specific table if rootResourceType is database with database:collection format
@@ -870,32 +912,37 @@ class Appwrite extends Source
                     $parts = \explode(':', $this->rootResourceId, 2);
                     if (\count($parts) === 2) {
                         $targetTableId = $parts[1]; // table ID
-                        $queries[] = $this->database->queryEqual('$id', [$targetTableId]);
-                        $queries[] = $this->database->queryLimit(1);
+                        $queries[] = $this->reader->queryEqual('$id', [$targetTableId]);
+                        $queries[] = $this->reader->queryLimit(1);
                     }
                 } elseif (
                     $this->rootResourceId !== '' &&
                     $this->rootResourceType === Resource::TYPE_TABLE
                 ) {
                     $targetTableId = $this->rootResourceId;
-                    $queries[] = $this->database->queryEqual('$id', [$targetTableId]);
-                    $queries[] = $this->database->queryLimit(1);
+                    $queries[] = $this->reader->queryEqual('$id', [$targetTableId]);
+                    $queries[] = $this->reader->queryLimit(1);
                 } elseif ($lastTable) {
-                    $queries[] = $this->database->queryCursorAfter($lastTable);
+                    $queries[] = $this->reader->queryCursorAfter($lastTable);
                 }
 
-                $response = $this->database->listTables($database, $queries);
-
+                $response = $this->reader->listTables($database, $queries);
                 foreach ($response as $table) {
-                    $newTable = new Table(
-                        $database,
-                        $table['name'],
-                        $table['$id'],
-                        $table['documentSecurity'],
-                        $table['$permissions'],
-                        $table['$createdAt'],
-                        $table['$updatedAt'],
-                    );
+                    $newTable = self::getEntity($databaseName, [
+                        'id' => $table['$id'],
+                        'name' => $table['name'],
+                        'documentSecurity' => $table['documentSecurity'],
+                        'permissions' => $table['$permissions'],
+                        'createdAt' => $table['$createdAt'],
+                        'updatedAt' => $table['$updatedAt'],
+                        'enabled' => $table['enabled'] ?? true,
+                        'database' => [
+                            'id' => $database->getId(),
+                            'name' => $database->getDatabaseName(),
+                            'type' => $database->getType(),
+                            'database' => $database->getDatabase(),
+                        ]
+                    ]);
 
                     $tables[] = $newTable;
                 }
@@ -916,26 +963,28 @@ class Appwrite extends Source
     }
 
     /**
+     * @param string $entityType
      * @param int $batchSize
      * @throws Exception
      */
-    private function exportColumns(int $batchSize): void
+    private function exportFields(string $entityType, int $batchSize): void
     {
-        $tables = $this->cache->get(Table::getName());
+        $entities = $this->cache->get($entityType);
+        // Transfer Indexes
 
-        /** @var array<Table> $tables */
-        foreach ($tables as $table) {
+        /** @var array<Table|Collection> $table */
+        foreach ($entities as $table) {
             $lastColumn = null;
 
             while (true) {
-                $queries = [$this->database->queryLimit($batchSize)];
+                $queries = [$this->reader->queryLimit($batchSize)];
                 $columns = [];
 
                 if ($lastColumn) {
-                    $queries[] = $this->database->queryCursorAfter($lastColumn);
+                    $queries[] = $this->reader->queryCursorAfter($lastColumn);
                 }
 
-                $response = $this->database->listColumns($table, $queries);
+                $response = $this->reader->listColumns($table, $queries);
 
                 foreach ($response as $column) {
                     if (
@@ -945,217 +994,11 @@ class Appwrite extends Source
                         continue;
                     }
 
-                    switch ($column['type']) {
-                        case Column::TYPE_STRING:
-                            $col = match ($column['format'] ?? '') {
-                                Column::TYPE_EMAIL => new Email(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 254,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                Column::TYPE_ENUM => new Enum(
-                                    $column['key'],
-                                    $table,
-                                    elements: $column['elements'],
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? UtopiaDatabase::LENGTH_KEY,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                Column::TYPE_URL => new URL(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 2000,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                Column::TYPE_IP => new IP(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 39,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                                default => new Text(
-                                    $column['key'],
-                                    $table,
-                                    required: $column['required'],
-                                    default: $column['default'],
-                                    array: $column['array'],
-                                    size: $column['size'] ?? 0,
-                                    createdAt: $column['$createdAt'] ?? '',
-                                    updatedAt: $column['$updatedAt'] ?? '',
-                                ),
-                            };
-
-                            break;
-                        case Column::TYPE_BOOLEAN:
-                            $col = new Boolean(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_INTEGER:
-                            $col = new Integer(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                min: $column['min'] ?? null,
-                                max: $column['max'] ?? null,
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_FLOAT:
-                            $col = new Decimal(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                min: $column['min'] ?? null,
-                                max: $column['max'] ?? null,
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_RELATIONSHIP:
-                            $col = new Relationship(
-                                $column['key'],
-                                $table,
-                                relatedTable: $column['relatedTable'] ?? $column['relatedCollection'],
-                                relationType: $column['relationType'],
-                                twoWay: $column['twoWay'],
-                                twoWayKey: $column['twoWayKey'],
-                                onDelete: $column['onDelete'],
-                                side: $column['side'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_DATETIME:
-                            $col = new DateTime(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_POINT:
-                            $col = new Point(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_LINE:
-                            $col = new Line(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                        case Column::TYPE_POLYGON:
-                            $col = new Polygon(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-
-                        case Column::TYPE_VARCHAR:
-                            $col = new Varchar(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                size: $column['size'] ?? 255,
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-
-                        case Column::TYPE_TEXT:
-                            $col = new RegularText(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                size: $column['size'] ?? 65535,
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-
-                        case Column::TYPE_MEDIUMTEXT:
-                            $col = new MediumText(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                size: $column['size'] ?? 16777215,
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-
-                        case Column::TYPE_LONGTEXT:
-                            $col = new LongText(
-                                $column['key'],
-                                $table,
-                                required: $column['required'],
-                                default: $column['default'],
-                                array: $column['array'],
-                                size: $column['size'] ?? 2147483647,
-                                createdAt: $column['$createdAt'] ?? '',
-                                updatedAt: $column['$updatedAt'] ?? '',
-                            );
-                            break;
-                    }
-
-                    if (!isset($col)) {
-                        throw new Exception(
-                            resourceName: Resource::TYPE_COLUMN,
-                            resourceGroup: Transfer::GROUP_DATABASES,
-                            resourceId: $column['$id'],
-                            message: 'Unknown column type: ' . $column['type']
-                        );
-                    }
+                    /** @var Table $table */
+                    $col = match($table->getDatabase()->getType()) {
+                        Resource::TYPE_DATABASE_VECTORSDB => self::getColumn($table, $column)->getAttribute(),
+                        default => self::getColumn($table, $column),
+                    };
 
                     $columns[] = $col;
                 }
@@ -1176,27 +1019,27 @@ class Appwrite extends Source
     }
 
     /**
+     * @param string $entityType
      * @param int $batchSize
      * @throws Exception
      */
-    private function exportIndexes(int $batchSize): void
+    private function exportIndexes(string $entityType, int $batchSize): void
     {
-        $tables = $this->cache->get(Resource::TYPE_TABLE);
-
+        $entities = $this->cache->get($entityType);
         // Transfer Indexes
-        foreach ($tables as $table) {
+        foreach ($entities as $table) {
             /** @var Table $table */
             $lastIndex = null;
 
             while (true) {
-                $queries = [$this->database->queryLimit($batchSize)];
+                $queries = [$this->reader->queryLimit($batchSize)];
                 $indexes = [];
 
                 if ($lastIndex) {
-                    $queries[] = $this->database->queryCursorAfter($lastIndex);
+                    $queries[] = $this->reader->queryCursorAfter($lastIndex);
                 }
 
-                $response = $this->database->listIndexes($table, $queries);
+                $response = $this->reader->listIndexes($table, $queries);
 
                 foreach ($response as $index) {
                     $indexes[] = new Index(
@@ -1228,75 +1071,79 @@ class Appwrite extends Source
     }
 
     /**
+     * @param string $entityName
+     * @param string $fieldName
+     * @param int $batchSize
      * @throws Exception
      */
-    private function exportRows(int $batchSize): void
+    private function exportRecords(string $entityName, string $fieldName, int $batchSize): void
     {
-        $tables = $this->cache->get(Table::getName());
+        $entities = $this->cache->get($entityName);
 
-        foreach ($tables as $table) {
+        foreach ($entities as $table) {
             /** @var Table $table */
             $lastRow = null;
             $iterationCount = 0;
 
             while (true) {
+                $iterationCount++;
+
                 $queries = [
-                    $this->database->queryLimit($batchSize),
+                    $this->reader->queryLimit($batchSize),
                     ...$this->queries,
                 ];
 
                 $rows = [];
 
                 if ($lastRow) {
-                    $queries[] = $this->database->queryCursorAfter($lastRow);
+                    $queries[] = $this->reader->queryCursorAfter($lastRow);
                 }
 
                 $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want relations flat!
                 $manyToMany = [];
 
-                $attributes = $this->cache->get(Column::getName());
-                foreach ($attributes as $attribute) {
-                    /** @var Relationship $attribute */
-                    if (
-                        $attribute->getTable()->getId() === $table->getId() &&
-                        $attribute->getType() === Column::TYPE_RELATIONSHIP &&
-                        $attribute->getSide() === 'parent' &&
-                        $attribute->getRelationType() == 'manyToMany'
-                    ) {
-                        /**
-                         * Blockers:
-                         * we should use but Does not work properly:
-                         * $selects[] = $attribute->getKey() . '.$id';
-                         * when selecting for a relation we get all relations not just the one we were asking.
-                         * when selecting for a relation like select(*, relation.$id) , all relations get resolve
-                         */
-                        $manyToMany[] = $attribute->getKey();
+                if ($this->reader->getSupportForAttributes()) {
+                    $attributes = $this->cache->get($fieldName);
+
+                    foreach ($attributes as $attribute) {
+                        /** @var Relationship $attribute */
+                        if (
+                            $attribute->getTable()->getId() === $table->getId() &&
+                            $attribute->getType() === Column::TYPE_RELATIONSHIP &&
+                            $attribute->getSide() === 'parent' &&
+                            $attribute->getRelationType() == 'manyToMany'
+                        ) {
+                            $manyToMany[] = $attribute->getKey();
+                        }
                     }
                 }
-                /** @var Column|Relationship $attribute */
 
-                $queries[] = $this->database->querySelect($selects);
+                $queries[] = $this->reader->querySelect($selects);
 
-                $response = $this->database->listRows($table, $queries);
+                $response = $this->reader->listRows($table, $queries);
 
                 foreach ($response as $row) {
-                    // HACK: Handle many to many
+                    // HACK: Handle many to many (only for schema-based databases)
                     if (!empty($manyToMany)) {
                         $stack = ['$id']; // Adding $id because we can't select only relations
                         foreach ($manyToMany as $relation) {
                             $stack[] = $relation . '.$id';
                         }
 
-                        $rowItem = $this->database->getRow(
+                        $rowItem = $this->reader->getRow(
                             $table,
                             $row['$id'],
-                            [$this->database->querySelect($stack)]
+                            [$this->reader->querySelect($stack)]
                         );
 
                         foreach ($manyToMany as $key) {
                             $row[$key] = [];
-                            foreach ($rowItem[$key] as $relatedRowItem) {
-                                $row[$key][] = $relatedRowItem['$id'];
+                            if (isset($rowItem[$key]) && is_array($rowItem[$key])) {
+                                foreach ($rowItem[$key] as $relatedRowItem) {
+                                    if (is_array($relatedRowItem) && isset($relatedRowItem['$id'])) {
+                                        $row[$key][] = $relatedRowItem['$id'];
+                                    }
+                                }
                             }
                         }
                     }
@@ -1311,12 +1158,23 @@ class Appwrite extends Source
                     unset($row['$sequence']);
                     unset($row['$collection']);
 
-                    $row = new Row(
-                        $id,
-                        $table,
-                        $row,
-                        $permissions
-                    );
+                    $row = self::getRecord($table->getDatabase()->getType(), [
+                        'id' => $id,
+                        'table' => [
+                            'id' => $table->getId(),
+                            'name' => $table->getTableName(),
+                            'rowSecurity' => $table->getRowSecurity(),
+                            'permissions' => $table->getPermissions(),
+                            'database' => [
+                                'id' => $table->getDatabase()->getId(),
+                                'name' => $table->getDatabase()->getDatabaseName(),
+                                'type' => $table->getDatabase()->getType(),
+                                'database' => $table->getDatabase()->getDatabase(),
+                            ]
+                        ],
+                        'data' => $row,
+                        'permissions' => $permissions
+                    ]);
 
                     $rows[] = $row;
                     $lastRow = $row;
@@ -1343,7 +1201,7 @@ class Appwrite extends Source
                     Resource::TYPE_BUCKET,
                     Transfer::GROUP_STORAGE,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -1359,7 +1217,7 @@ class Appwrite extends Source
                     Resource::TYPE_FILE,
                     Transfer::GROUP_STORAGE,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 )
             );
@@ -1394,6 +1252,8 @@ class Appwrite extends Source
                 $bucket['compression'],
                 $bucket['encryption'],
                 $bucket['antivirus'],
+                false,
+                $bucket['transformations'] ?? false,
             );
             $convertedBuckets[] = $bucket;
         }
@@ -1471,7 +1331,7 @@ class Appwrite extends Source
         // Get the file size
         $fileSize = $file->getSize();
 
-        if ($end > $fileSize) {
+        if ($end >= $fileSize) {
             $end = $fileSize - 1;
         }
 
@@ -1495,7 +1355,7 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
             }
         }
@@ -1512,21 +1372,20 @@ class Appwrite extends Source
                 Resource::TYPE_FUNCTION,
                 Transfer::GROUP_FUNCTIONS,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
 
         try {
-            if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
-                $this->exportDeployments($batchSize, true);
-            }
+            $exportOnlyActive = !\in_array(Resource::TYPE_DEPLOYMENT, $resources);
+            $this->exportDeployments($batchSize, $exportOnlyActive);
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_DEPLOYMENT,
                 Transfer::GROUP_FUNCTIONS,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -1543,21 +1402,20 @@ class Appwrite extends Source
                 Resource::TYPE_SITE,
                 Transfer::GROUP_SITES,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
 
         try {
-            if (\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources)) {
-                $this->exportSiteDeployments($batchSize, true);
-            }
+            $exportOnlyActive = !\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources);
+            $this->exportSiteDeployments($batchSize, $exportOnlyActive);
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_SITE_DEPLOYMENT,
                 Transfer::GROUP_SITES,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -1606,7 +1464,11 @@ class Appwrite extends Source
                     $function['schedule'],
                     $function['timeout'],
                     $function['deploymentId'] ?? '',
-                    $function['entrypoint']
+                    $function['entrypoint'],
+                    $function['commands'] ?? '',
+                    $function['logging'] ?? true,
+                    $function['scopes'] ?? [],
+                    $function['specification'] ?? '',
                 );
                 $functions[] = $convertedFunc;
 
@@ -1643,8 +1505,13 @@ class Appwrite extends Source
             /** @var Func $func */
             $lastDocument = null;
 
-            if ($exportOnlyActive && $func->getActiveDeployment()) {
-                $deployment = $this->functions->getDeployment($func->getId(), $func->getActiveDeployment());
+            if ($exportOnlyActive) {
+                $activeDeploymentId = $func->getActiveDeployment();
+                if (empty($activeDeploymentId)) {
+                    continue; // active-only mode: nothing to export for this function
+                }
+
+                $deployment = $this->functions->getDeployment($func->getId(), $activeDeploymentId);
 
                 try {
                     $this->exportDeploymentData($func, $deployment);
@@ -1704,8 +1571,8 @@ class Appwrite extends Source
             $responseHeaders
         );
 
-        // Content-Length header was missing, file is less than max buffer size.
-        if (!array_key_exists('Content-Length', $responseHeaders)) {
+        // content-length header missing, file is less than max buffer size
+        if (!array_key_exists('content-length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
@@ -1714,7 +1581,7 @@ class Appwrite extends Source
                 $responseHeaders
             );
 
-            $size = mb_strlen($file);
+            $size = strlen($file);
 
             if ($end > $size) {
                 $end = $size - 1;
@@ -1737,7 +1604,11 @@ class Appwrite extends Source
             return;
         }
 
-        $fileSize = $responseHeaders['Content-Length'];
+        $fileSize = $responseHeaders['content-length'];
+
+        if ($end >= $fileSize) {
+            $end = $fileSize - 1;
+        }
 
         $deployment = new Deployment(
             $deployment['$id'],
@@ -1772,8 +1643,334 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
+            }
+        }
+    }
+
+    /**
+     * @param array<string> $resources
+     * @param array<string, int> $report
+     * @param array<string, array<string>> $resourceIds
+     * @throws AppwriteException
+     */
+    private function reportMessaging(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (\in_array(Resource::TYPE_PROVIDER, $resources)) {
+            $providerQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_PROVIDER,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            $report[Resource::TYPE_PROVIDER] = $this->messaging->listProviders($providerQueries)['total'];
+        }
+
+        if (\in_array(Resource::TYPE_TOPIC, $resources)) {
+            $topicQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_TOPIC,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            $report[Resource::TYPE_TOPIC] = $this->messaging->listTopics($topicQueries)['total'];
+        }
+
+        if (\in_array(Resource::TYPE_SUBSCRIBER, $resources)) {
+            $subscriberTotal = 0;
+            $lastTopic = null;
+
+            while (true) {
+                $topicQueries = [Query::limit(self::DEFAULT_PAGE_LIMIT)];
+                if ($lastTopic) {
+                    $topicQueries[] = Query::cursorAfter($lastTopic);
+                }
+
+                $topicResponse = $this->messaging->listTopics($topicQueries);
+                if ($topicResponse['total'] == 0 || empty($topicResponse['topics'])) {
+                    break;
+                }
+
+                foreach ($topicResponse['topics'] as $topic) {
+                    $subscriberTotal += $this->messaging->listSubscribers($topic['$id'], [Query::limit(1)])['total'];
+                    $lastTopic = $topic['$id'];
+                }
+
+                if (\count($topicResponse['topics']) < self::DEFAULT_PAGE_LIMIT) {
+                    break;
+                }
+            }
+
+            $report[Resource::TYPE_SUBSCRIBER] = $subscriberTotal;
+        }
+
+        if (\in_array(Resource::TYPE_MESSAGE, $resources)) {
+            $messageQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_MESSAGE,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            $report[Resource::TYPE_MESSAGE] = $this->messaging->listMessages($messageQueries)['total'];
+        }
+    }
+
+    protected function exportGroupMessaging(int $batchSize, array $resources): void
+    {
+        try {
+            if (\in_array(Resource::TYPE_PROVIDER, $resources)) {
+                $this->exportProviders($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_PROVIDER,
+                Transfer::GROUP_MESSAGING,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_TOPIC, $resources)) {
+                $this->exportTopics($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_TOPIC,
+                Transfer::GROUP_MESSAGING,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_SUBSCRIBER, $resources)) {
+                $this->exportSubscribers($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_SUBSCRIBER,
+                Transfer::GROUP_MESSAGING,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_MESSAGE, $resources)) {
+                $this->exportMessages($batchSize);
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_MESSAGE,
+                Transfer::GROUP_MESSAGING,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportProviders(int $batchSize): void
+    {
+        $lastDocument = null;
+
+        while (true) {
+            $providers = [];
+
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_PROVIDER) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastDocument) {
+                $queries[] = Query::cursorAfter($lastDocument);
+            }
+
+            $response = $this->messaging->listProviders($queries);
+
+            if ($response['total'] == 0) {
+                break;
+            }
+
+            foreach ($response['providers'] as $provider) {
+                $providers[] = new Provider(
+                    $provider['$id'],
+                    $provider['name'],
+                    $provider['provider'],
+                    $provider['type'],
+                    $provider['enabled'],
+                    $provider['credentials'] ?? [],
+                    $provider['options'] ?? [],
+                    $provider['$createdAt'] ?? '',
+                    $provider['$updatedAt'] ?? '',
+                );
+
+                $lastDocument = $provider['$id'];
+            }
+
+            $this->callback($providers);
+
+            if (\count($providers) < $batchSize) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportTopics(int $batchSize): void
+    {
+        $lastDocument = null;
+
+        while (true) {
+            $topics = [];
+
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_TOPIC) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastDocument) {
+                $queries[] = Query::cursorAfter($lastDocument);
+            }
+
+            $response = $this->messaging->listTopics($queries);
+
+            if ($response['total'] == 0) {
+                break;
+            }
+
+            foreach ($response['topics'] as $topic) {
+                $topics[] = new Topic(
+                    $topic['$id'],
+                    $topic['name'],
+                    $topic['subscribe'] ?? [],
+                    $topic['$createdAt'] ?? '',
+                    $topic['$updatedAt'] ?? '',
+                );
+
+                $lastDocument = $topic['$id'];
+            }
+
+            $this->callback($topics);
+
+            if (\count($topics) < $batchSize) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportSubscribers(int $batchSize): void
+    {
+        $topics = $this->cache->get(Topic::getName());
+
+        foreach ($topics as $topic) {
+            /** @var Topic $topic */
+            $lastDocument = null;
+
+            while (true) {
+                $subscribers = [];
+
+                $queries = [Query::limit($batchSize)];
+
+                if ($lastDocument) {
+                    $queries[] = Query::cursorAfter($lastDocument);
+                }
+
+                $response = $this->messaging->listSubscribers($topic->getId(), $queries);
+
+                if ($response['total'] == 0) {
+                    break;
+                }
+
+                foreach ($response['subscribers'] as $subscriber) {
+                    $subscribers[] = new Subscriber(
+                        $subscriber['$id'],
+                        $subscriber['topicId'],
+                        $subscriber['targetId'],
+                        $subscriber['userId'] ?? '',
+                        $subscriber['userName'] ?? '',
+                        $subscriber['providerType'] ?? '',
+                        $subscriber['$createdAt'] ?? '',
+                        $subscriber['$updatedAt'] ?? '',
+                    );
+
+                    $lastDocument = $subscriber['$id'];
+                }
+
+                $this->callback($subscribers);
+
+                if (\count($subscribers) < $batchSize) {
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportMessages(int $batchSize): void
+    {
+        $lastDocument = null;
+
+        while (true) {
+            $messages = [];
+
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_MESSAGE) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastDocument) {
+                $queries[] = Query::cursorAfter($lastDocument);
+            }
+
+            $response = $this->messaging->listMessages($queries);
+
+            if ($response['total'] == 0) {
+                break;
+            }
+
+            foreach ($response['messages'] as $message) {
+                $messages[] = new Message(
+                    $message['$id'],
+                    $message['providerType'] ?? '',
+                    $message['topics'] ?? [],
+                    $message['users'] ?? [],
+                    $message['targets'] ?? [],
+                    $message['data'] ?? [],
+                    $message['status'] ?? '',
+                    $message['scheduledAt'] ?? '',
+                    $message['deliveredAt'] ?? '',
+                    $message['deliveryErrors'] ?? [],
+                    $message['deliveredTotal'] ?? 0,
+                    $message['$createdAt'] ?? '',
+                    $message['$updatedAt'] ?? '',
+                );
+
+                $lastDocument = $message['$id'];
+            }
+
+            $this->callback($messages);
+
+            if (\count($messages) < $batchSize) {
+                break;
             }
         }
     }
@@ -1861,8 +2058,13 @@ class Appwrite extends Source
             /** @var Site $site */
             $lastDocument = null;
 
-            if ($exportOnlyActive && $site->getActiveDeployment()) {
-                $deployment = $this->sites->getDeployment($site->getId(), $site->getActiveDeployment());
+            if ($exportOnlyActive) {
+                $activeDeploymentId = $site->getActiveDeployment();
+                if (empty($activeDeploymentId)) {
+                    continue; // active-only mode: nothing to export for this site
+                }
+
+                $deployment = $this->sites->getDeployment($site->getId(), $activeDeploymentId);
 
                 try {
                     $this->exportSiteDeploymentData($site, $deployment);
@@ -1920,7 +2122,7 @@ class Appwrite extends Source
             $responseHeaders
         );
 
-        if (!\array_key_exists('Content-Length', $responseHeaders)) {
+        if (!\array_key_exists('content-length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
                 "/sites/{$site->getId()}/deployments/{$deployment['$id']}/download",
@@ -1929,7 +2131,7 @@ class Appwrite extends Source
                 $responseHeaders
             );
 
-            $size = mb_strlen($file);
+            $size = strlen($file);
 
             if ($end > $size) {
                 $end = $size - 1;
@@ -1951,7 +2153,11 @@ class Appwrite extends Source
             return;
         }
 
-        $fileSize = $responseHeaders['Content-Length'];
+        $fileSize = $responseHeaders['content-length'];
+
+        if ($end >= $fileSize) {
+            $end = $fileSize - 1;
+        }
 
         $siteDeployment = new SiteDeployment(
             $deployment['$id'],
@@ -1982,10 +2188,331 @@ class Appwrite extends Source
             $start += Transfer::STORAGE_MAX_CHUNK_SIZE;
             $end += Transfer::STORAGE_MAX_CHUNK_SIZE;
 
-            if ($end > $fileSize) {
+            if ($end >= $fileSize) {
                 $end = $fileSize - 1;
             }
         }
+    }
+
+    /**
+     * @param string $databaseType
+     * @param array $database {
+     *     id: string,
+     *     name: string,
+     *     createdAt: string,
+     *     updatedAt: string,
+     *     enabled: bool,
+     *     originalId: string|null,
+     *     database: string
+     * }
+    */
+    public static function getDatabase(string $databaseType, array $database): Resource
+    {
+        switch ($databaseType) {
+            case Resource::TYPE_DATABASE_DOCUMENTSDB:
+                return DocumentsDB::fromArray($database);
+            case Resource::TYPE_DATABASE_VECTORSDB:
+                return VectorsDB::fromArray($database);
+            default:
+                return Database::fromArray($database);
+        }
+    }
+
+    /**
+     * eg., tables,collections
+     * @param string $databaseType
+     * @param array{
+     *     database: array{
+     *        id: string,
+     *        name: string,
+     *     },
+     *     name: string,
+     *     id: string,
+     *     documentSecurity?: bool,
+     *     rowSecurity?: bool,
+     *     permissions: ?array<string>,
+     *     createdAt: string,
+     *     updatedAt: string,
+     *     enabled: bool
+     * } $entity
+     */
+    public static function getEntity(string $databaseType, array $entity): Resource
+    {
+        switch ($databaseType) {
+            case Resource::TYPE_DATABASE_DOCUMENTSDB:
+                return Collection::fromArray($entity);
+            case Resource::TYPE_DATABASE_VECTORSDB:
+                return Collection::fromArray($entity);
+            default:
+                return Table::fromArray($entity);
+        }
+    }
+
+    /**
+     * eg.,documents/attributes
+     * @param string $databaseType
+     * @param array{
+     *     id: string,
+     *     collection?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         documentSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     table?: array{
+     *         database: array{
+     *             id: string,
+     *             name: string,
+     *         },
+     *         name: string,
+     *         id: string,
+     *         rowSecurity: bool,
+     *         permissions: ?array<string>
+     *     },
+     *     data: array<string, mixed>,
+     *     permissions: ?array<string>
+     * } $record
+     */
+    public static function getRecord(string $databaseType, array $record): Resource
+    {
+        switch ($databaseType) {
+            case Resource::TYPE_DATABASE_DOCUMENTSDB:
+                return Document::fromArray($record);
+            case Resource::TYPE_DATABASE_VECTORSDB:
+                return Document::fromArray($record);
+            default:
+                return Row::fromArray($record);
+        }
+    }
+
+    public static function getColumn(Table $table, mixed $column): Column
+    {
+        return match ($column['type']) {
+            Column::TYPE_STRING => match ($column['format'] ?? '') {
+                Column::TYPE_EMAIL => new Email(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 254,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                Column::TYPE_ENUM => new Enum(
+                    $column['key'],
+                    $table,
+                    elements: $column['elements'],
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? UtopiaDatabase::LENGTH_KEY,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                Column::TYPE_URL => new URL(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 2000,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                Column::TYPE_IP => new IP(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 39,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+                default => new Text(
+                    $column['key'],
+                    $table,
+                    required: $column['required'],
+                    default: $column['default'],
+                    array: $column['array'],
+                    size: $column['size'] ?? 0,
+                    createdAt: $column['$createdAt'] ?? '',
+                    updatedAt: $column['$updatedAt'] ?? '',
+                ),
+            },
+
+            Column::TYPE_BOOLEAN => new Boolean(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_INTEGER => new Integer(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                min: $column['min'] ?? null,
+                max: $column['max'] ?? null,
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_FLOAT => new Decimal(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                min: $column['min'] ?? null,
+                max: $column['max'] ?? null,
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_RELATIONSHIP => new Relationship(
+                $column['key'],
+                $table,
+                relatedTable: $column['relatedTable'] ?? $column['relatedCollection'],
+                relationType: $column['relationType'],
+                twoWay: $column['twoWay'],
+                twoWayKey: $column['twoWayKey'],
+                onDelete: $column['onDelete'],
+                side: $column['side'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_DATETIME => new DateTime(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_POINT => new Point(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_LINE => new Line(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_POLYGON => new Polygon(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_OBJECT => new ObjectType(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_VECTOR => new Vector(
+                $column['key'],
+                $table,
+                size: $column['size'],
+                required: $column['required'],
+                default: $column['default'],
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_VARCHAR => new Varchar(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                size: $column['size'] ?? 255,
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_TEXT => new RegularText(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                size: $column['size'] ?? 65535,
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_MEDIUMTEXT => new MediumText(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                size: $column['size'] ?? 16777215,
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_LONGTEXT => new LongText(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                size: $column['size'] ?? 2147483647,
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+
+            default => throw new \InvalidArgumentException("Unsupported column type: {$column['type']}"),
+        };
+
+    }
+
+    /**
+     * Convert a raw attribute array to an Attribute resource.
+     * This is now a thin wrapper that uses getColumn() and then converts to Attribute.
+     * Since Collection extends Table, we can pass it directly to getColumn().
+     *
+     * @param Collection $collection
+     * @param mixed $attribute
+     * @return Attribute
+     */
+    public static function getAttribute(Collection $collection, mixed $attribute): Attribute
+    {
+        // Use getColumn() to create the Column resource, then convert to Attribute
+        // This eliminates duplication - all type-specific logic is in getColumn()
+        return self::getColumn($collection, $attribute)->getAttribute();
     }
 
     /**

@@ -247,4 +247,9 @@ class API implements Reader
     {
         return Query::limit($limit);
     }
+
+    public function getSupportForAttributes(): bool
+    {
+        return true;
+    }
 }

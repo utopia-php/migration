@@ -225,7 +225,7 @@ class Supabase extends NHost
         try {
             $this->pdo = new \PDO('pgsql:host='.$this->host.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
         } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database: '.$e->getMessage());
+            throw new \Exception('Failed to connect to database: '.$e->getMessage(), parent::statusCodeFromThrowable($e), $e);
         }
     }
 
@@ -240,11 +240,14 @@ class Supabase extends NHost
         try {
             $this->pdo = new \PDO('pgsql:host='.$this->host.';port='.$this->port.';dbname='.$this->databaseName, $this->username, $this->password);
         } catch (\PDOException $e) {
-            throw new \Exception('Failed to connect to database. PDO Code: '.$e->getCode().' Error: '.$e->getMessage());
+            throw new \Exception('Failed to connect to database. PDO Code: '.$e->getCode().' Error: '.$e->getMessage(), parent::statusCodeFromThrowable($e), $e);
         }
 
         if (! empty($this->pdo->errorCode())) {
-            throw new \Exception('Failed to connect to database. PDO Code: '.$this->pdo->errorCode().(empty($this->pdo->errorInfo()[2]) ? '' : ' Error: '.$this->pdo->errorInfo()[2]));
+            throw new \Exception(
+                'Failed to connect to database. PDO Code: '.$this->pdo->errorCode().(empty($this->pdo->errorInfo()[2]) ? '' : ' Error: '.$this->pdo->errorInfo()[2]),
+                parent::statusCodeFromSqlState($this->pdo->errorCode())
+            );
         }
 
         // Auth
@@ -253,7 +256,10 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access users table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access users table. Error: '.$statement->errorInfo()[2],
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_USER] = $statement->fetchColumn();
@@ -269,7 +275,10 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access tables table. Error: '.$statement->errorInfo()[2],
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_TABLE] = $statement->fetchColumn();
@@ -280,7 +289,10 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access columns table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access columns table. Error: '.$statement->errorInfo()[2],
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_COLUMN] = $statement->fetchColumn();
@@ -291,7 +303,10 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access indexes table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access indexes table. Error: '.$statement->errorInfo()[2],
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_INDEX] = $statement->fetchColumn();
@@ -302,7 +317,10 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access tables table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access tables table. Error: '.$statement->errorInfo()[2],
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_ROW] = $statement->fetchColumn();
@@ -314,7 +332,10 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access buckets table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access buckets table. Error: '.$statement->errorInfo()[2],
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_BUCKET] = $statement->fetchColumn();
@@ -325,7 +346,10 @@ class Supabase extends NHost
             $statement->execute();
 
             if ($statement->errorCode() !== '00000') {
-                throw new \Exception('Failed to access files table. Error: '.$statement->errorInfo()[2]);
+                throw new \Exception(
+                    'Failed to access files table. Error: '.$statement->errorInfo()[2],
+                    parent::statusCodeFromErrorInfo($statement->errorInfo())
+                );
             }
 
             $report[Resource::TYPE_FILE] = $statement->fetchColumn();
@@ -357,7 +381,7 @@ class Supabase extends NHost
                 Resource::TYPE_BUCKET,
                 Transfer::GROUP_STORAGE,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: parent::statusCodeFromThrowable($e),
                 previous: $e
             ));
         }
@@ -431,7 +455,7 @@ class Supabase extends NHost
                 Resource::TYPE_BUCKET,
                 Transfer::GROUP_STORAGE,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: parent::statusCodeFromThrowable($e),
                 previous: $e
             ));
         }
@@ -445,7 +469,7 @@ class Supabase extends NHost
                 Resource::TYPE_BUCKET,
                 Transfer::GROUP_STORAGE,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: parent::statusCodeFromThrowable($e),
                 previous: $e
             ));
         }

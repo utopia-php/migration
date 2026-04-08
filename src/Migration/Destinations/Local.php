@@ -3,6 +3,7 @@
 namespace Utopia\Migration\Destinations;
 
 use Utopia\Migration\Destination;
+use Utopia\Migration\Exception as MigrationException;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Storage\File;
@@ -70,6 +71,12 @@ class Local extends Destination
             Resource::TYPE_FUNCTION,
             Resource::TYPE_DEPLOYMENT,
             Resource::TYPE_ENVIRONMENT_VARIABLE,
+
+            // Messaging
+            Resource::TYPE_PROVIDER,
+            Resource::TYPE_TOPIC,
+            Resource::TYPE_SUBSCRIBER,
+            Resource::TYPE_MESSAGE,
         ];
     }
 
@@ -81,7 +88,7 @@ class Local extends Destination
         $report = [];
 
         if (!\is_writable($this->path . '/backup.json')) {
-            throw new \Exception('Unable to write to file: ' . $this->path);
+            throw new \Exception('Unable to write to file: ' . $this->path, MigrationException::CODE_INTERNAL);
         }
 
         return $report;
@@ -95,7 +102,10 @@ class Local extends Destination
         $json = \json_encode($this->data, JSON_PRETTY_PRINT);
 
         if ($json === false) {
-            throw new \Exception('Unable to encode data to JSON, Are you accidentally encoding binary data?');
+            throw new \Exception(
+                'Unable to encode data to JSON, Are you accidentally encoding binary data?',
+                MigrationException::CODE_VALIDATION
+            );
         }
 
         \file_put_contents($this->path . '/backup.json', $json);
