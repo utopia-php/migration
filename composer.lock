@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dabc86460a51ec9fcff7d13028401c27",
+    "content-hash": "6ea71156f3e91271eaa877a54a4f3d4c",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -2230,16 +2230,16 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "dev-csv-import-upsert",
+            "version": "dev-csv-import-upsert-v2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "ba749b981933fa68818950f5f44057e09c994d60"
+                "reference": "bb419ba6a5da1975373bbd958f9fd4d61fb3ee48"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/ba749b981933fa68818950f5f44057e09c994d60",
-                "reference": "ba749b981933fa68818950f5f44057e09c994d60",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/bb419ba6a5da1975373bbd958f9fd4d61fb3ee48",
+                "reference": "bb419ba6a5da1975373bbd958f9fd4d61fb3ee48",
                 "shasum": ""
             },
             "require": {
@@ -2283,9 +2283,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/csv-import-upsert"
+                "source": "https://github.com/utopia-php/database/tree/csv-import-upsert-v2"
             },
-            "time": "2026-04-07T15:26:34+00:00"
+            "time": "2026-04-09T00:55:20+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -4952,7 +4952,7 @@
     "aliases": [
         {
             "package": "utopia-php/database",
-            "version": "dev-csv-import-upsert",
+            "version": "dev-csv-import-upsert-v2",
             "alias": "5.0.0",
             "alias_normalized": "5.0.0.0"
         }
