@@ -85,6 +85,27 @@ class Appwrite extends Destination
      */
     private array $rowBuffer = [];
 
+    private bool $overwrite = false;
+    private bool $skip = false;
+
+    public function setOverwrite(bool $overwrite): self
+    {
+        if ($overwrite && $this->skip) {
+            throw new \InvalidArgumentException('Cannot set both overwrite and skip to true.');
+        }
+        $this->overwrite = $overwrite;
+        return $this;
+    }
+
+    public function setSkip(bool $skip): self
+    {
+        if ($skip && $this->overwrite) {
+            throw new \InvalidArgumentException('Cannot set both skip and overwrite to true.');
+        }
+        $this->skip = $skip;
+        return $this;
+    }
+
     /**
      * @param string $project
      * @param string $endpoint
@@ -986,7 +1007,7 @@ class Appwrite extends Destination
             $this->cache->get($resource->getName())
         );
 
-        if ($exists) {
+        if ($exists && !$this->overwrite) {
             $resource->setStatus(
                 Resource::STATUS_SKIPPED,
                 'Row has already been created'
@@ -1067,10 +1088,22 @@ class Appwrite extends Destination
                         }
                     }
                 }
-                $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->createDocuments(
-                    'database_' . $databaseInternalId . '_collection_' . $tableInternalId,
-                    $this->rowBuffer
-                ));
+                $collectionName = 'database_' . $databaseInternalId . '_collection_' . $tableInternalId;
+
+                if ($this->overwrite) {
+                    $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->upsertDocuments(
+                        $collectionName,
+                        $this->rowBuffer
+                    ));
+                } else {
+                    $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->skipDuplicates(
+                        fn () => $dbForDatabases->createDocuments(
+                            $collectionName,
+                            $this->rowBuffer
+                        ),
+                        $this->skip
+                    ));
+                }
 
             } finally {
                 $this->rowBuffer = [];

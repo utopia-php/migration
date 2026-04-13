@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "37980b9001fbbd4f213f3102c1332727",
+    "content-hash": "6ea71156f3e91271eaa877a54a4f3d4c",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -2181,17 +2181,17 @@
             "time": "2026-01-28T10:55:44+00:00"
         },
         {
-            "name": "utopia-php/compression",
-            "version": "0.1.3",
+            "name": "utopia-php/console",
+            "version": "0.1.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/utopia-php/compression.git",
-                "reference": "66f093557ba66d98245e562036182016c7dcfe8a"
+                "url": "https://github.com/utopia-php/console.git",
+                "reference": "d298e43960780e6d76e66de1228c75dc81220e3e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/compression/zipball/66f093557ba66d98245e562036182016c7dcfe8a",
-                "reference": "66f093557ba66d98245e562036182016c7dcfe8a",
+                "url": "https://api.github.com/repos/utopia-php/console/zipball/d298e43960780e6d76e66de1228c75dc81220e3e",
+                "reference": "d298e43960780e6d76e66de1228c75dc81220e3e",
                 "shasum": ""
             },
             "require": {
@@ -2199,45 +2199,47 @@
             },
             "require-dev": {
                 "laravel/pint": "1.2.*",
+                "phpstan/phpstan": "^1.10",
                 "phpunit/phpunit": "^9.3",
-                "vimeo/psalm": "4.0.1"
+                "squizlabs/php_codesniffer": "^3.6",
+                "swoole/ide-helper": "4.8.8"
             },
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Utopia\\Compression\\": "src/Compression"
+                    "Utopia\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
-            "description": "A simple Compression library to handle file compression",
+            "description": "Console helpers for logging, prompting, and executing commands",
             "keywords": [
-                "compression",
-                "framework",
+                "cli",
+                "console",
                 "php",
-                "upf",
+                "terminal",
                 "utopia"
             ],
             "support": {
-                "issues": "https://github.com/utopia-php/compression/issues",
-                "source": "https://github.com/utopia-php/compression/tree/0.1.3"
+                "issues": "https://github.com/utopia-php/console/issues",
+                "source": "https://github.com/utopia-php/console/tree/0.1.1"
             },
-            "time": "2025-01-15T15:15:51+00:00"
+            "time": "2026-02-10T10:20:29+00:00"
         },
         {
             "name": "utopia-php/database",
-            "version": "5.2.1",
+            "version": "dev-csv-import-upsert-v2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "adfdf201144353a1d2ce14bb197ab746079894e0"
+                "reference": "bb419ba6a5da1975373bbd958f9fd4d61fb3ee48"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/adfdf201144353a1d2ce14bb197ab746079894e0",
-                "reference": "adfdf201144353a1d2ce14bb197ab746079894e0",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/bb419ba6a5da1975373bbd958f9fd4d61fb3ee48",
+                "reference": "bb419ba6a5da1975373bbd958f9fd4d61fb3ee48",
                 "shasum": ""
             },
             "require": {
@@ -2246,9 +2248,10 @@
                 "ext-pdo": "*",
                 "php": ">=8.4",
                 "utopia-php/cache": "1.*",
-                "utopia-php/framework": "0.33.*",
+                "utopia-php/console": "0.1.*",
                 "utopia-php/mongo": "1.*",
-                "utopia-php/pools": "1.*"
+                "utopia-php/pools": "1.*",
+                "utopia-php/validators": "0.2.*"
             },
             "require-dev": {
                 "fakerphp/faker": "1.23.*",
@@ -2258,7 +2261,7 @@
                 "phpunit/phpunit": "9.*",
                 "rregeer/phpunit-coverage-check": "0.3.*",
                 "swoole/ide-helper": "5.1.3",
-                "utopia-php/cli": "0.14.*"
+                "utopia-php/cli": "0.22.*"
             },
             "type": "library",
             "autoload": {
@@ -2280,9 +2283,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/5.2.1"
+                "source": "https://github.com/utopia-php/database/tree/csv-import-upsert-v2"
             },
-            "time": "2026-02-16T11:01:13+00:00"
+            "time": "2026-04-09T00:55:20+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -2330,55 +2333,6 @@
                 "source": "https://github.com/utopia-php/dsn/tree/0.2.1"
             },
             "time": "2024-05-07T02:01:25+00:00"
-        },
-        {
-            "name": "utopia-php/framework",
-            "version": "0.33.39",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/utopia-php/http.git",
-                "reference": "409a258814d664d3a50fa2f48b6695679334d30b"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/http/zipball/409a258814d664d3a50fa2f48b6695679334d30b",
-                "reference": "409a258814d664d3a50fa2f48b6695679334d30b",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=8.3",
-                "utopia-php/compression": "0.1.*",
-                "utopia-php/telemetry": "0.2.*",
-                "utopia-php/validators": "0.2.*"
-            },
-            "require-dev": {
-                "laravel/pint": "1.*",
-                "phpbench/phpbench": "1.*",
-                "phpstan/phpstan": "1.*",
-                "phpunit/phpunit": "9.*",
-                "swoole/ide-helper": "^6.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Utopia\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "description": "A simple, light and advanced PHP framework",
-            "keywords": [
-                "framework",
-                "php",
-                "upf"
-            ],
-            "support": {
-                "issues": "https://github.com/utopia-php/http/issues",
-                "source": "https://github.com/utopia-php/http/tree/0.33.39"
-            },
-            "time": "2026-02-11T06:33:42+00:00"
         },
         {
             "name": "utopia-php/mongo",
@@ -4995,9 +4949,18 @@
             "time": "2025-12-27T19:49:13+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "utopia-php/database",
+            "version": "dev-csv-import-upsert-v2",
+            "alias": "5.0.0",
+            "alias_normalized": "5.0.0.0"
+        }
+    ],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "utopia-php/database": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
@@ -5008,5 +4971,5 @@
     "platform-dev": {
         "ext-pdo": "*"
     },
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }
