@@ -1096,10 +1096,12 @@ class Appwrite extends Destination
                         $this->rowBuffer
                     ));
                 } else {
-                    $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->createDocuments(
-                        $collectionName,
-                        $this->rowBuffer,
-                        ignore: $this->skip
+                    $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->skipDuplicates(
+                        fn () => $dbForDatabases->createDocuments(
+                            $collectionName,
+                            $this->rowBuffer
+                        ),
+                        $this->skip
                     ));
                 }
 
