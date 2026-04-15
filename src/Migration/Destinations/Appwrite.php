@@ -1067,10 +1067,14 @@ class Appwrite extends Destination
                         }
                     }
                 }
-                $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->createDocuments(
-                    'database_' . $databaseInternalId . '_collection_' . $tableInternalId,
-                    $this->rowBuffer
-                ));
+                $dbForDatabases->skipDuplicates(
+                    fn () => $dbForDatabases->skipRelationshipsExistCheck(
+                        fn () => $dbForDatabases->createDocuments(
+                            'database_' . $databaseInternalId . '_collection_' . $tableInternalId,
+                            $this->rowBuffer
+                        )
+                    )
+                );
 
             } finally {
                 $this->rowBuffer = [];

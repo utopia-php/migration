@@ -4,7 +4,8 @@
     "type": "library",
     "keywords": ["php", "framework", "upf", "utopia", "migration"],
     "license": "MIT",
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Utopia\\Migration\\": "src/Migration"
@@ -26,7 +27,7 @@
         "ext-curl": "*",
         "ext-openssl": "*",
         "appwrite/appwrite": "19.*",
-        "utopia-php/database": "5.*",
+        "utopia-php/database": "dev-csv-import-upsert-v2 as 5.99.0",
         "utopia-php/storage": "1.0.*",
         "utopia-php/dsn": "0.2.*",
         "halaxa/json-machine": "^1.2"
