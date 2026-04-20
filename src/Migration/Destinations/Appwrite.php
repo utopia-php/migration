@@ -63,6 +63,19 @@ use Utopia\Migration\Transfer;
 
 class Appwrite extends Destination
 {
+    public const ON_DUPLICATE_FAIL   = 'fail';
+    public const ON_DUPLICATE_SKIP   = 'skip';
+    public const ON_DUPLICATE_UPSERT = 'upsert';
+
+    /**
+     * @var array<string>
+     */
+    public const ON_DUPLICATES = [
+        self::ON_DUPLICATE_FAIL,
+        self::ON_DUPLICATE_SKIP,
+        self::ON_DUPLICATE_UPSERT,
+    ];
+
     protected Client $client;
     protected string $project;
 
@@ -92,8 +105,7 @@ class Appwrite extends Destination
      * @param UtopiaDatabase $dbForProject
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
      * @param array<array<string, mixed>> $collectionStructure
-     * @param bool $overwrite When true, replace existing rows by calling upsertDocuments instead of createDocuments.
-     * @param bool $skip When true, silently ignore duplicate-id rows by wrapping createDocuments in skipDuplicates.
+     * @param string $onDuplicate Behavior when a row with an existing $id is encountered. One of ON_DUPLICATE_FAIL (abort), ON_DUPLICATE_SKIP (silently ignore), ON_DUPLICATE_UPSERT (replace existing).
      */
     public function __construct(
         string $project,
@@ -102,9 +114,14 @@ class Appwrite extends Destination
         protected UtopiaDatabase $dbForProject,
         callable $getDatabasesDB,
         protected array $collectionStructure,
-        protected bool $overwrite = false,
-        protected bool $skip = false,
+        protected string $onDuplicate = self::ON_DUPLICATE_FAIL,
     ) {
+        if (!\in_array($onDuplicate, self::ON_DUPLICATES, true)) {
+            throw new \InvalidArgumentException(
+                "Invalid onDuplicate value '{$onDuplicate}'. Must be one of: " . \implode(', ', self::ON_DUPLICATES)
+            );
+        }
+
         $this->project = $project;
         $this->endpoint = $endpoint;
         $this->key = $key;
@@ -1073,25 +1090,19 @@ class Appwrite extends Destination
                 }
                 $collectionId = 'database_' . $databaseInternalId . '_collection_' . $tableInternalId;
 
-                if ($this->overwrite) {
-                    // Replace existing rows with the imported values. Upsert naturally
-                    // handles duplicates so skipDuplicates is unnecessary here.
-                    $dbForDatabases->skipRelationshipsExistCheck(
+                match ($this->onDuplicate) {
+                    self::ON_DUPLICATE_UPSERT => $dbForDatabases->skipRelationshipsExistCheck(
                         fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
-                    );
-                } elseif ($this->skip) {
-                    // Silently ignore duplicates via the adapter-level INSERT IGNORE equivalent.
-                    $dbForDatabases->skipDuplicates(
+                    ),
+                    self::ON_DUPLICATE_SKIP => $dbForDatabases->skipDuplicates(
                         fn () => $dbForDatabases->skipRelationshipsExistCheck(
                             fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
                         )
-                    );
-                } else {
-                    // Default: fail fast on duplicate ids (original behavior).
-                    $dbForDatabases->skipRelationshipsExistCheck(
+                    ),
+                    self::ON_DUPLICATE_FAIL => $dbForDatabases->skipRelationshipsExistCheck(
                         fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
-                    );
-                }
+                    ),
+                };
 
             } finally {
                 $this->rowBuffer = [];
