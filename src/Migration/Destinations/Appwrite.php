@@ -36,6 +36,7 @@ use Utopia\Database\Validator\Structure;
 use Utopia\Database\Validator\UID;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Exception;
+use Utopia\Migration\OnDuplicate;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
@@ -63,19 +64,6 @@ use Utopia\Migration\Transfer;
 
 class Appwrite extends Destination
 {
-    public const ON_DUPLICATE_FAIL   = 'fail';
-    public const ON_DUPLICATE_SKIP   = 'skip';
-    public const ON_DUPLICATE_UPSERT = 'upsert';
-
-    /**
-     * @var array<string>
-     */
-    public const ON_DUPLICATES = [
-        self::ON_DUPLICATE_FAIL,
-        self::ON_DUPLICATE_SKIP,
-        self::ON_DUPLICATE_UPSERT,
-    ];
-
     protected Client $client;
     protected string $project;
 
@@ -105,7 +93,7 @@ class Appwrite extends Destination
      * @param UtopiaDatabase $dbForProject
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
      * @param array<array<string, mixed>> $collectionStructure
-     * @param string $onDuplicate Behavior when a row with an existing $id is encountered. One of ON_DUPLICATE_FAIL (abort), ON_DUPLICATE_SKIP (silently ignore), ON_DUPLICATE_UPSERT (replace existing).
+     * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
      */
     public function __construct(
         string $project,
@@ -114,14 +102,8 @@ class Appwrite extends Destination
         protected UtopiaDatabase $dbForProject,
         callable $getDatabasesDB,
         protected array $collectionStructure,
-        protected string $onDuplicate = self::ON_DUPLICATE_FAIL,
+        protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
     ) {
-        if (!\in_array($onDuplicate, self::ON_DUPLICATES, true)) {
-            throw new \InvalidArgumentException(
-                "Invalid onDuplicate value '{$onDuplicate}'. Must be one of: " . \implode(', ', self::ON_DUPLICATES)
-            );
-        }
-
         $this->project = $project;
         $this->endpoint = $endpoint;
         $this->key = $key;
@@ -1091,15 +1073,15 @@ class Appwrite extends Destination
                 $collectionId = 'database_' . $databaseInternalId . '_collection_' . $tableInternalId;
 
                 match ($this->onDuplicate) {
-                    self::ON_DUPLICATE_UPSERT => $dbForDatabases->skipRelationshipsExistCheck(
+                    OnDuplicate::Upsert => $dbForDatabases->skipRelationshipsExistCheck(
                         fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
                     ),
-                    self::ON_DUPLICATE_SKIP => $dbForDatabases->skipDuplicates(
+                    OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
                         fn () => $dbForDatabases->skipRelationshipsExistCheck(
                             fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
                         )
                     ),
-                    self::ON_DUPLICATE_FAIL => $dbForDatabases->skipRelationshipsExistCheck(
+                    OnDuplicate::Fail => $dbForDatabases->skipRelationshipsExistCheck(
                         fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
                     ),
                 };
