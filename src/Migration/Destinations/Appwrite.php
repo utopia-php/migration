@@ -92,6 +92,7 @@ class Appwrite extends Destination
      * @param UtopiaDatabase $dbForProject
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
      * @param array<array<string, mixed>> $collectionStructure
+     * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
      */
     public function __construct(
         string $project,
@@ -99,7 +100,8 @@ class Appwrite extends Destination
         string $key,
         protected UtopiaDatabase $dbForProject,
         callable $getDatabasesDB,
-        protected array $collectionStructure
+        protected array $collectionStructure,
+        protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
     ) {
         $this->project = $project;
         $this->endpoint = $endpoint;
@@ -1067,10 +1069,21 @@ class Appwrite extends Destination
                         }
                     }
                 }
-                $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->createDocuments(
-                    'database_' . $databaseInternalId . '_collection_' . $tableInternalId,
-                    $this->rowBuffer
-                ));
+                $collectionId = 'database_' . $databaseInternalId . '_collection_' . $tableInternalId;
+
+                match ($this->onDuplicate) {
+                    OnDuplicate::Upsert => $dbForDatabases->skipRelationshipsExistCheck(
+                        fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
+                    ),
+                    OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
+                        fn () => $dbForDatabases->skipRelationshipsExistCheck(
+                            fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
+                        )
+                    ),
+                    OnDuplicate::Fail => $dbForDatabases->skipRelationshipsExistCheck(
+                        fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
+                    ),
+                };
 
             } finally {
                 $this->rowBuffer = [];
