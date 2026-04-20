@@ -36,7 +36,6 @@ use Utopia\Database\Validator\Structure;
 use Utopia\Database\Validator\UID;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Exception;
-use Utopia\Migration\OnDuplicate;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;

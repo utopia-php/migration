@@ -1,6 +1,6 @@
 <?php
 
-namespace Utopia\Migration;
+namespace Utopia\Migration\Destinations;
 
 /**
  * Behavior when a destination row with an existing ID is encountered.
