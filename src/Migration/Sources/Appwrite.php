@@ -1155,10 +1155,11 @@ class Appwrite extends Source
 
                     unset($row['$id']);
                     unset($row['$permissions']);
-                    unset($row['$tableId']);
                     unset($row['$databaseId']);
                     unset($row['$sequence']);
                     unset($row['$collection']);
+                    unset($row['$tableId']);
+                    unset($row['$table']);
 
                     $row = self::getRecord($table->getDatabase()->getType(), [
                         'id' => $id,
