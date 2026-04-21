@@ -928,10 +928,12 @@ class Appwrite extends Source
 
                 $response = $this->reader->listTables($database, $queries);
                 foreach ($response as $table) {
+                    $rowSecurity = $table['rowSecurity'] ?? $table['documentSecurity'] ?? false;
                     $newTable = self::getEntity($databaseName, [
                         'id' => $table['$id'],
                         'name' => $table['name'],
-                        'documentSecurity' => $table['documentSecurity'],
+                        'rowSecurity' => $rowSecurity,
+                        'documentSecurity' => $rowSecurity,
                         'permissions' => $table['$permissions'],
                         'createdAt' => $table['$createdAt'],
                         'updatedAt' => $table['$updatedAt'],
