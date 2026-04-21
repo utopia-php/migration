@@ -5,11 +5,11 @@ namespace Utopia\Migration\Sources;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Query;
-use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
+use Appwrite\Services\TablesDB;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
@@ -127,7 +127,7 @@ class Appwrite extends Source
 
         switch ($this->source) {
             case static::SOURCE_API:
-                $this->reader = new APIReader(new Databases($this->client));
+                $this->reader = new APIReader(new TablesDB($this->client));
                 break;
 
             case static::SOURCE_DATABASE:
