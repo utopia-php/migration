@@ -1153,9 +1153,16 @@ class Appwrite extends Source
                     $id = $row['$id'];
                     $permissions = $row['$permissions'];
 
+                    // TablesDB(API reader) returns `$tableId`, while downstream import cleanup still
+                    // normalizes/removes legacy `$collectionId`. Mirror the value to keep
+                    // compatibility across both shapes.
+                    if (isset($row['$tableId']) && !isset($row['$collectionId'])) {
+                        $row['$collectionId'] = $row['$tableId'];
+                    }
+
                     unset($row['$id']);
                     unset($row['$permissions']);
-                    unset($row['$collectionId']);
+                    unset($row['$tableId']);
                     unset($row['$databaseId']);
                     unset($row['$sequence']);
                     unset($row['$collection']);
