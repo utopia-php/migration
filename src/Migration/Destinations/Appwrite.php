@@ -732,6 +732,37 @@ class Appwrite extends Destination
                 $this->dbForProject->deleteDocument('attributes', $attributeMetaId);
                 $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
                 $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+
+                // Two-way relationships: the first-run createField wrote TWO
+                // metadata docs (parent at line 763, child at line 819). The
+                // drop above only removed the parent; without cleaning up the
+                // child, the recreate path hits DuplicateException at line 819
+                // and the whole attribute re-migration fails.
+                $resourceOptions = $resource->getOptions();
+                if ($type === UtopiaDatabase::VAR_RELATIONSHIP && !empty($resourceOptions['twoWay'])) {
+                    // $relatedTable was populated at the top of createField
+                    // inside the same VAR_RELATIONSHIP branch.
+                    $childTwoWayKey = $resourceOptions['twoWayKey'] ?? '';
+                    if ($childTwoWayKey !== '') {
+                        $childMetaId = $database->getSequence() . '_' . $relatedTable->getSequence() . '_' . $childTwoWayKey;
+                        try {
+                            $this->dbForProject->deleteDocument('attributes', $childMetaId);
+                        } catch (\Throwable) {
+                            // Child metadata already gone — interrupted prior run, nothing to do.
+                        }
+                        try {
+                            $dbForDatabases->deleteAttribute(
+                                'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence(),
+                                $childTwoWayKey
+                            );
+                        } catch (\Throwable) {
+                            // Child column already gone — the parent's deleteAttribute may
+                            // have cascaded via utopia-php/database's relationship handling.
+                        }
+                        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
+                        $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence());
+                    }
+                }
             }
         }
 
