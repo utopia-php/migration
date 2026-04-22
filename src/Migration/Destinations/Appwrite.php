@@ -695,45 +695,14 @@ class Appwrite extends Destination
             }
 
             if ($action === SchemaAction::DropAndRecreate) {
-                // Drop then fall through to the normal create flow below.
-                $dbForDatabases->deleteAttribute(
-                    'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
-                    $resource->getKey()
+                $this->deleteAttributeCompletely(
+                    $database,
+                    $table,
+                    $resource,
+                    $type,
+                    $relatedTable ?? null,
+                    $dbForDatabases,
                 );
-                $this->dbForProject->deleteDocument('attributes', $attributeMetaId);
-                $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
-                $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
-
-                // Two-way relationships: the first-run createField wrote TWO
-                // metadata docs (parent at line 763, child at line 819). The
-                // drop above only removed the parent; without cleaning up the
-                // child, the recreate path hits DuplicateException at line 819
-                // and the whole attribute re-migration fails.
-                $resourceOptions = $resource->getOptions();
-                if ($type === UtopiaDatabase::VAR_RELATIONSHIP && !empty($resourceOptions['twoWay'])) {
-                    // $relatedTable was populated at the top of createField
-                    // inside the same VAR_RELATIONSHIP branch.
-                    $childTwoWayKey = $resourceOptions['twoWayKey'] ?? '';
-                    if ($childTwoWayKey !== '') {
-                        $childMetaId = $database->getSequence() . '_' . $relatedTable->getSequence() . '_' . $childTwoWayKey;
-                        try {
-                            $this->dbForProject->deleteDocument('attributes', $childMetaId);
-                        } catch (\Throwable) {
-                            // Child metadata already gone — interrupted prior run, nothing to do.
-                        }
-                        try {
-                            $dbForDatabases->deleteAttribute(
-                                'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence(),
-                                $childTwoWayKey
-                            );
-                        } catch (\Throwable) {
-                            // Child column already gone — the parent's deleteAttribute may
-                            // have cascaded via utopia-php/database's relationship handling.
-                        }
-                        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
-                        $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence());
-                    }
-                }
             }
             // SchemaAction::Create → fall through to the normal create flow.
         }
@@ -1223,6 +1192,78 @@ class Appwrite extends Destination
 
 
         return true;
+    }
+
+    /**
+     * Fully remove an attribute from destination — both metadata documents
+     * and the physical column(s) — so the caller can create it fresh without
+     * colliding with any remnants.
+     *
+     * For plain attributes this is a parent-side cleanup. For two-way
+     * relationship attributes, createField writes a second `attributes`
+     * document on the related table (under {dbSeq}_{relatedTableSeq}_{twoWayKey})
+     * in addition to the parent-side document. Dropping only the parent
+     * side leaves the child document dangling and a subsequent recreate
+     * collides on it with DuplicateException. This method mirrors
+     * createField's two-doc write so the "reconcile" path is symmetric.
+     *
+     * Physical cleanup on the related table is best-effort: the library's
+     * deleteAttribute on the parent side can cascade to the child column
+     * depending on relationship handling, so the second deleteAttribute may
+     * no-op or NotFoundException — both swallowed.
+     *
+     * @param UtopiaDocument|null $relatedTable null when the attribute isn't
+     *                                          a two-way relationship;
+     *                                          required otherwise.
+     */
+    private function deleteAttributeCompletely(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        Column|Attribute $resource,
+        string $type,
+        ?UtopiaDocument $relatedTable,
+        UtopiaDatabase $dbForDatabases,
+    ): void {
+        $collectionId = 'database_' . $database->getSequence() . '_collection_' . $table->getSequence();
+        $attributeMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
+
+        // Parent side.
+        $dbForDatabases->deleteAttribute($collectionId, $resource->getKey());
+        $this->dbForProject->deleteDocument('attributes', $attributeMetaId);
+        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+        $dbForDatabases->purgeCachedCollection($collectionId);
+
+        // Child side, only for two-way relationships. createField writes a
+        // second `attributes` document keyed on the related table; mirror
+        // that write here.
+        if ($type !== UtopiaDatabase::VAR_RELATIONSHIP || $relatedTable === null) {
+            return;
+        }
+        $options = $resource->getOptions();
+        if (empty($options['twoWay'])) {
+            return;
+        }
+        $twoWayKey = $options['twoWayKey'] ?? '';
+        if ($twoWayKey === '') {
+            return;
+        }
+
+        $childCollectionId = 'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence();
+        $childMetaId = $database->getSequence() . '_' . $relatedTable->getSequence() . '_' . $twoWayKey;
+
+        try {
+            $this->dbForProject->deleteDocument('attributes', $childMetaId);
+        } catch (\Throwable) {
+            // Child metadata already gone — interrupted prior run.
+        }
+        try {
+            $dbForDatabases->deleteAttribute($childCollectionId, $twoWayKey);
+        } catch (\Throwable) {
+            // Physical column already gone — parent-side deleteAttribute may
+            // have cascaded via utopia-php/database relationship handling.
+        }
+        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
+        $dbForDatabases->purgeCachedCollection($childCollectionId);
     }
 
     /**

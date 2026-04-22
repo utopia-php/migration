@@ -43,15 +43,16 @@ enum OnDuplicate: string
      * avoid the destination metadata lookup entirely — the library's own
      * DuplicateException surfaces from the create call as designed).
      *
-     * For containers whose data must be preserved (databases, tables),
-     * callers pass $allowDrop = false so the method never returns
-     * DropAndRecreate — only Create or Tolerate.
+     * Only safe to call for leaf resources (attributes, indexes) that can be
+     * dropped to reconcile. Containers whose data must be preserved
+     * (databases, tables) should use the simpler "tolerate existing" inline
+     * check instead — this method's DropAndRecreate outcome would destroy
+     * their user data.
      */
     public function resolveSchemaAction(
         bool $exists,
         string $sourceUpdatedAt = '',
         string $destUpdatedAt = '',
-        bool $allowDrop = true,
     ): SchemaAction {
         if (!$exists) {
             return SchemaAction::Create;
@@ -59,7 +60,7 @@ enum OnDuplicate: string
         return match ($this) {
             self::Fail   => SchemaAction::Create,   // caller's create flow will throw
             self::Skip   => SchemaAction::Tolerate,
-            self::Upsert => ($allowDrop && $this->sourceIsNewer($sourceUpdatedAt, $destUpdatedAt))
+            self::Upsert => $this->sourceIsNewer($sourceUpdatedAt, $destUpdatedAt)
                 ? SchemaAction::DropAndRecreate
                 : SchemaAction::Tolerate,
         };
