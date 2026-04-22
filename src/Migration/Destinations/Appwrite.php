@@ -428,7 +428,7 @@ class Appwrite extends Destination
         // existing metadata document and return. Downstream resources
         // (tables/columns/rows) locate the existing underlying schema via the
         // hydrated sequence.
-        if ($this->shouldTolerateSchemaDuplicate()) {
+        if ($this->onDuplicate->toleratesSchemaDuplicate()) {
             $existing = $this->dbForProject->getDocument('databases', $resource->getId());
             if (!$existing->isEmpty()) {
                 $resource->setSequence($existing->getSequence());
@@ -468,41 +468,6 @@ class Appwrite extends Destination
         );
 
         return true;
-    }
-
-    /**
-     * Skip/Upsert both tolerate an existing schema resource on re-migration.
-     * Upsert differs from Skip only for leaf resources (attributes, indexes)
-     * where the updatedAt comparison gates a drop+recreate — containers
-     * (databases, tables) are always tolerate-only because their data is
-     * preserved.
-     */
-    private function shouldTolerateSchemaDuplicate(): bool
-    {
-        return $this->onDuplicate !== OnDuplicate::Fail;
-    }
-
-    /**
-     * Upsert reconciliation: source's updatedAt strictly later than
-     * destination's signals the spec changed since last sync — leaf resource
-     * should be dropped + recreated. Equal or earlier: dest is up-to-date,
-     * tolerate.
-     */
-    private function sourceSpecIsNewer(string $sourceUpdatedAt, string $destUpdatedAt): bool
-    {
-        if ($sourceUpdatedAt === '' || $destUpdatedAt === '') {
-            return false;
-        }
-        $src = \strtotime($sourceUpdatedAt);
-        $dst = \strtotime($destUpdatedAt);
-        if ($src === false || $dst === false) {
-            // Conservative: any unparseable timestamp → don't drop+recreate.
-            // Matters for non-Appwrite sources that may emit malformed dates
-            // (e.g. "0000-00-00 00:00:00"); Appwrite itself always emits
-            // parseable RFC 3339.
-            return false;
-        }
-        return $src > $dst;
     }
 
     /**
@@ -556,7 +521,7 @@ class Appwrite extends Destination
         // contain user data (rows), so both modes simply hydrate the sequence
         // from the existing metadata document. Attribute/index reconciliation
         // happens per-resource at a lower layer.
-        if ($this->shouldTolerateSchemaDuplicate()) {
+        if ($this->onDuplicate->toleratesSchemaDuplicate()) {
             $existing = $this->dbForProject->getDocument(
                 'database_' . $database->getSequence(),
                 $resource->getId()
@@ -713,13 +678,11 @@ class Appwrite extends Destination
         // the spec matches source. Column data is wiped on drop; rows are
         // repopulated via row-level Upsert below.
         $attributeMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
-        if ($this->shouldTolerateSchemaDuplicate()) {
+        if ($this->onDuplicate->toleratesSchemaDuplicate()) {
             $existingAttr = $this->dbForProject->getDocument('attributes', $attributeMetaId);
             if (!$existingAttr->isEmpty()) {
-                if ($this->onDuplicate === OnDuplicate::Skip
-                    || !$this->sourceSpecIsNewer($updatedAt, $existingAttr->getUpdatedAt())
-                ) {
-                    // Destination already up-to-date; hydrate caches and skip.
+                if (!$this->onDuplicate->shouldReconcileSchema($updatedAt, $existingAttr->getUpdatedAt())) {
+                    // Skip, or Upsert with dest up-to-date — tolerate.
                     $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
                     $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
                     return true;
@@ -1050,12 +1013,11 @@ class Appwrite extends Destination
         // dropped + recreated. Index drops are non-destructive (no row data
         // lives in indexes) so rebuild cost is just the index build time.
         $indexMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
-        if ($this->shouldTolerateSchemaDuplicate()) {
+        if ($this->onDuplicate->toleratesSchemaDuplicate()) {
             $existingIdx = $this->dbForProject->getDocument('indexes', $indexMetaId);
             if (!$existingIdx->isEmpty()) {
-                if ($this->onDuplicate === OnDuplicate::Skip
-                    || !$this->sourceSpecIsNewer($updatedAt, $existingIdx->getUpdatedAt())
-                ) {
+                if (!$this->onDuplicate->shouldReconcileSchema($updatedAt, $existingIdx->getUpdatedAt())) {
+                    // Skip, or Upsert with dest up-to-date — tolerate.
                     $this->dbForProject->purgeCachedDocument(
                         'database_' . $database->getSequence(),
                         $table->getId()
