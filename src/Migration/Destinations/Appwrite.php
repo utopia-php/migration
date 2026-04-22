@@ -493,7 +493,16 @@ class Appwrite extends Destination
         if ($sourceUpdatedAt === '' || $destUpdatedAt === '') {
             return false;
         }
-        return \strtotime($sourceUpdatedAt) > \strtotime($destUpdatedAt);
+        $src = \strtotime($sourceUpdatedAt);
+        $dst = \strtotime($destUpdatedAt);
+        if ($src === false || $dst === false) {
+            // Conservative: any unparseable timestamp → don't drop+recreate.
+            // Matters for non-Appwrite sources that may emit malformed dates
+            // (e.g. "0000-00-00 00:00:00"); Appwrite itself always emits
+            // parseable RFC 3339.
+            return false;
+        }
+        return $src > $dst;
     }
 
     /**
