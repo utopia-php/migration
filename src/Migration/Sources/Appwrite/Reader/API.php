@@ -4,8 +4,7 @@ namespace Utopia\Migration\Sources\Appwrite\Reader;
 
 use Appwrite\AppwriteException;
 use Appwrite\Query;
-use Appwrite\Services\Databases;
-/* use Appwrite\Services\Tables; */
+use Appwrite\Services\TablesDB;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Table;
@@ -17,8 +16,7 @@ use Utopia\Migration\Sources\Appwrite\Reader;
 class API implements Reader
 {
     public function __construct(
-        private readonly Databases $database,
-        /* private readonly Tables $table, */
+        private readonly TablesDB $database,
     ) {
     }
 
@@ -73,13 +71,12 @@ class API implements Reader
             $lastTable = null;
 
             while (true) {
-                /* $currentTables = $this->tables->list(...); */
-                $currentTables = $this->database->listCollections(
+                $currentTables = $this->database->listTables(
                     $databaseId,
                     $lastTable
                         ? [Query::cursorAfter($lastTable)]
                         : [Query::limit($pageLimit)]
-                )['collections']; /* ['tables'] */
+                )['tables'];
 
                 $tables = \array_merge($tables, $currentTables);
                 $lastTable = $tables[count($tables) - 1]['$id'] ?? null;
@@ -108,8 +105,7 @@ class API implements Reader
                     }
 
                     if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
-                        /* $rowsResponse = $this->tables->listRows(...) */
-                        $rowsResponse = $this->database->listDocuments(
+                        $rowsResponse = $this->database->listRows(
                             $databaseId,
                             $tableId,
                             [Query::limit(1)]
@@ -137,11 +133,10 @@ class API implements Reader
      */
     public function listTables(Database $resource, array $queries = []): array
     {
-        /* $this->tables->list(...)['tables'] */
-        return $this->database->listCollections(
+        return $this->database->listTables(
             $resource->getId(),
             $queries
-        )['collections'];
+        )['tables'];
     }
 
     /**
@@ -152,12 +147,11 @@ class API implements Reader
      */
     public function listColumns(Table $resource, array $queries = []): array
     {
-        /* $this->tables->listColumns(...)['columns'] */
-        return $this->database->listAttributes(
+        return $this->database->listColumns(
             $resource->getDatabase()->getId(),
             $resource->getId(),
             $queries
-        )['attributes'];
+        )['columns'];
     }
 
     /**
@@ -168,7 +162,6 @@ class API implements Reader
      */
     public function listIndexes(Table $resource, array $queries = []): array
     {
-        /* $this->tables->listIndexes(...)['indexes'] */
         return $this->database->listIndexes(
             $resource->getDatabase()->getId(),
             $resource->getId(),
@@ -185,12 +178,11 @@ class API implements Reader
      */
     public function listRows(Table $resource, array $queries = []): array
     {
-        /* $this->tables->listRows(...)['rows'] */
-        return $this->database->listDocuments(
+        return $this->database->listRows(
             $resource->getDatabase()->getId(),
             $resource->getId(),
             $queries
-        )['documents'];
+        )['rows'];
     }
 
     /**
@@ -202,8 +194,7 @@ class API implements Reader
      */
     public function getRow(Table $resource, string $rowId, array $queries = []): array
     {
-        /* $this->tables->getRow(...) */
-        return $this->database->getDocument(
+        return $this->database->getRow(
             $resource->getDatabase()->getId(),
             $resource->getId(),
             $rowId,
