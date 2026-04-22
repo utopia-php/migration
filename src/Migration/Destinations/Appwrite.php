@@ -422,6 +422,20 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
+        // Skip/Upsert: pre-check an existing database. Databases contain the
+        // entire tree of collections + rows, so they are never destructively
+        // reconciled — both modes simply hydrate the sequence from the
+        // existing metadata document and return. Downstream resources
+        // (tables/columns/rows) locate the existing underlying schema via the
+        // hydrated sequence.
+        if ($this->shouldTolerateSchemaDuplicate()) {
+            $existing = $this->dbForProject->getDocument('databases', $resource->getId());
+            if (!$existing->isEmpty()) {
+                $resource->setSequence($existing->getSequence());
+                return true;
+            }
+        }
+
         $database = $this->dbForProject->createDocument('databases', new UtopiaDocument([
             '$id' => $resource->getId(),
             'name' => $resource->getDatabaseName(),
@@ -454,6 +468,32 @@ class Appwrite extends Destination
         );
 
         return true;
+    }
+
+    /**
+     * Skip/Upsert both tolerate an existing schema resource on re-migration.
+     * Upsert differs from Skip only for leaf resources (attributes, indexes)
+     * where the updatedAt comparison gates a drop+recreate — containers
+     * (databases, tables) are always tolerate-only because their data is
+     * preserved.
+     */
+    private function shouldTolerateSchemaDuplicate(): bool
+    {
+        return $this->onDuplicate !== OnDuplicate::Fail;
+    }
+
+    /**
+     * Upsert reconciliation: source's updatedAt strictly later than
+     * destination's signals the spec changed since last sync — leaf resource
+     * should be dropped + recreated. Equal or earlier: dest is up-to-date,
+     * tolerate.
+     */
+    private function sourceSpecIsNewer(string $sourceUpdatedAt, string $destUpdatedAt): bool
+    {
+        if ($sourceUpdatedAt === '' || $destUpdatedAt === '') {
+            return false;
+        }
+        return \strtotime($sourceUpdatedAt) > \strtotime($destUpdatedAt);
     }
 
     /**
@@ -501,6 +541,21 @@ class Appwrite extends Destination
         // passing null in creates only creates the metadata collection
         if (!$dbForDatabases->exists(null, UtopiaDatabase::METADATA)) {
             $dbForDatabases->create();
+        }
+
+        // Skip/Upsert: pre-check an existing table. Like databases, tables
+        // contain user data (rows), so both modes simply hydrate the sequence
+        // from the existing metadata document. Attribute/index reconciliation
+        // happens per-resource at a lower layer.
+        if ($this->shouldTolerateSchemaDuplicate()) {
+            $existing = $this->dbForProject->getDocument(
+                'database_' . $database->getSequence(),
+                $resource->getId()
+            );
+            if (!$existing->isEmpty()) {
+                $resource->setSequence($existing->getSequence());
+                return true;
+            }
         }
 
         $table = $this->dbForProject->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
@@ -642,9 +697,38 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
         $dbForDatabases = ($this->getDatabasesDB)($database);
+
+        // Skip/Upsert: pre-check against `attributes` metadata. Skip tolerates
+        // unconditionally; Upsert tolerates unless source's updatedAt is
+        // strictly newer — in which case the column is dropped + recreated so
+        // the spec matches source. Column data is wiped on drop; rows are
+        // repopulated via row-level Upsert below.
+        $attributeMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
+        if ($this->shouldTolerateSchemaDuplicate()) {
+            $existingAttr = $this->dbForProject->getDocument('attributes', $attributeMetaId);
+            if (!$existingAttr->isEmpty()) {
+                if ($this->onDuplicate === OnDuplicate::Skip
+                    || !$this->sourceSpecIsNewer($updatedAt, $existingAttr->getUpdatedAt())
+                ) {
+                    // Destination already up-to-date; hydrate caches and skip.
+                    $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+                    $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+                    return true;
+                }
+                // Source spec newer: drop then recreate under the create flow.
+                $dbForDatabases->deleteAttribute(
+                    'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
+                    $resource->getKey()
+                );
+                $this->dbForProject->deleteDocument('attributes', $attributeMetaId);
+                $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+                $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+            }
+        }
+
         try {
             $column = new UtopiaDocument([
-                '$id' => ID::custom($database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey()),
+                '$id' => ID::custom($attributeMetaId),
                 'key' => $resource->getKey(),
                 'databaseInternalId' => $database->getSequence(),
                 'databaseId' => $database->getId(),
@@ -918,6 +1002,37 @@ class Appwrite extends Destination
                 resourceId: $resource->getId(),
                 message: 'Invalid index: ' . $validator->getDescription(),
             );
+        }
+
+        // Skip/Upsert: pre-check against `indexes` metadata. Same rule as
+        // attributes — Skip tolerates unconditionally; Upsert tolerates unless
+        // source's updatedAt is strictly newer, in which case the index is
+        // dropped + recreated. Index drops are non-destructive (no row data
+        // lives in indexes) so rebuild cost is just the index build time.
+        $indexMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
+        if ($this->shouldTolerateSchemaDuplicate()) {
+            $existingIdx = $this->dbForProject->getDocument('indexes', $indexMetaId);
+            if (!$existingIdx->isEmpty()) {
+                if ($this->onDuplicate === OnDuplicate::Skip
+                    || !$this->sourceSpecIsNewer($updatedAt, $existingIdx->getUpdatedAt())
+                ) {
+                    $this->dbForProject->purgeCachedDocument(
+                        'database_' . $database->getSequence(),
+                        $table->getId()
+                    );
+                    return true;
+                }
+                // Source spec newer: drop then recreate.
+                $dbForDatabases->deleteIndex(
+                    'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
+                    $resource->getKey()
+                );
+                $this->dbForProject->deleteDocument('indexes', $indexMetaId);
+                $this->dbForProject->purgeCachedDocument(
+                    'database_' . $database->getSequence(),
+                    $table->getId()
+                );
+            }
         }
 
         $index = $this->dbForProject->createDocument('indexes', $index);
