@@ -5,11 +5,11 @@ namespace Utopia\Migration\Sources;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Query;
-use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
+use Appwrite\Services\TablesDB;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
@@ -127,7 +127,7 @@ class Appwrite extends Source
 
         switch ($this->source) {
             case static::SOURCE_API:
-                $this->reader = new APIReader(new Databases($this->client));
+                $this->reader = new APIReader(new TablesDB($this->client));
                 break;
 
             case static::SOURCE_DATABASE:
@@ -928,10 +928,12 @@ class Appwrite extends Source
 
                 $response = $this->reader->listTables($database, $queries);
                 foreach ($response as $table) {
+                    $rowSecurity = $table['rowSecurity'] ?? $table['documentSecurity'] ?? false;
                     $newTable = self::getEntity($databaseName, [
                         'id' => $table['$id'],
                         'name' => $table['name'],
-                        'documentSecurity' => $table['documentSecurity'],
+                        'rowSecurity' => $rowSecurity,
+                        'documentSecurity' => $rowSecurity,
                         'permissions' => $table['$permissions'],
                         'createdAt' => $table['$createdAt'],
                         'updatedAt' => $table['$updatedAt'],
@@ -1153,10 +1155,11 @@ class Appwrite extends Source
 
                     unset($row['$id']);
                     unset($row['$permissions']);
-                    unset($row['$collectionId']);
                     unset($row['$databaseId']);
                     unset($row['$sequence']);
                     unset($row['$collection']);
+                    unset($row['$tableId']);
+                    unset($row['$table']);
 
                     $row = self::getRecord($table->getDatabase()->getType(), [
                         'id' => $id,
