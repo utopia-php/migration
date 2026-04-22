@@ -67,14 +67,19 @@ enum OnDuplicate: string
     }
 
     /**
-     * Unparseable timestamps → false (conservative: preserve the existing
-     * destination rather than risk a destructive drop on garbage input).
+     * Unparseable or clearly-invalid timestamps → false (conservative:
+     * preserve the existing destination rather than risk a destructive drop
+     * on garbage input). PHP's strtotime() accepts some malformed dates
+     * leniently — '0000-00-00 00:00:00' for example parses to a large
+     * negative epoch rather than returning false — so we also reject
+     * non-positive epochs. Any legitimate Appwrite updatedAt is well past
+     * 1970-01-01.
      */
     private function sourceIsNewer(string $source, string $dest): bool
     {
         $src = \strtotime($source);
         $dst = \strtotime($dest);
-        if ($src === false || $dst === false) {
+        if ($src === false || $dst === false || $src <= 0 || $dst <= 0) {
             return false;
         }
         return $src > $dst;
