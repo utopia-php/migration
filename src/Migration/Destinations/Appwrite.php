@@ -428,7 +428,11 @@ class Appwrite extends Destination
         // existing metadata document and return. Downstream resources
         // (tables/columns/rows) locate the existing underlying schema via the
         // hydrated sequence.
-        if ($this->onDuplicate->toleratesSchemaDuplicate()) {
+        //
+        // Fail mode short-circuits: no pre-check, let the create below throw
+        // DuplicateException as designed. Saves N metadata reads on the
+        // common first-time-migration path.
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existing = $this->dbForProject->getDocument('databases', $resource->getId());
             if (!$existing->isEmpty()) {
                 $resource->setSequence($existing->getSequence());
@@ -520,8 +524,8 @@ class Appwrite extends Destination
         // Skip/Upsert: pre-check an existing table. Like databases, tables
         // contain user data (rows), so both modes simply hydrate the sequence
         // from the existing metadata document. Attribute/index reconciliation
-        // happens per-resource at a lower layer.
-        if ($this->onDuplicate->toleratesSchemaDuplicate()) {
+        // happens per-resource at a lower layer. Fail short-circuits.
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existing = $this->dbForProject->getDocument(
                 'database_' . $database->getSequence(),
                 $resource->getId()
@@ -672,22 +676,26 @@ class Appwrite extends Destination
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
         $dbForDatabases = ($this->getDatabasesDB)($database);
 
-        // Skip/Upsert: pre-check against `attributes` metadata. Skip tolerates
-        // unconditionally; Upsert tolerates unless source's updatedAt is
-        // strictly newer — in which case the column is dropped + recreated so
-        // the spec matches source. Column data is wiped on drop; rows are
-        // repopulated via row-level Upsert below.
+        // Skip/Upsert: pre-check against `attributes` metadata via one
+        // resolveSchemaAction call. Fail mode short-circuits to preserve
+        // zero-overhead fresh-migration behavior.
         $attributeMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
-        if ($this->onDuplicate->toleratesSchemaDuplicate()) {
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existingAttr = $this->dbForProject->getDocument('attributes', $attributeMetaId);
-            if (!$existingAttr->isEmpty()) {
-                if (!$this->onDuplicate->shouldReconcileSchema($updatedAt, $existingAttr->getUpdatedAt())) {
-                    // Skip, or Upsert with dest up-to-date — tolerate.
-                    $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
-                    $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
-                    return true;
-                }
-                // Source spec newer: drop then recreate under the create flow.
+            $action = $this->onDuplicate->resolveSchemaAction(
+                !$existingAttr->isEmpty(),
+                $updatedAt,
+                $existingAttr->getUpdatedAt(),
+            );
+
+            if ($action === SchemaAction::Tolerate) {
+                $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+                $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+                return true;
+            }
+
+            if ($action === SchemaAction::DropAndRecreate) {
+                // Drop then fall through to the normal create flow below.
                 $dbForDatabases->deleteAttribute(
                     'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
                     $resource->getKey()
@@ -727,6 +735,7 @@ class Appwrite extends Destination
                     }
                 }
             }
+            // SchemaAction::Create → fall through to the normal create flow.
         }
 
         try {
@@ -1007,24 +1016,28 @@ class Appwrite extends Destination
             );
         }
 
-        // Skip/Upsert: pre-check against `indexes` metadata. Same rule as
-        // attributes — Skip tolerates unconditionally; Upsert tolerates unless
-        // source's updatedAt is strictly newer, in which case the index is
-        // dropped + recreated. Index drops are non-destructive (no row data
-        // lives in indexes) so rebuild cost is just the index build time.
+        // Skip/Upsert: pre-check against `indexes` metadata via one
+        // resolveSchemaAction call. Same rule as attributes, except that
+        // index drops are non-destructive (no row data lives in indexes) so
+        // rebuild cost is just the index build time. Fail short-circuits.
         $indexMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
-        if ($this->onDuplicate->toleratesSchemaDuplicate()) {
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existingIdx = $this->dbForProject->getDocument('indexes', $indexMetaId);
-            if (!$existingIdx->isEmpty()) {
-                if (!$this->onDuplicate->shouldReconcileSchema($updatedAt, $existingIdx->getUpdatedAt())) {
-                    // Skip, or Upsert with dest up-to-date — tolerate.
-                    $this->dbForProject->purgeCachedDocument(
-                        'database_' . $database->getSequence(),
-                        $table->getId()
-                    );
-                    return true;
-                }
-                // Source spec newer: drop then recreate.
+            $action = $this->onDuplicate->resolveSchemaAction(
+                !$existingIdx->isEmpty(),
+                $updatedAt,
+                $existingIdx->getUpdatedAt(),
+            );
+
+            if ($action === SchemaAction::Tolerate) {
+                $this->dbForProject->purgeCachedDocument(
+                    'database_' . $database->getSequence(),
+                    $table->getId()
+                );
+                return true;
+            }
+
+            if ($action === SchemaAction::DropAndRecreate) {
                 $dbForDatabases->deleteIndex(
                     'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
                     $resource->getKey()
@@ -1035,6 +1048,7 @@ class Appwrite extends Destination
                     $table->getId()
                 );
             }
+            // SchemaAction::Create → fall through to the normal create flow.
         }
 
         $index = $this->dbForProject->createDocument('indexes', $index);

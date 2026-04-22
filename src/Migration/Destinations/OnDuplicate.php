@@ -3,6 +3,23 @@
 namespace Utopia\Migration\Destinations;
 
 /**
+ * Caller branches on one of these three outcomes after asking
+ * {@see OnDuplicate::resolveSchemaAction()} what to do with a possibly
+ * pre-existing schema resource on the destination.
+ */
+enum SchemaAction
+{
+    /** Resource doesn't exist — run the normal create flow. */
+    case Create;
+
+    /** Resource exists; leave it alone (Skip, or Upsert with dest up-to-date). */
+    case Tolerate;
+
+    /** Resource exists; Upsert mode + source strictly newer — drop + recreate. */
+    case DropAndRecreate;
+}
+
+/**
  * Behavior when a destination row with an existing ID is encountered.
  */
 enum OnDuplicate: string
@@ -20,30 +37,42 @@ enum OnDuplicate: string
     }
 
     /**
-     * Skip and Upsert tolerate an existing schema resource on re-migration;
-     * Fail rethrows. Callers gate their pre-check on this before issuing a
-     * `getDocument` against the destination metadata — on Fail mode the
-     * library's own `DuplicateException` surfaces from the create call below.
+     * Single decision point for schema-level reconciliation on re-migration.
+     *
+     * Callers typically short-circuit on Fail mode before invoking this (to
+     * avoid the destination metadata lookup entirely — the library's own
+     * DuplicateException surfaces from the create call as designed).
+     *
+     * For containers whose data must be preserved (databases, tables),
+     * callers pass $allowDrop = false so the method never returns
+     * DropAndRecreate — only Create or Tolerate.
      */
-    public function toleratesSchemaDuplicate(): bool
-    {
-        return $this !== self::Fail;
+    public function resolveSchemaAction(
+        bool $exists,
+        string $sourceUpdatedAt = '',
+        string $destUpdatedAt = '',
+        bool $allowDrop = true,
+    ): SchemaAction {
+        if (!$exists) {
+            return SchemaAction::Create;
+        }
+        return match ($this) {
+            self::Fail   => SchemaAction::Create,   // caller's create flow will throw
+            self::Skip   => SchemaAction::Tolerate,
+            self::Upsert => ($allowDrop && $this->sourceIsNewer($sourceUpdatedAt, $destUpdatedAt))
+                ? SchemaAction::DropAndRecreate
+                : SchemaAction::Tolerate,
+        };
     }
 
     /**
-     * Upsert reconciliation trigger: true iff mode is Upsert AND source's
-     * updatedAt is strictly newer than destination's. Skip and Fail always
-     * return false (they don't reconcile). Unparseable timestamps → false
-     * (conservative: preserve the existing destination rather than risk a
-     * destructive drop on garbage input).
+     * Unparseable timestamps → false (conservative: preserve the existing
+     * destination rather than risk a destructive drop on garbage input).
      */
-    public function shouldReconcileSchema(string $sourceUpdatedAt, string $destUpdatedAt): bool
+    private function sourceIsNewer(string $source, string $dest): bool
     {
-        if ($this !== self::Upsert) {
-            return false;
-        }
-        $src = \strtotime($sourceUpdatedAt);
-        $dst = \strtotime($destUpdatedAt);
+        $src = \strtotime($source);
+        $dst = \strtotime($dest);
         if ($src === false || $dst === false) {
             return false;
         }
