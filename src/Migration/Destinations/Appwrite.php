@@ -433,7 +433,8 @@ class Appwrite extends Destination
 
             if ($action === SchemaAction::Tolerate) {
                 $resource->setSequence($existing->getSequence());
-                return true;
+                $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                return false;
             }
 
             if ($action === SchemaAction::UpdateInPlace) {
@@ -545,7 +546,8 @@ class Appwrite extends Destination
 
             if ($action === SchemaAction::Tolerate) {
                 $resource->setSequence($existing->getSequence());
-                return true;
+                $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                return false;
             }
 
             if ($action === SchemaAction::UpdateInPlace) {
@@ -719,7 +721,8 @@ class Appwrite extends Destination
             if ($action === SchemaAction::Tolerate) {
                 $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
                 $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
-                return true;
+                $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                return false;
             }
 
             if ($action === SchemaAction::DropAndRecreate) {
@@ -1027,7 +1030,8 @@ class Appwrite extends Destination
                     'database_' . $database->getSequence(),
                     $table->getId()
                 );
-                return true;
+                $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                return false;
             }
 
             if ($action === SchemaAction::DropAndRecreate) {
