@@ -422,21 +422,13 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
-        // Skip/Upsert: pre-check an existing database. Databases contain the
-        // entire tree of collections + rows, so they are never destructively
-        // reconciled — under Upsert-newer the container metadata is updated
-        // in place (name, enabled, etc.) but children are untouched.
-        //
-        // Fail mode short-circuits: no pre-check, let the create below throw
-        // DuplicateException as designed. Saves N metadata reads on the
-        // common first-time-migration path.
+        // Fail mode skips the pre-check so library's DuplicateException surfaces on re-migration.
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existing = $this->dbForProject->getDocument('databases', $resource->getId());
             $action = $this->onDuplicate->resolveSchemaAction(
                 !$existing->isEmpty(),
                 $updatedAt,
                 $existing->getUpdatedAt(),
-                // canDrop: false by default — databases hold child tables + rows.
             );
 
             if ($action === SchemaAction::Tolerate) {
@@ -457,7 +449,6 @@ class Appwrite extends Destination
                 $resource->setSequence($existing->getSequence());
                 return true;
             }
-            // SchemaAction::Create → fall through to the normal create flow.
         }
 
         $database = $this->dbForProject->createDocument('databases', new UtopiaDocument([
@@ -541,12 +532,6 @@ class Appwrite extends Destination
             $dbForDatabases->create();
         }
 
-        // Skip/Upsert: pre-check an existing table. Like databases, tables
-        // contain user data (rows) so they are never destructively
-        // reconciled — under Upsert-newer the container metadata is
-        // updated in place (name, enabled, permissions, etc.) but child
-        // rows are untouched. Attribute/index reconciliation happens
-        // per-resource at a lower layer. Fail short-circuits.
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existing = $this->dbForProject->getDocument(
                 'database_' . $database->getSequence(),
@@ -556,7 +541,6 @@ class Appwrite extends Destination
                 !$existing->isEmpty(),
                 $updatedAt,
                 $existing->getUpdatedAt(),
-                // canDrop: false by default — tables hold child rows.
             );
 
             if ($action === SchemaAction::Tolerate) {
@@ -580,7 +564,6 @@ class Appwrite extends Destination
                 $resource->setSequence($existing->getSequence());
                 return true;
             }
-            // SchemaAction::Create → fall through to the normal create flow.
         }
 
         $table = $this->dbForProject->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
@@ -723,9 +706,6 @@ class Appwrite extends Destination
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
         $dbForDatabases = ($this->getDatabasesDB)($database);
 
-        // Skip/Upsert: pre-check against `attributes` metadata via one
-        // resolveSchemaAction call. Fail mode short-circuits to preserve
-        // zero-overhead fresh-migration behavior.
         $attributeMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existingAttr = $this->dbForProject->getDocument('attributes', $attributeMetaId);
@@ -733,7 +713,7 @@ class Appwrite extends Destination
                 !$existingAttr->isEmpty(),
                 $updatedAt,
                 $existingAttr->getUpdatedAt(),
-                canDrop: true,  // attributes are leaves; column data repopulates via row Upsert
+                canDrop: true,
             );
 
             if ($action === SchemaAction::Tolerate) {
@@ -752,7 +732,6 @@ class Appwrite extends Destination
                     $dbForDatabases,
                 );
             }
-            // SchemaAction::Create → fall through to the normal create flow.
         }
 
         try {
@@ -1033,10 +1012,6 @@ class Appwrite extends Destination
             );
         }
 
-        // Skip/Upsert: pre-check against `indexes` metadata via one
-        // resolveSchemaAction call. Same rule as attributes, except that
-        // index drops are non-destructive (no row data lives in indexes) so
-        // rebuild cost is just the index build time. Fail short-circuits.
         $indexMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existingIdx = $this->dbForProject->getDocument('indexes', $indexMetaId);
@@ -1044,7 +1019,7 @@ class Appwrite extends Destination
                 !$existingIdx->isEmpty(),
                 $updatedAt,
                 $existingIdx->getUpdatedAt(),
-                canDrop: true,  // indexes are leaves; carry no user data
+                canDrop: true,
             );
 
             if ($action === SchemaAction::Tolerate) {
@@ -1066,7 +1041,6 @@ class Appwrite extends Destination
                     $table->getId()
                 );
             }
-            // SchemaAction::Create → fall through to the normal create flow.
         }
 
         $index = $this->dbForProject->createDocument('indexes', $index);
@@ -1244,26 +1218,11 @@ class Appwrite extends Destination
     }
 
     /**
-     * Fully remove an attribute from destination — both metadata documents
-     * and the physical column(s) — so the caller can create it fresh without
-     * colliding with any remnants.
+     * Drop an attribute (metadata doc + physical column) so it can be recreated.
      *
-     * For plain attributes this is a parent-side cleanup. For two-way
-     * relationship attributes, createField writes a second `attributes`
-     * document on the related table (under {dbSeq}_{relatedTableSeq}_{twoWayKey})
-     * in addition to the parent-side document. Dropping only the parent
-     * side leaves the child document dangling and a subsequent recreate
-     * collides on it with DuplicateException. This method mirrors
-     * createField's two-doc write so the "reconcile" path is symmetric.
-     *
-     * Physical cleanup on the related table is best-effort: the library's
-     * deleteAttribute on the parent side can cascade to the child column
-     * depending on relationship handling, so the second deleteAttribute may
-     * no-op or NotFoundException — both swallowed.
-     *
-     * @param UtopiaDocument|null $relatedTable null when the attribute isn't
-     *                                          a two-way relationship;
-     *                                          required otherwise.
+     * Two-way relationships require mirroring: createField writes a second
+     * `attributes` document on the related table keyed by twoWayKey. Dropping
+     * only the parent leaves that child doc dangling and the recreate collides.
      */
     private function deleteAttributeCompletely(
         UtopiaDocument $database,
@@ -1276,15 +1235,11 @@ class Appwrite extends Destination
         $collectionId = 'database_' . $database->getSequence() . '_collection_' . $table->getSequence();
         $attributeMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
 
-        // Parent side.
         $dbForDatabases->deleteAttribute($collectionId, $resource->getKey());
         $this->dbForProject->deleteDocument('attributes', $attributeMetaId);
         $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
         $dbForDatabases->purgeCachedCollection($collectionId);
 
-        // Child side, only for two-way relationships. createField writes a
-        // second `attributes` document keyed on the related table; mirror
-        // that write here.
         if ($type !== UtopiaDatabase::VAR_RELATIONSHIP || $relatedTable === null) {
             return;
         }
@@ -1303,13 +1258,12 @@ class Appwrite extends Destination
         try {
             $this->dbForProject->deleteDocument('attributes', $childMetaId);
         } catch (\Throwable) {
-            // Child metadata already gone — interrupted prior run.
+            // already gone
         }
         try {
             $dbForDatabases->deleteAttribute($childCollectionId, $twoWayKey);
         } catch (\Throwable) {
-            // Physical column already gone — parent-side deleteAttribute may
-            // have cascaded via utopia-php/database relationship handling.
+            // parent-side delete may have cascaded
         }
         $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
         $dbForDatabases->purgeCachedCollection($childCollectionId);
