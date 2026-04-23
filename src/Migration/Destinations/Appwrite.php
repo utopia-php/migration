@@ -424,20 +424,40 @@ class Appwrite extends Destination
 
         // Skip/Upsert: pre-check an existing database. Databases contain the
         // entire tree of collections + rows, so they are never destructively
-        // reconciled — both modes simply hydrate the sequence from the
-        // existing metadata document and return. Downstream resources
-        // (tables/columns/rows) locate the existing underlying schema via the
-        // hydrated sequence.
+        // reconciled — under Upsert-newer the container metadata is updated
+        // in place (name, enabled, etc.) but children are untouched.
         //
         // Fail mode short-circuits: no pre-check, let the create below throw
         // DuplicateException as designed. Saves N metadata reads on the
         // common first-time-migration path.
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existing = $this->dbForProject->getDocument('databases', $resource->getId());
-            if (!$existing->isEmpty()) {
+            $action = $this->onDuplicate->resolveSchemaAction(
+                !$existing->isEmpty(),
+                $updatedAt,
+                $existing->getUpdatedAt(),
+                // canDrop: false by default — databases hold child tables + rows.
+            );
+
+            if ($action === SchemaAction::Tolerate) {
                 $resource->setSequence($existing->getSequence());
                 return true;
             }
+
+            if ($action === SchemaAction::UpdateInPlace) {
+                $this->dbForProject->updateDocument('databases', $existing->getId(), new UtopiaDocument([
+                    'name' => $resource->getDatabaseName(),
+                    'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
+                    'enabled' => $resource->getEnabled(),
+                    'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
+                    'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
+                    'database' => $resource->getDatabase(),
+                    '$updatedAt' => $updatedAt,
+                ]));
+                $resource->setSequence($existing->getSequence());
+                return true;
+            }
+            // SchemaAction::Create → fall through to the normal create flow.
         }
 
         $database = $this->dbForProject->createDocument('databases', new UtopiaDocument([
@@ -522,18 +542,45 @@ class Appwrite extends Destination
         }
 
         // Skip/Upsert: pre-check an existing table. Like databases, tables
-        // contain user data (rows), so both modes simply hydrate the sequence
-        // from the existing metadata document. Attribute/index reconciliation
-        // happens per-resource at a lower layer. Fail short-circuits.
+        // contain user data (rows) so they are never destructively
+        // reconciled — under Upsert-newer the container metadata is
+        // updated in place (name, enabled, permissions, etc.) but child
+        // rows are untouched. Attribute/index reconciliation happens
+        // per-resource at a lower layer. Fail short-circuits.
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existing = $this->dbForProject->getDocument(
                 'database_' . $database->getSequence(),
                 $resource->getId()
             );
-            if (!$existing->isEmpty()) {
+            $action = $this->onDuplicate->resolveSchemaAction(
+                !$existing->isEmpty(),
+                $updatedAt,
+                $existing->getUpdatedAt(),
+                // canDrop: false by default — tables hold child rows.
+            );
+
+            if ($action === SchemaAction::Tolerate) {
                 $resource->setSequence($existing->getSequence());
                 return true;
             }
+
+            if ($action === SchemaAction::UpdateInPlace) {
+                $this->dbForProject->updateDocument(
+                    'database_' . $database->getSequence(),
+                    $existing->getId(),
+                    new UtopiaDocument([
+                        'name' => $resource->getTableName(),
+                        'search' => implode(' ', [$resource->getId(), $resource->getTableName()]),
+                        'enabled' => $resource->getEnabled(),
+                        '$permissions' => Permission::aggregate($resource->getPermissions()),
+                        'documentSecurity' => $resource->getRowSecurity(),
+                        '$updatedAt' => $updatedAt,
+                    ])
+                );
+                $resource->setSequence($existing->getSequence());
+                return true;
+            }
+            // SchemaAction::Create → fall through to the normal create flow.
         }
 
         $table = $this->dbForProject->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
@@ -686,6 +733,7 @@ class Appwrite extends Destination
                 !$existingAttr->isEmpty(),
                 $updatedAt,
                 $existingAttr->getUpdatedAt(),
+                canDrop: true,  // attributes are leaves; column data repopulates via row Upsert
             );
 
             if ($action === SchemaAction::Tolerate) {
@@ -996,6 +1044,7 @@ class Appwrite extends Destination
                 !$existingIdx->isEmpty(),
                 $updatedAt,
                 $existingIdx->getUpdatedAt(),
+                canDrop: true,  // indexes are leaves; carry no user data
             );
 
             if ($action === SchemaAction::Tolerate) {

@@ -3,7 +3,7 @@
 namespace Utopia\Migration\Destinations;
 
 /**
- * Caller branches on one of these three outcomes after asking
+ * Caller branches on one of these outcomes after asking
  * {@see OnDuplicate::resolveSchemaAction()} what to do with a possibly
  * pre-existing schema resource on the destination.
  */
@@ -15,8 +15,22 @@ enum SchemaAction
     /** Resource exists; leave it alone (Skip, or Upsert with dest up-to-date). */
     case Tolerate;
 
-    /** Resource exists; Upsert mode + source strictly newer — drop + recreate. */
+    /**
+     * Resource exists; Upsert mode + source strictly newer + resource is a
+     * leaf (attribute/index) — drop + recreate. Data-preserving containers
+     * get {@see self::UpdateInPlace} instead.
+     */
     case DropAndRecreate;
+
+    /**
+     * Resource exists; Upsert mode + source strictly newer + resource is a
+     * container (database/table) — update metadata in place without
+     * touching children. Callers should only overwrite fields that are
+     * safe to source-wins (name, enabled, search, permissions, etc.) and
+     * must never touch immutable fields ($id, $createdAt, internal
+     * sequences).
+     */
+    case UpdateInPlace;
 }
 
 /**
@@ -43,16 +57,22 @@ enum OnDuplicate: string
      * avoid the destination metadata lookup entirely — the library's own
      * DuplicateException surfaces from the create call as designed).
      *
-     * Only safe to call for leaf resources (attributes, indexes) that can be
-     * dropped to reconcile. Containers whose data must be preserved
-     * (databases, tables) should use the simpler "tolerate existing" inline
-     * check instead — this method's DropAndRecreate outcome would destroy
-     * their user data.
+     * $canDrop picks the Upsert-newer reconciliation strategy; default
+     * false is the safe option — destructive reconciliation requires
+     * explicit opt-in at the call site:
+     *   - true  → DropAndRecreate (attributes, indexes; column data is
+     *             repopulated by the follow-up row Upsert, or is pure
+     *             metadata for indexes).
+     *   - false → UpdateInPlace (databases, tables; their child rows and
+     *             sub-resources must be preserved, so destructive
+     *             reconciliation is replaced with an updateDocument on the
+     *             container's own metadata document).
      */
     public function resolveSchemaAction(
         bool $exists,
         string $sourceUpdatedAt = '',
         string $destUpdatedAt = '',
+        bool $canDrop = false,
     ): SchemaAction {
         if (!$exists) {
             return SchemaAction::Create;
@@ -61,7 +81,7 @@ enum OnDuplicate: string
             self::Fail   => SchemaAction::Create,   // caller's create flow will throw
             self::Skip   => SchemaAction::Tolerate,
             self::Upsert => $this->sourceIsNewer($sourceUpdatedAt, $destUpdatedAt)
-                ? SchemaAction::DropAndRecreate
+                ? ($canDrop ? SchemaAction::DropAndRecreate : SchemaAction::UpdateInPlace)
                 : SchemaAction::Tolerate,
         };
     }

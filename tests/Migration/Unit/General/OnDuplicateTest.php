@@ -59,11 +59,44 @@ class OnDuplicateTest extends TestCase
         );
     }
 
-    public function testUpsertSourceStrictlyNewerReconciles(): void
+    public function testUpsertLeafSourceNewerDropsAndRecreates(): void
     {
+        // canDrop: true → leaf resource (attribute, index). Column data is
+        // repopulated by the follow-up row Upsert, or the resource is pure
+        // metadata (index) so destructive reconciliation is safe.
         $this->assertSame(
             SchemaAction::DropAndRecreate,
             OnDuplicate::Upsert->resolveSchemaAction(
+                exists: true,
+                sourceUpdatedAt: '2026-04-23T10:00:00.000+00:00',
+                destUpdatedAt: '2026-04-23T09:59:59.000+00:00',
+                canDrop: true,
+            ),
+        );
+    }
+
+    public function testUpsertContainerSourceNewerUpdatesInPlace(): void
+    {
+        // Default canDrop: false → container resource (database, table).
+        // Container's metadata doc gets updateDocument; children (tables,
+        // rows) are preserved untouched.
+        $this->assertSame(
+            SchemaAction::UpdateInPlace,
+            OnDuplicate::Upsert->resolveSchemaAction(
+                exists: true,
+                sourceUpdatedAt: '2026-04-23T10:00:00.000+00:00',
+                destUpdatedAt: '2026-04-23T09:59:59.000+00:00',
+            ),
+        );
+    }
+
+    public function testSkipNeverUpdatesContainerEvenWhenSourceNewer(): void
+    {
+        // Skip is strict "don't touch" — must never return UpdateInPlace,
+        // only Tolerate, regardless of timestamps or resource kind.
+        $this->assertSame(
+            SchemaAction::Tolerate,
+            OnDuplicate::Skip->resolveSchemaAction(
                 exists: true,
                 sourceUpdatedAt: '2026-04-23T10:00:00.000+00:00',
                 destUpdatedAt: '2026-04-23T09:59:59.000+00:00',
