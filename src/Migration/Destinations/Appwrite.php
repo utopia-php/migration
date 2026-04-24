@@ -86,11 +86,13 @@ class Appwrite extends Destination
     private array $rowBuffer = [];
 
     /**
-     * Upsert-mode orphan tracking. For each (database, table) scope we saw
-     * during the migration, records the attribute + index keys that came
-     * from source plus the docs/handles needed to reach the destination.
-     * Scopes are removed from this map after their cleanup has run, so a
-     * final sweep at end-of-migration only visits tables that had no rows.
+     * Upsert-mode orphan tracking, keyed by (database, table). Each entry
+     * holds the attribute + index keys source declared for that table plus
+     * the docs/handles needed to reach the destination at cleanup time.
+     * Orphans are the complement: anything the destination has whose key
+     * is NOT in this record. Entries are removed from the map after their
+     * cleanup has run, so the final sweep at end-of-migration only visits
+     * tables that had no rows.
      *
      * @var array<string, array{
      *   database: UtopiaDocument,
@@ -100,7 +102,7 @@ class Appwrite extends Destination
      *   indexKeys: list<string>,
      * }>
      */
-    private array $orphanScopes = [];
+    private array $orphansByTable = [];
 
     /**
      * @param string $project
@@ -1213,7 +1215,7 @@ class Appwrite extends Destination
                 // Structure validator doesn't reject rows on orphan required
                 // columns. Distinct from the payload-shape pass below, which
                 // strips extra fields off the incoming ROW documents.
-                $this->cleanupUpsertOrphansForScope($this->orphanScopeKey($database, $table));
+                $this->cleanupUpsertOrphansForTable($this->tableIdentity($database, $table));
                 /**
                  * This is in case an attribute was deleted from Appwrite attributes collection but was not deleted from the table
                  * When creating an archive we select * which will include orphan attribute from the schema
@@ -1325,10 +1327,10 @@ class Appwrite extends Destination
 
     /**
      * Deterministic per-(database, table) key used to index the orphan
-     * tracker. Built from sequences so it's stable across calls but unique
-     * within the run.
+     * tracker (`$orphansByTable`). Built from sequences so it's stable
+     * across calls but unique within the run.
      */
-    private function orphanScopeKey(UtopiaDocument $database, UtopiaDocument $table): string
+    private function tableIdentity(UtopiaDocument $database, UtopiaDocument $table): string
     {
         return $database->getSequence() . ':' . $table->getSequence();
     }
@@ -1348,9 +1350,9 @@ class Appwrite extends Destination
         if ($this->onDuplicate !== OnDuplicate::Upsert) {
             return;
         }
-        $scopeKey = $this->orphanScopeKey($database, $table);
-        if (!isset($this->orphanScopes[$scopeKey])) {
-            $this->orphanScopes[$scopeKey] = [
+        $tableId = $this->tableIdentity($database, $table);
+        if (!isset($this->orphansByTable[$tableId])) {
+            $this->orphansByTable[$tableId] = [
                 'database' => $database,
                 'table' => $table,
                 'dbForDatabases' => $dbForDatabases,
@@ -1358,45 +1360,45 @@ class Appwrite extends Destination
                 'indexKeys' => [],
             ];
         }
-        $this->orphanScopes[$scopeKey][$kind][] = $key;
+        $this->orphansByTable[$tableId][$kind][] = $key;
     }
 
     /**
-     * End-of-migration sweep: cleans up any scope not already handled by a
+     * End-of-migration sweep: cleans up any table not already handled by a
      * per-table cleanup in createRecord (i.e. tables that had no rows).
      * Skipped if the migration failed before run() completed.
      */
     private function cleanupUpsertOrphans(): void
     {
-        foreach (\array_keys($this->orphanScopes) as $scopeKey) {
-            $this->cleanupUpsertOrphansForScope($scopeKey);
+        foreach (\array_keys($this->orphansByTable) as $tableId) {
+            $this->cleanupUpsertOrphansForTable($tableId);
         }
     }
 
     /**
      * Drops destination attributes/indexes whose keys weren't observed from
-     * source for this scope. Called per-table from createRecord before rows
+     * source for this table. Called per-table from createRecord before rows
      * land so the Structure validator sees the post-cleanup schema. After
-     * running, the scope is removed from the tracker so the end-of-run
+     * running, the entry is removed from the tracker so the end-of-run
      * sweep doesn't re-do the work.
      */
-    private function cleanupUpsertOrphansForScope(string $scopeKey): void
+    private function cleanupUpsertOrphansForTable(string $tableId): void
     {
         if ($this->onDuplicate !== OnDuplicate::Upsert) {
             return;
         }
-        if (!isset($this->orphanScopes[$scopeKey])) {
+        if (!isset($this->orphansByTable[$tableId])) {
             return;
         }
 
-        $scope = $this->orphanScopes[$scopeKey];
-        $database = $scope['database'];
-        $table = $scope['table'];
-        $dbForDatabases = $scope['dbForDatabases'];
+        $tracked = $this->orphansByTable[$tableId];
+        $database = $tracked['database'];
+        $table = $tracked['table'];
+        $dbForDatabases = $tracked['dbForDatabases'];
 
         $this->dropOrphansByKind(
             'attributes',
-            $scope['attributeKeys'],
+            $tracked['attributeKeys'],
             $database,
             $table,
             fn (UtopiaDocument $doc) => $this->dropOrphanAttribute($database, $table, $doc, $dbForDatabases),
@@ -1404,7 +1406,7 @@ class Appwrite extends Destination
 
         $this->dropOrphansByKind(
             'indexes',
-            $scope['indexKeys'],
+            $tracked['indexKeys'],
             $database,
             $table,
             fn (UtopiaDocument $doc) => $this->dropOrphanIndex(
@@ -1415,7 +1417,7 @@ class Appwrite extends Destination
             ),
         );
 
-        unset($this->orphanScopes[$scopeKey]);
+        unset($this->orphansByTable[$tableId]);
     }
 
     /**
