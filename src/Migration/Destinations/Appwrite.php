@@ -105,6 +105,18 @@ class Appwrite extends Destination
     private array $orphansByTable = [];
 
     /**
+     * Set of two-way relationship pair identities already reconciled during
+     * this run. Keyed by a canonical pair-key independent of which side is
+     * being processed. Used by createField to short-circuit the partner's
+     * second pass — the first side's action already reconciled both sides
+     * (Tolerate no-ops, DropAndRecreate drops + recreates both via
+     * dropTwoWayMirror + createRelationship).
+     *
+     * @var array<string, true>
+     */
+    private array $processedTwoWayPairs = [];
+
+    /**
      * @param string $project
      * @param string $endpoint
      * @param string $key
@@ -745,6 +757,20 @@ class Appwrite extends Destination
 
         $this->trackOrphanCandidate($database, $table, 'attributeKeys', $resource->getKey(), $dbForDatabases);
 
+        // Two-way relationships have mirrored metadata + columns on both
+        // tables. Processing one side already reconciles both (Tolerate
+        // no-ops, DropAndRecreate drops + recreates both via
+        // dropTwoWayMirror + createRelationship). When the partner side
+        // comes through, skip it — re-processing would either double-drop
+        // (destroying row data on tables whose rows already migrated) or
+        // waste work. The first side always wins; subsequent partner is
+        // idempotent from the orchestrator's perspective.
+        $twoWayPairKey = $this->twoWayPairKey($database, $table, $resource, $type);
+        if ($twoWayPairKey !== null && isset($this->processedTwoWayPairs[$twoWayPairKey])) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Two-way partner already reconciled');
+            return false;
+        }
+
         $attributeMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existingAttr = $this->dbForProject->getDocument('attributes', $attributeMetaId);
@@ -759,6 +785,9 @@ class Appwrite extends Destination
                 $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
                 $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
                 $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                if ($twoWayPairKey !== null) {
+                    $this->processedTwoWayPairs[$twoWayPairKey] = true;
+                }
                 return false;
             }
 
@@ -939,6 +968,10 @@ class Appwrite extends Destination
 
         $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
         $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+
+        if ($twoWayPairKey !== null) {
+            $this->processedTwoWayPairs[$twoWayPairKey] = true;
+        }
 
         return true;
     }
@@ -1333,6 +1366,38 @@ class Appwrite extends Destination
     private function tableIdentity(UtopiaDocument $database, UtopiaDocument $table): string
     {
         return $database->getSequence() . ':' . $table->getSequence();
+    }
+
+    /**
+     * Canonical identity for a two-way relationship pair — same string
+     * regardless of which side (parent or child) is being processed.
+     * Returns null when the resource isn't a two-way relationship (no
+     * pair-level tracking needed).
+     */
+    private function twoWayPairKey(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        Column|Attribute $resource,
+        string $type,
+    ): ?string {
+        if ($type !== UtopiaDatabase::VAR_RELATIONSHIP) {
+            return null;
+        }
+        $options = $resource->getOptions();
+        if (empty($options['twoWay'])) {
+            return null;
+        }
+        $twoWayKey = (string) ($options['twoWayKey'] ?? '');
+        $relatedTableId = (string) ($options['relatedCollection'] ?? '');
+        if ($twoWayKey === '' || $relatedTableId === '') {
+            return null;
+        }
+
+        $thisSide = $table->getId() . '::' . $resource->getKey();
+        $partnerSide = $relatedTableId . '::' . $twoWayKey;
+        $pair = [$thisSide, $partnerSide];
+        \sort($pair);
+        return $database->getSequence() . '@' . \implode('<->', $pair);
     }
 
     /**
