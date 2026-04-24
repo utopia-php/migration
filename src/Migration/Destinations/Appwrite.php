@@ -86,6 +86,23 @@ class Appwrite extends Destination
     private array $rowBuffer = [];
 
     /**
+     * Upsert-mode orphan tracking. For each (database, table) scope we saw
+     * during the migration, records the attribute + index keys that came
+     * from source plus the docs/handles needed to reach the destination.
+     * Scopes are removed from this map after their cleanup has run, so a
+     * final sweep at end-of-migration only visits tables that had no rows.
+     *
+     * @var array<string, array{
+     *   database: UtopiaDocument,
+     *   table: UtopiaDocument,
+     *   dbForDatabases: UtopiaDatabase,
+     *   attributeKeys: list<string>,
+     *   indexKeys: list<string>,
+     * }>
+     */
+    private array $orphanScopes = [];
+
+    /**
      * @param string $project
      * @param string $endpoint
      * @param string $key
@@ -120,6 +137,22 @@ class Appwrite extends Destination
         $this->users = new Users($this->client);
 
         $this->getDatabasesDB = $getDatabasesDB;
+    }
+
+    /**
+     * Upsert-mode orphan cleanup runs after a successful migration only.
+     * A thrown exception from the source/import loop short-circuits here
+     * so mid-migration failures preserve the destination as-is.
+     */
+    #[Override]
+    public function run(
+        array $resources,
+        callable $callback,
+        string $rootResourceId = '',
+        string $rootResourceType = '',
+    ): void {
+        parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+        $this->cleanupUpsertOrphans();
     }
 
     public static function getName(): string
@@ -708,6 +741,8 @@ class Appwrite extends Destination
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
         $dbForDatabases = ($this->getDatabasesDB)($database);
 
+        $this->trackOrphanCandidate($database, $table, 'attributeKeys', $resource->getKey(), $dbForDatabases);
+
         $attributeMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existingAttr = $this->dbForProject->getDocument('attributes', $attributeMetaId);
@@ -726,7 +761,7 @@ class Appwrite extends Destination
             }
 
             if ($action === SchemaAction::DropAndRecreate) {
-                $this->deleteAttributeCompletely(
+                $this->dropAttributeForRecreate(
                     $database,
                     $table,
                     $resource,
@@ -963,6 +998,8 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
+        $this->trackOrphanCandidate($database, $table, 'indexKeys', $resource->getKey(), $dbForDatabases);
+
         $index = new UtopiaDocument([
             '$id' => ID::custom($database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey()),
             'key' => $resource->getKey(),
@@ -1170,6 +1207,13 @@ class Appwrite extends Destination
                 $databaseInternalId = $database->getSequence();
                 $tableInternalId = $table->getSequence();
                 $dbForDatabases = ($this->getDatabasesDB)($database);
+
+                // Reconcile the destination SCHEMA before rows land: drops
+                // attributes/indexes source no longer declares so the
+                // Structure validator doesn't reject rows on orphan required
+                // columns. Distinct from the payload-shape pass below, which
+                // strips extra fields off the incoming ROW documents.
+                $this->cleanupUpsertOrphansForScope($this->orphanScopeKey($database, $table));
                 /**
                  * This is in case an attribute was deleted from Appwrite attributes collection but was not deleted from the table
                  * When creating an archive we select * which will include orphan attribute from the schema
@@ -1228,7 +1272,7 @@ class Appwrite extends Destination
      * `attributes` document on the related table keyed by twoWayKey. Dropping
      * only the parent leaves that child doc dangling and the recreate collides.
      */
-    private function deleteAttributeCompletely(
+    private function dropAttributeForRecreate(
         UtopiaDocument $database,
         UtopiaDocument $table,
         Column|Attribute $resource,
@@ -1251,26 +1295,224 @@ class Appwrite extends Destination
         if (empty($options['twoWay'])) {
             return;
         }
-        $twoWayKey = $options['twoWayKey'] ?? '';
+        $twoWayKey = (string) ($options['twoWayKey'] ?? '');
         if ($twoWayKey === '') {
+            return;
+        }
+
+        $this->dropTwoWayMirror($database, $relatedTable, $twoWayKey, $dbForDatabases);
+    }
+
+    /**
+     * Drop the child-side `attributes` metadata doc + physical column that
+     * createField writes for two-way relationships. Shared by the DropAndRecreate
+     * path (pre-fetched $relatedTable) and the orphan cleanup path.
+     */
+    private function dropTwoWayMirror(
+        UtopiaDocument $database,
+        UtopiaDocument $relatedTable,
+        string $twoWayKey,
+        UtopiaDatabase $dbForDatabases,
+    ): void {
+        $childCollectionId = 'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence();
+        $childMetaId = $database->getSequence() . '_' . $relatedTable->getSequence() . '_' . $twoWayKey;
+
+        $this->tolerateMissing(fn () => $this->dbForProject->deleteDocument('attributes', $childMetaId));
+        $this->tolerateMissing(fn () => $dbForDatabases->deleteAttribute($childCollectionId, $twoWayKey));
+        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
+        $dbForDatabases->purgeCachedCollection($childCollectionId);
+    }
+
+    /**
+     * Deterministic per-(database, table) key used to index the orphan
+     * tracker. Built from sequences so it's stable across calls but unique
+     * within the run.
+     */
+    private function orphanScopeKey(UtopiaDocument $database, UtopiaDocument $table): string
+    {
+        return $database->getSequence() . ':' . $table->getSequence();
+    }
+
+    /**
+     * Records that $key was seen for this (database, table) during the run.
+     * $kind selects the tracker bucket ('attributeKeys' or 'indexKeys'). Only
+     * Upsert mode accumulates; Skip/Fail short-circuit.
+     */
+    private function trackOrphanCandidate(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        string $kind,
+        string $key,
+        UtopiaDatabase $dbForDatabases,
+    ): void {
+        if ($this->onDuplicate !== OnDuplicate::Upsert) {
+            return;
+        }
+        $scopeKey = $this->orphanScopeKey($database, $table);
+        if (!isset($this->orphanScopes[$scopeKey])) {
+            $this->orphanScopes[$scopeKey] = [
+                'database' => $database,
+                'table' => $table,
+                'dbForDatabases' => $dbForDatabases,
+                'attributeKeys' => [],
+                'indexKeys' => [],
+            ];
+        }
+        $this->orphanScopes[$scopeKey][$kind][] = $key;
+    }
+
+    /**
+     * End-of-migration sweep: cleans up any scope not already handled by a
+     * per-table cleanup in createRecord (i.e. tables that had no rows).
+     * Skipped if the migration failed before run() completed.
+     */
+    private function cleanupUpsertOrphans(): void
+    {
+        foreach (\array_keys($this->orphanScopes) as $scopeKey) {
+            $this->cleanupUpsertOrphansForScope($scopeKey);
+        }
+    }
+
+    /**
+     * Drops destination attributes/indexes whose keys weren't observed from
+     * source for this scope. Called per-table from createRecord before rows
+     * land so the Structure validator sees the post-cleanup schema. After
+     * running, the scope is removed from the tracker so the end-of-run
+     * sweep doesn't re-do the work.
+     */
+    private function cleanupUpsertOrphansForScope(string $scopeKey): void
+    {
+        if ($this->onDuplicate !== OnDuplicate::Upsert) {
+            return;
+        }
+        if (!isset($this->orphanScopes[$scopeKey])) {
+            return;
+        }
+
+        $scope = $this->orphanScopes[$scopeKey];
+        $database = $scope['database'];
+        $table = $scope['table'];
+        $dbForDatabases = $scope['dbForDatabases'];
+
+        $this->dropOrphansByKind(
+            'attributes',
+            $scope['attributeKeys'],
+            $database,
+            $table,
+            fn (UtopiaDocument $doc) => $this->dropOrphanAttribute($database, $table, $doc, $dbForDatabases),
+        );
+
+        $this->dropOrphansByKind(
+            'indexes',
+            $scope['indexKeys'],
+            $database,
+            $table,
+            fn (UtopiaDocument $doc) => $this->dropOrphanIndex(
+                $database,
+                $table,
+                (string) $doc->getAttribute('key'),
+                $dbForDatabases,
+            ),
+        );
+
+        unset($this->orphanScopes[$scopeKey]);
+    }
+
+    /**
+     * Finds destination metadata docs in $metaCollection belonging to this
+     * (database, table) and invokes $drop for each one whose key isn't in
+     * $processedKeys. Shared by the attribute and index cleanup paths.
+     *
+     * @param list<string> $processedKeys
+     * @param callable(UtopiaDocument): void $drop
+     */
+    private function dropOrphansByKind(
+        string $metaCollection,
+        array $processedKeys,
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        callable $drop,
+    ): void {
+        $destDocs = $this->dbForProject->find($metaCollection, [
+            Query::equal('databaseInternalId', [$database->getSequence()]),
+            Query::equal('collectionInternalId', [$table->getSequence()]),
+            Query::limit(PHP_INT_MAX),
+        ]);
+        foreach ($destDocs as $destDoc) {
+            if (!\in_array($destDoc->getAttribute('key'), $processedKeys, true)) {
+                $drop($destDoc);
+            }
+        }
+    }
+
+    /**
+     * Drop an orphan attribute (metadata doc + physical column). Uses the
+     * destination's own metadata document as the source of truth for type
+     * and relationship options, since there's no source resource to consult.
+     */
+    private function dropOrphanAttribute(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        UtopiaDocument $attrDoc,
+        UtopiaDatabase $dbForDatabases,
+    ): void {
+        $key = (string) $attrDoc->getAttribute('key');
+        $type = (string) $attrDoc->getAttribute('type');
+        $options = $attrDoc->getAttribute('options', []);
+        $collectionId = 'database_' . $database->getSequence() . '_collection_' . $table->getSequence();
+
+        $this->tolerateMissing(fn () => $dbForDatabases->deleteAttribute($collectionId, $key));
+        $this->tolerateMissing(fn () => $this->dbForProject->deleteDocument('attributes', $attrDoc->getId()));
+        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+        $dbForDatabases->purgeCachedCollection($collectionId);
+
+        if ($type !== UtopiaDatabase::VAR_RELATIONSHIP || empty($options['twoWay'])) {
+            return;
+        }
+        $twoWayKey = (string) ($options['twoWayKey'] ?? '');
+        $relatedTableId = (string) ($options['relatedCollection'] ?? '');
+        if ($twoWayKey === '' || $relatedTableId === '') {
+            return;
+        }
+        $relatedTable = $this->dbForProject->getDocument('database_' . $database->getSequence(), $relatedTableId);
+        if ($relatedTable->isEmpty()) {
             return;
         }
 
         $childCollectionId = 'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence();
         $childMetaId = $database->getSequence() . '_' . $relatedTable->getSequence() . '_' . $twoWayKey;
+        $this->tolerateMissing(fn () => $this->dbForProject->deleteDocument('attributes', $childMetaId));
+        $this->tolerateMissing(fn () => $dbForDatabases->deleteAttribute($childCollectionId, $twoWayKey));
+        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
+        $dbForDatabases->purgeCachedCollection($childCollectionId);
+    }
 
+    private function dropOrphanIndex(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        string $indexKey,
+        UtopiaDatabase $dbForDatabases,
+    ): void {
+        $collectionId = 'database_' . $database->getSequence() . '_collection_' . $table->getSequence();
+        $indexMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $indexKey;
+
+        $this->tolerateMissing(fn () => $dbForDatabases->deleteIndex($collectionId, $indexKey));
+        $this->tolerateMissing(fn () => $this->dbForProject->deleteDocument('indexes', $indexMetaId));
+        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+    }
+
+    /**
+     * Swallows deletion errors — a prior interrupted run (or parent-side
+     * cascade via utopia-php/database relationship handling) may already
+     * have removed the target.
+     */
+    private function tolerateMissing(callable $fn): void
+    {
         try {
-            $this->dbForProject->deleteDocument('attributes', $childMetaId);
+            $fn();
         } catch (\Throwable) {
             // already gone
         }
-        try {
-            $dbForDatabases->deleteAttribute($childCollectionId, $twoWayKey);
-        } catch (\Throwable) {
-            // parent-side delete may have cascaded
-        }
-        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
-        $dbForDatabases->purgeCachedCollection($childCollectionId);
     }
 
     /**

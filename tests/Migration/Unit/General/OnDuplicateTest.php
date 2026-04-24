@@ -139,8 +139,11 @@ class OnDuplicateTest extends TestCase
     {
         return [
             'both empty'        => ['', ''],
+            'both null'         => [null, null],
             'source empty'      => ['', '2026-04-23T10:00:00.000+00:00'],
             'dest empty'        => ['2026-04-23T10:00:00.000+00:00', ''],
+            'source null'       => [null, '2026-04-23T10:00:00.000+00:00'],
+            'dest null'         => ['2026-04-23T10:00:00.000+00:00', null],
             'source zero-date'  => ['0000-00-00 00:00:00', '2026-04-23T10:00:00.000+00:00'],
             'dest zero-date'    => ['2026-04-23T10:00:00.000+00:00', '0000-00-00 00:00:00'],
             'source garbage'    => ['not-a-date', '2026-04-23T10:00:00.000+00:00'],
@@ -149,7 +152,7 @@ class OnDuplicateTest extends TestCase
     }
 
     #[DataProvider('unparseableTimestampPairs')]
-    public function testUpsertUnparseableTimestampsTolerate(string $source, string $dest): void
+    public function testUpsertUnparseableTimestampsTolerate(?string $source, ?string $dest): void
     {
         // Conservative: unparseable timestamps preserve existing destination
         // rather than risk a destructive drop on garbage input. Any
