@@ -105,18 +105,6 @@ class Appwrite extends Destination
     private array $orphansByTable = [];
 
     /**
-     * Set of two-way relationship pair identities already reconciled during
-     * this run. Keyed by a canonical pair-key independent of which side is
-     * being processed. Used by createField to short-circuit the partner's
-     * second pass — the first side's action already reconciled both sides
-     * (Tolerate no-ops, DropAndRecreate drops + recreates both via
-     * dropTwoWayMirror + createRelationship).
-     *
-     * @var array<string, true>
-     */
-    private array $processedTwoWayPairs = [];
-
-    /**
      * @param string $project
      * @param string $endpoint
      * @param string $key
@@ -757,19 +745,11 @@ class Appwrite extends Destination
 
         $this->trackOrphanCandidate($database, $table, 'attributeKeys', $resource->getKey(), $dbForDatabases);
 
-        // Two-way relationships have mirrored metadata + columns on both
-        // tables. Processing one side already reconciles both (Tolerate
-        // no-ops, DropAndRecreate drops + recreates both via
-        // dropTwoWayMirror + createRelationship). When the partner side
-        // comes through, skip it — re-processing would either double-drop
-        // (destroying row data on tables whose rows already migrated) or
-        // waste work. The first side always wins; subsequent partner is
-        // idempotent from the orchestrator's perspective.
-        $twoWayPairKey = $this->twoWayPairKey($database, $table, $resource, $type);
-        if ($twoWayPairKey !== null && isset($this->processedTwoWayPairs[$twoWayPairKey])) {
-            $resource->setStatus(Resource::STATUS_SKIPPED, 'Two-way partner already reconciled');
-            return false;
-        }
+        // Relationships route to UpdateInPlace, not DropAndRecreate:
+        // utopia's deleteAttribute throws for VAR_RELATIONSHIP, and
+        // two-way drops would cascade to the partner table's physical
+        // column. Non-relationship attrs keep DropAndRecreate.
+        $isRelationship = $type === UtopiaDatabase::VAR_RELATIONSHIP;
 
         $attributeMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
         if ($this->onDuplicate !== OnDuplicate::Fail) {
@@ -778,28 +758,31 @@ class Appwrite extends Destination
                 !$existingAttr->isEmpty(),
                 $updatedAt,
                 $existingAttr->getUpdatedAt(),
-                canDrop: true,
+                canDrop: !$isRelationship,
             );
 
             if ($action === SchemaAction::Tolerate) {
                 $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
                 $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
                 $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-                if ($twoWayPairKey !== null) {
-                    $this->processedTwoWayPairs[$twoWayPairKey] = true;
-                }
                 return false;
             }
 
-            if ($action === SchemaAction::DropAndRecreate) {
-                $this->dropAttributeForRecreate(
+            if ($action === SchemaAction::UpdateInPlace) {
+                $this->updateRelationshipInPlace(
                     $database,
                     $table,
                     $resource,
                     $type,
-                    $relatedTable ?? null,
+                    $updatedAt,
+                    $existingAttr,
                     $dbForDatabases,
                 );
+                return true;
+            }
+
+            if ($action === SchemaAction::DropAndRecreate) {
+                $this->dropAttributeForRecreate($database, $table, $resource, $dbForDatabases);
             }
         }
 
@@ -968,10 +951,6 @@ class Appwrite extends Destination
 
         $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
         $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
-
-        if ($twoWayPairKey !== null) {
-            $this->processedTwoWayPairs[$twoWayPairKey] = true;
-        }
 
         return true;
     }
@@ -1301,18 +1280,16 @@ class Appwrite extends Destination
     }
 
     /**
-     * Drop an attribute (metadata doc + physical column) so it can be recreated.
-     *
-     * Two-way relationships require mirroring: createField writes a second
-     * `attributes` document on the related table keyed by twoWayKey. Dropping
-     * only the parent leaves that child doc dangling and the recreate collides.
+     * Drop a non-relationship attribute (metadata doc + physical column) so
+     * it can be recreated. Not used for relationships — those route through
+     * UpdateInPlace since utopia's deleteAttribute throws for VAR_RELATIONSHIP
+     * and dropping a relationship column would cascade data loss to the
+     * partner table's rows.
      */
     private function dropAttributeForRecreate(
         UtopiaDocument $database,
         UtopiaDocument $table,
         Column|Attribute $resource,
-        string $type,
-        ?UtopiaDocument $relatedTable,
         UtopiaDatabase $dbForDatabases,
     ): void {
         $collectionId = 'database_' . $database->getSequence() . '_collection_' . $table->getSequence();
@@ -1322,40 +1299,79 @@ class Appwrite extends Destination
         $this->dbForProject->deleteDocument('attributes', $attributeMetaId);
         $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
         $dbForDatabases->purgeCachedCollection($collectionId);
-
-        if ($type !== UtopiaDatabase::VAR_RELATIONSHIP || $relatedTable === null) {
-            return;
-        }
-        $options = $resource->getOptions();
-        if (empty($options['twoWay'])) {
-            return;
-        }
-        $twoWayKey = (string) ($options['twoWayKey'] ?? '');
-        if ($twoWayKey === '') {
-            return;
-        }
-
-        $this->dropTwoWayMirror($database, $relatedTable, $twoWayKey, $dbForDatabases);
     }
 
     /**
-     * Drop the child-side `attributes` metadata doc + physical column that
-     * createField writes for two-way relationships. Shared by the DropAndRecreate
-     * path (pre-fetched $relatedTable) and the orphan cleanup path.
+     * Reconcile a relationship attribute's metadata on destination without
+     * dropping its physical column — keeps row data intact.
+     *
+     * Two layers must stay in sync: utopia-php/database's internal
+     * `_metadata` collection (used for row validation) and Appwrite's
+     * application-level `attributes` doc (used by the Appwrite API). Each
+     * side's own pass is authoritative for its own Appwrite-level doc;
+     * utopia's updateRelationship cascades internal metadata on both sides
+     * in one call and is idempotent across passes for same-target writes.
+     *
+     * relationType changes aren't supported by updateRelationship (they'd
+     * require a physical schema change). Fail fast rather than silently
+     * diverge utopia's view from Appwrite's view.
      */
-    private function dropTwoWayMirror(
+    private function updateRelationshipInPlace(
         UtopiaDocument $database,
-        UtopiaDocument $relatedTable,
-        string $twoWayKey,
+        UtopiaDocument $table,
+        Column|Attribute $resource,
+        string $type,
+        string $updatedAt,
+        UtopiaDocument $existingAttr,
         UtopiaDatabase $dbForDatabases,
     ): void {
-        $childCollectionId = 'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence();
-        $childMetaId = $database->getSequence() . '_' . $relatedTable->getSequence() . '_' . $twoWayKey;
+        $collectionId = 'database_' . $database->getSequence() . '_collection_' . $table->getSequence();
+        $sourceOptions = $resource->getOptions();
+        $destOptions = $existingAttr->getAttribute('options', []);
 
-        $this->tolerateMissing(fn () => $this->dbForProject->deleteDocument('attributes', $childMetaId));
-        $this->tolerateMissing(fn () => $dbForDatabases->deleteAttribute($childCollectionId, $twoWayKey));
-        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
-        $dbForDatabases->purgeCachedCollection($childCollectionId);
+        if (
+            isset($sourceOptions['relationType'], $destOptions['relationType'])
+            && $sourceOptions['relationType'] !== $destOptions['relationType']
+        ) {
+            throw new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Changing relationType on a migrated relationship is not supported; drop and recreate the relationship on the destination manually before re-running the migration.',
+            );
+        }
+
+        $dbForDatabases->updateRelationship(
+            collection: $collectionId,
+            id: $resource->getKey(),
+            newTwoWayKey: ($sourceOptions['twoWayKey'] ?? null) !== ($destOptions['twoWayKey'] ?? null)
+                ? (string) ($sourceOptions['twoWayKey'] ?? '')
+                : null,
+            twoWay: ($sourceOptions['twoWay'] ?? null) !== ($destOptions['twoWay'] ?? null)
+                ? (bool) ($sourceOptions['twoWay'] ?? false)
+                : null,
+            onDelete: ($sourceOptions['onDelete'] ?? null) !== ($destOptions['onDelete'] ?? null)
+                ? (string) ($sourceOptions['onDelete'] ?? '')
+                : null,
+        );
+
+        $this->dbForProject->updateDocument('attributes', $existingAttr->getId(), new UtopiaDocument([
+            'key' => $resource->getKey(),
+            'type' => $type,
+            'size' => $resource->getSize(),
+            'required' => $resource->isRequired(),
+            'signed' => $resource->isSigned(),
+            'default' => $resource->getDefault(),
+            'array' => $resource->isArray(),
+            'format' => $resource->getFormat(),
+            'formatOptions' => $resource->getFormatOptions(),
+            'filters' => $resource->getFilters(),
+            'options' => $sourceOptions,
+            '$updatedAt' => $updatedAt,
+        ]));
+
+        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
+        $dbForDatabases->purgeCachedCollection($collectionId);
     }
 
     /**
@@ -1366,38 +1382,6 @@ class Appwrite extends Destination
     private function tableIdentity(UtopiaDocument $database, UtopiaDocument $table): string
     {
         return $database->getSequence() . ':' . $table->getSequence();
-    }
-
-    /**
-     * Canonical identity for a two-way relationship pair — same string
-     * regardless of which side (parent or child) is being processed.
-     * Returns null when the resource isn't a two-way relationship (no
-     * pair-level tracking needed).
-     */
-    private function twoWayPairKey(
-        UtopiaDocument $database,
-        UtopiaDocument $table,
-        Column|Attribute $resource,
-        string $type,
-    ): ?string {
-        if ($type !== UtopiaDatabase::VAR_RELATIONSHIP) {
-            return null;
-        }
-        $options = $resource->getOptions();
-        if (empty($options['twoWay'])) {
-            return null;
-        }
-        $twoWayKey = (string) ($options['twoWayKey'] ?? '');
-        $relatedTableId = (string) ($options['relatedCollection'] ?? '');
-        if ($twoWayKey === '' || $relatedTableId === '') {
-            return null;
-        }
-
-        $thisSide = $table->getId() . '::' . $resource->getKey();
-        $partnerSide = $relatedTableId . '::' . $twoWayKey;
-        $pair = [$thisSide, $partnerSide];
-        \sort($pair);
-        return $database->getSequence() . '@' . \implode('<->', $pair);
     }
 
     /**
@@ -1516,6 +1500,12 @@ class Appwrite extends Destination
      * Drop an orphan attribute (metadata doc + physical column). Uses the
      * destination's own metadata document as the source of truth for type
      * and relationship options, since there's no source resource to consult.
+     *
+     * Relationships use deleteRelationship (which cascades to both sides's
+     * physical columns + utopia's internal metadata) rather than
+     * deleteAttribute (which throws for relationship types). Appwrite's
+     * application-level `attributes` metadata docs on both sides are
+     * cleaned separately.
      */
     private function dropOrphanAttribute(
         UtopiaDocument $database,
@@ -1528,7 +1518,11 @@ class Appwrite extends Destination
         $options = $attrDoc->getAttribute('options', []);
         $collectionId = 'database_' . $database->getSequence() . '_collection_' . $table->getSequence();
 
-        $this->tolerateMissing(fn () => $dbForDatabases->deleteAttribute($collectionId, $key));
+        if ($type === UtopiaDatabase::VAR_RELATIONSHIP) {
+            $this->tolerateMissing(fn () => $dbForDatabases->deleteRelationship($collectionId, $key));
+        } else {
+            $this->tolerateMissing(fn () => $dbForDatabases->deleteAttribute($collectionId, $key));
+        }
         $this->tolerateMissing(fn () => $this->dbForProject->deleteDocument('attributes', $attrDoc->getId()));
         $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
         $dbForDatabases->purgeCachedCollection($collectionId);
@@ -1546,12 +1540,15 @@ class Appwrite extends Destination
             return;
         }
 
-        $childCollectionId = 'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence();
+        // Physical column on the related table was already dropped by
+        // deleteRelationship above. Only the Appwrite-level metadata doc
+        // remains to clean up.
         $childMetaId = $database->getSequence() . '_' . $relatedTable->getSequence() . '_' . $twoWayKey;
         $this->tolerateMissing(fn () => $this->dbForProject->deleteDocument('attributes', $childMetaId));
-        $this->tolerateMissing(fn () => $dbForDatabases->deleteAttribute($childCollectionId, $twoWayKey));
         $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
-        $dbForDatabases->purgeCachedCollection($childCollectionId);
+        $dbForDatabases->purgeCachedCollection(
+            'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence(),
+        );
     }
 
     private function dropOrphanIndex(
