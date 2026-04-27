@@ -283,7 +283,6 @@ class Appwrite extends Destination
                 $scope = 'sites.write';
                 $this->sites->create('', '', Framework::OTHER(), BuildRuntime::STATIC1());
             }
-
         } catch (AppwriteException $e) {
             if ($e->getCode() === 403) {
                 throw new \Exception(
@@ -1084,7 +1083,6 @@ class Appwrite extends Destination
                         fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
                     ),
                 };
-
             } finally {
                 $this->rowBuffer = [];
             }
@@ -1141,6 +1139,7 @@ class Appwrite extends Destination
                     'none' => Compression::NONE(),
                     'gzip' => Compression::GZIP(),
                     'zstd' => Compression::ZSTD(),
+                    // no break
                     default => throw new \Exception('Invalid Compression: ' . $resource->getCompression(), Exception::CODE_VALIDATION),
                 };
 
@@ -1464,6 +1463,7 @@ class Appwrite extends Destination
                     'bun-1.0' => Runtime::BUN10(),
                     'bun-1.1' => Runtime::BUN11(),
                     'go-1.23' => Runtime::GO123(),
+                    // no break
                     default => throw new \Exception('Invalid Runtime: ' . $resource->getRuntime(), Exception::CODE_VALIDATION),
                 };
 
@@ -1683,6 +1683,7 @@ class Appwrite extends Destination
                     'flutter-3.29' => BuildRuntime::FLUTTER329(),
                     'flutter-3.32' => BuildRuntime::FLUTTER332(),
                     'flutter-3.35' => BuildRuntime::FLUTTER335(),
+                    // no break
                     default => throw new \Exception('Invalid Build Runtime: ' . $resource->getBuildRuntime(), Exception::CODE_VALIDATION),
                 };
 
