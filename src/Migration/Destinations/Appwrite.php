@@ -120,6 +120,18 @@ class Appwrite extends Destination
     private array $orphansByTable = [];
 
     /**
+     * Two-way relationship pairs already reconciled this run, keyed by a
+     * canonical pair-key. Source emits both sides as separate Column
+     * resources, but processing one side already reconciles both physical
+     * columns + both Appwrite-level meta docs. Without this set, the
+     * partner pass can re-trigger DropAndRecreate and destroy partner-table
+     * rows already migrated.
+     *
+     * @var array<string, true>
+     */
+    private array $processedTwoWayPairs = [];
+
+    /**
      * @param string $project
      * @param string $endpoint
      * @param string $key
@@ -775,6 +787,17 @@ class Appwrite extends Destination
         // Two-way drop loses partner row data, restored by the subsequent Upsert row pass.
         $isRelationship = $type === UtopiaDatabase::VAR_RELATIONSHIP;
 
+        // Two-way relationships emit two source-side resources but reconcile both
+        // physical columns + both Appwrite-level meta docs in one pass. Skip the
+        // partner — re-processing can fire DropAndRecreate again and destroy
+        // partner-table rows already migrated this run (parent and partner have
+        // independent source createdAt values that may not match).
+        $twoWayPairKey = $this->twoWayPairKey($database, $table, $resource, $type);
+        if ($twoWayPairKey !== null && isset($this->processedTwoWayPairs[$twoWayPairKey])) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Two-way partner already reconciled');
+            return false;
+        }
+
         $attributeMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existingAttr = $this->dbForProject->getDocument('attributes', $attributeMetaId);
@@ -802,6 +825,9 @@ class Appwrite extends Destination
                 SchemaAction::DropAndRecreate, SchemaAction::Create => null,
             };
             if ($earlyReturn !== null) {
+                if ($twoWayPairKey !== null) {
+                    $this->processedTwoWayPairs[$twoWayPairKey] = true;
+                }
                 return $earlyReturn;
             }
 
@@ -971,6 +997,10 @@ class Appwrite extends Destination
         }
 
         $this->purgeTableCaches($database, $table, $dbForDatabases);
+
+        if ($twoWayPairKey !== null) {
+            $this->processedTwoWayPairs[$twoWayPairKey] = true;
+        }
 
         return true;
     }
@@ -1508,6 +1538,37 @@ class Appwrite extends Destination
     private function tableIdentity(UtopiaDocument $database, UtopiaDocument $table): string
     {
         return $database->getSequence() . ':' . $table->getSequence();
+    }
+
+    /**
+     * Canonical pair-key for a two-way relationship — same string regardless
+     * of which side (parent or partner) is being processed. Returns null for
+     * non-two-way attributes (no pair-level tracking needed).
+     */
+    private function twoWayPairKey(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        Column|Attribute $resource,
+        string $type,
+    ): ?string {
+        if ($type !== UtopiaDatabase::VAR_RELATIONSHIP) {
+            return null;
+        }
+        $options = $resource->getOptions();
+        if (empty($options['twoWay'])) {
+            return null;
+        }
+        $twoWayKey = (string) ($options['twoWayKey'] ?? '');
+        $relatedTableId = (string) ($options['relatedCollection'] ?? '');
+        if ($twoWayKey === '' || $relatedTableId === '') {
+            return null;
+        }
+
+        $thisSide = $table->getId() . '::' . $resource->getKey();
+        $partnerSide = $relatedTableId . '::' . $twoWayKey;
+        $pair = [$thisSide, $partnerSide];
+        \sort($pair);
+        return $database->getSequence() . '@' . \implode('<->', $pair);
     }
 
     private function databaseCollectionId(UtopiaDocument $database): string
