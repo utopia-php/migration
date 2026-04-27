@@ -497,24 +497,29 @@ class Appwrite extends Destination
                 canDrop: false,
             );
 
-            if ($action === SchemaAction::Tolerate) {
-                $resource->setSequence($existing->getSequence());
-                $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-                return false;
-            }
-
-            if ($action === SchemaAction::UpdateInPlace) {
-                $this->dbForProject->updateDocument('databases', $existing->getId(), new UtopiaDocument([
-                    'name' => $resource->getDatabaseName(),
-                    'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
-                    'enabled' => $resource->getEnabled(),
-                    'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
-                    'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
-                    'database' => $resource->getDatabase(),
-                    '$updatedAt' => $updatedAt,
-                ]));
-                $resource->setSequence($existing->getSequence());
-                return true;
+            $earlyReturn = match ($action) {
+                SchemaAction::Tolerate => (function () use ($resource, $existing): bool {
+                    $resource->setSequence($existing->getSequence());
+                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    return false;
+                })(),
+                SchemaAction::UpdateInPlace => (function () use ($resource, $existing, $updatedAt): bool {
+                    $this->dbForProject->updateDocument('databases', $existing->getId(), new UtopiaDocument([
+                        'name' => $resource->getDatabaseName(),
+                        'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
+                        'enabled' => $resource->getEnabled(),
+                        'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
+                        'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
+                        'database' => $resource->getDatabase(),
+                        '$updatedAt' => $updatedAt,
+                    ]));
+                    $resource->setSequence($existing->getSequence());
+                    return true;
+                })(),
+                SchemaAction::Create, SchemaAction::DropAndRecreate => null,
+            };
+            if ($earlyReturn !== null) {
+                return $earlyReturn;
             }
         }
 
@@ -614,27 +619,32 @@ class Appwrite extends Destination
                 canDrop: false,
             );
 
-            if ($action === SchemaAction::Tolerate) {
-                $resource->setSequence($existing->getSequence());
-                $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-                return false;
-            }
-
-            if ($action === SchemaAction::UpdateInPlace) {
-                $this->dbForProject->updateDocument(
-                    $this->databaseCollectionId($database),
-                    $existing->getId(),
-                    new UtopiaDocument([
-                        'name' => $resource->getTableName(),
-                        'search' => implode(' ', [$resource->getId(), $resource->getTableName()]),
-                        'enabled' => $resource->getEnabled(),
-                        '$permissions' => Permission::aggregate($resource->getPermissions()),
-                        'documentSecurity' => $resource->getRowSecurity(),
-                        '$updatedAt' => $updatedAt,
-                    ])
-                );
-                $resource->setSequence($existing->getSequence());
-                return true;
+            $earlyReturn = match ($action) {
+                SchemaAction::Tolerate => (function () use ($resource, $existing): bool {
+                    $resource->setSequence($existing->getSequence());
+                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    return false;
+                })(),
+                SchemaAction::UpdateInPlace => (function () use ($resource, $existing, $database, $updatedAt): bool {
+                    $this->dbForProject->updateDocument(
+                        $this->databaseCollectionId($database),
+                        $existing->getId(),
+                        new UtopiaDocument([
+                            'name' => $resource->getTableName(),
+                            'search' => implode(' ', [$resource->getId(), $resource->getTableName()]),
+                            'enabled' => $resource->getEnabled(),
+                            '$permissions' => Permission::aggregate($resource->getPermissions()),
+                            'documentSecurity' => $resource->getRowSecurity(),
+                            '$updatedAt' => $updatedAt,
+                        ])
+                    );
+                    $resource->setSequence($existing->getSequence());
+                    return true;
+                })(),
+                SchemaAction::Create, SchemaAction::DropAndRecreate => null,
+            };
+            if ($earlyReturn !== null) {
+                return $earlyReturn;
             }
         }
 
@@ -798,24 +808,25 @@ class Appwrite extends Destination
                 canDrop: true,
             );
 
-            if ($action === SchemaAction::Tolerate) {
-                $this->purgeTableCaches($database, $table, $dbForDatabases);
-                $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-                return false;
-            }
-
-            // UpdateInPlace tries an SDK-equivalent update first; returns
-            // false if the source change isn't expressible in place (see
-            // ATTRIBUTE_NON_SDK_FIELDS / RELATIONSHIP_STRUCTURAL_FIELDS).
-            // Falls through to DropAndRecreate in that case.
-            if ($action === SchemaAction::UpdateInPlace) {
-                $applied = $isRelationship
+            // UpdateInPlace tries an SDK-equivalent update first; returns null
+            // when the source change isn't expressible in place (see
+            // ATTRIBUTE_NON_SDK_FIELDS / RELATIONSHIP_STRUCTURAL_FIELDS) so it
+            // falls through to the DropAndRecreate drop step below.
+            $earlyReturn = match ($action) {
+                SchemaAction::Tolerate => (function () use ($resource, $database, $table, $dbForDatabases): bool {
+                    $this->purgeTableCaches($database, $table, $dbForDatabases);
+                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    return false;
+                })(),
+                SchemaAction::UpdateInPlace => ($isRelationship
                     ? $this->updateRelationshipInPlace($database, $table, $resource, $type, $updatedAt, $existingAttr, $dbForDatabases)
-                    : $this->updateAttributeInPlace($database, $table, $resource, $type, $updatedAt, $existingAttr, $dbForDatabases);
-
-                if ($applied) {
-                    return true;
-                }
+                    : $this->updateAttributeInPlace($database, $table, $resource, $type, $updatedAt, $existingAttr, $dbForDatabases))
+                    ? true
+                    : null,
+                SchemaAction::DropAndRecreate, SchemaAction::Create => null,
+            };
+            if ($earlyReturn !== null) {
+                return $earlyReturn;
             }
 
             if ($action === SchemaAction::DropAndRecreate || $action === SchemaAction::UpdateInPlace) {
@@ -1111,22 +1122,29 @@ class Appwrite extends Destination
                 canDrop: true,
             );
 
-            if ($action === SchemaAction::Tolerate) {
-                $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
-                $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-                return false;
-            }
-
             // Indexes have no SDK in-place update — utopia provides no
             // updateIndex primitive, and the underlying DB requires drop+
             // recreate for any structural change. UpdateInPlace from
             // resolveSchemaAction (createdAt-same + updatedAt-newer) is
-            // treated as a possibly-phantom edit; if the spec actually
-            // matches existing, tolerate; otherwise drop and recreate.
-            if ($action === SchemaAction::UpdateInPlace && $this->indexSpecMatches($existingIdx, $resource)) {
-                $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
-                $resource->setStatus(Resource::STATUS_SKIPPED, 'Index spec unchanged');
-                return false;
+            // treated as a possibly-phantom edit; if the spec matches
+            // existing, tolerate; otherwise drop and recreate.
+            $earlyReturn = match ($action) {
+                SchemaAction::Tolerate => (function () use ($resource, $database, $table): bool {
+                    $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
+                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    return false;
+                })(),
+                SchemaAction::UpdateInPlace => $this->indexSpecMatches($existingIdx, $resource)
+                    ? (function () use ($resource, $database, $table): bool {
+                        $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
+                        $resource->setStatus(Resource::STATUS_SKIPPED, 'Index spec unchanged');
+                        return false;
+                    })()
+                    : null,
+                SchemaAction::DropAndRecreate, SchemaAction::Create => null,
+            };
+            if ($earlyReturn !== null) {
+                return $earlyReturn;
             }
 
             if ($action === SchemaAction::DropAndRecreate || $action === SchemaAction::UpdateInPlace) {
