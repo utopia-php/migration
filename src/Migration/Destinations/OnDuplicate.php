@@ -88,39 +88,41 @@ enum OnDuplicate: string
     }
 
     /**
-     * Detect whether the source-side resource has a different physical
-     * createdAt than the destination — i.e., the source resource was deleted
-     * and recreated since the last migration. Null/empty/zero-date treated as
-     * unknown → false (don't trigger destructive action on uncertain input).
+     * Whether source and destination have different physical createdAt values.
+     * Unknown (null/empty/zero-date) on either side → false.
      */
     private function createdAtDiffers(?string $source, ?string $dest): bool
     {
-        if ($source === null || $source === '' || $dest === null || $dest === '') {
-            return false;
-        }
-        $src = \strtotime($source);
-        $dst = \strtotime($dest);
-        if ($src === false || $dst === false || $src <= 0 || $dst <= 0) {
-            return false;
-        }
-        return $src !== $dst;
+        $src = $this->parseTimestamp($source);
+        $dst = $this->parseTimestamp($dest);
+        return $src !== null && $dst !== null && $src !== $dst;
     }
 
     /**
-     * strtotime() accepts '0000-00-00' leniently (returns a large negative
-     * epoch, not false), so reject non-positive epochs too. Null/empty are
-     * treated as unknown → tolerate rather than risk a destructive drop.
+     * Whether source's timestamp is strictly newer than destination's.
+     * Unknown (null/empty/zero-date) on either side → false.
      */
     private function sourceIsNewer(?string $source, ?string $dest): bool
     {
-        if ($source === null || $source === '' || $dest === null || $dest === '') {
-            return false;
+        $src = $this->parseTimestamp($source);
+        $dst = $this->parseTimestamp($dest);
+        return $src !== null && $dst !== null && $src > $dst;
+    }
+
+    /**
+     * strtotime accepts '0000-00-00' leniently (returns a large negative epoch,
+     * not false), so non-positive epochs are rejected too. Null/empty/garbage
+     * → null so callers treat the comparison as unknown.
+     */
+    private function parseTimestamp(?string $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
         }
-        $src = \strtotime($source);
-        $dst = \strtotime($dest);
-        if ($src === false || $dst === false || $src <= 0 || $dst <= 0) {
-            return false;
+        $epoch = \strtotime($value);
+        if ($epoch === false || $epoch <= 0) {
+            return null;
         }
-        return $src > $dst;
+        return $epoch;
     }
 }
