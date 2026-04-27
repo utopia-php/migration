@@ -33,12 +33,22 @@ enum OnDuplicate: string
     /**
      * Schema-level reconciliation decision.
      *
-     * $canDrop = true  → leaves (attributes, indexes) get DropAndRecreate on Upsert-newer.
-     * $canDrop = false → containers (databases, tables) get UpdateInPlace on Upsert-newer.
-     * Default is false so destructive reconciliation requires explicit opt-in.
+     * createdAt-different → the source-side resource was deleted+recreated, so
+     * it's a different physical incarnation. Destination should follow suit
+     * with DropAndRecreate (or UpdateInPlace if $canDrop is false — containers).
+     *
+     * Same createdAt + newer updatedAt → metadata-only edit on the same
+     * resource. UpdateInPlace; the caller checks whether the specific changed
+     * fields are SDK-updatable and falls back to DropAndRecreate if not.
+     *
+     * $canDrop = true  → leaves (attributes, indexes) can be dropped.
+     * $canDrop = false → containers (databases, tables) get UpdateInPlace
+     *                    even on createdAt-different (drop would lose children).
      */
     public function resolveSchemaAction(
         bool $exists,
+        ?string $sourceCreatedAt = null,
+        ?string $destCreatedAt = null,
         ?string $sourceUpdatedAt = null,
         ?string $destUpdatedAt = null,
         bool $canDrop = false,
@@ -49,10 +59,51 @@ enum OnDuplicate: string
         return match ($this) {
             self::Fail   => SchemaAction::Create,
             self::Skip   => SchemaAction::Tolerate,
-            self::Upsert => $this->sourceIsNewer($sourceUpdatedAt, $destUpdatedAt)
-                ? ($canDrop ? SchemaAction::DropAndRecreate : SchemaAction::UpdateInPlace)
-                : SchemaAction::Tolerate,
+            self::Upsert => $this->resolveUpsertAction(
+                $sourceCreatedAt,
+                $destCreatedAt,
+                $sourceUpdatedAt,
+                $destUpdatedAt,
+                $canDrop,
+            ),
         };
+    }
+
+    private function resolveUpsertAction(
+        ?string $sourceCreatedAt,
+        ?string $destCreatedAt,
+        ?string $sourceUpdatedAt,
+        ?string $destUpdatedAt,
+        bool $canDrop,
+    ): SchemaAction {
+        if ($this->createdAtDiffers($sourceCreatedAt, $destCreatedAt)) {
+            return $canDrop ? SchemaAction::DropAndRecreate : SchemaAction::UpdateInPlace;
+        }
+
+        if ($this->sourceIsNewer($sourceUpdatedAt, $destUpdatedAt)) {
+            return SchemaAction::UpdateInPlace;
+        }
+
+        return SchemaAction::Tolerate;
+    }
+
+    /**
+     * Detect whether the source-side resource has a different physical
+     * createdAt than the destination — i.e., the source resource was deleted
+     * and recreated since the last migration. Null/empty/zero-date treated as
+     * unknown → false (don't trigger destructive action on uncertain input).
+     */
+    private function createdAtDiffers(?string $source, ?string $dest): bool
+    {
+        if ($source === null || $source === '' || $dest === null || $dest === '') {
+            return false;
+        }
+        $src = \strtotime($source);
+        $dst = \strtotime($dest);
+        if ($src === false || $dst === false || $src <= 0 || $dst <= 0) {
+            return false;
+        }
+        return $src !== $dst;
     }
 
     /**
