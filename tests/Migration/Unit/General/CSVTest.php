@@ -416,6 +416,49 @@ class CSVTest extends TestCase
         }
     }
 
+    /**
+     * @throws \ReflectionException
+     */
+    private function callValidateCSVHeaders(array $headers, array $columnTypes, array $requiredColumns): void
+    {
+        $reflection = new \ReflectionClass(CSV::class);
+        $instance = $reflection->newInstanceWithoutConstructor();
+
+        $refProp = $reflection->getProperty('resourceId');
+        $refProp->setAccessible(true);
+        $refProp->setValue($instance, 'test_db:test_table');
+
+        $refMethod = $reflection->getMethod('validateCSVHeaders');
+        $refMethod->setAccessible(true);
+
+        $refMethod->invoke($instance, $headers, $columnTypes, $requiredColumns);
+    }
+
+    public function testValidateCSVHeadersMissingRequiredColumnDoesNotThrow(): void
+    {
+        // A CSV with only 'name' column, but 'texte' is required in the schema
+        $headers = ['name'];
+        $columnTypes = ['name' => 'string', 'texte' => 'string'];
+        $requiredColumns = ['texte' => true];
+
+        // This should NOT throw — missing required columns should be a warning, not an error
+        $this->callValidateCSVHeaders($headers, $columnTypes, $requiredColumns);
+
+        // If we reach here, the test passes (no exception thrown)
+        $this->assertTrue(true);
+    }
+
+    public function testValidateCSVHeadersAllRequiredPresent(): void
+    {
+        $headers = ['name', 'texte'];
+        $columnTypes = ['name' => 'string', 'texte' => 'string'];
+        $requiredColumns = ['texte' => true];
+
+        // Should not throw when all required columns are present
+        $this->callValidateCSVHeaders($headers, $columnTypes, $requiredColumns);
+        $this->assertTrue(true);
+    }
+
     private function recursiveDelete(string $dir): void
     {
         if (is_dir($dir)) {
