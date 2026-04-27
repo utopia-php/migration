@@ -144,7 +144,6 @@ class Appwrite extends Source
             default:
                 throw new \Exception('Unknown source', Exception::CODE_VALIDATION);
         }
-
     }
 
     public static function getName(): string
@@ -354,7 +353,6 @@ class Appwrite extends Source
      */
     private function reportStorage(array $resources, array &$report, array $resourceIds = []): void
     {
-
         if (\in_array(Resource::TYPE_BUCKET, $resources)) {
             $bucketQueries = $this->buildQueries(
                 resourceType: Resource::TYPE_BUCKET,
@@ -869,7 +867,6 @@ class Appwrite extends Source
                         'enabled' => $database['enabled'] ?? true,
                     ]);
                     $databases[] = $newDatabase;
-
                 }
             }
 
@@ -997,7 +994,7 @@ class Appwrite extends Source
                     }
 
                     /** @var Table $table */
-                    $col = match($table->getDatabase()->getType()) {
+                    $col = match ($table->getDatabase()->getType()) {
                         Resource::TYPE_DATABASE_VECTORSDB => self::getColumn($table, $column)->getAttribute(),
                         default => self::getColumn($table, $column),
                     };
@@ -2499,7 +2496,6 @@ class Appwrite extends Source
 
             default => throw new \InvalidArgumentException("Unsupported column type: {$column['type']}"),
         };
-
     }
 
     /**
