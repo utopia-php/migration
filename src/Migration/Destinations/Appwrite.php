@@ -1444,7 +1444,54 @@ class Appwrite extends Destination
         ]));
 
         $this->purgeTableCaches($database, $table, $dbForDatabases);
+
+        // utopia's updateRelationship synced the physical constraint on both sides but
+        // not the Appwrite-level partner meta doc — refresh it so reads from the related
+        // collection don't see stale onDelete.
+        if ($isTwoWay) {
+            $this->refreshTwoWayPartnerOnDelete($database, $destOptions, $sourceOptions, $updatedAt, $dbForDatabases);
+        }
+
         return true;
+    }
+
+    private function refreshTwoWayPartnerOnDelete(
+        UtopiaDocument $database,
+        array $destOptions,
+        array $sourceOptions,
+        string $updatedAt,
+        UtopiaDatabase $dbForDatabases,
+    ): void {
+        $relatedTableId = (string) ($destOptions['relatedCollection'] ?? '');
+        $partnerKey = (string) ($destOptions['twoWayKey'] ?? '');
+        if ($relatedTableId === '' || $partnerKey === '') {
+            return;
+        }
+
+        $relatedTable = $this->dbForProject->getDocument(
+            $this->databaseCollectionId($database),
+            $relatedTableId,
+        );
+        if ($relatedTable->isEmpty()) {
+            return;
+        }
+
+        $partnerMeta = $this->dbForProject->getDocument(
+            'attributes',
+            $this->attributeIndexMetaId($database, $relatedTable, $partnerKey),
+        );
+        if ($partnerMeta->isEmpty()) {
+            return;
+        }
+
+        $partnerOptions = $partnerMeta->getAttribute('options', []);
+        $this->dbForProject->updateDocument('attributes', $partnerMeta->getId(), new UtopiaDocument([
+            'options' => array_merge($partnerOptions, [
+                'onDelete' => $sourceOptions['onDelete'] ?? $partnerOptions['onDelete'] ?? null,
+            ]),
+            '$updatedAt' => $updatedAt,
+        ]));
+        $this->purgeTableCaches($database, $relatedTable, $dbForDatabases);
     }
 
     /**
