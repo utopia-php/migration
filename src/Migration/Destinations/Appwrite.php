@@ -786,7 +786,7 @@ class Appwrite extends Destination
         // Upsert row pass.
         $isRelationship = $type === UtopiaDatabase::VAR_RELATIONSHIP;
 
-        $attributeMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
+        $attributeMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existingAttr = $this->dbForProject->getDocument('attributes', $attributeMetaId);
             $action = $this->onDuplicate->resolveSchemaAction(
@@ -881,7 +881,7 @@ class Appwrite extends Destination
 
             try {
                 $twoWayAttribute = new UtopiaDocument([
-                    '$id' => ID::custom($database->getSequence() . '_' . $relatedTable->getSequence() . '_' . $twoWayKey),
+                    '$id' => ID::custom($this->attributeIndexMetaId($database, $relatedTable, $twoWayKey)),
                     'key' => $twoWayKey,
                     'databaseInternalId' => $database->getSequence(),
                     'databaseId' => $database->getId(),
@@ -1048,7 +1048,7 @@ class Appwrite extends Destination
         $this->trackOrphanCandidate($database, $table, 'indexKeys', $resource->getKey(), $dbForDatabases);
 
         $index = new UtopiaDocument([
-            '$id' => ID::custom($database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey()),
+            '$id' => ID::custom($this->attributeIndexMetaId($database, $table, $resource->getKey())),
             'key' => $resource->getKey(),
             'status' => 'available', // processing, available, failed, deleting, stuck
             'databaseInternalId' => $database->getSequence(),
@@ -1253,8 +1253,6 @@ class Appwrite extends Destination
                     $resource->getTable()->getId(),
                 );
 
-                $databaseInternalId = $database->getSequence();
-                $tableInternalId = $table->getSequence();
                 $dbForDatabases = ($this->getDatabasesDB)($database);
 
                 // Reconcile the destination SCHEMA before rows land: drops
@@ -1289,7 +1287,7 @@ class Appwrite extends Destination
                         }
                     }
                 }
-                $collectionId = 'database_' . $databaseInternalId . '_collection_' . $tableInternalId;
+                $collectionId = $this->tableCollectionId($database, $table);
 
                 match ($this->onDuplicate) {
                     OnDuplicate::Upsert => $dbForDatabases->skipRelationshipsExistCheck(
@@ -1331,7 +1329,7 @@ class Appwrite extends Destination
         UtopiaDatabase $dbForDatabases,
     ): void {
         $collectionId = $this->tableCollectionId($database, $table);
-        $attributeMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey();
+        $attributeMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
         $isRelationship = $resource->getType() === Column::TYPE_RELATIONSHIP;
 
         if ($isRelationship) {
@@ -1759,7 +1757,7 @@ class Appwrite extends Destination
         UtopiaDatabase $dbForDatabases,
     ): void {
         $collectionId = $this->tableCollectionId($database, $table);
-        $indexMetaId = $database->getSequence() . '_' . $table->getSequence() . '_' . $indexKey;
+        $indexMetaId = $this->attributeIndexMetaId($database, $table, $indexKey);
 
         $this->tolerateMissing(fn () => $dbForDatabases->deleteIndex($collectionId, $indexKey));
         $this->tolerateMissing(fn () => $this->dbForProject->deleteDocument('indexes', $indexMetaId));
