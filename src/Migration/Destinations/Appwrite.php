@@ -63,12 +63,7 @@ use Utopia\Migration\Transfer;
 
 class Appwrite extends Destination
 {
-    /**
-     * Attribute fields not reachable via Appwrite SDK's per-type
-     * updateXAttribute endpoints. Source-side changes to any of these force
-     * DropAndRecreate because no in-place SDK call can express the change.
-     * Update if the SDK adds new endpoints (e.g. `array` toggle).
-     */
+    /** Fields the SDK's per-type updateXAttribute endpoints don't expose; a change here forces DropAndRecreate. */
     private const ATTRIBUTE_NON_SDK_FIELDS = [
         'type',
         'array',
@@ -78,11 +73,7 @@ class Appwrite extends Destination
         'filters',
     ];
 
-    /**
-     * Relationship `options` fields the SDK's updateRelationshipAttribute
-     * does not expose (it allows only `onDelete` and `newKey`). Any change
-     * here is a structural relationship swap that requires drop+recreate.
-     */
+    /** Fields the SDK's updateRelationshipAttribute doesn't expose (only onDelete/newKey are SDK-reachable). */
     private const RELATIONSHIP_STRUCTURAL_FIELDS = [
         'relationType',
         'twoWay',
@@ -113,13 +104,10 @@ class Appwrite extends Destination
     private array $rowBuffer = [];
 
     /**
-     * Upsert-mode orphan tracking, keyed by (database, table). Each entry
-     * holds the attribute + index keys source declared for that table plus
-     * the docs/handles needed to reach the destination at cleanup time.
-     * Orphans are the complement: anything the destination has whose key
-     * is NOT in this record. Entries are removed from the map after their
-     * cleanup has run, so the final sweep at end-of-migration only visits
-     * tables that had no rows.
+     * Upsert-mode orphan tracking, keyed by (database, table). Orphans are
+     * destination keys not in `attributeKeys` / `indexKeys`. Entries removed
+     * after their cleanup runs so the end-of-run sweep only visits tables
+     * that had no rows.
      *
      * @var array<string, array{
      *   database: UtopiaDocument,
@@ -168,11 +156,7 @@ class Appwrite extends Destination
         $this->getDatabasesDB = $getDatabasesDB;
     }
 
-    /**
-     * Upsert-mode orphan cleanup runs after a successful migration only.
-     * A thrown exception from the source/import loop short-circuits here
-     * so mid-migration failures preserve the destination as-is.
-     */
+    /** Orphan cleanup runs only after a successful migration — a mid-run throw preserves the destination as-is. */
     #[Override]
     public function run(
         array $resources,
@@ -484,7 +468,6 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
-        // Fail mode skips the pre-check so library's DuplicateException surfaces on re-migration.
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existing = $this->dbForProject->getDocument('databases', $resource->getId());
             $action = $this->onDuplicate->resolveSchemaAction(
@@ -493,7 +476,6 @@ class Appwrite extends Destination
                 $existing->getCreatedAt(),
                 $updatedAt,
                 $existing->getUpdatedAt(),
-                // Containers (databases) can't be dropped — children would be lost.
                 canDrop: false,
             );
 
@@ -615,7 +597,6 @@ class Appwrite extends Destination
                 $existing->getCreatedAt(),
                 $updatedAt,
                 $existing->getUpdatedAt(),
-                // Containers (tables) can't be dropped — children would be lost.
                 canDrop: false,
             );
 
@@ -790,10 +771,8 @@ class Appwrite extends Destination
 
         $this->trackOrphanCandidate($database, $table, 'attributeKeys', $resource->getKey(), $dbForDatabases);
 
-        // Both relationship types use deleteRelationship (not deleteAttribute,
-        // which throws for VAR_RELATIONSHIP). One-way: clean drop. Two-way:
-        // drops both columns; partner row data is restored by the subsequent
-        // Upsert row pass.
+        // Both rel types route through deleteRelationship — deleteAttribute throws for VAR_RELATIONSHIP.
+        // Two-way drop loses partner row data, restored by the subsequent Upsert row pass.
         $isRelationship = $type === UtopiaDatabase::VAR_RELATIONSHIP;
 
         $attributeMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
@@ -808,10 +787,7 @@ class Appwrite extends Destination
                 canDrop: true,
             );
 
-            // UpdateInPlace tries an SDK-equivalent update first; returns null
-            // when the source change isn't expressible in place (see
-            // ATTRIBUTE_NON_SDK_FIELDS / RELATIONSHIP_STRUCTURAL_FIELDS) so it
-            // falls through to the DropAndRecreate drop step below.
+            // UpdateInPlace returns null when the source change isn't SDK-expressible — falls through to the drop step below.
             $earlyReturn = match ($action) {
                 SchemaAction::Tolerate => (function () use ($resource, $database, $table, $dbForDatabases): bool {
                     $this->purgeTableCaches($database, $table, $dbForDatabases);
@@ -1122,12 +1098,7 @@ class Appwrite extends Destination
                 canDrop: true,
             );
 
-            // Indexes have no SDK in-place update — utopia provides no
-            // updateIndex primitive, and the underlying DB requires drop+
-            // recreate for any structural change. UpdateInPlace from
-            // resolveSchemaAction (createdAt-same + updatedAt-newer) is
-            // treated as a possibly-phantom edit; if the spec matches
-            // existing, tolerate; otherwise drop and recreate.
+            // Indexes have no in-place primitive — UpdateInPlace tolerates if spec matches, else drop+recreate.
             $earlyReturn = match ($action) {
                 SchemaAction::Tolerate => (function () use ($resource, $database, $table): bool {
                     $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
@@ -1273,11 +1244,7 @@ class Appwrite extends Destination
 
                 $dbForDatabases = ($this->getDatabasesDB)($database);
 
-                // Reconcile the destination SCHEMA before rows land: drops
-                // attributes/indexes source no longer declares so the
-                // Structure validator doesn't reject rows on orphan required
-                // columns. Distinct from the payload-shape pass below, which
-                // strips extra fields off the incoming ROW documents.
+                // Drop schema-level orphans before rows land so the Structure validator doesn't reject on orphan required columns.
                 $this->cleanupUpsertOrphansForTable($this->tableIdentity($database, $table));
                 /**
                  * This is in case an attribute was deleted from Appwrite attributes collection but was not deleted from the table
@@ -1331,14 +1298,8 @@ class Appwrite extends Destination
     }
 
     /**
-     * Drop an attribute (metadata doc + physical column) so it can be recreated.
-     *
-     * Branches by type because utopia's deleteAttribute throws for relationships;
-     * relationships use deleteRelationship, which handles both one-way (partner
-     * cleanup is a silent no-op since no partner attribute exists) and two-way
-     * (partner attribute and physical column both removed). For two-way, the
-     * partner-side Appwrite-level meta doc is also deleted here since
-     * deleteRelationship only touches utopia's internal metadata.
+     * Drop attribute (meta doc + physical column). Relationships route through
+     * deleteRelationship since deleteAttribute throws for VAR_RELATIONSHIP.
      */
     private function dropAttributeForRecreate(
         UtopiaDocument $database,
@@ -1358,8 +1319,7 @@ class Appwrite extends Destination
 
         $this->dbForProject->deleteDocument('attributes', $attributeMetaId);
 
-        // For two-way relationships, also remove the partner-side Appwrite meta
-        // doc — deleteRelationship only touches utopia's internal _metadata.
+        // deleteRelationship only touches utopia's _metadata; clear the Appwrite-level partner meta doc too.
         if ($isRelationship && ($resource->getOptions()['twoWay'] ?? false)) {
             $relatedTableId = $resource->getOptions()['relatedCollection'] ?? null;
             $twoWayKey = $resource->getOptions()['twoWayKey'] ?? null;
@@ -1378,16 +1338,7 @@ class Appwrite extends Destination
         $this->purgeTableCaches($database, $table, $dbForDatabases);
     }
 
-    /**
-     * Apply an SDK-equivalent in-place update for a non-relationship attribute.
-     * Returns true if applied, false if the source spec changed in a way the
-     * SDK can't update in place — caller falls through to DropAndRecreate.
-     *
-     * SDK-updatable per `updateXAttribute` endpoints: required, default, size
-     * (string/varchar), min/max (integer/float), elements (enum), newKey rename.
-     * Anything else (type, array, signed, format, formatOptions, filters)
-     * requires drop+recreate and returns false.
-     */
+    /** Returns false when the source change isn't SDK-expressible — caller falls through to DropAndRecreate. */
     private function updateAttributeInPlace(
         UtopiaDocument $database,
         UtopiaDocument $table,
@@ -1415,9 +1366,7 @@ class Appwrite extends Destination
             return false;
         }
 
-        // Apply the SDK-updatable subset via utopia. Pass existing values for
-        // non-SDK fields explicitly so utopia doesn't trigger an ALTER for
-        // fields that haven't changed.
+        // Pass existing values for non-SDK fields so utopia doesn't trigger an ALTER for unchanged fields.
         $dbForDatabases->updateAttribute(
             collection: $this->tableCollectionId($database, $table),
             id: $resource->getKey(),
@@ -1451,18 +1400,8 @@ class Appwrite extends Destination
     }
 
     /**
-     * Apply an SDK-equivalent in-place update for a relationship attribute.
-     * Returns true if applied, false if the source spec changed in a way the
-     * SDK can't update in place — caller falls through to DropAndRecreate.
-     *
-     * SDK's updateRelationshipAttribute exposes only `onDelete` and `newKey`.
-     * Structural changes (relationType, twoWay toggle, twoWayKey, relatedCollection)
-     * require drop+recreate and return false.
-     *
-     * One-way relationships hit a utopia bug in updateRelationship's
-     * partner-cascade (`updateAttributeMeta` throws because no partner exists).
-     * For one-way + onDelete change → return false → DropAndRecreate handles
-     * it cleanly via deleteRelationship.
+     * Returns false when the source change isn't SDK-expressible — caller falls through to DropAndRecreate.
+     * One-way + onDelete change is also rejected: utopia's updateRelationship partner-cascade throws on one-way.
      */
     private function updateRelationshipInPlace(
         UtopiaDocument $database,
@@ -1483,8 +1422,6 @@ class Appwrite extends Destination
         $isTwoWay = (bool) ($destOptions['twoWay'] ?? false);
         $onDeleteChanged = ($sourceOptions['onDelete'] ?? null) !== ($destOptions['onDelete'] ?? null);
 
-        // One-way + any actual change → utopia's partner-cascade throws.
-        // DropAndRecreate handles one-way cleanly.
         if (!$isTwoWay && $onDeleteChanged) {
             return false;
         }
@@ -1497,8 +1434,6 @@ class Appwrite extends Destination
             );
         }
 
-        // Refresh source-side Appwrite-level meta. Options preserve dest's
-        // structural fields verbatim — they didn't change.
         $this->dbForProject->updateDocument('attributes', $existingAttr->getId(), new UtopiaDocument([
             'key' => $resource->getKey(),
             'type' => $type,
@@ -1513,15 +1448,8 @@ class Appwrite extends Destination
     }
 
     /**
-     * True iff the destination's existing index spec matches what the source
-     * resource is asking for on the user-settable fields (type, indexed
-     * columns, sort orders). Used to detect phantom updatedAt drift on
-     * indexes (which have no in-place update primitive); when specs match we
-     * tolerate, otherwise fall through to DropAndRecreate.
-     *
      * `lengths` is intentionally not compared: it's derived per-column from
-     * the adapter's index validator, not user-settable on the Index resource,
-     * so two equivalent specs always produce the same lengths array.
+     * the adapter's index validator and not settable on the Index resource.
      */
     private function indexSpecMatches(UtopiaDocument $existingIdx, Index $resource): bool
     {
@@ -1530,52 +1458,27 @@ class Appwrite extends Destination
             && $existingIdx->getAttribute('orders')     === $resource->getOrders();
     }
 
-    /**
-     * Deterministic per-(database, table) key used to index the orphan
-     * tracker (`$orphansByTable`). Built from sequences so it's stable
-     * across calls but unique within the run.
-     */
     private function tableIdentity(UtopiaDocument $database, UtopiaDocument $table): string
     {
         return $database->getSequence() . ':' . $table->getSequence();
     }
 
-    /**
-     * utopia-php/database collection id for the database itself (lookup target
-     * for table documents inside this database).
-     */
     private function databaseCollectionId(UtopiaDocument $database): string
     {
         return 'database_' . $database->getSequence();
     }
 
-    /**
-     * utopia-php/database collection id for a specific table (lookup target
-     * for row documents inside this table). Used as the `collection` argument
-     * to most `$dbForDatabases` calls.
-     */
     private function tableCollectionId(UtopiaDocument $database, UtopiaDocument $table): string
     {
         return $this->databaseCollectionId($database) . '_collection_' . $table->getSequence();
     }
 
-    /**
-     * Composite id for an attribute or index meta document in the platform DB
-     * (`attributes` / `indexes` collections). Built deterministically from
-     * sequences + key, mirroring how Appwrite stores meta docs.
-     */
     private function attributeIndexMetaId(UtopiaDocument $database, UtopiaDocument $table, string $key): string
     {
         return $database->getSequence() . '_' . $table->getSequence() . '_' . $key;
     }
 
-    /**
-     * Invalidate platform + per-database caches for a table after any
-     * structural change (attribute/index/permissions). Required because the
-     * Appwrite UI reads cached collection metadata; stale cache shows the
-     * pre-change schema until evicted. Called after Tolerate, UpdateInPlace,
-     * and DropAndRecreate paths so subsequent reads see the current state.
-     */
+    /** Stale platform/per-database cache shows the pre-change schema; evict after every structural change. */
     private function purgeTableCaches(
         UtopiaDocument $database,
         UtopiaDocument $table,
@@ -1586,10 +1489,6 @@ class Appwrite extends Destination
     }
 
     /**
-     * True iff the two array-shaped specs disagree on any of the listed keys
-     * (treating missing as null). Used to detect "the SDK can't express this
-     * change in place" — caller falls through to DropAndRecreate when true.
-     *
      * @param array<string, mixed> $a
      * @param array<string, mixed> $b
      * @param list<string> $keys
@@ -1604,11 +1503,7 @@ class Appwrite extends Destination
         return false;
     }
 
-    /**
-     * Records that $key was seen for this (database, table) during the run.
-     * $kind selects the tracker bucket ('attributeKeys' or 'indexKeys'). Only
-     * Upsert mode accumulates; Skip/Fail short-circuit.
-     */
+    /** $kind is 'attributeKeys' or 'indexKeys'. */
     private function trackOrphanCandidate(
         UtopiaDocument $database,
         UtopiaDocument $table,
@@ -1632,11 +1527,7 @@ class Appwrite extends Destination
         $this->orphansByTable[$tableId][$kind][] = $key;
     }
 
-    /**
-     * End-of-migration sweep: cleans up any table not already handled by a
-     * per-table cleanup in createRecord (i.e. tables that had no rows).
-     * Skipped if the migration failed before run() completed.
-     */
+    /** End-of-migration sweep — only visits tables that had no rows (rest were cleaned per-table in createRecord). */
     private function cleanupUpsertOrphans(): void
     {
         foreach (\array_keys($this->orphansByTable) as $tableId) {
@@ -1644,13 +1535,7 @@ class Appwrite extends Destination
         }
     }
 
-    /**
-     * Drops destination attributes/indexes whose keys weren't observed from
-     * source for this table. Called per-table from createRecord before rows
-     * land so the Structure validator sees the post-cleanup schema. After
-     * running, the entry is removed from the tracker so the end-of-run
-     * sweep doesn't re-do the work.
-     */
+    /** Called per-table from createRecord before rows land so Structure validator sees the post-cleanup schema. */
     private function cleanupUpsertOrphansForTable(string $tableId): void
     {
         if ($this->onDuplicate !== OnDuplicate::Upsert) {
@@ -1690,10 +1575,6 @@ class Appwrite extends Destination
     }
 
     /**
-     * Finds destination metadata docs in $metaCollection belonging to this
-     * (database, table) and invokes $drop for each one whose key isn't in
-     * $processedKeys. Shared by the attribute and index cleanup paths.
-     *
      * @param list<string> $processedKeys
      * @param callable(UtopiaDocument): void $drop
      */
@@ -1716,17 +1597,7 @@ class Appwrite extends Destination
         }
     }
 
-    /**
-     * Drop an orphan attribute (metadata doc + physical column). Uses the
-     * destination's own metadata document as the source of truth for type
-     * and relationship options, since there's no source resource to consult.
-     *
-     * Relationships use deleteRelationship (which cascades to both sides's
-     * physical columns + utopia's internal metadata) rather than
-     * deleteAttribute (which throws for relationship types). Appwrite's
-     * application-level `attributes` metadata docs on both sides are
-     * cleaned separately.
-     */
+    /** Reads dest's own meta doc as source of truth — there's no source resource for an orphan. */
     private function dropOrphanAttribute(
         UtopiaDocument $database,
         UtopiaDocument $table,
@@ -1760,9 +1631,7 @@ class Appwrite extends Destination
             return;
         }
 
-        // Physical column on the related table was already dropped by
-        // deleteRelationship above. Only the Appwrite-level metadata doc
-        // remains to clean up.
+        // deleteRelationship already dropped the partner physical column; only the Appwrite-level meta doc remains.
         $childMetaId = $this->attributeIndexMetaId($database, $relatedTable, $twoWayKey);
         $this->tolerateMissing(fn () => $this->dbForProject->deleteDocument('attributes', $childMetaId));
         $this->purgeTableCaches($database, $relatedTable, $dbForDatabases);
@@ -1782,11 +1651,7 @@ class Appwrite extends Destination
         $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
     }
 
-    /**
-     * Swallows deletion errors — a prior interrupted run (or parent-side
-     * cascade via utopia-php/database relationship handling) may already
-     * have removed the target.
-     */
+    /** Swallows deletion errors — a prior run or relationship cascade may have already removed the target. */
     private function tolerateMissing(callable $fn): void
     {
         try {

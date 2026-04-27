@@ -2,12 +2,6 @@
 
 namespace Utopia\Migration\Destinations;
 
-/**
- * Outcome of {@see OnDuplicate::resolveSchemaAction()}. Declared alongside
- * OnDuplicate because the two are designed together — any code that uses
- * SchemaAction necessarily imports OnDuplicate (as the source of the
- * decision), so the shared file satisfies autoloading in practice.
- */
 enum SchemaAction
 {
     case Create;
@@ -31,19 +25,8 @@ enum OnDuplicate: string
     }
 
     /**
-     * Schema-level reconciliation decision.
-     *
-     * createdAt-different → the source-side resource was deleted+recreated, so
-     * it's a different physical incarnation. Destination should follow suit
-     * with DropAndRecreate (or UpdateInPlace if $canDrop is false — containers).
-     *
-     * Same createdAt + newer updatedAt → metadata-only edit on the same
-     * resource. UpdateInPlace; the caller checks whether the specific changed
-     * fields are SDK-updatable and falls back to DropAndRecreate if not.
-     *
-     * $canDrop = true  → leaves (attributes, indexes) can be dropped.
-     * $canDrop = false → containers (databases, tables) get UpdateInPlace
-     *                    even on createdAt-different (drop would lose children).
+     * $canDrop = false (containers like databases/tables) forces UpdateInPlace
+     * even on createdAt-different — dropping would orphan children.
      */
     public function resolveSchemaAction(
         bool $exists,
@@ -87,10 +70,6 @@ enum OnDuplicate: string
         return SchemaAction::Tolerate;
     }
 
-    /**
-     * Whether source and destination have different physical createdAt values.
-     * Unknown (null/empty/zero-date) on either side → false.
-     */
     private function createdAtDiffers(?string $source, ?string $dest): bool
     {
         $src = $this->parseTimestamp($source);
@@ -98,10 +77,6 @@ enum OnDuplicate: string
         return $src !== null && $dst !== null && $src !== $dst;
     }
 
-    /**
-     * Whether source's timestamp is strictly newer than destination's.
-     * Unknown (null/empty/zero-date) on either side → false.
-     */
     private function sourceIsNewer(?string $source, ?string $dest): bool
     {
         $src = $this->parseTimestamp($source);
@@ -111,8 +86,7 @@ enum OnDuplicate: string
 
     /**
      * strtotime accepts '0000-00-00' leniently (returns a large negative epoch,
-     * not false), so non-positive epochs are rejected too. Null/empty/garbage
-     * → null so callers treat the comparison as unknown.
+     * not false), so non-positive epochs are rejected too.
      */
     private function parseTimestamp(?string $value): ?int
     {
