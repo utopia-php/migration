@@ -1048,6 +1048,50 @@ class Appwrite extends Destination
         }
         $dbForDatabases = ($this->getDatabasesDB)($database);
 
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
+        $this->trackOrphanCandidate($database, $table, 'indexKeys', $resource->getKey(), $dbForDatabases);
+
+        $indexMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
+
+        // Pre-check + drop runs BEFORE count/validator so the to-be-dropped index isn't included in
+        // the limit count or in IndexValidator's $tableIndexes (otherwise an Upsert recreate at the
+        // ceiling throws "Index limit reached" or "Invalid index" even though the net change is zero).
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            $existingIdx = $this->dbForProject->getDocument(self::META_INDEXES, $indexMetaId);
+            $action = $this->onDuplicate->resolveSchemaAction(
+                !$existingIdx->isEmpty(),
+                $updatedAt,
+                $existingIdx->getUpdatedAt(),
+            );
+            // Spec match → skip work. Create excluded; nothing on dest to match against.
+            if ($action !== SchemaAction::Create && $this->indexSpecMatches($existingIdx, $resource)) {
+                $action = SchemaAction::Tolerate;
+            }
+
+            // Indexes have no in-place primitive — any action other than Tolerate falls through to drop+recreate.
+            $earlyReturn = match ($action) {
+                SchemaAction::Tolerate => (function () use ($resource, $database, $table): bool {
+                    $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
+                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    return false;
+                })(),
+                SchemaAction::UpdateInPlace, SchemaAction::Create => null,
+            };
+            if ($earlyReturn !== null) {
+                return $earlyReturn;
+            }
+
+            if ($action === SchemaAction::UpdateInPlace) {
+                $dbForDatabases->deleteIndex($this->tableCollectionId($database, $table), $resource->getKey());
+                $this->dbForProject->deleteDocument(self::META_INDEXES, $indexMetaId);
+                $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
+                // Reload $table — in-memory copy still holds the dropped index, so IndexValidator below would over-count.
+                $table = $this->dbForProject->getDocument($this->databaseCollectionId($database), $table->getId());
+            }
+        }
+
         $count = $this->dbForProject->count(self::META_INDEXES, [
             Query::equal('collectionInternalId', [$table->getSequence()]),
             Query::equal('databaseInternalId', [$database->getSequence()])
@@ -1069,13 +1113,8 @@ class Appwrite extends Destination
             $this->validateFieldsForIndexes($resource, $table, $lengths);
         }
 
-        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
-        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
-
-        $this->trackOrphanCandidate($database, $table, 'indexKeys', $resource->getKey(), $dbForDatabases);
-
         $index = new UtopiaDocument([
-            '$id' => ID::custom($this->attributeIndexMetaId($database, $table, $resource->getKey())),
+            '$id' => ID::custom($indexMetaId),
             'key' => $resource->getKey(),
             'status' => 'available', // processing, available, failed, deleting, stuck
             'databaseInternalId' => $database->getSequence(),
@@ -1116,7 +1155,6 @@ class Appwrite extends Destination
             $dbForDatabases->getAdapter()->getSupportForFulltextIndex()
         );
 
-
         if (!$validator->isValid($index)) {
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -1124,39 +1162,6 @@ class Appwrite extends Destination
                 resourceId: $resource->getId(),
                 message: 'Invalid index: ' . $validator->getDescription(),
             );
-        }
-
-        $indexMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
-        if ($this->onDuplicate !== OnDuplicate::Fail) {
-            $existingIdx = $this->dbForProject->getDocument(self::META_INDEXES, $indexMetaId);
-            $action = $this->onDuplicate->resolveSchemaAction(
-                !$existingIdx->isEmpty(),
-                $updatedAt,
-                $existingIdx->getUpdatedAt(),
-            );
-            // Spec match → skip work. Create excluded; nothing on dest to match against.
-            if ($action !== SchemaAction::Create && $this->indexSpecMatches($existingIdx, $resource)) {
-                $action = SchemaAction::Tolerate;
-            }
-
-            // Indexes have no in-place primitive — any action other than Tolerate falls through to drop+recreate.
-            $earlyReturn = match ($action) {
-                SchemaAction::Tolerate => (function () use ($resource, $database, $table): bool {
-                    $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
-                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-                    return false;
-                })(),
-                SchemaAction::UpdateInPlace, SchemaAction::Create => null,
-            };
-            if ($earlyReturn !== null) {
-                return $earlyReturn;
-            }
-
-            if ($action === SchemaAction::UpdateInPlace) {
-                $dbForDatabases->deleteIndex($this->tableCollectionId($database, $table), $resource->getKey());
-                $this->dbForProject->deleteDocument(self::META_INDEXES, $indexMetaId);
-                $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
-            }
         }
 
         $index = $this->dbForProject->createDocument(self::META_INDEXES, $index);
