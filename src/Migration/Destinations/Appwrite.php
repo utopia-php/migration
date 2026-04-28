@@ -125,12 +125,7 @@ class Appwrite extends Destination
     private array $orphansByTable = [];
 
     /**
-     * Two-way relationship pairs already reconciled this run, keyed by a
-     * canonical pair-key. Source emits both sides as separate Column
-     * resources, but processing one side already reconciles both physical
-     * columns + both Appwrite-level meta docs. Without this set, the
-     * partner pass can re-trigger DropAndRecreate and destroy partner-table
-     * rows already migrated.
+     * Two-way pairs already reconciled this run; partner pass short-circuits.
      *
      * @var array<string, true>
      */
@@ -803,15 +798,9 @@ class Appwrite extends Destination
 
         $this->trackOrphanCandidate($database, $table, 'attributeKeys', $resource->getKey(), $dbForDatabases);
 
-        // Both rel types route through deleteRelationship — deleteAttribute throws for VAR_RELATIONSHIP.
-        // Two-way drop loses partner row data, restored by the subsequent Upsert row pass.
         $isRelationship = $type === UtopiaDatabase::VAR_RELATIONSHIP;
 
-        // Two-way relationships emit two source-side resources but reconcile both
-        // physical columns + both Appwrite-level meta docs in one pass. Skip the
-        // partner — re-processing can fire DropAndRecreate again and destroy
-        // partner-table rows already migrated this run (parent and partner have
-        // independent source createdAt values that may not match).
+        // Source emits both sides of a two-way; processing one side reconciles both. Partner skip.
         $twoWayPairKey = $this->twoWayPairKey($database, $table, $resource, $type);
         if ($twoWayPairKey !== null && isset($this->processedTwoWayPairs[$twoWayPairKey])) {
             $resource->setStatus(Resource::STATUS_SKIPPED, 'Two-way partner already reconciled');
@@ -833,7 +822,6 @@ class Appwrite extends Destination
                 $action = SchemaAction::Tolerate;
             }
 
-            // UpdateInPlace returns null when the source change isn't SDK-expressible — falls through to the drop step below.
             $earlyReturn = match ($action) {
                 SchemaAction::Tolerate => (function () use ($resource, $database, $table, $dbForDatabases): bool {
                     $this->purgeTableCaches($database, $table, $dbForDatabases);
@@ -1293,12 +1281,9 @@ class Appwrite extends Destination
 
                 $dbForDatabases = ($this->getDatabasesDB)($database);
 
-                // Drop schema-level orphans before rows land so the Structure validator doesn't reject on orphan required columns.
+                // Drop schema orphans before rows land so the Structure validator doesn't reject on orphan required columns.
                 $this->cleanupUpsertOrphansForTable($this->tableIdentity($database, $table));
-                /**
-                 * This is in case an attribute was deleted from Appwrite attributes collection but was not deleted from the table
-                 * When creating an archive we select * which will include orphan attribute from the schema
-                 */
+                // Strip row payload fields the table doesn't declare — guards against orphans surviving in source archives.
                 if ($dbForDatabases->getAdapter()->getSupportForAttributes()) {
                     foreach ($this->rowBuffer as $row) {
                         foreach ($row as $key => $value) {
@@ -1486,9 +1471,7 @@ class Appwrite extends Destination
 
         $this->purgeTableCaches($database, $table, $dbForDatabases);
 
-        // utopia's updateRelationship synced the physical constraint on both sides but
-        // not the Appwrite-level partner meta doc — refresh it so reads from the related
-        // collection don't see stale onDelete.
+        // utopia syncs both physical sides; partner's Appwrite-level meta doc has to be refreshed by hand.
         if ($isTwoWay) {
             $this->refreshTwoWayPartnerOnDelete($database, $destOptions, $sourceOptions, $updatedAt, $dbForDatabases);
         }
@@ -1555,11 +1538,7 @@ class Appwrite extends Destination
         return $sourcePerms === $destPerms;
     }
 
-    /**
-     * Compares the full attribute spec including SDK-reachable fields. Used to
-     * short-circuit DropAndRecreate / UpdateInPlace when source and destination
-     * already match — no DDL needed regardless of timestamp drift.
-     */
+    /** Full-spec equality: short-circuits both DropAndRecreate and UpdateInPlace to Tolerate when nothing changed. */
     private function attributeSpecMatches(UtopiaDocument $existing, Column|Attribute $resource, string $type, bool $isRelationship): bool
     {
         if ($existing->getAttribute('type') !== $type) {
@@ -1604,10 +1583,6 @@ class Appwrite extends Destination
     }
 
     /**
-     * Resolve a two-way relationship's partner-side context from options.
-     * Returns null if not two-way, options are missing the partner pointer,
-     * or the partner table no longer exists.
-     *
      * @param array<string, mixed> $options
      * @return array{relatedTable: UtopiaDocument, partnerKey: string, partnerMetaId: string}|null
      */
@@ -1635,11 +1610,7 @@ class Appwrite extends Destination
         ];
     }
 
-    /**
-     * Canonical pair-key for a two-way relationship — same string regardless
-     * of which side (parent or partner) is being processed. Returns null for
-     * non-two-way attributes (no pair-level tracking needed).
-     */
+    /** Canonical pair-key — same string regardless of which side is being processed. */
     private function twoWayPairKey(
         UtopiaDocument $database,
         UtopiaDocument $table,
