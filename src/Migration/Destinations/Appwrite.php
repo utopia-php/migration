@@ -68,7 +68,7 @@ class Appwrite extends Destination
     private const META_ATTRIBUTES = 'attributes';
     private const META_INDEXES = 'indexes';
 
-    /** Fields the SDK's per-type updateXAttribute endpoints don't expose; a change here forces DropAndRecreate. */
+    /** Fields the SDK's per-type updateXAttribute endpoints don't expose; a change here forces drop+recreate. */
     private const ATTRIBUTE_NON_SDK_FIELDS = [
         'type',
         'array',
@@ -493,11 +493,8 @@ class Appwrite extends Destination
             $existing = $this->dbForProject->getDocument(self::META_DATABASES, $resource->getId());
             $action = $this->onDuplicate->resolveSchemaAction(
                 !$existing->isEmpty(),
-                $createdAt,
-                $existing->getCreatedAt(),
                 $updatedAt,
                 $existing->getUpdatedAt(),
-                canDrop: false,
             );
             // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->databaseSpecMatches($existing, $resource)) {
@@ -523,7 +520,7 @@ class Appwrite extends Destination
                     $resource->setSequence($existing->getSequence());
                     return true;
                 })(),
-                SchemaAction::Create, SchemaAction::DropAndRecreate => null,
+                SchemaAction::Create => null,
             };
             if ($earlyReturn !== null) {
                 return $earlyReturn;
@@ -618,11 +615,8 @@ class Appwrite extends Destination
             );
             $action = $this->onDuplicate->resolveSchemaAction(
                 !$existing->isEmpty(),
-                $createdAt,
-                $existing->getCreatedAt(),
                 $updatedAt,
                 $existing->getUpdatedAt(),
-                canDrop: false,
             );
             // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->tableSpecMatches($existing, $resource)) {
@@ -651,7 +645,7 @@ class Appwrite extends Destination
                     $resource->setSequence($existing->getSequence());
                     return true;
                 })(),
-                SchemaAction::Create, SchemaAction::DropAndRecreate => null,
+                SchemaAction::Create => null,
             };
             if ($earlyReturn !== null) {
                 return $earlyReturn;
@@ -814,11 +808,8 @@ class Appwrite extends Destination
             $existingAttr = $this->dbForProject->getDocument(self::META_ATTRIBUTES, $attributeMetaId);
             $action = $this->onDuplicate->resolveSchemaAction(
                 !$existingAttr->isEmpty(),
-                $createdAt,
-                $existingAttr->getCreatedAt(),
                 $updatedAt,
                 $existingAttr->getUpdatedAt(),
-                canDrop: true,
             );
             // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->attributeSpecMatches($existingAttr, $resource, $type, $isRelationship)) {
@@ -836,7 +827,7 @@ class Appwrite extends Destination
                     : $this->updateAttributeInPlace($database, $table, $resource, $type, $updatedAt, $existingAttr, $dbForDatabases))
                     ? true
                     : null,
-                SchemaAction::DropAndRecreate, SchemaAction::Create => null,
+                SchemaAction::Create => null,
             };
             if ($earlyReturn !== null) {
                 if ($twoWayPairKey !== null) {
@@ -845,7 +836,7 @@ class Appwrite extends Destination
                 return $earlyReturn;
             }
 
-            if ($action === SchemaAction::DropAndRecreate || $action === SchemaAction::UpdateInPlace) {
+            if ($action === SchemaAction::UpdateInPlace) {
                 $this->dropAttributeForRecreate($database, $table, $resource, $dbForDatabases);
             }
         }
@@ -1135,11 +1126,8 @@ class Appwrite extends Destination
             $existingIdx = $this->dbForProject->getDocument(self::META_INDEXES, $indexMetaId);
             $action = $this->onDuplicate->resolveSchemaAction(
                 !$existingIdx->isEmpty(),
-                $createdAt,
-                $existingIdx->getCreatedAt(),
                 $updatedAt,
                 $existingIdx->getUpdatedAt(),
-                canDrop: true,
             );
             // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->indexSpecMatches($existingIdx, $resource)) {
@@ -1153,13 +1141,13 @@ class Appwrite extends Destination
                     $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
                     return false;
                 })(),
-                SchemaAction::UpdateInPlace, SchemaAction::DropAndRecreate, SchemaAction::Create => null,
+                SchemaAction::UpdateInPlace, SchemaAction::Create => null,
             };
             if ($earlyReturn !== null) {
                 return $earlyReturn;
             }
 
-            if ($action === SchemaAction::DropAndRecreate || $action === SchemaAction::UpdateInPlace) {
+            if ($action === SchemaAction::UpdateInPlace) {
                 $dbForDatabases->deleteIndex($this->tableCollectionId($database, $table), $resource->getKey());
                 $this->dbForProject->deleteDocument(self::META_INDEXES, $indexMetaId);
                 $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
@@ -1368,7 +1356,7 @@ class Appwrite extends Destination
         $this->purgeTableCaches($database, $table, $dbForDatabases);
     }
 
-    /** Returns false when the source change isn't SDK-expressible — caller falls through to DropAndRecreate. */
+    /** Returns false when the source change isn't SDK-expressible — caller falls through to drop+recreate. */
     private function updateAttributeInPlace(
         UtopiaDocument $database,
         UtopiaDocument $table,
@@ -1430,7 +1418,7 @@ class Appwrite extends Destination
     }
 
     /**
-     * Returns false when the source change isn't SDK-expressible — caller falls through to DropAndRecreate.
+     * Returns false when the source change isn't SDK-expressible — caller falls through to drop+recreate.
      * One-way + onDelete change is also rejected: utopia's updateRelationship partner-cascade throws on one-way.
      */
     private function updateRelationshipInPlace(
@@ -1542,7 +1530,7 @@ class Appwrite extends Destination
         return $sourcePerms === $destPerms;
     }
 
-    /** Full-spec equality: short-circuits both DropAndRecreate and UpdateInPlace to Tolerate when nothing changed. */
+    /** Full-spec equality: short-circuits UpdateInPlace to Tolerate when nothing changed. */
     private function attributeSpecMatches(UtopiaDocument $existing, Column|Attribute $resource, string $type, bool $isRelationship): bool
     {
         if ($existing->getAttribute('type') !== $type) {

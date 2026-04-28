@@ -6,7 +6,6 @@ enum SchemaAction
 {
     case Create;
     case Tolerate;
-    case DropAndRecreate;
     case UpdateInPlace;
 }
 
@@ -25,16 +24,14 @@ enum OnDuplicate: string
     }
 
     /**
-     * $canDrop = false (containers like databases/tables) forces UpdateInPlace
-     * even on createdAt-different — dropping would orphan children.
+     * Coarse routing for re-migration. The caller follows up with a spec-match
+     * check that overrides UpdateInPlace to Tolerate when source and dest
+     * already have identical spec — see DestinationAppwrite for the full flow.
      */
     public function resolveSchemaAction(
         bool $exists,
-        ?string $sourceCreatedAt = null,
-        ?string $destCreatedAt = null,
         ?string $sourceUpdatedAt = null,
         ?string $destUpdatedAt = null,
-        bool $canDrop = false,
     ): SchemaAction {
         if (!$exists) {
             return SchemaAction::Create;
@@ -42,39 +39,10 @@ enum OnDuplicate: string
         return match ($this) {
             self::Fail   => SchemaAction::Create,
             self::Skip   => SchemaAction::Tolerate,
-            self::Upsert => $this->resolveUpsertAction(
-                $sourceCreatedAt,
-                $destCreatedAt,
-                $sourceUpdatedAt,
-                $destUpdatedAt,
-                $canDrop,
-            ),
+            self::Upsert => $this->sourceIsNewer($sourceUpdatedAt, $destUpdatedAt)
+                ? SchemaAction::UpdateInPlace
+                : SchemaAction::Tolerate,
         };
-    }
-
-    private function resolveUpsertAction(
-        ?string $sourceCreatedAt,
-        ?string $destCreatedAt,
-        ?string $sourceUpdatedAt,
-        ?string $destUpdatedAt,
-        bool $canDrop,
-    ): SchemaAction {
-        if ($this->createdAtDiffers($sourceCreatedAt, $destCreatedAt)) {
-            return $canDrop ? SchemaAction::DropAndRecreate : SchemaAction::UpdateInPlace;
-        }
-
-        if ($this->sourceIsNewer($sourceUpdatedAt, $destUpdatedAt)) {
-            return SchemaAction::UpdateInPlace;
-        }
-
-        return SchemaAction::Tolerate;
-    }
-
-    private function createdAtDiffers(?string $source, ?string $dest): bool
-    {
-        $src = $this->parseTimestamp($source);
-        $dst = $this->parseTimestamp($dest);
-        return $src !== null && $dst !== null && $src !== $dst;
     }
 
     private function sourceIsNewer(?string $source, ?string $dest): bool
