@@ -837,7 +837,14 @@ class Appwrite extends Destination
             }
 
             if ($action === SchemaAction::UpdateInPlace) {
-                $this->dropAttributeForRecreate($database, $table, $resource, $dbForDatabases);
+                $this->dropAttributeForRecreate($database, $table, $resource, $dbForDatabases, $existingAttr);
+                // Re-fetch $table: the in-memory copy still holds the dropped
+                // attribute, so checkAttribute below would over-count and trip
+                // the adapter's LimitException at the column ceiling.
+                $table = $this->dbForProject->getDocument(
+                    $this->databaseCollectionId($database),
+                    $table->getId(),
+                );
             }
         }
 
@@ -1332,6 +1339,7 @@ class Appwrite extends Destination
         UtopiaDocument $table,
         Column|Attribute $resource,
         UtopiaDatabase $dbForDatabases,
+        ?UtopiaDocument $existingAttr = null,
     ): void {
         $collectionId = $this->tableCollectionId($database, $table);
         $attributeMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
@@ -1346,8 +1354,13 @@ class Appwrite extends Destination
         $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $attributeMetaId);
 
         // deleteRelationship only touches utopia's _metadata; clear the Appwrite-level partner meta doc too.
+        // Use dest's options ($existingAttr): we drop precisely when relatedCollection/twoWayKey differ,
+        // so source's options point to the NEW partner; the OLD partner meta lives where dest currently has it.
         if ($isRelationship) {
-            $partner = $this->resolveTwoWayPartner($database, $resource->getOptions());
+            $options = $existingAttr !== null && !$existingAttr->isEmpty()
+                ? (array) $existingAttr->getAttribute('options', [])
+                : $resource->getOptions();
+            $partner = $this->resolveTwoWayPartner($database, $options);
             if ($partner !== null) {
                 $this->bestEffort(fn () => $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $partner['partnerMetaId']));
             }
