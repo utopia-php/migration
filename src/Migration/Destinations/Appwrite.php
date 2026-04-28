@@ -499,6 +499,7 @@ class Appwrite extends Destination
                 $existing->getUpdatedAt(),
                 canDrop: false,
             );
+            // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->databaseSpecMatches($existing, $resource)) {
                 $action = SchemaAction::Tolerate;
             }
@@ -623,6 +624,7 @@ class Appwrite extends Destination
                 $existing->getUpdatedAt(),
                 canDrop: false,
             );
+            // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->tableSpecMatches($existing, $resource)) {
                 $action = SchemaAction::Tolerate;
             }
@@ -818,6 +820,7 @@ class Appwrite extends Destination
                 $existingAttr->getUpdatedAt(),
                 canDrop: true,
             );
+            // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->attributeSpecMatches($existingAttr, $resource, $type, $isRelationship)) {
                 $action = SchemaAction::Tolerate;
             }
@@ -1138,6 +1141,7 @@ class Appwrite extends Destination
                 $existingIdx->getUpdatedAt(),
                 canDrop: true,
             );
+            // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->indexSpecMatches($existingIdx, $resource)) {
                 $action = SchemaAction::Tolerate;
             }
@@ -1549,21 +1553,21 @@ class Appwrite extends Destination
             /** @var array<string, mixed> $destOptions */
             $destOptions = $existing->getAttribute('options', []);
             foreach (self::RELATIONSHIP_STRUCTURAL_FIELDS as $field) {
-                if (($sourceOptions[$field] ?? null) !== ($destOptions[$field] ?? null)) {
+                if (!$this->valuesMatch($sourceOptions[$field] ?? null, $destOptions[$field] ?? null)) {
                     return false;
                 }
             }
-            return ($sourceOptions['onDelete'] ?? null) === ($destOptions['onDelete'] ?? null);
+            return $this->valuesMatch($sourceOptions['onDelete'] ?? null, $destOptions['onDelete'] ?? null);
         }
 
-        return $existing->getAttribute('size')          === $resource->getSize()
-            && $existing->getAttribute('required')      === $resource->isRequired()
-            && $existing->getAttribute('default')       === $resource->getDefault()
-            && $existing->getAttribute('array')         === $resource->isArray()
-            && $existing->getAttribute('signed')        === $resource->isSigned()
-            && $existing->getAttribute('format')        === $resource->getFormat()
-            && $existing->getAttribute('formatOptions') === $resource->getFormatOptions()
-            && $existing->getAttribute('filters')       === $resource->getFilters();
+        return $existing->getAttribute('size')     === $resource->getSize()
+            && $existing->getAttribute('required') === $resource->isRequired()
+            && $existing->getAttribute('default')  === $resource->getDefault()
+            && $existing->getAttribute('array')    === $resource->isArray()
+            && $existing->getAttribute('signed')   === $resource->isSigned()
+            && $existing->getAttribute('format')   === $resource->getFormat()
+            && $this->valuesMatch($existing->getAttribute('formatOptions'), $resource->getFormatOptions())
+            && $existing->getAttribute('filters')  === $resource->getFilters();
     }
 
     /**
@@ -1670,11 +1674,25 @@ class Appwrite extends Destination
     private function arraysDifferOnKeys(array $a, array $b, array $keys): bool
     {
         foreach ($keys as $key) {
-            if (($a[$key] ?? null) !== ($b[$key] ?? null)) {
+            if (!$this->valuesMatch($a[$key] ?? null, $b[$key] ?? null)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * `===` on associative arrays is order-sensitive on keys; ksort both sides
+     * before comparing so {min, max} matches {max, min}. Lists (numeric keys)
+     * are left alone — order is semantically meaningful for filters/columns.
+     */
+    private function valuesMatch(mixed $a, mixed $b): bool
+    {
+        if (\is_array($a) && \is_array($b) && !\array_is_list($a) && !\array_is_list($b)) {
+            \ksort($a);
+            \ksort($b);
+        }
+        return $a === $b;
     }
 
     /** $kind is 'attributeKeys' or 'indexKeys'. */
