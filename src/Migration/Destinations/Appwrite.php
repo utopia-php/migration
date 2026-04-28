@@ -1367,7 +1367,7 @@ class Appwrite extends Destination
         if ($isRelationship) {
             $partner = $this->resolveTwoWayPartner($database, $resource->getOptions());
             if ($partner !== null) {
-                $this->bestEffort(fn () => $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $partner->partnerMetaId));
+                $this->bestEffort(fn () => $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $partner['partnerMetaId']));
             }
         }
 
@@ -1507,7 +1507,7 @@ class Appwrite extends Destination
             return;
         }
 
-        $partnerMeta = $this->dbForProject->getDocument(self::META_ATTRIBUTES, $partner->partnerMetaId);
+        $partnerMeta = $this->dbForProject->getDocument(self::META_ATTRIBUTES, $partner['partnerMetaId']);
         if ($partnerMeta->isEmpty()) {
             return;
         }
@@ -1519,7 +1519,7 @@ class Appwrite extends Destination
             ]),
             '$updatedAt' => $updatedAt,
         ]));
-        $this->purgeTableCaches($database, $partner->relatedTable, $dbForDatabases);
+        $this->purgeTableCaches($database, $partner['relatedTable'], $dbForDatabases);
     }
 
     /**
@@ -1539,14 +1539,14 @@ class Appwrite extends Destination
     }
 
     /**
-     * Resolve a two-way relationship's partner-side context (related table doc,
-     * partner attribute key, partner meta-doc id) from a relationship's options.
+     * Resolve a two-way relationship's partner-side context from options.
      * Returns null if not two-way, options are missing the partner pointer,
      * or the partner table no longer exists.
      *
      * @param array<string, mixed> $options
+     * @return array{relatedTable: UtopiaDocument, partnerKey: string, partnerMetaId: string}|null
      */
-    private function resolveTwoWayPartner(UtopiaDocument $database, array $options): ?TwoWayPartner
+    private function resolveTwoWayPartner(UtopiaDocument $database, array $options): ?array
     {
         if (empty($options['twoWay'])) {
             return null;
@@ -1563,11 +1563,11 @@ class Appwrite extends Destination
         if ($relatedTable->isEmpty()) {
             return null;
         }
-        return new TwoWayPartner(
-            $relatedTable,
-            $partnerKey,
-            $this->attributeIndexMetaId($database, $relatedTable, $partnerKey),
-        );
+        return [
+            'relatedTable' => $relatedTable,
+            'partnerKey' => $partnerKey,
+            'partnerMetaId' => $this->attributeIndexMetaId($database, $relatedTable, $partnerKey),
+        ];
     }
 
     /**
@@ -1765,8 +1765,8 @@ class Appwrite extends Destination
         }
 
         // deleteRelationship already dropped the partner physical column; only the Appwrite-level meta doc remains.
-        $this->bestEffort(fn () => $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $partner->partnerMetaId));
-        $this->purgeTableCaches($database, $partner->relatedTable, $dbForDatabases);
+        $this->bestEffort(fn () => $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $partner['partnerMetaId']));
+        $this->purgeTableCaches($database, $partner['relatedTable'], $dbForDatabases);
     }
 
     private function dropOrphanIndex(
