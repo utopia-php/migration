@@ -923,6 +923,7 @@ class Appwrite extends Destination
                 ]);
 
                 $this->dbForProject->createDocument(self::META_ATTRIBUTES, $twoWayAttribute);
+                $this->trackOrphanCandidate($database, $relatedTable, 'attributeKeys', $twoWayKey, $dbForDatabases);
             } catch (DuplicateException) {
                 $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $column->getId());
 
@@ -952,6 +953,7 @@ class Appwrite extends Destination
                 case UtopiaDatabase::VAR_RELATIONSHIP:
                     if (!$dbForDatabases->createRelationship(
                         collection: $this->tableCollectionId($database, $table),
+                        // @phpstan-ignore-next-line — $relatedTable is set when type is VAR_RELATIONSHIP.
                         relatedCollection: $this->tableCollectionId($database, $relatedTable),
                         type: $options['relationType'],
                         twoWay: $options['twoWay'],
@@ -1000,6 +1002,7 @@ class Appwrite extends Destination
         }
 
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
+            // @phpstan-ignore-next-line — $relatedTable is set when type is VAR_RELATIONSHIP.
             $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $relatedTable->getId());
         }
 
