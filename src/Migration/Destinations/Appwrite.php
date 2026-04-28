@@ -504,6 +504,9 @@ class Appwrite extends Destination
                 $existing->getUpdatedAt(),
                 canDrop: false,
             );
+            if ($action !== SchemaAction::Create && $this->databaseSpecMatches($existing, $resource)) {
+                $action = SchemaAction::Tolerate;
+            }
 
             $earlyReturn = match ($action) {
                 SchemaAction::Tolerate => (function () use ($resource, $existing): bool {
@@ -625,6 +628,9 @@ class Appwrite extends Destination
                 $existing->getUpdatedAt(),
                 canDrop: false,
             );
+            if ($action !== SchemaAction::Create && $this->tableSpecMatches($existing, $resource)) {
+                $action = SchemaAction::Tolerate;
+            }
 
             $earlyReturn = match ($action) {
                 SchemaAction::Tolerate => (function () use ($resource, $existing): bool {
@@ -823,6 +829,9 @@ class Appwrite extends Destination
                 $existingAttr->getUpdatedAt(),
                 canDrop: true,
             );
+            if ($action !== SchemaAction::Create && $this->attributeSpecMatches($existingAttr, $resource, $type, $isRelationship)) {
+                $action = SchemaAction::Tolerate;
+            }
 
             // UpdateInPlace returns null when the source change isn't SDK-expressible — falls through to the drop step below.
             $earlyReturn = match ($action) {
@@ -1141,22 +1150,18 @@ class Appwrite extends Destination
                 $existingIdx->getUpdatedAt(),
                 canDrop: true,
             );
+            if ($action !== SchemaAction::Create && $this->indexSpecMatches($existingIdx, $resource)) {
+                $action = SchemaAction::Tolerate;
+            }
 
-            // Indexes have no in-place primitive — UpdateInPlace tolerates if spec matches, else drop+recreate.
+            // Indexes have no in-place primitive — any action other than Tolerate falls through to drop+recreate.
             $earlyReturn = match ($action) {
                 SchemaAction::Tolerate => (function () use ($resource, $database, $table): bool {
                     $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
                     $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
                     return false;
                 })(),
-                SchemaAction::UpdateInPlace => $this->indexSpecMatches($existingIdx, $resource)
-                    ? (function () use ($resource, $database, $table): bool {
-                        $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
-                        $resource->setStatus(Resource::STATUS_SKIPPED, 'Index spec unchanged');
-                        return false;
-                    })()
-                    : null,
-                SchemaAction::DropAndRecreate, SchemaAction::Create => null,
+                SchemaAction::UpdateInPlace, SchemaAction::DropAndRecreate, SchemaAction::Create => null,
             };
             if ($earlyReturn !== null) {
                 return $earlyReturn;
@@ -1520,6 +1525,66 @@ class Appwrite extends Destination
             '$updatedAt' => $updatedAt,
         ]));
         $this->purgeTableCaches($database, $partner['relatedTable'], $dbForDatabases);
+    }
+
+    private function databaseSpecMatches(UtopiaDocument $existing, Database $resource): bool
+    {
+        $sourceType = empty($resource->getType()) ? 'legacy' : $resource->getType();
+        $sourceOriginalId = empty($resource->getOriginalId()) ? null : $resource->getOriginalId();
+
+        return $existing->getAttribute('name')       === $resource->getDatabaseName()
+            && $existing->getAttribute('enabled')    === $resource->getEnabled()
+            && $existing->getAttribute('type')       === $sourceType
+            && $existing->getAttribute('originalId') === $sourceOriginalId
+            && $existing->getAttribute('database')   === $resource->getDatabase();
+    }
+
+    private function tableSpecMatches(UtopiaDocument $existing, Table $resource): bool
+    {
+        if ($existing->getAttribute('name') !== $resource->getTableName()
+            || $existing->getAttribute('enabled') !== $resource->getEnabled()
+            || $existing->getAttribute('documentSecurity') !== $resource->getRowSecurity()) {
+            return false;
+        }
+
+        $sourcePerms = Permission::aggregate($resource->getPermissions());
+        /** @var list<string> $destPerms */
+        $destPerms = $existing->getAttribute('$permissions', []);
+        \sort($sourcePerms);
+        \sort($destPerms);
+        return $sourcePerms === $destPerms;
+    }
+
+    /**
+     * Compares the full attribute spec including SDK-reachable fields. Used to
+     * short-circuit DropAndRecreate / UpdateInPlace when source and destination
+     * already match — no DDL needed regardless of timestamp drift.
+     */
+    private function attributeSpecMatches(UtopiaDocument $existing, Column|Attribute $resource, string $type, bool $isRelationship): bool
+    {
+        if ($existing->getAttribute('type') !== $type) {
+            return false;
+        }
+        if ($isRelationship) {
+            $sourceOptions = $resource->getOptions();
+            /** @var array<string, mixed> $destOptions */
+            $destOptions = $existing->getAttribute('options', []);
+            foreach (self::RELATIONSHIP_STRUCTURAL_FIELDS as $field) {
+                if (($sourceOptions[$field] ?? null) !== ($destOptions[$field] ?? null)) {
+                    return false;
+                }
+            }
+            return ($sourceOptions['onDelete'] ?? null) === ($destOptions['onDelete'] ?? null);
+        }
+
+        return $existing->getAttribute('size')          === $resource->getSize()
+            && $existing->getAttribute('required')      === $resource->isRequired()
+            && $existing->getAttribute('default')       === $resource->getDefault()
+            && $existing->getAttribute('array')         === $resource->isArray()
+            && $existing->getAttribute('signed')        === $resource->isSigned()
+            && $existing->getAttribute('format')        === $resource->getFormat()
+            && $existing->getAttribute('formatOptions') === $resource->getFormatOptions()
+            && $existing->getAttribute('filters')       === $resource->getFilters();
     }
 
     /**
