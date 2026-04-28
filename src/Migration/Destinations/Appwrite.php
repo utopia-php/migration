@@ -838,13 +838,8 @@ class Appwrite extends Destination
 
             if ($action === SchemaAction::UpdateInPlace) {
                 $this->dropAttributeForRecreate($database, $table, $resource, $dbForDatabases, $existingAttr);
-                // Re-fetch $table: the in-memory copy still holds the dropped
-                // attribute, so checkAttribute below would over-count and trip
-                // the adapter's LimitException at the column ceiling.
-                $table = $this->dbForProject->getDocument(
-                    $this->databaseCollectionId($database),
-                    $table->getId(),
-                );
+                // Reload $table — in-memory copy still holds the dropped attribute, so checkAttribute would over-count.
+                $table = $this->dbForProject->getDocument($this->databaseCollectionId($database), $table->getId());
             }
         }
 
@@ -1330,16 +1325,13 @@ class Appwrite extends Destination
         return true;
     }
 
-    /**
-     * Drop attribute (meta doc + physical column). Relationships route through
-     * deleteRelationship since deleteAttribute throws for VAR_RELATIONSHIP.
-     */
+    /** Relationships route through deleteRelationship since deleteAttribute throws for VAR_RELATIONSHIP. */
     private function dropAttributeForRecreate(
         UtopiaDocument $database,
         UtopiaDocument $table,
         Column|Attribute $resource,
         UtopiaDatabase $dbForDatabases,
-        ?UtopiaDocument $existingAttr = null,
+        UtopiaDocument $existingAttr,
     ): void {
         $collectionId = $this->tableCollectionId($database, $table);
         $attributeMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
@@ -1353,14 +1345,9 @@ class Appwrite extends Destination
 
         $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $attributeMetaId);
 
-        // deleteRelationship only touches utopia's _metadata; clear the Appwrite-level partner meta doc too.
-        // Use dest's options ($existingAttr): we drop precisely when relatedCollection/twoWayKey differ,
-        // so source's options point to the NEW partner; the OLD partner meta lives where dest currently has it.
+        // Use dest's options for partner lookup — drop fires when relatedCollection/twoWayKey differ, so source points to the NEW partner.
         if ($isRelationship) {
-            $options = $existingAttr !== null && !$existingAttr->isEmpty()
-                ? (array) $existingAttr->getAttribute('options', [])
-                : $resource->getOptions();
-            $partner = $this->resolveTwoWayPartner($database, $options);
+            $partner = $this->resolveTwoWayPartner($database, (array) $existingAttr->getAttribute('options', []));
             if ($partner !== null) {
                 $this->bestEffort(fn () => $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $partner['partnerMetaId']));
             }
