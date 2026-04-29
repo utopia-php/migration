@@ -150,7 +150,6 @@ abstract class Target
             throw new \Exception(\curl_error($ch), Exception::CODE_INTERNAL);
         }
 
-        \curl_close($ch);
 
         if ($responseStatus >= 400) {
             if (\is_array($responseBody)) {
