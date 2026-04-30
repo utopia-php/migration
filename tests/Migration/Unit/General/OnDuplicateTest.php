@@ -10,7 +10,7 @@ use Utopia\Migration\Destinations\SchemaAction;
 /**
  * OnDuplicate::resolveSchemaAction is the load-bearing decision point for
  * re-migration tolerance. The destination then runs a spec-match guard that
- * overrides UpdateInPlace to Tolerate when source and dest already have
+ * overrides Overwrite to Skip when source and dest already have
  * identical spec — see DestinationAppwrite. These tests lock the
  * mode × existence × updatedAt matrix.
  */
@@ -29,20 +29,20 @@ class OnDuplicateTest extends TestCase
 
     public function testFailExistsReturnsCreateSoCallerDDLThrows(): void
     {
-        // Fail is routed through Create (not Tolerate) so the caller's normal
+        // Fail is routed through Create (not Skip) so the caller's normal
         // create flow runs and the library surfaces DuplicateException as
-        // designed. Returning Tolerate here would silently hide the error.
+        // designed. Returning Skip here would silently hide the error.
         $this->assertSame(
             SchemaAction::Create,
             OnDuplicate::Fail->resolveSchemaAction(exists: true),
         );
     }
 
-    public function testSkipAlwaysToleratesExisting(): void
+    public function testSkipAlwaysSkipsExisting(): void
     {
         // Skip must ignore updatedAt entirely — it's the "don't touch" contract.
         $this->assertSame(
-            SchemaAction::Tolerate,
+            SchemaAction::Skip,
             OnDuplicate::Skip->resolveSchemaAction(
                 exists: true,
                 sourceUpdatedAt: '2026-01-01T00:00:00.000+00:00',
@@ -50,7 +50,7 @@ class OnDuplicateTest extends TestCase
             ),
         );
         $this->assertSame(
-            SchemaAction::Tolerate,
+            SchemaAction::Skip,
             OnDuplicate::Skip->resolveSchemaAction(
                 exists: true,
                 sourceUpdatedAt: '2020-01-01T00:00:00.000+00:00',
@@ -61,12 +61,12 @@ class OnDuplicateTest extends TestCase
 
     public function testOverwriteSourceNewerUpdatesInPlace(): void
     {
-        // Source updatedAt strictly newer than dest → UpdateInPlace. The
+        // Source updatedAt strictly newer than dest → Overwrite. The
         // caller (DestinationAppwrite) follows up with attribute/index spec
         // checks and falls through to drop+recreate when the SDK can't
         // express the change.
         $this->assertSame(
-            SchemaAction::UpdateInPlace,
+            SchemaAction::Overwrite,
             OnDuplicate::Overwrite->resolveSchemaAction(
                 exists: true,
                 sourceUpdatedAt: '2026-04-23T10:00:00.000+00:00',
@@ -75,11 +75,11 @@ class OnDuplicateTest extends TestCase
         );
     }
 
-    public function testOverwriteSourceEqualTolerates(): void
+    public function testOverwriteSourceEqualSkips(): void
     {
         $when = '2026-04-23T10:00:00.000+00:00';
         $this->assertSame(
-            SchemaAction::Tolerate,
+            SchemaAction::Skip,
             OnDuplicate::Overwrite->resolveSchemaAction(
                 exists: true,
                 sourceUpdatedAt: $when,
@@ -88,12 +88,12 @@ class OnDuplicateTest extends TestCase
         );
     }
 
-    public function testOverwriteSourceOlderTolerates(): void
+    public function testOverwriteSourceOlderSkips(): void
     {
         // Dest is ahead — don't roll back. Avoids overwriting newer
         // destination edits with stale source data.
         $this->assertSame(
-            SchemaAction::Tolerate,
+            SchemaAction::Skip,
             OnDuplicate::Overwrite->resolveSchemaAction(
                 exists: true,
                 sourceUpdatedAt: '2026-04-23T09:00:00.000+00:00',
@@ -102,12 +102,12 @@ class OnDuplicateTest extends TestCase
         );
     }
 
-    public function testOverwriteNoTimestampsTolerates(): void
+    public function testOverwriteNoTimestampsSkips(): void
     {
         // No timestamps provided at all → no information to act on. Conservative:
-        // Tolerate rather than risk a destructive update on uncertain input.
+        // Skip rather than risk a destructive update on uncertain input.
         $this->assertSame(
-            SchemaAction::Tolerate,
+            SchemaAction::Skip,
             OnDuplicate::Overwrite->resolveSchemaAction(exists: true),
         );
     }
@@ -132,12 +132,12 @@ class OnDuplicateTest extends TestCase
     }
 
     #[DataProvider('unparseableTimestampPairs')]
-    public function testOverwriteUnparseableUpdatedAtTolerates(?string $source, ?string $dest): void
+    public function testOverwriteUnparseableUpdatedAtSkips(?string $source, ?string $dest): void
     {
         // Conservative: unparseable updatedAt preserves existing destination
         // rather than risk a destructive update on garbage input.
         $this->assertSame(
-            SchemaAction::Tolerate,
+            SchemaAction::Skip,
             OnDuplicate::Overwrite->resolveSchemaAction(
                 exists: true,
                 sourceUpdatedAt: $source,

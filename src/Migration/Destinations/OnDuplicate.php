@@ -5,8 +5,8 @@ namespace Utopia\Migration\Destinations;
 enum SchemaAction
 {
     case Create;
-    case Tolerate;
-    case UpdateInPlace;
+    case Skip;
+    case Overwrite;
 }
 
 enum OnDuplicate: string
@@ -25,7 +25,7 @@ enum OnDuplicate: string
 
     /**
      * Coarse routing for re-migration. The caller follows up with a spec-match
-     * check that overrides UpdateInPlace to Tolerate when source and dest
+     * check that overrides Overwrite to Skip when source and dest
      * already have identical spec — see DestinationAppwrite for the full flow.
      */
     public function resolveSchemaAction(
@@ -38,10 +38,10 @@ enum OnDuplicate: string
         }
         return match ($this) {
             self::Fail   => SchemaAction::Create,
-            self::Skip   => SchemaAction::Tolerate,
+            self::Skip   => SchemaAction::Skip,
             self::Overwrite => $this->sourceIsNewer($sourceUpdatedAt, $destUpdatedAt)
-                ? SchemaAction::UpdateInPlace
-                : SchemaAction::Tolerate,
+                ? SchemaAction::Overwrite
+                : SchemaAction::Skip,
         };
     }
 

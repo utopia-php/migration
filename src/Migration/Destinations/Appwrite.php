@@ -501,16 +501,16 @@ class Appwrite extends Destination
             );
             // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->databaseSpecMatches($existing, $resource)) {
-                $action = SchemaAction::Tolerate;
+                $action = SchemaAction::Skip;
             }
 
             $earlyReturn = match ($action) {
-                SchemaAction::Tolerate => (function () use ($resource, $existing): bool {
+                SchemaAction::Skip => (function () use ($resource, $existing): bool {
                     $resource->setSequence($existing->getSequence());
                     $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
                     return false;
                 })(),
-                SchemaAction::UpdateInPlace => (function () use ($resource, $existing, $updatedAt): bool {
+                SchemaAction::Overwrite => (function () use ($resource, $existing, $updatedAt): bool {
                     $this->dbForProject->updateDocument(self::META_DATABASES, $existing->getId(), new UtopiaDocument([
                         'name' => $resource->getDatabaseName(),
                         'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
@@ -623,16 +623,16 @@ class Appwrite extends Destination
             );
             // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->tableSpecMatches($existing, $resource)) {
-                $action = SchemaAction::Tolerate;
+                $action = SchemaAction::Skip;
             }
 
             $earlyReturn = match ($action) {
-                SchemaAction::Tolerate => (function () use ($resource, $existing): bool {
+                SchemaAction::Skip => (function () use ($resource, $existing): bool {
                     $resource->setSequence($existing->getSequence());
                     $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
                     return false;
                 })(),
-                SchemaAction::UpdateInPlace => (function () use ($resource, $existing, $database, $updatedAt): bool {
+                SchemaAction::Overwrite => (function () use ($resource, $existing, $database, $updatedAt): bool {
                     $this->dbForProject->updateDocument(
                         $this->databaseCollectionId($database),
                         $existing->getId(),
@@ -816,16 +816,16 @@ class Appwrite extends Destination
             );
             // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->attributeSpecMatches($existingAttr, $resource, $type, $isRelationship)) {
-                $action = SchemaAction::Tolerate;
+                $action = SchemaAction::Skip;
             }
 
             $earlyReturn = match ($action) {
-                SchemaAction::Tolerate => (function () use ($resource, $database, $table, $dbForDatabases): bool {
+                SchemaAction::Skip => (function () use ($resource, $database, $table, $dbForDatabases): bool {
                     $this->purgeTableCaches($database, $table, $dbForDatabases);
                     $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
                     return false;
                 })(),
-                SchemaAction::UpdateInPlace => ($isRelationship
+                SchemaAction::Overwrite => ($isRelationship
                     ? $this->updateRelationshipInPlace($database, $table, $resource, $type, $updatedAt, $existingAttr, $dbForDatabases)
                     : $this->updateAttributeInPlace($database, $table, $resource, $type, $updatedAt, $existingAttr, $dbForDatabases))
                     ? true
@@ -839,7 +839,7 @@ class Appwrite extends Destination
                 return $earlyReturn;
             }
 
-            if ($action === SchemaAction::UpdateInPlace) {
+            if ($action === SchemaAction::Overwrite) {
                 $this->dropAttributeForRecreate($database, $table, $resource, $dbForDatabases, $existingAttr);
                 // Reload $table — in-memory copy still holds the dropped attribute, so checkAttribute would over-count.
                 $table = $this->dbForProject->getDocument($this->databaseCollectionId($database), $table->getId());
@@ -1070,23 +1070,23 @@ class Appwrite extends Destination
             );
             // Spec match → skip work. Create excluded; nothing on dest to match against.
             if ($action !== SchemaAction::Create && $this->indexSpecMatches($existingIdx, $resource)) {
-                $action = SchemaAction::Tolerate;
+                $action = SchemaAction::Skip;
             }
 
-            // Indexes have no in-place primitive — any action other than Tolerate falls through to drop+recreate.
+            // Indexes have no in-place primitive — any action other than Skip falls through to drop+recreate.
             $earlyReturn = match ($action) {
-                SchemaAction::Tolerate => (function () use ($resource, $database, $table): bool {
+                SchemaAction::Skip => (function () use ($resource, $database, $table): bool {
                     $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
                     $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
                     return false;
                 })(),
-                SchemaAction::UpdateInPlace, SchemaAction::Create => null,
+                SchemaAction::Overwrite, SchemaAction::Create => null,
             };
             if ($earlyReturn !== null) {
                 return $earlyReturn;
             }
 
-            if ($action === SchemaAction::UpdateInPlace) {
+            if ($action === SchemaAction::Overwrite) {
                 $dbForDatabases->deleteIndex($this->tableCollectionId($database, $table), $resource->getKey());
                 $this->dbForProject->deleteDocument(self::META_INDEXES, $indexMetaId);
                 $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
@@ -1545,7 +1545,7 @@ class Appwrite extends Destination
         return $sourcePerms === $destPerms;
     }
 
-    /** Full-spec equality: short-circuits UpdateInPlace to Tolerate when nothing changed. */
+    /** Full-spec equality: short-circuits Overwrite to Skip when nothing changed. */
     private function attributeSpecMatches(UtopiaDocument $existing, Column|Attribute $resource, string $type, bool $isRelationship): bool
     {
         if ($existing->getAttribute('type') !== $type) {
