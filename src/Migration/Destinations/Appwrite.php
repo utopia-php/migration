@@ -109,7 +109,7 @@ class Appwrite extends Destination
     private array $rowBuffer = [];
 
     /**
-     * Upsert-mode orphan tracking, keyed by (database, table). Orphans are
+     * Overwrite-mode orphan tracking, keyed by (database, table). Orphans are
      * destination keys not in `attributeKeys` / `indexKeys`. Entries removed
      * after their cleanup runs so the end-of-run sweep only visits tables
      * that had no rows.
@@ -178,7 +178,7 @@ class Appwrite extends Destination
     ): void {
         $this->resetRunState();
         parent::run($resources, $callback, $rootResourceId, $rootResourceType);
-        $this->cleanupUpsertOrphans();
+        $this->cleanupOverwriteOrphans();
     }
 
     /** Per-run state must not leak across run() invocations on a reused instance. */
@@ -1056,7 +1056,7 @@ class Appwrite extends Destination
         $indexMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
 
         // Pre-check + drop runs BEFORE count/validator so the to-be-dropped index isn't included in
-        // the limit count or in IndexValidator's $tableIndexes (otherwise an Upsert recreate at the
+        // the limit count or in IndexValidator's $tableIndexes (otherwise an Overwrite recreate at the
         // ceiling throws "Index limit reached" or "Invalid index" even though the net change is zero).
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existingIdx = $this->dbForProject->getDocument(self::META_INDEXES, $indexMetaId);
@@ -1284,7 +1284,7 @@ class Appwrite extends Destination
                 $dbForDatabases = ($this->getDatabasesDB)($database);
 
                 // Drop schema orphans before rows land so the Structure validator doesn't reject on orphan required columns.
-                $this->cleanupUpsertOrphansForTable($this->tableIdentity($database, $table));
+                $this->cleanupOverwriteOrphansForTable($this->tableIdentity($database, $table));
                 // Strip row payload fields the table doesn't declare — guards against orphans surviving in source archives.
                 if ($dbForDatabases->getAdapter()->getSupportForAttributes()) {
                     foreach ($this->rowBuffer as $row) {
@@ -1311,7 +1311,7 @@ class Appwrite extends Destination
                 $collectionId = $this->tableCollectionId($database, $table);
 
                 match ($this->onDuplicate) {
-                    OnDuplicate::Upsert => $dbForDatabases->skipRelationshipsExistCheck(
+                    OnDuplicate::Overwrite => $dbForDatabases->skipRelationshipsExistCheck(
                         fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
                     ),
                     OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
@@ -1699,7 +1699,7 @@ class Appwrite extends Destination
         string $key,
         UtopiaDatabase $dbForDatabases,
     ): void {
-        if ($this->onDuplicate !== OnDuplicate::Upsert) {
+        if ($this->onDuplicate !== OnDuplicate::Overwrite) {
             return;
         }
         $tableId = $this->tableIdentity($database, $table);
@@ -1716,17 +1716,17 @@ class Appwrite extends Destination
     }
 
     /** End-of-migration sweep — only visits tables that had no rows (rest were cleaned per-table in createRecord). */
-    private function cleanupUpsertOrphans(): void
+    private function cleanupOverwriteOrphans(): void
     {
         foreach (\array_keys($this->orphansByTable) as $tableId) {
-            $this->cleanupUpsertOrphansForTable($tableId);
+            $this->cleanupOverwriteOrphansForTable($tableId);
         }
     }
 
     /** Called per-table from createRecord before rows land so Structure validator sees the post-cleanup schema. */
-    private function cleanupUpsertOrphansForTable(string $tableId): void
+    private function cleanupOverwriteOrphansForTable(string $tableId): void
     {
-        if ($this->onDuplicate !== OnDuplicate::Upsert) {
+        if ($this->onDuplicate !== OnDuplicate::Overwrite) {
             return;
         }
         if (!isset($this->orphansByTable[$tableId])) {

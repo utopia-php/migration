@@ -59,7 +59,7 @@ class OnDuplicateTest extends TestCase
         );
     }
 
-    public function testUpsertSourceNewerUpdatesInPlace(): void
+    public function testOverwriteSourceNewerUpdatesInPlace(): void
     {
         // Source updatedAt strictly newer than dest → UpdateInPlace. The
         // caller (DestinationAppwrite) follows up with attribute/index spec
@@ -67,7 +67,7 @@ class OnDuplicateTest extends TestCase
         // express the change.
         $this->assertSame(
             SchemaAction::UpdateInPlace,
-            OnDuplicate::Upsert->resolveSchemaAction(
+            OnDuplicate::Overwrite->resolveSchemaAction(
                 exists: true,
                 sourceUpdatedAt: '2026-04-23T10:00:00.000+00:00',
                 destUpdatedAt: '2026-04-23T09:59:59.000+00:00',
@@ -75,12 +75,12 @@ class OnDuplicateTest extends TestCase
         );
     }
 
-    public function testUpsertSourceEqualTolerates(): void
+    public function testOverwriteSourceEqualTolerates(): void
     {
         $when = '2026-04-23T10:00:00.000+00:00';
         $this->assertSame(
             SchemaAction::Tolerate,
-            OnDuplicate::Upsert->resolveSchemaAction(
+            OnDuplicate::Overwrite->resolveSchemaAction(
                 exists: true,
                 sourceUpdatedAt: $when,
                 destUpdatedAt: $when,
@@ -88,13 +88,13 @@ class OnDuplicateTest extends TestCase
         );
     }
 
-    public function testUpsertSourceOlderTolerates(): void
+    public function testOverwriteSourceOlderTolerates(): void
     {
         // Dest is ahead — don't roll back. Avoids overwriting newer
         // destination edits with stale source data.
         $this->assertSame(
             SchemaAction::Tolerate,
-            OnDuplicate::Upsert->resolveSchemaAction(
+            OnDuplicate::Overwrite->resolveSchemaAction(
                 exists: true,
                 sourceUpdatedAt: '2026-04-23T09:00:00.000+00:00',
                 destUpdatedAt: '2026-04-23T10:00:00.000+00:00',
@@ -102,13 +102,13 @@ class OnDuplicateTest extends TestCase
         );
     }
 
-    public function testUpsertNoTimestampsTolerates(): void
+    public function testOverwriteNoTimestampsTolerates(): void
     {
         // No timestamps provided at all → no information to act on. Conservative:
         // Tolerate rather than risk a destructive update on uncertain input.
         $this->assertSame(
             SchemaAction::Tolerate,
-            OnDuplicate::Upsert->resolveSchemaAction(exists: true),
+            OnDuplicate::Overwrite->resolveSchemaAction(exists: true),
         );
     }
 
@@ -132,13 +132,13 @@ class OnDuplicateTest extends TestCase
     }
 
     #[DataProvider('unparseableTimestampPairs')]
-    public function testUpsertUnparseableUpdatedAtTolerates(?string $source, ?string $dest): void
+    public function testOverwriteUnparseableUpdatedAtTolerates(?string $source, ?string $dest): void
     {
         // Conservative: unparseable updatedAt preserves existing destination
         // rather than risk a destructive update on garbage input.
         $this->assertSame(
             SchemaAction::Tolerate,
-            OnDuplicate::Upsert->resolveSchemaAction(
+            OnDuplicate::Overwrite->resolveSchemaAction(
                 exists: true,
                 sourceUpdatedAt: $source,
                 destUpdatedAt: $dest,
@@ -150,6 +150,6 @@ class OnDuplicateTest extends TestCase
     {
         // The values() helper is consumed by API/SDK param validators; this
         // protects against an accidental case-rename or reorder.
-        $this->assertSame(['fail', 'skip', 'upsert'], OnDuplicate::values());
+        $this->assertSame(['fail', 'skip', 'overwrite'], OnDuplicate::values());
     }
 }

@@ -13,7 +13,7 @@ enum OnDuplicate: string
 {
     case Fail = 'fail';
     case Skip = 'skip';
-    case Upsert = 'upsert';
+    case Overwrite = 'overwrite';
 
     /**
      * @return list<string>
@@ -39,7 +39,7 @@ enum OnDuplicate: string
         return match ($this) {
             self::Fail   => SchemaAction::Create,
             self::Skip   => SchemaAction::Tolerate,
-            self::Upsert => $this->sourceIsNewer($sourceUpdatedAt, $destUpdatedAt)
+            self::Overwrite => $this->sourceIsNewer($sourceUpdatedAt, $destUpdatedAt)
                 ? SchemaAction::UpdateInPlace
                 : SchemaAction::Tolerate,
         };
