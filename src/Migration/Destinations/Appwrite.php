@@ -63,13 +63,13 @@ use Utopia\Migration\Transfer;
 
 class Appwrite extends Destination
 {
-    /** Names of the platform-DB collections holding Appwrite schema metadata. */
+    /** Names of the project-DB collections holding Appwrite schema metadata. */
     private const META_DATABASES = 'databases';
     private const META_ATTRIBUTES = 'attributes';
     private const META_INDEXES = 'indexes';
 
-    /** Fields the SDK's per-type updateXAttribute endpoints don't expose; a change here forces drop+recreate. */
-    private const ATTRIBUTE_NON_SDK_FIELDS = [
+    /** Attribute fields the SDK can't update in place (no per-type updateX endpoint exposes them); a change here forces drop+recreate. */
+    private const ATTRIBUTE_IMMUTABLE_FIELDS = [
         'type',
         'array',
         'signed',
@@ -78,8 +78,8 @@ class Appwrite extends Destination
         'filters',
     ];
 
-    /** Fields the SDK's updateRelationshipAttribute doesn't expose (only onDelete/newKey are SDK-reachable). */
-    private const RELATIONSHIP_STRUCTURAL_FIELDS = [
+    /** Relationship options fields the SDK can't update in place (only onDelete/newKey are SDK-reachable); a change here forces drop+recreate. */
+    private const RELATIONSHIP_IMMUTABLE_FIELDS = [
         'relationType',
         'twoWay',
         'twoWayKey',
@@ -1384,11 +1384,11 @@ class Appwrite extends Destination
         ];
 
         $existingFields = [];
-        foreach (self::ATTRIBUTE_NON_SDK_FIELDS as $field) {
+        foreach (self::ATTRIBUTE_IMMUTABLE_FIELDS as $field) {
             $existingFields[$field] = $existingAttr->getAttribute($field);
         }
 
-        if ($this->arraysDifferOnKeys($sourceFields, $existingFields, self::ATTRIBUTE_NON_SDK_FIELDS)) {
+        if ($this->arraysDifferOnKeys($sourceFields, $existingFields, self::ATTRIBUTE_IMMUTABLE_FIELDS)) {
             return false;
         }
 
@@ -1441,7 +1441,7 @@ class Appwrite extends Destination
         $sourceOptions = $resource->getOptions();
         $destOptions = $existingAttr->getAttribute('options', []);
 
-        if ($this->arraysDifferOnKeys($sourceOptions, $destOptions, self::RELATIONSHIP_STRUCTURAL_FIELDS)) {
+        if ($this->arraysDifferOnKeys($sourceOptions, $destOptions, self::RELATIONSHIP_IMMUTABLE_FIELDS)) {
             return false;
         }
 
@@ -1548,7 +1548,7 @@ class Appwrite extends Destination
             $sourceOptions = $resource->getOptions();
             /** @var array<string, mixed> $destOptions */
             $destOptions = $existing->getAttribute('options', []);
-            foreach (self::RELATIONSHIP_STRUCTURAL_FIELDS as $field) {
+            foreach (self::RELATIONSHIP_IMMUTABLE_FIELDS as $field) {
                 if (!$this->valuesMatch($sourceOptions[$field] ?? null, $destOptions[$field] ?? null)) {
                     return false;
                 }

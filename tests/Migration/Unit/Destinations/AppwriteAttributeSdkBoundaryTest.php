@@ -10,12 +10,12 @@ use ReflectionMethod;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 
 /**
- * Lock-in for the SDK boundary that drives ATTRIBUTE_NON_SDK_FIELDS.
+ * Lock-in for the SDK boundary that drives ATTRIBUTE_IMMUTABLE_FIELDS.
  *
  * Reflects on appwrite/appwrite's TablesDB + Databases services. If the SDK
  * ships a new updateXColumn / updateXAttribute endpoint that exposes a
  * previously-non-SDK field, this test fails so DestinationAppwrite's
- * ATTRIBUTE_NON_SDK_FIELDS constant can be synced. Catches drift in CI
+ * ATTRIBUTE_IMMUTABLE_FIELDS constant can be synced. Catches drift in CI
  * rather than at runtime.
  */
 class AppwriteAttributeSdkBoundaryTest extends TestCase
@@ -47,9 +47,9 @@ class AppwriteAttributeSdkBoundaryTest extends TestCase
         $this->assertSame(
             [],
             \array_values($overlap),
-            'ATTRIBUTE_NON_SDK_FIELDS marks these fields as non-SDK, but the appwrite/appwrite '
+            'ATTRIBUTE_IMMUTABLE_FIELDS marks these fields as non-SDK, but the appwrite/appwrite '
             . 'SDK exposes them via updateXColumn/updateXAttribute: ' . \implode(', ', $overlap)
-            . '. Either drop these from ATTRIBUTE_NON_SDK_FIELDS or update PARAM_TO_META_FIELD '
+            . '. Either drop these from ATTRIBUTE_IMMUTABLE_FIELDS or update PARAM_TO_META_FIELD '
             . 'in this test if the SDK param doesn\'t correspond to a top-level meta-doc field.',
         );
     }
@@ -90,7 +90,7 @@ class AppwriteAttributeSdkBoundaryTest extends TestCase
     private function readNonSdkConstant(): array
     {
         /** @var list<string> $value */
-        $value = (new ReflectionClass(AppwriteDestination::class))->getConstant('ATTRIBUTE_NON_SDK_FIELDS');
+        $value = (new ReflectionClass(AppwriteDestination::class))->getConstant('ATTRIBUTE_IMMUTABLE_FIELDS');
         return $value;
     }
 }
