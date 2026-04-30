@@ -1288,6 +1288,11 @@ class Appwrite extends Destination
 
                 // Drop schema orphans before rows land so the Structure validator doesn't reject on orphan required columns.
                 $this->cleanupOverwriteOrphansForTable($this->tableIdentity($database, $table));
+                // Reload $table — in-memory copy still holds the dropped attributes, so the strip loop below would over-keep.
+                $table = $this->dbForProject->getDocument(
+                    $this->databaseCollectionId($database),
+                    $resource->getTable()->getId(),
+                );
                 // Strip row payload fields the table doesn't declare — guards against orphans surviving in source archives.
                 if ($dbForDatabases->getAdapter()->getSupportForAttributes()) {
                     foreach ($this->rowBuffer as $row) {
