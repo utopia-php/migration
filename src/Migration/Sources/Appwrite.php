@@ -144,7 +144,6 @@ class Appwrite extends Source
             default:
                 throw new \Exception('Unknown source', Exception::CODE_VALIDATION);
         }
-
     }
 
     public static function getName(): string
@@ -200,6 +199,9 @@ class Appwrite extends Source
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
 
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
+
             // Settings
         ];
     }
@@ -239,6 +241,7 @@ class Appwrite extends Source
             $this->reportFunctions($resources, $report, $resourceIds);
             $this->reportMessaging($resources, $report, $resourceIds);
             $this->reportSites($resources, $report, $resourceIds);
+            $this->reportBackups($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -354,7 +357,6 @@ class Appwrite extends Source
      */
     private function reportStorage(array $resources, array &$report, array $resourceIds = []): void
     {
-
         if (\in_array(Resource::TYPE_BUCKET, $resources)) {
             $bucketQueries = $this->buildQueries(
                 resourceType: Resource::TYPE_BUCKET,
@@ -869,7 +871,6 @@ class Appwrite extends Source
                         'enabled' => $database['enabled'] ?? true,
                     ]);
                     $databases[] = $newDatabase;
-
                 }
             }
 
@@ -997,7 +998,7 @@ class Appwrite extends Source
                     }
 
                     /** @var Table $table */
-                    $col = match($table->getDatabase()->getType()) {
+                    $col = match ($table->getDatabase()->getType()) {
                         Resource::TYPE_DATABASE_VECTORSDB => self::getColumn($table, $column)->getAttribute(),
                         default => self::getColumn($table, $column),
                     };
@@ -1421,6 +1422,18 @@ class Appwrite extends Source
                 code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
+        }
+    }
+
+    protected function exportGroupBackups(int $batchSize, array $resources): void
+    {
+        // No-op: backup policies are Cloud-only
+    }
+
+    protected function reportBackups(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
+            $report[Resource::TYPE_BACKUP_POLICY] = 0;
         }
     }
 
@@ -2499,7 +2512,6 @@ class Appwrite extends Source
 
             default => throw new \InvalidArgumentException("Unsupported column type: {$column['type']}"),
         };
-
     }
 
     /**

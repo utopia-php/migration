@@ -238,6 +238,9 @@ class Appwrite extends Destination
             Resource::TYPE_SITE,
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
+
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
         ];
     }
 
@@ -350,7 +353,6 @@ class Appwrite extends Destination
                 $scope = 'sites.write';
                 $this->sites->create('', '', Framework::OTHER(), BuildRuntime::STATIC1());
             }
-
         } catch (AppwriteException $e) {
             if ($e->getCode() === 403) {
                 throw new \Exception(
@@ -394,6 +396,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
                     Transfer::GROUP_MESSAGING => $this->importMessagingResource($resource),
                     Transfer::GROUP_SITES => $this->importSiteResource($resource),
+                    Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
                     default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
             } catch (\Throwable $e) {
@@ -1323,7 +1326,6 @@ class Appwrite extends Destination
                         fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
                     ),
                 };
-
             } finally {
                 $this->rowBuffer = [];
             }
@@ -1890,6 +1892,7 @@ class Appwrite extends Destination
                     'none' => Compression::NONE(),
                     'gzip' => Compression::GZIP(),
                     'zstd' => Compression::ZSTD(),
+                    // no break
                     default => throw new \Exception('Invalid Compression: ' . $resource->getCompression(), Exception::CODE_VALIDATION),
                 };
 
@@ -2213,6 +2216,7 @@ class Appwrite extends Destination
                     'bun-1.0' => Runtime::BUN10(),
                     'bun-1.1' => Runtime::BUN11(),
                     'go-1.23' => Runtime::GO123(),
+                    // no break
                     default => throw new \Exception('Invalid Runtime: ' . $resource->getRuntime(), Exception::CODE_VALIDATION),
                 };
 
@@ -2246,6 +2250,13 @@ class Appwrite extends Destination
         }
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
+
+        return $resource;
+    }
+
+    public function importBackupResource(Resource $resource): Resource
+    {
+        $resource->setStatus(Resource::STATUS_SKIPPED);
 
         return $resource;
     }
@@ -2432,6 +2443,7 @@ class Appwrite extends Destination
                     'flutter-3.29' => BuildRuntime::FLUTTER329(),
                     'flutter-3.32' => BuildRuntime::FLUTTER332(),
                     'flutter-3.35' => BuildRuntime::FLUTTER335(),
+                    // no break
                     default => throw new \Exception('Invalid Build Runtime: ' . $resource->getBuildRuntime(), Exception::CODE_VALIDATION),
                 };
 
