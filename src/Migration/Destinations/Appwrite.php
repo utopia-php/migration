@@ -92,6 +92,7 @@ class Appwrite extends Destination
      * @param UtopiaDatabase $dbForProject
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
      * @param array<array<string, mixed>> $collectionStructure
+     * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
      */
     public function __construct(
         string $project,
@@ -99,7 +100,8 @@ class Appwrite extends Destination
         string $key,
         protected UtopiaDatabase $dbForProject,
         callable $getDatabasesDB,
-        protected array $collectionStructure
+        protected array $collectionStructure,
+        protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
     ) {
         $this->project = $project;
         $this->endpoint = $endpoint;
@@ -284,7 +286,6 @@ class Appwrite extends Destination
                 $scope = 'sites.write';
                 $this->sites->create('', '', Framework::OTHER(), BuildRuntime::STATIC1());
             }
-
         } catch (AppwriteException $e) {
             if ($e->getCode() === 403) {
                 throw new \Exception(
@@ -1071,11 +1072,21 @@ class Appwrite extends Destination
                         }
                     }
                 }
-                $dbForDatabases->skipRelationshipsExistCheck(fn () => $dbForDatabases->createDocuments(
-                    'database_' . $databaseInternalId . '_collection_' . $tableInternalId,
-                    $this->rowBuffer
-                ));
+                $collectionId = 'database_' . $databaseInternalId . '_collection_' . $tableInternalId;
 
+                match ($this->onDuplicate) {
+                    OnDuplicate::Upsert => $dbForDatabases->skipRelationshipsExistCheck(
+                        fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
+                    ),
+                    OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
+                        fn () => $dbForDatabases->skipRelationshipsExistCheck(
+                            fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
+                        )
+                    ),
+                    OnDuplicate::Fail => $dbForDatabases->skipRelationshipsExistCheck(
+                        fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
+                    ),
+                };
             } finally {
                 $this->rowBuffer = [];
             }
@@ -1132,6 +1143,7 @@ class Appwrite extends Destination
                     'none' => Compression::NONE(),
                     'gzip' => Compression::GZIP(),
                     'zstd' => Compression::ZSTD(),
+                    // no break
                     default => throw new \Exception('Invalid Compression: ' . $resource->getCompression(), Exception::CODE_VALIDATION),
                 };
 
@@ -1145,7 +1157,8 @@ class Appwrite extends Destination
                     $resource->getAllowedFileExtensions(),
                     $compression,
                     $resource->getEncryption(),
-                    $resource->getAntiVirus()
+                    $resource->getAntiVirus(),
+                    $resource->getTransformations()
                 );
 
                 $resource->setId($response['$id']);
@@ -1454,6 +1467,7 @@ class Appwrite extends Destination
                     'bun-1.0' => Runtime::BUN10(),
                     'bun-1.1' => Runtime::BUN11(),
                     'go-1.23' => Runtime::GO123(),
+                    // no break
                     default => throw new \Exception('Invalid Runtime: ' . $resource->getRuntime(), Exception::CODE_VALIDATION),
                 };
 
@@ -1466,7 +1480,11 @@ class Appwrite extends Destination
                     $resource->getSchedule(),
                     $resource->getTimeout(),
                     $resource->getEnabled(),
-                    entrypoint: $resource->getEntrypoint(),
+                    $resource->getLogging(),
+                    $resource->getEntrypoint(),
+                    $resource->getCommands(),
+                    $resource->getScopes(),
+                    specification: $resource->getSpecification() ?: null,
                 );
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
@@ -1676,6 +1694,7 @@ class Appwrite extends Destination
                     'flutter-3.29' => BuildRuntime::FLUTTER329(),
                     'flutter-3.32' => BuildRuntime::FLUTTER332(),
                     'flutter-3.35' => BuildRuntime::FLUTTER335(),
+                    // no break
                     default => throw new \Exception('Invalid Build Runtime: ' . $resource->getBuildRuntime(), Exception::CODE_VALIDATION),
                 };
 

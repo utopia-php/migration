@@ -667,7 +667,6 @@ class Firebase extends Source
                 previous: $e
             ));
         }
-
     }
 
     private function exportBuckets(int $batchsize): void

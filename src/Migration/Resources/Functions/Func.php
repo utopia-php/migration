@@ -18,6 +18,10 @@ class Func extends Resource
      * @param int $timeout
      * @param string $activeDeployment
      * @param string $entrypoint
+     * @param string $commands
+     * @param bool $logging
+     * @param array<string> $scopes
+     * @param string $specification
      */
     public function __construct(
         string $id,
@@ -29,7 +33,11 @@ class Func extends Resource
         private readonly string $schedule = '',
         private readonly int $timeout = 0,
         private readonly string $activeDeployment = '',
-        private readonly string $entrypoint = ''
+        private readonly string $entrypoint = '',
+        private readonly string $commands = '',
+        private readonly bool $logging = true,
+        private readonly array $scopes = [],
+        private readonly string $specification = ''
     ) {
         $this->id = $id;
     }
@@ -50,7 +58,11 @@ class Func extends Resource
             $array['schedule'] ?? '',
             $array['timeout'] ?? 0,
             $array['activeDeployment'] ?? '',
-            $array['entrypoint'] ?? ''
+            $array['entrypoint'] ?? '',
+            $array['commands'] ?? '',
+            $array['logging'] ?? true,
+            $array['scopes'] ?? [],
+            $array['specification'] ?? ''
         );
     }
 
@@ -70,6 +82,10 @@ class Func extends Resource
             'timeout' => $this->timeout,
             'activeDeployment' => $this->activeDeployment,
             'entrypoint' => $this->entrypoint,
+            'commands' => $this->commands,
+            'logging' => $this->logging,
+            'scopes' => $this->scopes,
+            'specification' => $this->specification,
         ];
     }
 
@@ -132,5 +148,28 @@ class Func extends Resource
     public function getEntrypoint(): string
     {
         return $this->entrypoint;
+    }
+
+    public function getCommands(): string
+    {
+        return $this->commands;
+    }
+
+    public function getLogging(): bool
+    {
+        return $this->logging;
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function getScopes(): array
+    {
+        return $this->scopes;
+    }
+
+    public function getSpecification(): string
+    {
+        return $this->specification;
     }
 }

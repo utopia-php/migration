@@ -316,5 +316,4 @@ class JSON extends Destination
             return $this->convertValueToJSON($item);
         }, $value);
     }
-
 }
