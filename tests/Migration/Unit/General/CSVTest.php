@@ -81,7 +81,7 @@ class CSVTest extends TestCase
         $exportDevice = new Local($tempDir);
 
         // Create CSV destination
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id');
 
         // Create test data
         $database = new Database('test_db');
@@ -156,7 +156,7 @@ class CSVTest extends TestCase
         $tempDir = sys_get_temp_dir() . '/csv_test_special_' . uniqid();
         $exportDevice = new Local($tempDir);
 
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -204,7 +204,7 @@ class CSVTest extends TestCase
         $tempDir = sys_get_temp_dir() . '/csv_test_arrays_' . uniqid();
         $exportDevice = new Local($tempDir);
 
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -251,7 +251,7 @@ class CSVTest extends TestCase
         $tempDir = sys_get_temp_dir() . '/csv_test_nulls_' . uniqid();
         $exportDevice = new Local($tempDir);
 
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -300,7 +300,7 @@ class CSVTest extends TestCase
         $exportDevice = new Local($tempDir);
 
         // Only allow specific attributes
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id', ['name', 'email']);
+        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id', ['name', 'email']);
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -351,7 +351,7 @@ class CSVTest extends TestCase
         $exportDevice = new Local($tempDir);
 
         // Export data
-        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');

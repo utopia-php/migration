@@ -830,17 +830,7 @@ class Appwrite extends Source
             $queries = [$this->reader->queryLimit($batchSize)];
 
             if ($this->rootResourceId !== '' && ($this->rootResourceType === Resource::TYPE_DATABASE || $this->rootResourceType === Resource::TYPE_DATABASE_DOCUMENTSDB)) {
-                $targetDatabaseId = $this->rootResourceId;
-
-                // Handle database:collection format - extract database ID
-                if (\str_contains($this->rootResourceId, ':')) {
-                    $parts = \explode(':', $this->rootResourceId, 2);
-                    if (\count($parts) === 2) {
-                        $targetDatabaseId = $parts[0];
-                    }
-                }
-
-                $queries[] = $this->reader->queryEqual('$id', [$targetDatabaseId]);
+                $queries[] = $this->reader->queryEqual('$id', [$this->rootResourceId]);
                 $queries[] = $this->reader->queryLimit(1);
             }
 
@@ -904,24 +894,19 @@ class Appwrite extends Source
                 $queries = [$this->reader->queryLimit($batchSize)];
                 $tables = [];
 
-                // Filter to specific table if rootResourceType is database with database:collection format
+                // Filter to a specific table when the root is a database with a child set, or
+                // when the root itself is a table.
                 if (
-                    $this->rootResourceId !== '' &&
-                    $this->rootResourceType === Resource::TYPE_DATABASE &&
-                    \str_contains($this->rootResourceId, ':')
+                    $this->rootResourceChildId !== '' &&
+                    $this->rootResourceType === Resource::TYPE_DATABASE
                 ) {
-                    $parts = \explode(':', $this->rootResourceId, 2);
-                    if (\count($parts) === 2) {
-                        $targetTableId = $parts[1]; // table ID
-                        $queries[] = $this->reader->queryEqual('$id', [$targetTableId]);
-                        $queries[] = $this->reader->queryLimit(1);
-                    }
+                    $queries[] = $this->reader->queryEqual('$id', [$this->rootResourceChildId]);
+                    $queries[] = $this->reader->queryLimit(1);
                 } elseif (
                     $this->rootResourceId !== '' &&
                     $this->rootResourceType === Resource::TYPE_TABLE
                 ) {
-                    $targetTableId = $this->rootResourceId;
-                    $queries[] = $this->reader->queryEqual('$id', [$targetTableId]);
+                    $queries[] = $this->reader->queryEqual('$id', [$this->rootResourceId]);
                     $queries[] = $this->reader->queryLimit(1);
                 } elseif ($lastTable) {
                     $queries[] = $this->reader->queryCursorAfter($lastTable);
