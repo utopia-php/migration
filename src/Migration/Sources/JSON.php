@@ -22,10 +22,9 @@ class JSON extends Source
 {
     private string $filePath;
 
-    /**
-     * format: `{databaseId:tableId}`
-     */
-    private string $resourceId;
+    private string $databaseId;
+
+    private string $tableId;
 
     private Device $device;
 
@@ -35,14 +34,16 @@ class JSON extends Source
     private bool $downloaded = false;
 
     public function __construct(
-        string $resourceId,
+        string $databaseId,
+        string $tableId,
         string $filePath,
         Device $device,
         ?UtopiaDatabase $dbForProject
     ) {
         $this->device = $device;
         $this->filePath = $filePath;
-        $this->resourceId = $resourceId;
+        $this->databaseId = $databaseId;
+        $this->tableId = $tableId;
 
         /* kept for composer check */
         $this->dbForProject = $dbForProject;
@@ -120,9 +121,8 @@ class JSON extends Source
      */
     private function exportRows(int $batchSize): void
     {
-        [$databaseId, $tableId] = \explode(':', $this->resourceId);
-        $database = new Database($databaseId, '');
-        $table = new Table($database, '', $tableId);
+        $database = new Database($this->databaseId, '');
+        $table = new Table($database, '', $this->tableId);
 
         $this->withJsonItems(function ($items) use ($table, $batchSize) {
             $buffer = [];

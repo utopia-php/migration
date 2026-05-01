@@ -320,7 +320,9 @@ class Transfer
      *
      * @param array<string> $resources Resources to transfer
      * @param callable $callback Callback to run after transfer
-     * @param string|null $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
+     * @param string|null $rootResourceId Root resource ID. If set, only this root resource is transferred.
+     * @param string|null $rootResourceType Resource type for $rootResourceId. Required when $rootResourceId is set.
+     * @param string|null $rootResourceChildId Optional child filter under the root resource. For database roots, this is the collection/table ID.
      * @throws \Exception
      */
     public function run(
@@ -328,11 +330,13 @@ class Transfer
         callable $callback,
         ?string $rootResourceId = null,
         ?string $rootResourceType = null,
+        ?string $rootResourceChildId = null,
     ): void {
         // Allows you to push entire groups if you want.
         $computedResources = [];
         $rootResourceId = $rootResourceId ?? '';
         $rootResourceType = $rootResourceType ?? '';
+        $rootResourceChildId = $rootResourceChildId ?? '';
 
         foreach ($resources as $resource) {
             if (is_array($resource)) {
@@ -373,6 +377,7 @@ class Transfer
             $callback,
             $rootResourceId,
             $rootResourceType,
+            $rootResourceChildId,
         );
     }
 

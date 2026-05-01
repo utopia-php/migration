@@ -198,7 +198,8 @@ class JSONTest extends TestCase
 
         $jsonDestination = new DestinationJSON(
             new Local($tempDir),
-            'test_db:test_table_id',
+            'test_db',
+            'test_table_id',
             '',
             'test_db_test_table_id',
             ['name', 'email']
@@ -236,7 +237,8 @@ class JSONTest extends TestCase
     {
         return new DestinationJSON(
             new Local($tempDir),
-            'test_db:test_table_id',
+            'test_db',
+            'test_table_id',
             '',
             'test_db_test_table_id'
         );

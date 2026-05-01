@@ -27,10 +27,9 @@ class CSV extends Source
 
     private string $filePath;
 
-    /**
-     * format: `{databaseId:tableId}`
-     */
-    private string $resourceId;
+    private string $databaseId;
+
+    private string $tableId;
 
     private Device $device;
 
@@ -39,7 +38,8 @@ class CSV extends Source
     private bool $downloaded = false;
 
     public function __construct(
-        string $resourceId,
+        string $databaseId,
+        string $tableId,
         string $filePath,
         Device $device,
         ?UtopiaDatabase $dbForProject,
@@ -47,7 +47,8 @@ class CSV extends Source
     ) {
         $this->device = $device;
         $this->filePath = $filePath;
-        $this->resourceId = $resourceId;
+        $this->databaseId = $databaseId;
+        $this->tableId = $tableId;
         $this->database = new DatabaseReader($dbForProject, $getDatabasesDB);
     }
 
@@ -131,10 +132,8 @@ class CSV extends Source
         $columns = [];
         $lastColumn = null;
 
-        [$databaseId, $tableId] = \explode(':', $this->resourceId);
-
         $databases = $this->database->listDatabases([
-            $this->database->queryEqual('$id', [$databaseId]),
+            $this->database->queryEqual('$id', [$this->databaseId]),
             $this->database->queryLimit(1),
         ]);
 
@@ -157,8 +156,8 @@ class CSV extends Source
         ];
 
         $tablePayload = [
-            'id' => $tableId,
-            'name' => $tableId,
+            'id' => $this->tableId,
+            'name' => $this->tableId,
             'documentSecurity' => false,
             'rowSecurity' => false,
             'permissions' => [],
@@ -520,7 +519,7 @@ class CSV extends Source
                 UtopiaResource::TYPE_ROW,
                 Transfer::GROUP_DATABASES,
                 \implode(', ', $messages),
-                $this->resourceId
+                $this->tableId
             ));
         }
     }
