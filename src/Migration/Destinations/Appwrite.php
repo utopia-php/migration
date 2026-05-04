@@ -691,14 +691,23 @@ class Appwrite extends Destination
             $this->dbForProject->checkAttribute($table, $column);
 
             $column = $this->dbForProject->createDocument('attributes', $column);
-        } catch (DuplicateException | LimitException $e) {
-            $message = $e instanceof DuplicateException ? 'Attribute already exists' : 'Attribute limit exceeded';
-            $resource->setStatus(Resource::STATUS_ERROR, $message);
+        } catch (DuplicateException $e) {
+            $resource->setStatus(Resource::STATUS_ERROR, 'Attribute already exists');
             $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
-                message: $message,
+                message: 'Attribute already exists',
+                previous: $e,
+            ));
+            return false;
+        } catch (LimitException $e) {
+            $resource->setStatus(Resource::STATUS_ERROR, 'Attribute limit exceeded');
+            $this->addError(new Exception(
+                resourceName: $resource->getName(),
+                resourceGroup: $resource->getGroup(),
+                resourceId: $resource->getId(),
+                message: 'Attribute limit exceeded',
                 previous: $e,
             ));
             return false;
@@ -744,16 +753,27 @@ class Appwrite extends Destination
                 ]);
 
                 $this->dbForProject->createDocument('attributes', $twoWayAttribute);
-            } catch (DuplicateException | LimitException $e) {
+            } catch (DuplicateException $e) {
                 $this->dbForProject->deleteDocument('attributes', $column->getId());
 
-                $message = $e instanceof DuplicateException ? 'Attribute already exists' : 'Column limit exceeded';
-                $resource->setStatus(Resource::STATUS_ERROR, $message);
+                $resource->setStatus(Resource::STATUS_ERROR, 'Attribute already exists');
                 $this->addError(new Exception(
                     resourceName: $resource->getName(),
                     resourceGroup: $resource->getGroup(),
                     resourceId: $resource->getId(),
-                    message: $message,
+                    message: 'Attribute already exists',
+                    previous: $e,
+                ));
+                return false;
+            } catch (LimitException $e) {
+                $this->dbForProject->deleteDocument('attributes', $column->getId());
+
+                $resource->setStatus(Resource::STATUS_ERROR, 'Column limit exceeded');
+                $this->addError(new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: 'Column limit exceeded',
                     previous: $e,
                 ));
                 return false;
@@ -1110,7 +1130,17 @@ class Appwrite extends Destination
                             fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
                         ),
                     };
-                } catch (DuplicateException | StructureException $e) {
+                } catch (DuplicateException $e) {
+                    $resource->setStatus(Resource::STATUS_ERROR, 'Document already exists');
+                    $this->addError(new Exception(
+                        resourceName: $resource->getName(),
+                        resourceGroup: $resource->getGroup(),
+                        resourceId: $resource->getId(),
+                        message: 'Document already exists',
+                        previous: $e,
+                    ));
+                    return false;
+                } catch (StructureException $e) {
                     $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                     $this->addError(new Exception(
                         resourceName: $resource->getName(),
