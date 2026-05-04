@@ -691,23 +691,14 @@ class Appwrite extends Destination
             $this->dbForProject->checkAttribute($table, $column);
 
             $column = $this->dbForProject->createDocument('attributes', $column);
-        } catch (DuplicateException $e) {
-            $resource->setStatus(Resource::STATUS_ERROR, 'Attribute already exists');
+        } catch (DuplicateException | LimitException $e) {
+            $message = $e instanceof DuplicateException ? 'Attribute already exists' : 'Attribute limit exceeded';
+            $resource->setStatus(Resource::STATUS_ERROR, $message);
             $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
-                message: 'Attribute already exists',
-                previous: $e,
-            ));
-            return false;
-        } catch (LimitException $e) {
-            $resource->setStatus(Resource::STATUS_ERROR, 'Attribute limit exceeded');
-            $this->addError(new Exception(
-                resourceName: $resource->getName(),
-                resourceGroup: $resource->getGroup(),
-                resourceId: $resource->getId(),
-                message: 'Attribute limit exceeded',
+                message: $message,
                 previous: $e,
             ));
             return false;
@@ -753,27 +744,16 @@ class Appwrite extends Destination
                 ]);
 
                 $this->dbForProject->createDocument('attributes', $twoWayAttribute);
-            } catch (DuplicateException $e) {
+            } catch (DuplicateException | LimitException $e) {
                 $this->dbForProject->deleteDocument('attributes', $column->getId());
 
-                $resource->setStatus(Resource::STATUS_ERROR, 'Attribute already exists');
+                $message = $e instanceof DuplicateException ? 'Attribute already exists' : 'Column limit exceeded';
+                $resource->setStatus(Resource::STATUS_ERROR, $message);
                 $this->addError(new Exception(
                     resourceName: $resource->getName(),
                     resourceGroup: $resource->getGroup(),
                     resourceId: $resource->getId(),
-                    message: 'Attribute already exists',
-                    previous: $e,
-                ));
-                return false;
-            } catch (LimitException $e) {
-                $this->dbForProject->deleteDocument('attributes', $column->getId());
-
-                $resource->setStatus(Resource::STATUS_ERROR, 'Column limit exceeded');
-                $this->addError(new Exception(
-                    resourceName: $resource->getName(),
-                    resourceGroup: $resource->getGroup(),
-                    resourceId: $resource->getId(),
-                    message: 'Column limit exceeded',
+                    message: $message,
                     previous: $e,
                 ));
                 return false;
