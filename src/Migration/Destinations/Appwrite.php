@@ -333,10 +333,8 @@ class Appwrite extends Destination
                     default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
             } catch (\Throwable $e) {
-                // Safety net: expected user-data failures are recorded inline by the
-                // create*() methods via setStatus + addError + return false. Anything
-                // reaching here is a library bug or infra failure — record it for the
-                // user, then rethrow so the worker boundary can route it to Sentry.
+                // Safety net for unexpected failures — record on the migration and
+                // rethrow so the worker boundary can route bugs to Sentry.
                 $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
 
                 $this->addError(new Exception(
@@ -1132,17 +1130,7 @@ class Appwrite extends Destination
                             fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
                         ),
                     };
-                } catch (DuplicateException $e) {
-                    $resource->setStatus(Resource::STATUS_ERROR, 'Document already exists');
-                    $this->addError(new Exception(
-                        resourceName: $resource->getName(),
-                        resourceGroup: $resource->getGroup(),
-                        resourceId: $resource->getId(),
-                        message: 'Document already exists',
-                        previous: $e,
-                    ));
-                    return false;
-                } catch (StructureException $e) {
+                } catch (DuplicateException | StructureException $e) {
                     $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                     $this->addError(new Exception(
                         resourceName: $resource->getName(),
