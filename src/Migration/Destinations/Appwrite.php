@@ -344,6 +344,13 @@ class Appwrite extends Destination
                     previous: $e
                 ));
 
+                // User-facing failures (Migration\Exception) are recorded for the migration
+                // report and the loop continues. Anything else is a library bug or infra
+                // failure — rethrow so the worker boundary can route it to Sentry.
+                if (!$e instanceof Exception) {
+                    throw $e;
+                }
+
                 $responseResource = $resource;
             } finally {
                 $this->dbForProject->setPreserveDates(false);
@@ -1074,19 +1081,39 @@ class Appwrite extends Destination
                 }
                 $collectionId = 'database_' . $databaseInternalId . '_collection_' . $tableInternalId;
 
-                match ($this->onDuplicate) {
-                    OnDuplicate::Upsert => $dbForDatabases->skipRelationshipsExistCheck(
-                        fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
-                    ),
-                    OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
-                        fn () => $dbForDatabases->skipRelationshipsExistCheck(
+                try {
+                    match ($this->onDuplicate) {
+                        OnDuplicate::Upsert => $dbForDatabases->skipRelationshipsExistCheck(
+                            fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
+                        ),
+                        OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
+                            fn () => $dbForDatabases->skipRelationshipsExistCheck(
+                                fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
+                            )
+                        ),
+                        OnDuplicate::Fail => $dbForDatabases->skipRelationshipsExistCheck(
                             fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
-                        )
-                    ),
-                    OnDuplicate::Fail => $dbForDatabases->skipRelationshipsExistCheck(
-                        fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
-                    ),
-                };
+                        ),
+                    };
+                } catch (DuplicateException $e) {
+                    // Convert to Migration\Exception so the per-resource wrap recognises it
+                    // as a user-facing failure and records it without escalating to Sentry.
+                    throw new Exception(
+                        resourceName: $resource->getName(),
+                        resourceGroup: $resource->getGroup(),
+                        resourceId: $resource->getId(),
+                        message: 'Document already exists',
+                        previous: $e,
+                    );
+                } catch (StructureException $e) {
+                    throw new Exception(
+                        resourceName: $resource->getName(),
+                        resourceGroup: $resource->getGroup(),
+                        resourceId: $resource->getId(),
+                        message: $e->getMessage(),
+                        previous: $e,
+                    );
+                }
             } finally {
                 $this->rowBuffer = [];
             }
