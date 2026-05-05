@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "38981f8df096cfbc9dd34487643b7ed6",
+    "content-hash": "ae396ad0e75429f13de6f2891f3cfae3",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -2230,22 +2230,23 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "5.3.22",
+            "version": "dev-big-init",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "d765945da6b3141852014b2f96ecf1fe7e3d6ba7"
+                "reference": "ee8895a3ae835978fa4eb143619e4950e7001648"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/d765945da6b3141852014b2f96ecf1fe7e3d6ba7",
-                "reference": "d765945da6b3141852014b2f96ecf1fe7e3d6ba7",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/ee8895a3ae835978fa4eb143619e4950e7001648",
+                "reference": "ee8895a3ae835978fa4eb143619e4950e7001648",
                 "shasum": ""
             },
             "require": {
                 "ext-mbstring": "*",
                 "ext-mongodb": "*",
                 "ext-pdo": "*",
+                "ext-redis": "*",
                 "php": ">=8.4",
                 "utopia-php/cache": "1.*",
                 "utopia-php/console": "0.1.*",
@@ -2283,9 +2284,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/5.3.22"
+                "source": "https://github.com/utopia-php/database/tree/big-init"
             },
-            "time": "2026-04-20T07:12:46+00:00"
+            "time": "2026-05-05T13:27:52+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -4947,9 +4948,18 @@
             "time": "2025-12-27T19:49:13+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "utopia-php/database",
+            "version": "dev-big-init",
+            "alias": "5.77",
+            "alias_normalized": "5.77.0.0"
+        }
+    ],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "utopia-php/database": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

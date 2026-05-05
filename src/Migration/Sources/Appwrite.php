@@ -24,6 +24,7 @@ use Utopia\Migration\Resources\Auth\User;
 use Utopia\Migration\Resources\Database\Attribute;
 use Utopia\Migration\Resources\Database\Collection;
 use Utopia\Migration\Resources\Database\Column;
+use Utopia\Migration\Resources\Database\Columns\BigInt;
 use Utopia\Migration\Resources\Database\Columns\Boolean;
 use Utopia\Migration\Resources\Database\Columns\DateTime;
 use Utopia\Migration\Resources\Database\Columns\Decimal;
@@ -2380,6 +2381,19 @@ class Appwrite extends Source
                 array: $column['array'],
                 min: $column['min'] ?? null,
                 max: $column['max'] ?? null,
+                createdAt: $column['$createdAt'] ?? '',
+                updatedAt: $column['$updatedAt'] ?? '',
+            ),
+
+            Column::TYPE_BIG_INT => new BigInt(
+                $column['key'],
+                $table,
+                required: $column['required'],
+                default: $column['default'],
+                array: $column['array'],
+                min: $column['min'] ?? null,
+                max: $column['max'] ?? null,
+                signed: $column['signed'] ?? true,
                 createdAt: $column['$createdAt'] ?? '',
                 updatedAt: $column['$updatedAt'] ?? '',
             ),
