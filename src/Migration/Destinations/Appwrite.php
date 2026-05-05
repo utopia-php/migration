@@ -63,6 +63,29 @@ use Utopia\Migration\Transfer;
 
 class Appwrite extends Destination
 {
+    /** Names of the project-DB collections holding Appwrite schema metadata. */
+    private const META_DATABASES = 'databases';
+    private const META_ATTRIBUTES = 'attributes';
+    private const META_INDEXES = 'indexes';
+
+    /** Attribute fields the SDK can't update in place (no per-type updateX endpoint exposes them); a change here forces drop+recreate. */
+    private const ATTRIBUTE_IMMUTABLE_FIELDS = [
+        'type',
+        'array',
+        'signed',
+        'format',
+        'formatOptions',
+        'filters',
+    ];
+
+    /** Relationship options fields the SDK can't update in place (only onDelete/newKey are SDK-reachable); a change here forces drop+recreate. */
+    private const RELATIONSHIP_IMMUTABLE_FIELDS = [
+        'relationType',
+        'twoWay',
+        'twoWayKey',
+        'relatedCollection',
+    ];
+
     protected Client $client;
     protected string $project;
 
@@ -84,6 +107,29 @@ class Appwrite extends Destination
      * @var array<UtopiaDocument>
      */
     private array $rowBuffer = [];
+
+    /**
+     * Overwrite-mode orphan tracking, keyed by (database, table). Orphans are
+     * destination keys not in `attributeKeys` / `indexKeys`. Entries removed
+     * after their cleanup runs so the end-of-run sweep only visits tables
+     * that had no rows.
+     *
+     * @var array<string, array{
+     *   database: UtopiaDocument,
+     *   table: UtopiaDocument,
+     *   dbForDatabases: UtopiaDatabase,
+     *   attributeKeys: list<string>,
+     *   indexKeys: list<string>,
+     * }>
+     */
+    private array $orphansByTable = [];
+
+    /**
+     * Two-way pairs already reconciled this run; partner pass short-circuits.
+     *
+     * @var array<string, true>
+     */
+    private array $processedTwoWayPairs = [];
 
     /**
      * @param string $project
@@ -120,6 +166,27 @@ class Appwrite extends Destination
         $this->users = new Users($this->client);
 
         $this->getDatabasesDB = $getDatabasesDB;
+    }
+
+    /** Orphan cleanup runs only after a successful migration — a mid-run throw preserves the destination as-is. */
+    #[Override]
+    public function run(
+        array $resources,
+        callable $callback,
+        string $rootResourceId = '',
+        string $rootResourceType = '',
+    ): void {
+        $this->resetRunState();
+        parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+        $this->cleanupOverwriteOrphans();
+    }
+
+    /** Per-run state must not leak across run() invocations on a reused instance. */
+    private function resetRunState(): void
+    {
+        $this->rowBuffer = [];
+        $this->orphansByTable = [];
+        $this->processedTwoWayPairs = [];
     }
 
     public static function getName(): string
@@ -429,7 +496,45 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
-        $database = $this->dbForProject->createDocument('databases', new UtopiaDocument([
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            $existing = $this->dbForProject->getDocument(self::META_DATABASES, $resource->getId());
+            $action = $this->onDuplicate->resolveSchemaAction(
+                !$existing->isEmpty(),
+                $updatedAt,
+                $existing->getUpdatedAt(),
+            );
+            // Spec match → skip work. Create excluded; nothing on dest to match against.
+            if ($action !== SchemaAction::Create && $this->databaseSpecMatches($existing, $resource)) {
+                $action = SchemaAction::Skip;
+            }
+
+            $earlyReturn = match ($action) {
+                SchemaAction::Skip => (function () use ($resource, $existing): bool {
+                    $resource->setSequence($existing->getSequence());
+                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    return false;
+                })(),
+                SchemaAction::Overwrite => (function () use ($resource, $existing, $updatedAt): bool {
+                    $this->dbForProject->updateDocument(self::META_DATABASES, $existing->getId(), new UtopiaDocument([
+                        'name' => $resource->getDatabaseName(),
+                        'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
+                        'enabled' => $resource->getEnabled(),
+                        'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
+                        'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
+                        'database' => $resource->getDatabase(),
+                        '$updatedAt' => $updatedAt,
+                    ]));
+                    $resource->setSequence($existing->getSequence());
+                    return true;
+                })(),
+                SchemaAction::Create => null,
+            };
+            if ($earlyReturn !== null) {
+                return $earlyReturn;
+            }
+        }
+
+        $database = $this->dbForProject->createDocument(self::META_DATABASES, new UtopiaDocument([
             '$id' => $resource->getId(),
             'name' => $resource->getDatabaseName(),
             'enabled' => $resource->getEnabled(),
@@ -455,7 +560,7 @@ class Appwrite extends Destination
         );
 
         $this->dbForProject->createCollection(
-            'database_' . $database->getSequence(),
+            $this->databaseCollectionId($database),
             $columns,
             $indexes
         );
@@ -489,7 +594,7 @@ class Appwrite extends Destination
         }
 
         $database = $this->dbForProject->getDocument(
-            'databases',
+            self::META_DATABASES,
             $resource->getDatabase()->getId()
         );
 
@@ -514,7 +619,51 @@ class Appwrite extends Destination
             $dbForDatabases->create();
         }
 
-        $table = $this->dbForProject->createDocument('database_' . $database->getSequence(), new UtopiaDocument([
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            $existing = $this->dbForProject->getDocument(
+                $this->databaseCollectionId($database),
+                $resource->getId()
+            );
+            $action = $this->onDuplicate->resolveSchemaAction(
+                !$existing->isEmpty(),
+                $updatedAt,
+                $existing->getUpdatedAt(),
+            );
+            // Spec match → skip work. Create excluded; nothing on dest to match against.
+            if ($action !== SchemaAction::Create && $this->tableSpecMatches($existing, $resource)) {
+                $action = SchemaAction::Skip;
+            }
+
+            $earlyReturn = match ($action) {
+                SchemaAction::Skip => (function () use ($resource, $existing): bool {
+                    $resource->setSequence($existing->getSequence());
+                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    return false;
+                })(),
+                SchemaAction::Overwrite => (function () use ($resource, $existing, $database, $updatedAt): bool {
+                    $this->dbForProject->updateDocument(
+                        $this->databaseCollectionId($database),
+                        $existing->getId(),
+                        new UtopiaDocument([
+                            'name' => $resource->getTableName(),
+                            'search' => implode(' ', [$resource->getId(), $resource->getTableName()]),
+                            'enabled' => $resource->getEnabled(),
+                            '$permissions' => Permission::aggregate($resource->getPermissions()),
+                            'documentSecurity' => $resource->getRowSecurity(),
+                            '$updatedAt' => $updatedAt,
+                        ])
+                    );
+                    $resource->setSequence($existing->getSequence());
+                    return true;
+                })(),
+                SchemaAction::Create => null,
+            };
+            if ($earlyReturn !== null) {
+                return $earlyReturn;
+            }
+        }
+
+        $table = $this->dbForProject->createDocument($this->databaseCollectionId($database), new UtopiaDocument([
             '$id' => $resource->getId(),
             'databaseInternalId' => $database->getSequence(),
             'databaseId' => $resource->getDatabase()->getId(),
@@ -530,7 +679,7 @@ class Appwrite extends Destination
         $resource->setSequence($table->getSequence());
 
         $dbForDatabases->createCollection(
-            'database_' . $database->getSequence() . '_collection_' . $resource->getSequence(),
+            $this->tableCollectionId($database, $table),
             permissions: $resource->getPermissions(),
             documentSecurity: $resource->getRowSecurity()
         );
@@ -578,7 +727,7 @@ class Appwrite extends Destination
         };
 
         $database = $this->dbForProject->getDocument(
-            'databases',
+            self::META_DATABASES,
             $resource->getTable()->getDatabase()->getId(),
         );
 
@@ -594,7 +743,7 @@ class Appwrite extends Destination
         }
 
         $table = $this->dbForProject->getDocument(
-            'database_' . $database->getSequence(),
+            $this->databaseCollectionId($database),
             $resource->getTable()->getId(),
         );
 
@@ -647,7 +796,7 @@ class Appwrite extends Destination
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP) {
             $resource->getOptions()['side'] = UtopiaDatabase::RELATION_SIDE_PARENT;
             $relatedTable = $this->dbForProject->getDocument(
-                'database_' . $database->getSequence(),
+                $this->databaseCollectionId($database),
                 $resource->getOptions()['relatedCollection']
             );
             if ($relatedTable->isEmpty()) {
@@ -665,9 +814,61 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
         $dbForDatabases = ($this->getDatabasesDB)($database);
+
+        $this->trackOrphanCandidate($database, $table, 'attributeKeys', $resource->getKey(), $dbForDatabases);
+
+        $isRelationship = $type === UtopiaDatabase::VAR_RELATIONSHIP;
+
+        // Source emits both sides of a two-way; processing one side reconciles both. Partner skip.
+        $twoWayPairKey = $this->twoWayPairKey($database, $table, $resource, $type);
+        if ($twoWayPairKey !== null && isset($this->processedTwoWayPairs[$twoWayPairKey])) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Two-way partner already reconciled');
+            return false;
+        }
+
+        $attributeMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            $existingAttr = $this->dbForProject->getDocument(self::META_ATTRIBUTES, $attributeMetaId);
+            $action = $this->onDuplicate->resolveSchemaAction(
+                !$existingAttr->isEmpty(),
+                $updatedAt,
+                $existingAttr->getUpdatedAt(),
+            );
+            // Spec match → skip work. Create excluded; nothing on dest to match against.
+            if ($action !== SchemaAction::Create && $this->attributeSpecMatches($existingAttr, $resource, $type, $isRelationship)) {
+                $action = SchemaAction::Skip;
+            }
+
+            $earlyReturn = match ($action) {
+                SchemaAction::Skip => (function () use ($resource, $database, $table, $dbForDatabases): bool {
+                    $this->purgeTableCaches($database, $table, $dbForDatabases);
+                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    return false;
+                })(),
+                SchemaAction::Overwrite => ($isRelationship
+                    ? $this->updateRelationshipInPlace($database, $table, $resource, $type, $updatedAt, $existingAttr, $dbForDatabases)
+                    : $this->updateAttributeInPlace($database, $table, $resource, $type, $updatedAt, $existingAttr, $dbForDatabases))
+                    ? true
+                    : null,
+                SchemaAction::Create => null,
+            };
+            if ($earlyReturn !== null) {
+                if ($twoWayPairKey !== null) {
+                    $this->processedTwoWayPairs[$twoWayPairKey] = true;
+                }
+                return $earlyReturn;
+            }
+
+            if ($action === SchemaAction::Overwrite) {
+                $this->dropAttributeForRecreate($database, $table, $resource, $dbForDatabases, $existingAttr);
+                // Reload $table — in-memory copy still holds the dropped attribute, so checkAttribute would over-count.
+                $table = $this->dbForProject->getDocument($this->databaseCollectionId($database), $table->getId());
+            }
+        }
+
         try {
             $column = new UtopiaDocument([
-                '$id' => ID::custom($database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey()),
+                '$id' => ID::custom($attributeMetaId),
                 'key' => $resource->getKey(),
                 'databaseInternalId' => $database->getSequence(),
                 'databaseId' => $database->getId(),
@@ -690,7 +891,7 @@ class Appwrite extends Destination
 
             $this->dbForProject->checkAttribute($table, $column);
 
-            $column = $this->dbForProject->createDocument('attributes', $column);
+            $column = $this->dbForProject->createDocument(self::META_ATTRIBUTES, $column);
         } catch (DuplicateException $e) {
             $resource->setStatus(Resource::STATUS_ERROR, 'Attribute already exists');
             $this->addError(new Exception(
@@ -712,13 +913,11 @@ class Appwrite extends Destination
             ));
             return false;
         } catch (\Throwable $e) {
-            $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
-            $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+            $this->purgeTableCaches($database, $table, $dbForDatabases);
             throw $e;
         }
 
-        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
-        $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+        $this->purgeTableCaches($database, $table, $dbForDatabases);
         $options = $resource->getOptions();
 
         $twoWayKey = null;
@@ -731,7 +930,7 @@ class Appwrite extends Destination
 
             try {
                 $twoWayAttribute = new UtopiaDocument([
-                    '$id' => ID::custom($database->getSequence() . '_' . $relatedTable->getSequence() . '_' . $twoWayKey),
+                    '$id' => ID::custom($this->attributeIndexMetaId($database, $relatedTable, $twoWayKey)),
                     'key' => $twoWayKey,
                     'databaseInternalId' => $database->getSequence(),
                     'databaseId' => $database->getId(),
@@ -752,9 +951,10 @@ class Appwrite extends Destination
                     '$updatedAt' => $updatedAt,
                 ]);
 
-                $this->dbForProject->createDocument('attributes', $twoWayAttribute);
+                $this->dbForProject->createDocument(self::META_ATTRIBUTES, $twoWayAttribute);
+                $this->trackOrphanCandidate($database, $relatedTable, 'attributeKeys', $twoWayKey, $dbForDatabases);
             } catch (DuplicateException $e) {
-                $this->dbForProject->deleteDocument('attributes', $column->getId());
+                $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $column->getId());
 
                 $resource->setStatus(Resource::STATUS_ERROR, 'Attribute already exists');
                 $this->addError(new Exception(
@@ -766,7 +966,7 @@ class Appwrite extends Destination
                 ));
                 return false;
             } catch (LimitException $e) {
-                $this->dbForProject->deleteDocument('attributes', $column->getId());
+                $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $column->getId());
 
                 $resource->setStatus(Resource::STATUS_ERROR, 'Column limit exceeded');
                 $this->addError(new Exception(
@@ -778,8 +978,7 @@ class Appwrite extends Destination
                 ));
                 return false;
             } catch (\Throwable $e) {
-                $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
-                $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence());
+                $this->purgeTableCaches($database, $relatedTable, $dbForDatabases);
                 throw $e;
             }
         }
@@ -788,8 +987,9 @@ class Appwrite extends Destination
             switch ($type) {
                 case UtopiaDatabase::VAR_RELATIONSHIP:
                     if (!$dbForDatabases->createRelationship(
-                        collection: 'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
-                        relatedCollection: 'database_' . $database->getSequence() . '_collection_' . $relatedTable->getSequence(),
+                        collection: $this->tableCollectionId($database, $table),
+                        // @phpstan-ignore-next-line — $relatedTable is set when type is VAR_RELATIONSHIP.
+                        relatedCollection: $this->tableCollectionId($database, $relatedTable),
                         type: $options['relationType'],
                         twoWay: $options['twoWay'],
                         id: $resource->getKey(),
@@ -806,7 +1006,7 @@ class Appwrite extends Destination
                     break;
                 default:
                     if (!$dbForDatabases->createAttribute(
-                        'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
+                        $this->tableCollectionId($database, $table),
                         $resource->getKey(),
                         $type,
                         $resource->getSize(),
@@ -822,21 +1022,25 @@ class Appwrite extends Destination
                     }
             }
         } catch (\Throwable $e) {
-            $this->dbForProject->deleteDocument('attributes', $column->getId());
+            $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $column->getId());
 
             if (isset($twoWayAttribute)) {
-                $this->dbForProject->deleteDocument('attributes', $twoWayAttribute->getId());
+                $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $twoWayAttribute->getId());
             }
 
             throw $e;
         }
 
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
-            $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $relatedTable->getId());
+            // @phpstan-ignore-next-line — $relatedTable is set when type is VAR_RELATIONSHIP.
+            $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $relatedTable->getId());
         }
 
-        $this->dbForProject->purgeCachedDocument('database_' . $database->getSequence(), $table->getId());
-        $dbForDatabases->purgeCachedCollection('database_' . $database->getSequence() . '_collection_' . $table->getSequence());
+        $this->purgeTableCaches($database, $table, $dbForDatabases);
+
+        if ($twoWayPairKey !== null) {
+            $this->processedTwoWayPairs[$twoWayPairKey] = true;
+        }
 
         return true;
     }
@@ -848,7 +1052,7 @@ class Appwrite extends Destination
     protected function createIndex(Index $resource): bool
     {
         $database = $this->dbForProject->getDocument(
-            'databases',
+            self::META_DATABASES,
             $resource->getTable()->getDatabase()->getId(),
         );
         if ($database->isEmpty()) {
@@ -863,7 +1067,7 @@ class Appwrite extends Destination
         }
 
         $table = $this->dbForProject->getDocument(
-            'database_' . $database->getSequence(),
+            $this->databaseCollectionId($database),
             $resource->getTable()->getId(),
         );
         if ($table->isEmpty()) {
@@ -878,7 +1082,51 @@ class Appwrite extends Destination
         }
         $dbForDatabases = ($this->getDatabasesDB)($database);
 
-        $count = $this->dbForProject->count('indexes', [
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
+        $this->trackOrphanCandidate($database, $table, 'indexKeys', $resource->getKey(), $dbForDatabases);
+
+        $indexMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
+
+        // Pre-check + drop runs BEFORE count/validator so the to-be-dropped index isn't included in
+        // the limit count or in IndexValidator's $tableIndexes (otherwise an Overwrite recreate at the
+        // ceiling throws "Index limit reached" or "Invalid index" even though the net change is zero).
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            $existingIdx = $this->dbForProject->getDocument(self::META_INDEXES, $indexMetaId);
+            $action = $this->onDuplicate->resolveSchemaAction(
+                !$existingIdx->isEmpty(),
+                $updatedAt,
+                $existingIdx->getUpdatedAt(),
+            );
+            // Spec match → skip work. Create excluded; nothing on dest to match against.
+            if ($action !== SchemaAction::Create && $this->indexSpecMatches($existingIdx, $resource)) {
+                $action = SchemaAction::Skip;
+            }
+
+            // Indexes have no in-place primitive — any action other than Skip falls through to drop+recreate.
+            $earlyReturn = match ($action) {
+                SchemaAction::Skip => (function () use ($resource, $database, $table): bool {
+                    $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
+                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    return false;
+                })(),
+                SchemaAction::Overwrite, SchemaAction::Create => null,
+            };
+            if ($earlyReturn !== null) {
+                return $earlyReturn;
+            }
+
+            if ($action === SchemaAction::Overwrite) {
+                $dbForDatabases->deleteIndex($this->tableCollectionId($database, $table), $resource->getKey());
+                $this->dbForProject->deleteDocument(self::META_INDEXES, $indexMetaId);
+                $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
+                // Reload $table — in-memory copy still holds the dropped index, so IndexValidator below would over-count.
+                $table = $this->dbForProject->getDocument($this->databaseCollectionId($database), $table->getId());
+            }
+        }
+
+        $count = $this->dbForProject->count(self::META_INDEXES, [
             Query::equal('collectionInternalId', [$table->getSequence()]),
             Query::equal('databaseInternalId', [$database->getSequence()])
         ], $dbForDatabases->getLimitForIndexes());
@@ -901,11 +1149,8 @@ class Appwrite extends Destination
             $this->validateFieldsForIndexes($resource, $table, $lengths);
         }
 
-        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
-        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
-
         $index = new UtopiaDocument([
-            '$id' => ID::custom($database->getSequence() . '_' . $table->getSequence() . '_' . $resource->getKey()),
+            '$id' => ID::custom($indexMetaId),
             'key' => $resource->getKey(),
             'status' => 'available', // processing, available, failed, deleting, stuck
             'databaseInternalId' => $database->getSequence(),
@@ -946,7 +1191,6 @@ class Appwrite extends Destination
             $dbForDatabases->getAdapter()->getSupportForFulltextIndex()
         );
 
-
         if (!$validator->isValid($index)) {
             $resource->setStatus(Resource::STATUS_ERROR, 'Invalid index: ' . $validator->getDescription());
             $this->addError(new Exception(
@@ -958,11 +1202,11 @@ class Appwrite extends Destination
             return false;
         }
 
-        $index = $this->dbForProject->createDocument('indexes', $index);
+        $index = $this->dbForProject->createDocument(self::META_INDEXES, $index);
 
         try {
             $result = $dbForDatabases->createIndex(
-                'database_' . $database->getSequence() . '_collection_' . $table->getSequence(),
+                $this->tableCollectionId($database, $table),
                 $resource->getKey(),
                 $resource->getType(),
                 $resource->getColumns(),
@@ -979,15 +1223,12 @@ class Appwrite extends Destination
                 );
             }
         } catch (\Throwable $th) {
-            $this->dbForProject->deleteDocument('indexes', $index->getId());
+            $this->dbForProject->deleteDocument(self::META_INDEXES, $index->getId());
 
             throw $th;
         }
 
-        $this->dbForProject->purgeCachedDocument(
-            'database_' . $database->getSequence(),
-            $table->getId()
-        );
+        $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
 
         return true;
     }
@@ -1066,22 +1307,25 @@ class Appwrite extends Destination
         if ($isLast) {
             try {
                 $database = $this->dbForProject->getDocument(
-                    'databases',
+                    self::META_DATABASES,
                     $resource->getTable()->getDatabase()->getId(),
                 );
 
                 $table = $this->dbForProject->getDocument(
-                    'database_' . $database->getSequence(),
+                    $this->databaseCollectionId($database),
                     $resource->getTable()->getId(),
                 );
 
-                $databaseInternalId = $database->getSequence();
-                $tableInternalId = $table->getSequence();
                 $dbForDatabases = ($this->getDatabasesDB)($database);
-                /**
-                 * This is in case an attribute was deleted from Appwrite attributes collection but was not deleted from the table
-                 * When creating an archive we select * which will include orphan attribute from the schema
-                 */
+
+                // Drop schema orphans before rows land so the Structure validator doesn't reject on orphan required columns.
+                $this->cleanupOverwriteOrphansForTable($this->tableIdentity($database, $table));
+                // Reload $table — in-memory copy still holds the dropped attributes, so the strip loop below would over-keep.
+                $table = $this->dbForProject->getDocument(
+                    $this->databaseCollectionId($database),
+                    $resource->getTable()->getId(),
+                );
+                // Strip row payload fields the table doesn't declare — guards against orphans surviving in source archives.
                 if ($dbForDatabases->getAdapter()->getSupportForAttributes()) {
                     foreach ($this->rowBuffer as $row) {
                         foreach ($row as $key => $value) {
@@ -1104,11 +1348,11 @@ class Appwrite extends Destination
                         }
                     }
                 }
-                $collectionId = 'database_' . $databaseInternalId . '_collection_' . $tableInternalId;
+                $collectionId = $this->tableCollectionId($database, $table);
 
                 try {
                     match ($this->onDuplicate) {
-                        OnDuplicate::Upsert => $dbForDatabases->skipRelationshipsExistCheck(
+                        OnDuplicate::Overwrite => $dbForDatabases->skipRelationshipsExistCheck(
                             fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
                         ),
                         OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
@@ -1148,6 +1392,516 @@ class Appwrite extends Destination
 
 
         return true;
+    }
+
+    /** Relationships route through deleteRelationship since deleteAttribute throws for VAR_RELATIONSHIP. */
+    private function dropAttributeForRecreate(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        Column|Attribute $resource,
+        UtopiaDatabase $dbForDatabases,
+        UtopiaDocument $existingAttr,
+    ): void {
+        $collectionId = $this->tableCollectionId($database, $table);
+        $attributeMetaId = $this->attributeIndexMetaId($database, $table, $resource->getKey());
+        $isRelationship = $resource->getType() === Column::TYPE_RELATIONSHIP;
+
+        if ($isRelationship) {
+            $dbForDatabases->deleteRelationship($collectionId, $resource->getKey());
+        } else {
+            $dbForDatabases->deleteAttribute($collectionId, $resource->getKey());
+        }
+
+        $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $attributeMetaId);
+
+        // Use dest's options for partner lookup — drop fires when relatedCollection/twoWayKey differ, so source points to the NEW partner.
+        if ($isRelationship) {
+            $partner = $this->resolveTwoWayPartner($database, (array) $existingAttr->getAttribute('options', []));
+            if ($partner !== null) {
+                $this->bestEffort(fn () => $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $partner['partnerMetaId']));
+            }
+        }
+
+        $this->purgeTableCaches($database, $table, $dbForDatabases);
+    }
+
+    /** Returns false when the source change isn't SDK-expressible — caller falls through to drop+recreate. */
+    private function updateAttributeInPlace(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        Column|Attribute $resource,
+        string $type,
+        string $updatedAt,
+        UtopiaDocument $existingAttr,
+        UtopiaDatabase $dbForDatabases,
+    ): bool {
+        $sourceFields = [
+            'type'          => $type,
+            'array'         => $resource->isArray(),
+            'signed'        => $resource->isSigned(),
+            'format'        => $resource->getFormat(),
+            'formatOptions' => $resource->getFormatOptions(),
+            'filters'       => $resource->getFilters(),
+        ];
+
+        $existingFields = [];
+        foreach (self::ATTRIBUTE_IMMUTABLE_FIELDS as $field) {
+            $existingFields[$field] = $existingAttr->getAttribute($field);
+        }
+
+        if ($this->arraysDifferOnKeys($sourceFields, $existingFields, self::ATTRIBUTE_IMMUTABLE_FIELDS)) {
+            return false;
+        }
+
+        // Pass existing values for non-SDK fields so utopia doesn't trigger an ALTER for unchanged fields.
+        $dbForDatabases->updateAttribute(
+            collection: $this->tableCollectionId($database, $table),
+            id: $resource->getKey(),
+            type: $type,
+            size: $resource->getSize(),
+            required: $resource->isRequired(),
+            default: $resource->getDefault(),
+            signed: $existingAttr->getAttribute('signed'),
+            array: $existingAttr->getAttribute('array'),
+            format: $resource->getFormat(),
+            formatOptions: $resource->getFormatOptions(),
+            filters: $existingAttr->getAttribute('filters'),
+        );
+
+        $this->dbForProject->updateDocument(self::META_ATTRIBUTES, $existingAttr->getId(), new UtopiaDocument([
+            'key' => $resource->getKey(),
+            'type' => $type,
+            'size' => $resource->getSize(),
+            'required' => $resource->isRequired(),
+            'signed' => $resource->isSigned(),
+            'default' => $resource->getDefault(),
+            'array' => $resource->isArray(),
+            'format' => $resource->getFormat(),
+            'formatOptions' => $resource->getFormatOptions(),
+            'filters' => $resource->getFilters(),
+            '$updatedAt' => $updatedAt,
+        ]));
+
+        $this->purgeTableCaches($database, $table, $dbForDatabases);
+        return true;
+    }
+
+    /**
+     * Returns false when the source change isn't SDK-expressible — caller falls through to drop+recreate.
+     * One-way + onDelete change is also rejected: utopia's updateRelationship partner-cascade throws on one-way.
+     */
+    private function updateRelationshipInPlace(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        Column|Attribute $resource,
+        string $type,
+        string $updatedAt,
+        UtopiaDocument $existingAttr,
+        UtopiaDatabase $dbForDatabases,
+    ): bool {
+        $sourceOptions = $resource->getOptions();
+        $destOptions = $existingAttr->getAttribute('options', []);
+
+        if ($this->arraysDifferOnKeys($sourceOptions, $destOptions, self::RELATIONSHIP_IMMUTABLE_FIELDS)) {
+            return false;
+        }
+
+        $isTwoWay = (bool) ($destOptions['twoWay'] ?? false);
+        $onDeleteChanged = ($sourceOptions['onDelete'] ?? null) !== ($destOptions['onDelete'] ?? null);
+
+        if (!$isTwoWay && $onDeleteChanged) {
+            return false;
+        }
+
+        if ($onDeleteChanged) {
+            $dbForDatabases->updateRelationship(
+                collection: $this->tableCollectionId($database, $table),
+                id: $resource->getKey(),
+                onDelete: (string) ($sourceOptions['onDelete'] ?? ''),
+            );
+        }
+
+        $this->dbForProject->updateDocument(self::META_ATTRIBUTES, $existingAttr->getId(), new UtopiaDocument([
+            'key' => $resource->getKey(),
+            'type' => $type,
+            'options' => array_merge($destOptions, [
+                'onDelete' => $sourceOptions['onDelete'] ?? $destOptions['onDelete'] ?? null,
+            ]),
+            '$updatedAt' => $updatedAt,
+        ]));
+
+        $this->purgeTableCaches($database, $table, $dbForDatabases);
+
+        // utopia syncs both physical sides; partner's Appwrite-level meta doc has to be refreshed by hand.
+        if ($isTwoWay) {
+            $this->refreshTwoWayPartnerOnDelete($database, $destOptions, $sourceOptions, $updatedAt, $dbForDatabases);
+        }
+
+        return true;
+    }
+
+    /**
+     * @param array<string, mixed> $destOptions
+     * @param array<string, mixed> $sourceOptions
+     */
+    private function refreshTwoWayPartnerOnDelete(
+        UtopiaDocument $database,
+        array $destOptions,
+        array $sourceOptions,
+        string $updatedAt,
+        UtopiaDatabase $dbForDatabases,
+    ): void {
+        $partner = $this->resolveTwoWayPartner($database, $destOptions);
+        if ($partner === null) {
+            return;
+        }
+
+        $partnerMeta = $this->dbForProject->getDocument(self::META_ATTRIBUTES, $partner['partnerMetaId']);
+        if ($partnerMeta->isEmpty()) {
+            return;
+        }
+
+        $partnerOptions = $partnerMeta->getAttribute('options', []);
+        $this->dbForProject->updateDocument(self::META_ATTRIBUTES, $partnerMeta->getId(), new UtopiaDocument([
+            'options' => array_merge($partnerOptions, [
+                'onDelete' => $sourceOptions['onDelete'] ?? $partnerOptions['onDelete'] ?? null,
+            ]),
+            '$updatedAt' => $updatedAt,
+        ]));
+        $this->purgeTableCaches($database, $partner['relatedTable'], $dbForDatabases);
+    }
+
+    private function databaseSpecMatches(UtopiaDocument $existing, Database $resource): bool
+    {
+        $sourceType = empty($resource->getType()) ? 'legacy' : $resource->getType();
+        $sourceOriginalId = empty($resource->getOriginalId()) ? null : $resource->getOriginalId();
+
+        return $existing->getAttribute('name')       === $resource->getDatabaseName()
+            && $existing->getAttribute('enabled')    === $resource->getEnabled()
+            && $existing->getAttribute('type')       === $sourceType
+            && $existing->getAttribute('originalId') === $sourceOriginalId
+            && $existing->getAttribute('database')   === $resource->getDatabase();
+    }
+
+    private function tableSpecMatches(UtopiaDocument $existing, Table $resource): bool
+    {
+        if ($existing->getAttribute('name') !== $resource->getTableName()
+            || $existing->getAttribute('enabled') !== $resource->getEnabled()
+            || $existing->getAttribute('documentSecurity') !== $resource->getRowSecurity()) {
+            return false;
+        }
+
+        $sourcePerms = Permission::aggregate($resource->getPermissions());
+        /** @var list<string> $destPerms */
+        $destPerms = $existing->getAttribute('$permissions', []);
+        \sort($sourcePerms);
+        \sort($destPerms);
+        return $sourcePerms === $destPerms;
+    }
+
+    /** Full-spec equality: short-circuits Overwrite to Skip when nothing changed. */
+    private function attributeSpecMatches(UtopiaDocument $existing, Column|Attribute $resource, string $type, bool $isRelationship): bool
+    {
+        if ($existing->getAttribute('type') !== $type) {
+            return false;
+        }
+        if ($isRelationship) {
+            $sourceOptions = $resource->getOptions();
+            /** @var array<string, mixed> $destOptions */
+            $destOptions = $existing->getAttribute('options', []);
+            foreach (self::RELATIONSHIP_IMMUTABLE_FIELDS as $field) {
+                if (!$this->valuesMatch($sourceOptions[$field] ?? null, $destOptions[$field] ?? null)) {
+                    return false;
+                }
+            }
+            return $this->valuesMatch($sourceOptions['onDelete'] ?? null, $destOptions['onDelete'] ?? null);
+        }
+
+        return $existing->getAttribute('size')     === $resource->getSize()
+            && $existing->getAttribute('required') === $resource->isRequired()
+            && $existing->getAttribute('default')  === $resource->getDefault()
+            && $existing->getAttribute('array')    === $resource->isArray()
+            && $existing->getAttribute('signed')   === $resource->isSigned()
+            && $existing->getAttribute('format')   === $resource->getFormat()
+            && $this->valuesMatch($existing->getAttribute('formatOptions'), $resource->getFormatOptions())
+            && $existing->getAttribute('filters')  === $resource->getFilters();
+    }
+
+    /**
+     * `lengths` is intentionally not compared: it's derived per-column from
+     * the adapter's index validator and not settable on the Index resource.
+     */
+    private function indexSpecMatches(UtopiaDocument $existingIdx, Index $resource): bool
+    {
+        return $existingIdx->getAttribute('type')       === $resource->getType()
+            && $existingIdx->getAttribute('attributes') === $resource->getColumns()
+            && $existingIdx->getAttribute('orders')     === $resource->getOrders();
+    }
+
+    private function tableIdentity(UtopiaDocument $database, UtopiaDocument $table): string
+    {
+        return $database->getSequence() . ':' . $table->getSequence();
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     * @return array{relatedTable: UtopiaDocument, partnerKey: string, partnerMetaId: string}|null
+     */
+    private function resolveTwoWayPartner(UtopiaDocument $database, array $options): ?array
+    {
+        if (empty($options['twoWay'])) {
+            return null;
+        }
+        $relatedTableId = (string) ($options['relatedCollection'] ?? '');
+        $partnerKey = (string) ($options['twoWayKey'] ?? '');
+        if ($relatedTableId === '' || $partnerKey === '') {
+            return null;
+        }
+        $relatedTable = $this->dbForProject->getDocument(
+            $this->databaseCollectionId($database),
+            $relatedTableId,
+        );
+        if ($relatedTable->isEmpty()) {
+            return null;
+        }
+        return [
+            'relatedTable' => $relatedTable,
+            'partnerKey' => $partnerKey,
+            'partnerMetaId' => $this->attributeIndexMetaId($database, $relatedTable, $partnerKey),
+        ];
+    }
+
+    /** Canonical pair-key — same string regardless of which side is being processed. */
+    private function twoWayPairKey(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        Column|Attribute $resource,
+        string $type,
+    ): ?string {
+        if ($type !== UtopiaDatabase::VAR_RELATIONSHIP) {
+            return null;
+        }
+        $options = $resource->getOptions();
+        if (empty($options['twoWay'])) {
+            return null;
+        }
+        $twoWayKey = (string) ($options['twoWayKey'] ?? '');
+        $relatedTableId = (string) ($options['relatedCollection'] ?? '');
+        if ($twoWayKey === '' || $relatedTableId === '') {
+            return null;
+        }
+
+        $thisSide = $table->getId() . '::' . $resource->getKey();
+        $partnerSide = $relatedTableId . '::' . $twoWayKey;
+        $pair = [$thisSide, $partnerSide];
+        \sort($pair);
+        return $database->getSequence() . '@' . \implode('<->', $pair);
+    }
+
+    private function databaseCollectionId(UtopiaDocument $database): string
+    {
+        return 'database_' . $database->getSequence();
+    }
+
+    private function tableCollectionId(UtopiaDocument $database, UtopiaDocument $table): string
+    {
+        return $this->databaseCollectionId($database) . '_collection_' . $table->getSequence();
+    }
+
+    private function attributeIndexMetaId(UtopiaDocument $database, UtopiaDocument $table, string $key): string
+    {
+        return $database->getSequence() . '_' . $table->getSequence() . '_' . $key;
+    }
+
+    /** Stale platform/per-database cache shows the pre-change schema; evict after every structural change. */
+    private function purgeTableCaches(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        UtopiaDatabase $dbForDatabases,
+    ): void {
+        $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
+        $dbForDatabases->purgeCachedCollection($this->tableCollectionId($database, $table));
+    }
+
+    /**
+     * @param array<string, mixed> $a
+     * @param array<string, mixed> $b
+     * @param list<string> $keys
+     */
+    private function arraysDifferOnKeys(array $a, array $b, array $keys): bool
+    {
+        foreach ($keys as $key) {
+            if (!$this->valuesMatch($a[$key] ?? null, $b[$key] ?? null)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * `===` on associative arrays is order-sensitive on keys; ksort both sides
+     * before comparing so {min, max} matches {max, min}. Lists (numeric keys)
+     * are left alone — order is semantically meaningful for filters/columns.
+     */
+    private function valuesMatch(mixed $a, mixed $b): bool
+    {
+        if (\is_array($a) && \is_array($b) && !\array_is_list($a) && !\array_is_list($b)) {
+            \ksort($a);
+            \ksort($b);
+        }
+        return $a === $b;
+    }
+
+    /** $kind is 'attributeKeys' or 'indexKeys'. */
+    private function trackOrphanCandidate(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        string $kind,
+        string $key,
+        UtopiaDatabase $dbForDatabases,
+    ): void {
+        if ($this->onDuplicate !== OnDuplicate::Overwrite) {
+            return;
+        }
+        $tableId = $this->tableIdentity($database, $table);
+        if (!isset($this->orphansByTable[$tableId])) {
+            $this->orphansByTable[$tableId] = [
+                'database' => $database,
+                'table' => $table,
+                'dbForDatabases' => $dbForDatabases,
+                'attributeKeys' => [],
+                'indexKeys' => [],
+            ];
+        }
+        $this->orphansByTable[$tableId][$kind][] = $key;
+    }
+
+    /** End-of-migration sweep — only visits tables that had no rows (rest were cleaned per-table in createRecord). */
+    private function cleanupOverwriteOrphans(): void
+    {
+        foreach (\array_keys($this->orphansByTable) as $tableId) {
+            $this->cleanupOverwriteOrphansForTable($tableId);
+        }
+    }
+
+    /** Called per-table from createRecord before rows land so Structure validator sees the post-cleanup schema. */
+    private function cleanupOverwriteOrphansForTable(string $tableId): void
+    {
+        if ($this->onDuplicate !== OnDuplicate::Overwrite) {
+            return;
+        }
+        if (!isset($this->orphansByTable[$tableId])) {
+            return;
+        }
+
+        $tracked = $this->orphansByTable[$tableId];
+        $database = $tracked['database'];
+        $table = $tracked['table'];
+        $dbForDatabases = $tracked['dbForDatabases'];
+
+        $this->dropOrphansByKind(
+            self::META_ATTRIBUTES,
+            $tracked['attributeKeys'],
+            $database,
+            $table,
+            fn (UtopiaDocument $doc) => $this->dropOrphanAttribute($database, $table, $doc, $dbForDatabases),
+        );
+
+        $this->dropOrphansByKind(
+            self::META_INDEXES,
+            $tracked['indexKeys'],
+            $database,
+            $table,
+            fn (UtopiaDocument $doc) => $this->dropOrphanIndex(
+                $database,
+                $table,
+                (string) $doc->getAttribute('key'),
+                $dbForDatabases,
+            ),
+        );
+
+        unset($this->orphansByTable[$tableId]);
+    }
+
+    /**
+     * @param list<string> $processedKeys
+     * @param callable(UtopiaDocument): void $drop
+     */
+    private function dropOrphansByKind(
+        string $metaCollection,
+        array $processedKeys,
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        callable $drop,
+    ): void {
+        $destDocs = $this->dbForProject->find($metaCollection, [
+            Query::equal('databaseInternalId', [$database->getSequence()]),
+            Query::equal('collectionInternalId', [$table->getSequence()]),
+            Query::limit(PHP_INT_MAX),
+        ]);
+        foreach ($destDocs as $destDoc) {
+            if (!\in_array($destDoc->getAttribute('key'), $processedKeys, true)) {
+                $drop($destDoc);
+            }
+        }
+    }
+
+    /** Reads dest's own meta doc as source of truth — there's no source resource for an orphan. */
+    private function dropOrphanAttribute(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        UtopiaDocument $attrDoc,
+        UtopiaDatabase $dbForDatabases,
+    ): void {
+        $key = (string) $attrDoc->getAttribute('key');
+        $type = (string) $attrDoc->getAttribute('type');
+        $options = $attrDoc->getAttribute('options', []);
+        $collectionId = $this->tableCollectionId($database, $table);
+
+        if ($type === UtopiaDatabase::VAR_RELATIONSHIP) {
+            $this->bestEffort(fn () => $dbForDatabases->deleteRelationship($collectionId, $key));
+        } else {
+            $this->bestEffort(fn () => $dbForDatabases->deleteAttribute($collectionId, $key));
+        }
+        $this->bestEffort(fn () => $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $attrDoc->getId()));
+        $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
+        $dbForDatabases->purgeCachedCollection($collectionId);
+
+        if ($type !== UtopiaDatabase::VAR_RELATIONSHIP) {
+            return;
+        }
+        $partner = $this->resolveTwoWayPartner($database, $options);
+        if ($partner === null) {
+            return;
+        }
+
+        // deleteRelationship already dropped the partner physical column; only the Appwrite-level meta doc remains.
+        $this->bestEffort(fn () => $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $partner['partnerMetaId']));
+        $this->purgeTableCaches($database, $partner['relatedTable'], $dbForDatabases);
+    }
+
+    private function dropOrphanIndex(
+        UtopiaDocument $database,
+        UtopiaDocument $table,
+        string $indexKey,
+        UtopiaDatabase $dbForDatabases,
+    ): void {
+        $collectionId = $this->tableCollectionId($database, $table);
+        $indexMetaId = $this->attributeIndexMetaId($database, $table, $indexKey);
+
+        $this->bestEffort(fn () => $dbForDatabases->deleteIndex($collectionId, $indexKey));
+        $this->bestEffort(fn () => $this->dbForProject->deleteDocument(self::META_INDEXES, $indexMetaId));
+        $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
+    }
+
+    /** Swallows deletion errors — a prior run or relationship cascade may have already removed the target. */
+    private function bestEffort(callable $fn): void
+    {
+        try {
+            $fn();
+        } catch (\Throwable) {
+            // already gone
+        }
     }
 
     /**
