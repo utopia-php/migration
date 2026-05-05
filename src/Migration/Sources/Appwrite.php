@@ -2393,6 +2393,7 @@ class Appwrite extends Source
                 array: $column['array'],
                 min: $column['min'] ?? null,
                 max: $column['max'] ?? null,
+                signed: $column['signed'] ?? true,
                 createdAt: $column['$createdAt'] ?? '',
                 updatedAt: $column['$updatedAt'] ?? '',
             ),
