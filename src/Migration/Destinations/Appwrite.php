@@ -821,19 +821,14 @@ class Appwrite extends Destination
                         throw new \Exception('Failed to create Column', Exception::CODE_INTERNAL);
                     }
             }
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             $this->dbForProject->deleteDocument('attributes', $column->getId());
 
             if (isset($twoWayAttribute)) {
                 $this->dbForProject->deleteDocument('attributes', $twoWayAttribute->getId());
             }
 
-            throw new Exception(
-                resourceName: $resource->getName(),
-                resourceGroup: $resource->getGroup(),
-                resourceId: $resource->getId(),
-                message: 'Failed to create column',
-            );
+            throw $e;
         }
 
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
@@ -986,12 +981,7 @@ class Appwrite extends Destination
         } catch (\Throwable $th) {
             $this->dbForProject->deleteDocument('indexes', $index->getId());
 
-            throw new Exception(
-                resourceName: $resource->getName(),
-                resourceGroup: $resource->getGroup(),
-                resourceId: $resource->getId(),
-                message: 'Failed to create index',
-            );
+            throw $th;
         }
 
         $this->dbForProject->purgeCachedDocument(
