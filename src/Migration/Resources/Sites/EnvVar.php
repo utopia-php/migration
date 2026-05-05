@@ -67,5 +67,4 @@ class EnvVar extends Resource
     {
         return $this->value;
     }
-
 }

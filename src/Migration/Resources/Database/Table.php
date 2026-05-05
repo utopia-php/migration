@@ -53,7 +53,7 @@ class Table extends Resource
             Database::fromArray($array['database']),
             name: $array['name'],
             id: $array['id'],
-            rowSecurity: $array['rowSecurity'] ?? $array['documentSecurity'],
+            rowSecurity: (bool) ($array['rowSecurity'] ?? $array['documentSecurity'] ?? false),
             permissions: $array['permissions'] ?? [],
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',

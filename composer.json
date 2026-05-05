@@ -26,8 +26,8 @@
         "ext-curl": "*",
         "ext-openssl": "*",
         "appwrite/appwrite": "19.*",
-        "utopia-php/database": "dev-big-init as 5.4",
-        "utopia-php/storage": "1.0.*",
+        "utopia-php/database": "dev-big-init as 5.77",
+        "utopia-php/storage": "2.*",
         "utopia-php/dsn": "0.2.*",
         "halaxa/json-machine": "^1.2"
     },

@@ -5,11 +5,11 @@ namespace Utopia\Migration\Sources;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Query;
-use Appwrite\Services\Databases;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
+use Appwrite\Services\TablesDB;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Utopia\Database\Database as UtopiaDatabase;
@@ -128,7 +128,7 @@ class Appwrite extends Source
 
         switch ($this->source) {
             case static::SOURCE_API:
-                $this->reader = new APIReader(new Databases($this->client));
+                $this->reader = new APIReader(new TablesDB($this->client));
                 break;
 
             case static::SOURCE_DATABASE:
@@ -145,7 +145,6 @@ class Appwrite extends Source
             default:
                 throw new \Exception('Unknown source', Exception::CODE_VALIDATION);
         }
-
     }
 
     public static function getName(): string
@@ -201,6 +200,9 @@ class Appwrite extends Source
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
 
+            // Backups
+            Resource::TYPE_BACKUP_POLICY,
+
             // Settings
         ];
     }
@@ -240,6 +242,7 @@ class Appwrite extends Source
             $this->reportFunctions($resources, $report, $resourceIds);
             $this->reportMessaging($resources, $report, $resourceIds);
             $this->reportSites($resources, $report, $resourceIds);
+            $this->reportBackups($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -355,7 +358,6 @@ class Appwrite extends Source
      */
     private function reportStorage(array $resources, array &$report, array $resourceIds = []): void
     {
-
         if (\in_array(Resource::TYPE_BUCKET, $resources)) {
             $bucketQueries = $this->buildQueries(
                 resourceType: Resource::TYPE_BUCKET,
@@ -870,7 +872,6 @@ class Appwrite extends Source
                         'enabled' => $database['enabled'] ?? true,
                     ]);
                     $databases[] = $newDatabase;
-
                 }
             }
 
@@ -929,10 +930,12 @@ class Appwrite extends Source
 
                 $response = $this->reader->listTables($database, $queries);
                 foreach ($response as $table) {
+                    $rowSecurity = $table['rowSecurity'] ?? $table['documentSecurity'] ?? false;
                     $newTable = self::getEntity($databaseName, [
                         'id' => $table['$id'],
                         'name' => $table['name'],
-                        'documentSecurity' => $table['documentSecurity'],
+                        'rowSecurity' => $rowSecurity,
+                        'documentSecurity' => $rowSecurity,
                         'permissions' => $table['$permissions'],
                         'createdAt' => $table['$createdAt'],
                         'updatedAt' => $table['$updatedAt'],
@@ -996,7 +999,7 @@ class Appwrite extends Source
                     }
 
                     /** @var Table $table */
-                    $col = match($table->getDatabase()->getType()) {
+                    $col = match ($table->getDatabase()->getType()) {
                         Resource::TYPE_DATABASE_VECTORSDB => self::getColumn($table, $column)->getAttribute(),
                         default => self::getColumn($table, $column),
                     };
@@ -1154,10 +1157,11 @@ class Appwrite extends Source
 
                     unset($row['$id']);
                     unset($row['$permissions']);
-                    unset($row['$collectionId']);
                     unset($row['$databaseId']);
                     unset($row['$sequence']);
                     unset($row['$collection']);
+                    unset($row['$tableId']);
+                    unset($row['$table']);
 
                     $row = self::getRecord($table->getDatabase()->getType(), [
                         'id' => $id,
@@ -1419,6 +1423,18 @@ class Appwrite extends Source
                 code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
+        }
+    }
+
+    protected function exportGroupBackups(int $batchSize, array $resources): void
+    {
+        // No-op: backup policies are Cloud-only
+    }
+
+    protected function reportBackups(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
+            $report[Resource::TYPE_BACKUP_POLICY] = 0;
         }
     }
 
@@ -2509,7 +2525,6 @@ class Appwrite extends Source
 
             default => throw new \InvalidArgumentException("Unsupported column type: {$column['type']}"),
         };
-
     }
 
     /**

@@ -26,6 +26,8 @@ class Transfer
 
     public const GROUP_MESSAGING = 'messaging';
 
+    public const GROUP_BACKUPS = 'backups';
+
     public const GROUP_AUTH_RESOURCES = [
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
@@ -88,6 +90,10 @@ class Transfer
 
     public const GROUP_SETTINGS_RESOURCES = [];
 
+    public const GROUP_BACKUPS_RESOURCES = [
+        Resource::TYPE_BACKUP_POLICY,
+    ];
+
     public const GROUP_MESSAGING_RESOURCES = [
         Resource::TYPE_PROVIDER,
         Resource::TYPE_TOPIC,
@@ -116,6 +122,7 @@ class Transfer
         Resource::TYPE_TOPIC,
         Resource::TYPE_SUBSCRIBER,
         Resource::TYPE_MESSAGE,
+        Resource::TYPE_BACKUP_POLICY,
 
         // legacy
         Resource::TYPE_DOCUMENT,
@@ -399,6 +406,7 @@ class Transfer
                 self::GROUP_DATABASES_VECTOR_DB => array_merge($resources, self::GROUP_VECTORSDB_RESOURCES),
                 self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
                 self::GROUP_MESSAGING => array_merge($resources, self::GROUP_MESSAGING_RESOURCES),
+                self::GROUP_BACKUPS => array_merge($resources, self::GROUP_BACKUPS_RESOURCES),
                 default => throw new \Exception('No service group found'),
             };
         }
