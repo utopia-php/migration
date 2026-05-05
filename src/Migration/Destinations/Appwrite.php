@@ -400,8 +400,6 @@ class Appwrite extends Destination
                     default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
             } catch (\Throwable $e) {
-                // Safety net for unexpected failures — record on the migration and
-                // rethrow so the worker boundary can route bugs to Sentry.
                 $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
 
                 $this->addError(new Exception(
@@ -413,7 +411,7 @@ class Appwrite extends Destination
                     previous: $e
                 ));
 
-                throw $e;
+                $responseResource = $resource;
             } finally {
                 $this->dbForProject->setPreserveDates(false);
             }
