@@ -1,6 +1,6 @@
 <?php
 
-namespace Migration\Unit\Destinations;
+namespace Utopia\Tests\Unit\Destinations;
 
 use Appwrite\Services\Databases;
 use Appwrite\Services\TablesDB;
