@@ -966,12 +966,12 @@ class Appwrite extends Destination
             } catch (LimitException $e) {
                 $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $column->getId());
 
-                $resource->setStatus(Resource::STATUS_ERROR, 'Column limit exceeded');
+                $resource->setStatus(Resource::STATUS_ERROR, 'Attribute limit exceeded');
                 $this->addError(new Exception(
                     resourceName: $resource->getName(),
                     resourceGroup: $resource->getGroup(),
                     resourceId: $resource->getId(),
-                    message: 'Column limit exceeded',
+                    message: 'Attribute limit exceeded',
                     previous: $e,
                 ));
                 return false;
