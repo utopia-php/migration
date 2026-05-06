@@ -1,6 +1,6 @@
 <?php
 
-namespace Migration\Unit\General;
+namespace Utopia\Tests\Unit\General;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
