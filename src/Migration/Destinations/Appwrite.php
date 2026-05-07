@@ -481,12 +481,14 @@ class Appwrite extends Destination
         $validator = new UID();
 
         if (!$validator->isValid($resource->getId())) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, $validator->getDescription());
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: $validator->getDescription(),
-            );
+            ));
+            return false;
         }
 
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
@@ -579,12 +581,14 @@ class Appwrite extends Destination
         $validator = new UID();
 
         if (!$validator->isValid($resource->getId())) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, $validator->getDescription());
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: $validator->getDescription(),
-            );
+            ));
+            return false;
         }
 
         $database = $this->dbForProject->getDocument(
@@ -593,12 +597,14 @@ class Appwrite extends Destination
         );
 
         if ($database->isEmpty()) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, 'Database not found');
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: 'Database not found',
-            );
+            ));
+            return false;
         }
 
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
@@ -725,12 +731,14 @@ class Appwrite extends Destination
         );
 
         if ($database->isEmpty()) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, 'Database not found');
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: 'Database not found',
-            );
+            ));
+            return false;
         }
 
         $table = $this->dbForProject->getDocument(
@@ -739,41 +747,49 @@ class Appwrite extends Destination
         );
 
         if ($table->isEmpty()) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, 'Table not found');
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: 'Table not found',
-            );
+            ));
+            return false;
         }
 
         if (!empty($resource->getFormat())) {
             if (!Structure::hasFormat($resource->getFormat(), $type)) {
-                throw new Exception(
+                $resource->setStatus(Resource::STATUS_ERROR, "Format {$resource->getFormat()} not available for column type {$type}");
+                $this->addError(new Exception(
                     resourceName: $resource->getName(),
                     resourceGroup: $resource->getGroup(),
                     resourceId: $resource->getId(),
                     message: "Format {$resource->getFormat()} not available for column type {$type}",
-                );
+                ));
+                return false;
             }
         }
 
         if ($resource->isRequired() && $resource->getDefault() !== null) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, 'Cannot set default value for required column');
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: 'Cannot set default value for required column',
-            );
+            ));
+            return false;
         }
 
         if ($resource->isArray() && $resource->getDefault() !== null) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, 'Cannot set default value for array column');
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: 'Cannot set default value for array column',
-            );
+            ));
+            return false;
         }
 
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP) {
@@ -783,12 +799,14 @@ class Appwrite extends Destination
                 $resource->getOptions()['relatedCollection']
             );
             if ($relatedTable->isEmpty()) {
-                throw new Exception(
+                $resource->setStatus(Resource::STATUS_ERROR, 'Related table not found');
+                $this->addError(new Exception(
                     resourceName: $resource->getName(),
                     resourceGroup: $resource->getGroup(),
                     resourceId: $resource->getId(),
                     message: 'Related table not found',
-                );
+                ));
+                return false;
             }
         }
 
@@ -873,20 +891,26 @@ class Appwrite extends Destination
             $this->dbForProject->checkAttribute($table, $column);
 
             $column = $this->dbForProject->createDocument(self::META_ATTRIBUTES, $column);
-        } catch (DuplicateException) {
-            throw new Exception(
+        } catch (DuplicateException $e) {
+            $resource->setStatus(Resource::STATUS_ERROR, 'Attribute already exists');
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: 'Attribute already exists',
-            );
-        } catch (LimitException) {
-            throw new Exception(
+                previous: $e,
+            ));
+            return false;
+        } catch (LimitException $e) {
+            $resource->setStatus(Resource::STATUS_ERROR, 'Attribute limit exceeded');
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: 'Attribute limit exceeded',
-            );
+                previous: $e,
+            ));
+            return false;
         } catch (\Throwable $e) {
             $this->purgeTableCaches($database, $table, $dbForDatabases);
             throw $e;
@@ -928,24 +952,30 @@ class Appwrite extends Destination
 
                 $this->dbForProject->createDocument(self::META_ATTRIBUTES, $twoWayAttribute);
                 $this->trackOrphanCandidate($database, $relatedTable, 'attributeKeys', $twoWayKey, $dbForDatabases);
-            } catch (DuplicateException) {
+            } catch (DuplicateException $e) {
                 $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $column->getId());
 
-                throw new Exception(
+                $resource->setStatus(Resource::STATUS_ERROR, 'Attribute already exists');
+                $this->addError(new Exception(
                     resourceName: $resource->getName(),
                     resourceGroup: $resource->getGroup(),
                     resourceId: $resource->getId(),
                     message: 'Attribute already exists',
-                );
-            } catch (LimitException) {
+                    previous: $e,
+                ));
+                return false;
+            } catch (LimitException $e) {
                 $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $column->getId());
 
-                throw new Exception(
+                $resource->setStatus(Resource::STATUS_ERROR, 'Attribute limit exceeded');
+                $this->addError(new Exception(
                     resourceName: $resource->getName(),
                     resourceGroup: $resource->getGroup(),
                     resourceId: $resource->getId(),
                     message: 'Attribute limit exceeded',
-                );
+                    previous: $e,
+                ));
+                return false;
             } catch (\Throwable $e) {
                 $this->purgeTableCaches($database, $relatedTable, $dbForDatabases);
                 throw $e;
@@ -990,19 +1020,14 @@ class Appwrite extends Destination
                         throw new \Exception('Failed to create Column', Exception::CODE_INTERNAL);
                     }
             }
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $column->getId());
 
             if (isset($twoWayAttribute)) {
                 $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $twoWayAttribute->getId());
             }
 
-            throw new Exception(
-                resourceName: $resource->getName(),
-                resourceGroup: $resource->getGroup(),
-                resourceId: $resource->getId(),
-                message: 'Failed to create column',
-            );
+            throw $e;
         }
 
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
@@ -1030,12 +1055,14 @@ class Appwrite extends Destination
             $resource->getTable()->getDatabase()->getId(),
         );
         if ($database->isEmpty()) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, 'Database not found');
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: 'Database not found',
-            );
+            ));
+            return false;
         }
 
         $table = $this->dbForProject->getDocument(
@@ -1043,12 +1070,14 @@ class Appwrite extends Destination
             $resource->getTable()->getId(),
         );
         if ($table->isEmpty()) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, 'Table not found');
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: 'Table not found',
-            );
+            ));
+            return false;
         }
         $dbForDatabases = ($this->getDatabasesDB)($database);
 
@@ -1102,12 +1131,14 @@ class Appwrite extends Destination
         ], $dbForDatabases->getLimitForIndexes());
 
         if ($count >= $dbForDatabases->getLimitForIndexes()) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, 'Index limit reached for table');
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: 'Index limit reached for table',
-            );
+            ));
+            return false;
         }
 
         // Lengths hidden by default
@@ -1160,12 +1191,14 @@ class Appwrite extends Destination
         );
 
         if (!$validator->isValid($index)) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, 'Invalid index: ' . $validator->getDescription());
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: 'Invalid index: ' . $validator->getDescription(),
-            );
+            ));
+            return false;
         }
 
         $index = $this->dbForProject->createDocument(self::META_INDEXES, $index);
@@ -1191,12 +1224,7 @@ class Appwrite extends Destination
         } catch (\Throwable $th) {
             $this->dbForProject->deleteDocument(self::META_INDEXES, $index->getId());
 
-            throw new Exception(
-                resourceName: $resource->getName(),
-                resourceGroup: $resource->getGroup(),
-                resourceId: $resource->getId(),
-                message: 'Failed to create index',
-            );
+            throw $th;
         }
 
         $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $table->getId());
@@ -1219,12 +1247,14 @@ class Appwrite extends Destination
         $validator = new UID();
 
         if (!$validator->isValid($resource->getId())) {
-            throw new Exception(
+            $resource->setStatus(Resource::STATUS_ERROR, $validator->getDescription());
+            $this->addError(new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
                 resourceId: $resource->getId(),
                 message: $validator->getDescription(),
-            );
+            ));
+            return false;
         }
 
         // Check if document has already been created
@@ -1319,19 +1349,41 @@ class Appwrite extends Destination
                 }
                 $collectionId = $this->tableCollectionId($database, $table);
 
-                match ($this->onDuplicate) {
-                    OnDuplicate::Overwrite => $dbForDatabases->skipRelationshipsExistCheck(
-                        fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
-                    ),
-                    OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
-                        fn () => $dbForDatabases->skipRelationshipsExistCheck(
+                try {
+                    match ($this->onDuplicate) {
+                        OnDuplicate::Overwrite => $dbForDatabases->skipRelationshipsExistCheck(
+                            fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
+                        ),
+                        OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
+                            fn () => $dbForDatabases->skipRelationshipsExistCheck(
+                                fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
+                            )
+                        ),
+                        OnDuplicate::Fail => $dbForDatabases->skipRelationshipsExistCheck(
                             fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
-                        )
-                    ),
-                    OnDuplicate::Fail => $dbForDatabases->skipRelationshipsExistCheck(
-                        fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
-                    ),
-                };
+                        ),
+                    };
+                } catch (DuplicateException $e) {
+                    $resource->setStatus(Resource::STATUS_ERROR, 'Document already exists');
+                    $this->addError(new Exception(
+                        resourceName: $resource->getName(),
+                        resourceGroup: $resource->getGroup(),
+                        resourceId: $resource->getId(),
+                        message: 'Document already exists',
+                        previous: $e,
+                    ));
+                    return false;
+                } catch (StructureException $e) {
+                    $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
+                    $this->addError(new Exception(
+                        resourceName: $resource->getName(),
+                        resourceGroup: $resource->getGroup(),
+                        resourceId: $resource->getId(),
+                        message: $e->getMessage(),
+                        previous: $e,
+                    ));
+                    return false;
+                }
             } finally {
                 $this->rowBuffer = [];
             }
