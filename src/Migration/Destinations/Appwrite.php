@@ -104,6 +104,17 @@ class Appwrite extends Destination
     protected $getDatabasesDB;
 
     /**
+     * Resolves the DSN written into the destination's `_databases.database` for
+     * a migrated database. When unset, the attribute is left blank and the
+     * runtime falls back to the destination project's DSN — correct for legacy
+     * single-DSN projects, but cross-instance / multi-type setups must inject
+     * a resolver so source DSNs don't bleed into the destination metadata.
+     *
+     * @var (callable(Database $resource): string)|null
+     */
+    protected $getDatabaseDSN;
+
+    /**
      * @var array<UtopiaDocument>
      */
     private array $rowBuffer = [];
@@ -139,6 +150,7 @@ class Appwrite extends Destination
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
      * @param array<array<string, mixed>> $collectionStructure
      * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
+     * @param (callable(Database $resource): string)|null $getDatabaseDSN Resolver for the destination's `_databases.database` value. Required for cross-instance migrations to prevent the source DSN from being written into the destination project's metadata.
      */
     public function __construct(
         string $project,
@@ -148,6 +160,7 @@ class Appwrite extends Destination
         callable $getDatabasesDB,
         protected array $collectionStructure,
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
+        ?callable $getDatabaseDSN = null,
     ) {
         $this->project = $project;
         $this->endpoint = $endpoint;
@@ -166,6 +179,21 @@ class Appwrite extends Destination
         $this->users = new Users($this->client);
 
         $this->getDatabasesDB = $getDatabasesDB;
+        $this->getDatabaseDSN = $getDatabaseDSN;
+    }
+
+    /**
+     * Resolve the DSN written into the destination's `_databases.database`.
+     * Without a resolver, leave it blank — the source DSN must never be
+     * propagated, since cross-instance source/destination DSNs differ and
+     * propagation routes destination reads to the wrong host (see PR #151).
+     */
+    private function resolveDestinationDsn(Database $resource): string
+    {
+        if ($this->getDatabaseDSN === null) {
+            return '';
+        }
+        return ($this->getDatabaseDSN)($resource);
     }
 
     /** Orphan cleanup runs only after a successful migration — a mid-run throw preserves the destination as-is. */
@@ -519,7 +547,7 @@ class Appwrite extends Destination
                         'enabled' => $resource->getEnabled(),
                         'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
                         'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
-                        'database' => $resource->getDatabase(),
+                        'database' => $this->resolveDestinationDsn($resource),
                         '$updatedAt' => $updatedAt,
                     ]));
                     $resource->setSequence($existing->getSequence());
@@ -541,8 +569,8 @@ class Appwrite extends Destination
             '$updatedAt' => $updatedAt,
             'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
             'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
-            // source and destination can be in different location
-            'database' => $resource->getDatabase()
+            // Source and destination can be in different locations; never write the source DSN here.
+            'database' => $this->resolveDestinationDsn($resource),
         ]));
 
         $resource->setSequence($database->getSequence());
