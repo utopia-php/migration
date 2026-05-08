@@ -199,7 +199,7 @@ class API implements Reader
             $resource->getId(),
             $rowId,
             $queries
-        );
+        )->toArray();
     }
 
     /**

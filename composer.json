@@ -25,7 +25,7 @@
         "php": ">=8.1",
         "ext-curl": "*",
         "ext-openssl": "*",
-        "appwrite/appwrite": "19.*",
+        "appwrite/appwrite": "23.*",
         "utopia-php/database": "5.*",
         "utopia-php/storage": "2.*",
         "utopia-php/dsn": "0.2.*",
