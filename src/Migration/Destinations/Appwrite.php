@@ -1999,7 +1999,7 @@ class Appwrite extends Destination
                     $resource->getTransformations()
                 );
 
-                $resource->setId($response['$id']);
+                $resource->setId($response->id);
         }
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
