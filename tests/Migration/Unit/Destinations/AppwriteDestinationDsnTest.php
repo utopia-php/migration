@@ -5,6 +5,7 @@ namespace Utopia\Tests\Unit\Destinations;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use Utopia\Database\Database as UtopiaDatabase;
+use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\OnDuplicate;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
@@ -68,7 +69,7 @@ class AppwriteDestinationDsnTest extends TestCase
             endpoint: 'http://example.test/v1',
             key: 'test-key',
             dbForProject: $this->createStub(UtopiaDatabase::class),
-            getDatabasesDB: fn (): UtopiaDatabase => $this->createStub(UtopiaDatabase::class),
+            getDatabasesDB: fn (UtopiaDocument $database): UtopiaDatabase => $this->createStub(UtopiaDatabase::class),
             collectionStructure: ['attributes' => [], 'indexes' => []],
             onDuplicate: OnDuplicate::Fail,
             getDatabaseDSN: $getDatabaseDSN,
