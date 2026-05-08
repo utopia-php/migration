@@ -104,6 +104,19 @@ class Appwrite extends Destination
     protected $getDatabasesDB;
 
     /**
+     * Resolves the DSN written into the destination's `_databases.database`
+     * for a migrated database. When the source and destination projects don't
+     * share the same DSN — e.g. one project is on a host the other isn't —
+     * pass a resolver so the destination metadata carries its own DSN instead
+     * of the source's. When unset, the attribute is left blank and the
+     * runtime falls back to the destination project's DSN at read time, which
+     * is safe for single-host single-type setups.
+     *
+     * @var (callable(Database $resource): string)|null
+     */
+    protected $getDatabaseDSN;
+
+    /**
      * @var array<UtopiaDocument>
      */
     private array $rowBuffer = [];
@@ -139,6 +152,7 @@ class Appwrite extends Destination
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
      * @param array<array<string, mixed>> $collectionStructure
      * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
+     * @param (callable(Database $resource): string)|null $getDatabaseDSN Resolver for the destination's `_databases.database` value. Pass when the destination project's DSN differs from the source's, so the destination row carries its own DSN instead of inheriting the source's.
      */
     public function __construct(
         string $project,
@@ -148,6 +162,7 @@ class Appwrite extends Destination
         callable $getDatabasesDB,
         protected array $collectionStructure,
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
+        ?callable $getDatabaseDSN = null,
     ) {
         $this->project = $project;
         $this->endpoint = $endpoint;
@@ -166,6 +181,22 @@ class Appwrite extends Destination
         $this->users = new Users($this->client);
 
         $this->getDatabasesDB = $getDatabasesDB;
+        $this->getDatabaseDSN = $getDatabaseDSN;
+    }
+
+    /**
+     * Resolve the DSN written into the destination's `_databases.database`.
+     * Without a resolver, leave it blank — the source DSN must never be
+     * propagated as the default, since when source and destination DSNs
+     * differ propagation routes destination reads to the wrong host (the
+     * regression PR #151 introduced).
+     */
+    private function resolveDestinationDsn(Database $resource): string
+    {
+        if ($this->getDatabaseDSN === null) {
+            return '';
+        }
+        return ($this->getDatabaseDSN)($resource);
     }
 
     /** Orphan cleanup runs only after a successful migration — a mid-run throw preserves the destination as-is. */
@@ -519,7 +550,7 @@ class Appwrite extends Destination
                         'enabled' => $resource->getEnabled(),
                         'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
                         'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
-                        'database' => $resource->getDatabase(),
+                        'database' => $this->resolveDestinationDsn($resource),
                         '$updatedAt' => $updatedAt,
                     ]));
                     $resource->setSequence($existing->getSequence());
@@ -541,8 +572,8 @@ class Appwrite extends Destination
             '$updatedAt' => $updatedAt,
             'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
             'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
-            // source and destination can be in different location
-            'database' => $resource->getDatabase()
+            // Resolved by the destination's resolver (or left blank); never copy the source's DSN by default.
+            'database' => $this->resolveDestinationDsn($resource),
         ]));
 
         $resource->setSequence($database->getSequence());
@@ -1579,7 +1610,7 @@ class Appwrite extends Destination
             && $existing->getAttribute('enabled')    === $resource->getEnabled()
             && $existing->getAttribute('type')       === $sourceType
             && $existing->getAttribute('originalId') === $sourceOriginalId
-            && $existing->getAttribute('database')   === $resource->getDatabase();
+            && $existing->getAttribute('database')   === $this->resolveDestinationDsn($resource);
     }
 
     private function tableSpecMatches(UtopiaDocument $existing, Table $resource): bool
