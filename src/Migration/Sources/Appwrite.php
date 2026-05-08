@@ -619,8 +619,8 @@ class Appwrite extends Source
                     $user->emailVerification ?? false,
                     $user->phoneVerification ?? false,
                     !$user->status,
-                    $user->prefs ?? [],
-                    $user->targets ?? [],
+                    $user->prefs->data ?? [],
+                    \array_map(fn ($target) => $target->toArray(), $user->targets ?? []),
                 );
 
                 $lastDocument = $user->id;
@@ -665,7 +665,7 @@ class Appwrite extends Source
                 $teams[] = new Team(
                     $team->id,
                     $team->name,
-                    $team->prefs,
+                    $team->prefs->data,
                 );
 
                 $lastDocument = $team->id;
@@ -1485,7 +1485,7 @@ class Appwrite extends Source
                     $function->commands ?? '',
                     $function->logging ?? true,
                     $function->scopes ?? [],
-                    $function->specification ?? '',
+                    $function->runtimeSpecification ?: $function->buildSpecification ?: '',
                 );
                 $functions[] = $convertedFunc;
 
@@ -1972,7 +1972,7 @@ class Appwrite extends Source
                     $message->users ?? [],
                     $message->targets ?? [],
                     $message->data ?? [],
-                    $message->status ?? '',
+                    (string) $message->status,
                     $message->scheduledAt ?? '',
                     $message->deliveredAt ?? '',
                     $message->deliveryErrors ?? [],
@@ -2036,7 +2036,7 @@ class Appwrite extends Source
                     $site->outputDirectory ?? '',
                     $site->adapter ?? 'static',
                     $site->fallbackFile ?? '',
-                    $site->specification ?? '',
+                    $site->runtimeSpecification ?: $site->buildSpecification ?: '',
                     $site->deploymentId ?? ''
                 );
                 $sites[] = $convertedSite;
