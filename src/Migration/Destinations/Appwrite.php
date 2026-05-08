@@ -1610,7 +1610,7 @@ class Appwrite extends Destination
             && $existing->getAttribute('enabled')    === $resource->getEnabled()
             && $existing->getAttribute('type')       === $sourceType
             && $existing->getAttribute('originalId') === $sourceOriginalId
-            && $existing->getAttribute('database')   === $resource->getDatabase();
+            && $existing->getAttribute('database')   === $this->resolveDestinationDsn($resource);
     }
 
     private function tableSpecMatches(UtopiaDocument $existing, Table $resource): bool
