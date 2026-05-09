@@ -2327,6 +2327,7 @@ class Appwrite extends Destination
                 /** @var EnvVar $resource */
                 $this->functions->createVariable(
                     $resource->getFunc()->getId(),
+                    $resource->getId(),
                     $resource->getKey(),
                     $resource->getValue()
                 );
@@ -2576,6 +2577,7 @@ class Appwrite extends Destination
                 /** @var SiteEnvVar $resource */
                 $this->sites->createVariable(
                     $resource->getSite()->getId(),
+                    $resource->getId(),
                     $resource->getKey(),
                     $resource->getValue()
                 );
