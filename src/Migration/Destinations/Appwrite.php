@@ -2307,18 +2307,18 @@ class Appwrite extends Destination
                 };
 
                 $this->functions->create(
-                    $resource->getId(),
-                    $resource->getFunctionName(),
-                    $runtime,
-                    $resource->getExecute(),
-                    $resource->getEvents(),
-                    $resource->getSchedule(),
-                    $resource->getTimeout(),
-                    $resource->getEnabled(),
-                    $resource->getLogging(),
-                    $resource->getEntrypoint(),
-                    $resource->getCommands(),
-                    $resource->getScopes(),
+                    functionId: $resource->getId(),
+                    name: $resource->getFunctionName(),
+                    runtime: $runtime,
+                    execute: $resource->getExecute(),
+                    events: $resource->getEvents(),
+                    schedule: $resource->getSchedule(),
+                    timeout: $resource->getTimeout(),
+                    enabled: $resource->getEnabled(),
+                    logging: $resource->getLogging(),
+                    entrypoint: $resource->getEntrypoint(),
+                    commands: $resource->getCommands(),
+                    scopes: $resource->getScopes(),
                     buildSpecification: $resource->getSpecification() ?: null,
                     runtimeSpecification: $resource->getSpecification() ?: null,
                 );
@@ -2326,10 +2326,10 @@ class Appwrite extends Destination
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
                 /** @var EnvVar $resource */
                 $this->functions->createVariable(
-                    $resource->getFunc()->getId(),
-                    $resource->getId(),
-                    $resource->getKey(),
-                    $resource->getValue()
+                    functionId: $resource->getFunc()->getId(),
+                    variableId: $resource->getId(),
+                    key: $resource->getKey(),
+                    value: $resource->getValue(),
                 );
                 break;
             case Resource::TYPE_DEPLOYMENT:
@@ -2557,17 +2557,17 @@ class Appwrite extends Destination
                 };
 
                 $this->sites->create(
-                    $resource->getId(),
-                    $resource->getSiteName(),
-                    $framework,
-                    $buildRuntime,
-                    $resource->getEnabled(),
-                    $resource->getLogging(),
-                    $resource->getTimeout(),
-                    $resource->getInstallCommand(),
-                    $resource->getBuildCommand(),
-                    $resource->getOutputDirectory(),
-                    $adapter,
+                    siteId: $resource->getId(),
+                    name: $resource->getSiteName(),
+                    framework: $framework,
+                    buildRuntime: $buildRuntime,
+                    enabled: $resource->getEnabled(),
+                    logging: $resource->getLogging(),
+                    timeout: $resource->getTimeout(),
+                    installCommand: $resource->getInstallCommand(),
+                    buildCommand: $resource->getBuildCommand(),
+                    outputDirectory: $resource->getOutputDirectory(),
+                    adapter: $adapter,
                     fallbackFile: $resource->getFallbackFile(),
                     buildSpecification: $resource->getSpecification() ?: null,
                     runtimeSpecification: $resource->getSpecification() ?: null,
@@ -2576,10 +2576,10 @@ class Appwrite extends Destination
             case Resource::TYPE_SITE_VARIABLE:
                 /** @var SiteEnvVar $resource */
                 $this->sites->createVariable(
-                    $resource->getSite()->getId(),
-                    $resource->getId(),
-                    $resource->getKey(),
-                    $resource->getValue()
+                    siteId: $resource->getSite()->getId(),
+                    variableId: $resource->getId(),
+                    key: $resource->getKey(),
+                    value: $resource->getValue(),
                 );
                 break;
             case Resource::TYPE_SITE_DEPLOYMENT:
