@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b437ef18d3106e157d1d9363962137a4",
+    "content-hash": "44746ecb1183e23d963fc90b1481541a",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -4970,9 +4970,6 @@
     },
     "platform-dev": {
         "ext-pdo": "*"
-    },
-    "platform-overrides": {
-        "php": "8.2"
     },
     "plugin-api-version": "2.9.0"
 }
