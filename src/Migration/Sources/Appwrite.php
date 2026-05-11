@@ -288,7 +288,7 @@ class Appwrite extends Source
                 limit: 1
             );
             $userList = $this->users->list($userQueries);
-            $report[Resource::TYPE_USER] = $userList['total'];
+            $report[Resource::TYPE_USER] = $userList->total;
         }
 
         if ($needTeams) {
@@ -304,11 +304,11 @@ class Appwrite extends Source
                     );
                     $teamList = $this->teams->list($params);
 
-                    $totalTeams = $teamList['total'];
-                    $currentTeams = $teamList['teams'];
+                    $totalTeams = $teamList->total;
+                    $currentTeams = $teamList->teams;
 
                     $allTeams = array_merge($allTeams, $currentTeams);
-                    $lastTeam = $currentTeams[count($currentTeams) - 1]['$id'] ?? null;
+                    $lastTeam = empty($currentTeams) ? null : end($currentTeams)->id;
 
                     if (count($currentTeams) < self::DEFAULT_PAGE_LIMIT) {
                         break;
@@ -322,7 +322,7 @@ class Appwrite extends Source
                     limit: 1
                 );
                 $teamList = $this->teams->list($params);
-                $teams = ['total' => $teamList['total'], 'teams' => []];
+                $teams = ['total' => $teamList->total, 'teams' => []];
             }
         }
 
@@ -334,9 +334,9 @@ class Appwrite extends Source
             $report[Resource::TYPE_MEMBERSHIP] = 0;
             foreach ($teams['teams'] as $team) {
                 $report[Resource::TYPE_MEMBERSHIP] += $this->teams->listMemberships(
-                    $team['$id'],
+                    $team->id,
                     [Query::limit(1)]
-                )['total'];
+                )->total;
             }
         }
     }
@@ -364,7 +364,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            $report[Resource::TYPE_BUCKET] = $this->storage->listBuckets($bucketQueries)['total'];
+            $report[Resource::TYPE_BUCKET] = $this->storage->listBuckets($bucketQueries)->total;
         }
 
         if (\in_array(Resource::TYPE_FILE, $resources)) {
@@ -379,10 +379,10 @@ class Appwrite extends Source
                     resourceIds: $resourceIds,
                     cursor: $lastBucket,
                 );
-                $currentBuckets = $this->storage->listBuckets($queries)['buckets'];
+                $currentBuckets = $this->storage->listBuckets($queries)->buckets;
 
                 $buckets = array_merge($buckets, $currentBuckets);
-                $lastBucket = $buckets[count($buckets) - 1]['$id'] ?? null;
+                $lastBucket = $buckets[count($buckets) - 1]->id ?? null;
 
                 if (count($currentBuckets) < self::DEFAULT_PAGE_LIMIT) {
                     break;
@@ -391,12 +391,12 @@ class Appwrite extends Source
 
             foreach ($buckets as $bucket) {
                 $filesResponse = $this->storage->listFiles(
-                    $bucket['$id'],
+                    $bucket->id,
                     [Query::limit(1)]
                 );
 
-                $report['size'] += $bucket['totalSize'] ?? 0;
-                $report[Resource::TYPE_FILE] += $filesResponse['total'];
+                $report['size'] += $bucket->totalSize ?? 0;
+                $report[Resource::TYPE_FILE] += $filesResponse->total;
             }
 
             $report['size'] = $report['size'] / 1000 / 1000; // MB
@@ -419,7 +419,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            $report[Resource::TYPE_FUNCTION] = $this->functions->list($functionQueries)['total'];
+            $report[Resource::TYPE_FUNCTION] = $this->functions->list($functionQueries)->total;
             return;
         }
 
@@ -433,11 +433,11 @@ class Appwrite extends Source
                 );
                 $funcList = $this->functions->list($params);
 
-                $totalFunctions = $funcList['total'];
-                $currentFunctions = $funcList['functions'];
+                $totalFunctions = $funcList->total;
+                $currentFunctions = $funcList->functions;
                 $functions = array_merge($functions, $currentFunctions);
 
-                $lastFunction = $currentFunctions[count($currentFunctions) - 1]['$id'] ?? null;
+                $lastFunction = $currentFunctions[count($currentFunctions) - 1]->id ?? null;
                 if (count($currentFunctions) < self::DEFAULT_PAGE_LIMIT) {
                     break;
                 }
@@ -451,7 +451,7 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_DEPLOYMENT, $resources)) {
             $report[Resource::TYPE_DEPLOYMENT] = 0;
             foreach ($functions as $function) {
-                if (!empty($function['deploymentId'])) {
+                if (!empty($function->deploymentId)) {
                     $report[Resource::TYPE_DEPLOYMENT] += 1;
                 }
             }
@@ -461,7 +461,7 @@ class Appwrite extends Source
             $report[Resource::TYPE_ENVIRONMENT_VARIABLE] = 0;
             foreach ($functions as $function) {
                 // function model contains `vars`, we don't need to fetch the list again.
-                $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += count($function['vars'] ?? []);
+                $report[Resource::TYPE_ENVIRONMENT_VARIABLE] += count($function->vars ?? []);
             }
         }
     }
@@ -482,7 +482,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            $report[Resource::TYPE_SITE] = $this->sites->list($siteQueries)['total'];
+            $report[Resource::TYPE_SITE] = $this->sites->list($siteQueries)->total;
             return;
         }
 
@@ -496,15 +496,15 @@ class Appwrite extends Source
                 );
                 $siteList = $this->sites->list($params);
 
-                $totalSites = $siteList['total'];
-                $currentSites = $siteList['sites'];
+                $totalSites = $siteList->total;
+                $currentSites = $siteList->sites;
                 $sites = array_merge($sites, $currentSites);
 
                 if (count($currentSites) === 0 || count($currentSites) < self::DEFAULT_PAGE_LIMIT) {
                     break;
                 }
 
-                $lastSite = $currentSites[count($currentSites) - 1]['$id'];
+                $lastSite = $currentSites[count($currentSites) - 1]->id;
             }
         }
 
@@ -515,7 +515,7 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources)) {
             $report[Resource::TYPE_SITE_DEPLOYMENT] = 0;
             foreach ($sites as $site) {
-                if (!empty($site['deploymentId'])) {
+                if (!empty($site->deploymentId)) {
                     $report[Resource::TYPE_SITE_DEPLOYMENT] += 1;
                 }
             }
@@ -524,8 +524,8 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_SITE_VARIABLE, $resources)) {
             $report[Resource::TYPE_SITE_VARIABLE] = 0;
             foreach ($sites as $site) {
-                $variables = $this->sites->listVariables($site['$id']);
-                $report[Resource::TYPE_SITE_VARIABLE] += $variables['total'] ?? 0;
+                $variables = $this->sites->listVariables($site->id);
+                $report[Resource::TYPE_SITE_VARIABLE] += $variables->total ?? 0;
             }
         }
     }
@@ -603,27 +603,27 @@ class Appwrite extends Source
             }
 
             $response = $this->users->list($queries);
-            if ($response['total'] == 0) {
+            if ($response->total == 0) {
                 break;
             }
 
-            foreach ($response['users'] as $user) {
+            foreach ($response->users as $user) {
                 $users[] = new User(
-                    $user['$id'],
-                    empty($user['email']) ? null : $user['email'],
-                    empty($user['name']) ? null : $user['name'],
-                    $user['password'] ? new Hash($user['password'], algorithm: $user['hash']) : null,
-                    empty($user['phone']) ? null : $user['phone'],
-                    $user['labels'] ?? [],
+                    $user->id,
+                    empty($user->email) ? null : $user->email,
+                    empty($user->name) ? null : $user->name,
+                    $user->password ? new Hash($user->password, algorithm: $user->hash) : null,
+                    empty($user->phone) ? null : $user->phone,
+                    $user->labels ?? [],
                     '',
-                    $user['emailVerification'] ?? false,
-                    $user['phoneVerification'] ?? false,
-                    !$user['status'],
-                    $user['prefs'] ?? [],
-                    $user['targets'] ?? [],
+                    $user->emailVerification ?? false,
+                    $user->phoneVerification ?? false,
+                    !$user->status,
+                    $user->prefs->data ?? [],
+                    \array_map(fn ($target) => $target->toArray(), $user->targets ?? []),
                 );
 
-                $lastDocument = $user['$id'];
+                $lastDocument = $user->id;
             }
 
             $this->callback($users);
@@ -657,18 +657,18 @@ class Appwrite extends Source
             }
 
             $response = $this->teams->list($queries);
-            if ($response['total'] == 0) {
+            if ($response->total == 0) {
                 break;
             }
 
-            foreach ($response['teams'] as $team) {
+            foreach ($response->teams as $team) {
                 $teams[] = new Team(
-                    $team['$id'],
-                    $team['name'],
-                    $team['prefs'],
+                    $team->id,
+                    $team->name,
+                    $team->prefs->data,
                 );
 
-                $lastDocument = $team['$id'];
+                $lastDocument = $team->id;
             }
 
             $this->callback($teams);
@@ -709,25 +709,25 @@ class Appwrite extends Source
 
                 $response = $this->teams->listMemberships($team->getId(), $queries);
 
-                if ($response['total'] == 0) {
+                if ($response->total == 0) {
                     break;
                 }
 
-                foreach ($response['memberships'] as $membership) {
-                    $user = $cacheUsers[$membership['userId']] ?? null;
+                foreach ($response->memberships as $membership) {
+                    $user = $cacheUsers[$membership->userId] ?? null;
                     if ($user === null) {
                         throw new \Exception('User not found', Exception::CODE_NOT_FOUND);
                     }
 
                     $memberships[] = new Membership(
-                        $membership['$id'],
+                        $membership->id,
                         $team,
                         $user,
-                        $membership['roles'],
-                        $membership['confirm']
+                        $membership->roles,
+                        $membership->confirm
                     );
 
-                    $lastDocument = $membership['$id'];
+                    $lastDocument = $membership->id;
                 }
 
                 $this->callback($memberships);
@@ -1245,20 +1245,20 @@ class Appwrite extends Source
 
         $convertedBuckets = [];
 
-        foreach ($buckets['buckets'] as $bucket) {
+        foreach ($buckets->buckets as $bucket) {
             $bucket = new Bucket(
-                $bucket['$id'],
-                $bucket['name'],
-                $bucket['$permissions'],
-                $bucket['fileSecurity'],
-                $bucket['enabled'],
-                $bucket['maximumFileSize'],
-                $bucket['allowedFileExtensions'],
-                $bucket['compression'],
-                $bucket['encryption'],
-                $bucket['antivirus'],
+                $bucket->id,
+                $bucket->name,
+                $bucket->permissions,
+                $bucket->fileSecurity,
+                $bucket->enabled,
+                $bucket->maximumFileSize,
+                $bucket->allowedFileExtensions,
+                $bucket->compression,
+                $bucket->encryption,
+                $bucket->antivirus,
                 false,
-                $bucket['transformations'] ?? false,
+                $bucket->transformations ?? false,
             );
             $convertedBuckets[] = $bucket;
         }
@@ -1293,31 +1293,31 @@ class Appwrite extends Source
                     $queries
                 );
 
-                foreach ($response['files'] as $file) {
+                foreach ($response->files as $file) {
                     try {
                         $this->exportFileData(new File(
-                            $file['$id'],
+                            $file->id,
                             $bucket,
-                            $file['name'],
-                            $file['signature'],
-                            $file['mimeType'],
-                            $file['$permissions'],
-                            $file['sizeOriginal'],
+                            $file->name,
+                            $file->signature,
+                            $file->mimeType,
+                            $file->permissions,
+                            $file->sizeOriginal,
                         ));
                     } catch (\Throwable $e) {
                         $this->addError(new Exception(
                             resourceName: Resource::TYPE_FILE,
                             resourceGroup: Transfer::GROUP_STORAGE,
-                            resourceId: $file['$id'],
+                            resourceId: $file->id,
                             message: $e->getMessage(),
                             code: $e->getCode()
                         ));
                     }
 
-                    $lastDocument = $file['$id'];
+                    $lastDocument = $file->id;
                 }
 
-                if (count($response['files']) < $batchSize) {
+                if (count($response->files) < $batchSize) {
                     break;
                 }
             }
@@ -1463,40 +1463,40 @@ class Appwrite extends Source
             $response = $this->functions->list($queries);
 
 
-            if ($response['total'] === 0) {
+            if ($response->total === 0) {
                 return;
             }
 
             $functions = [];
             $convertedResources = [];
 
-            foreach ($response['functions'] as $function) {
+            foreach ($response->functions as $function) {
                 $convertedFunc = new Func(
-                    $function['$id'],
-                    $function['name'],
-                    $function['runtime'],
-                    $function['execute'],
-                    $function['enabled'],
-                    $function['events'],
-                    $function['schedule'],
-                    $function['timeout'],
-                    $function['deploymentId'] ?? '',
-                    $function['entrypoint'],
-                    $function['commands'] ?? '',
-                    $function['logging'] ?? true,
-                    $function['scopes'] ?? [],
-                    $function['specification'] ?? '',
+                    $function->id,
+                    $function->name,
+                    $function->runtime,
+                    $function->execute,
+                    $function->enabled,
+                    $function->events,
+                    $function->schedule,
+                    $function->timeout,
+                    $function->deploymentId ?? '',
+                    $function->entrypoint,
+                    $function->commands ?? '',
+                    $function->logging ?? true,
+                    $function->scopes ?? [],
+                    $function->runtimeSpecification ?: $function->buildSpecification ?: '',
                 );
                 $functions[] = $convertedFunc;
 
                 $convertedResources[] = $convertedFunc;
 
-                foreach ($function['vars'] as $var) {
+                foreach ($function->vars as $var) {
                     $convertedResources[] = new EnvVar(
-                        $var['$id'],
+                        $var->id,
                         $convertedFunc,
-                        $var['key'],
-                        $var['value'],
+                        $var->key,
+                        $var->value,
                     );
                 }
             }
@@ -1551,17 +1551,17 @@ class Appwrite extends Source
                     $queries
                 );
 
-                foreach ($response['deployments'] as $deployment) {
+                foreach ($response->deployments as $deployment) {
                     try {
                         $this->exportDeploymentData($func, $deployment);
                     } catch (\Throwable $e) {
                         $func->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                     }
 
-                    $lastDocument = $deployment['$id'];
+                    $lastDocument = $deployment->id;
                 }
 
-                if (count($response['deployments']) < $batchSize) {
+                if (count($response->deployments) < $batchSize) {
                     break;
                 }
             }
@@ -1571,7 +1571,7 @@ class Appwrite extends Source
     /**
      * @throws \Exception
      */
-    private function exportDeploymentData(Func $func, array $deployment): void
+    private function exportDeploymentData(Func $func, \Appwrite\Models\Deployment $deployment): void
     {
         // Set the chunk size (5MB)
         $start = 0;
@@ -1582,7 +1582,7 @@ class Appwrite extends Source
 
         $this->call(
             'HEAD',
-            "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
+            "/functions/{$func->getId()}/deployments/{$deployment->id}/download",
             [],
             [],
             $responseHeaders
@@ -1592,7 +1592,7 @@ class Appwrite extends Source
         if (!array_key_exists('content-length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
-                "/functions/{$func->getId()}/deployments/{$deployment['$id']}/download",
+                "/functions/{$func->getId()}/deployments/{$deployment->id}/download",
                 [],
                 [],
                 $responseHeaders
@@ -1605,14 +1605,14 @@ class Appwrite extends Source
             }
 
             $deployment = new Deployment(
-                $deployment['$id'],
+                $deployment->id,
                 $func,
                 $size,
-                $deployment['entrypoint'],
+                $deployment->entrypoint,
                 $start,
                 $end,
                 $file,
-                $deployment['activate']
+                $deployment->activate
             );
             $deployment->setSequence($deployment->getId());
 
@@ -1628,14 +1628,14 @@ class Appwrite extends Source
         }
 
         $deployment = new Deployment(
-            $deployment['$id'],
+            $deployment->id,
             $func,
             $fileSize,
-            $deployment['entrypoint'],
+            $deployment->entrypoint,
             $start,
             $end,
             '',
-            $deployment['activate']
+            $deployment->activate
         );
 
         $deployment->setSequence($deployment->getId());
@@ -1680,7 +1680,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            $report[Resource::TYPE_PROVIDER] = $this->messaging->listProviders($providerQueries)['total'];
+            $report[Resource::TYPE_PROVIDER] = $this->messaging->listProviders($providerQueries)->total;
         }
 
         if (\in_array(Resource::TYPE_TOPIC, $resources)) {
@@ -1689,7 +1689,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            $report[Resource::TYPE_TOPIC] = $this->messaging->listTopics($topicQueries)['total'];
+            $report[Resource::TYPE_TOPIC] = $this->messaging->listTopics($topicQueries)->total;
         }
 
         if (\in_array(Resource::TYPE_SUBSCRIBER, $resources)) {
@@ -1703,16 +1703,16 @@ class Appwrite extends Source
                 }
 
                 $topicResponse = $this->messaging->listTopics($topicQueries);
-                if ($topicResponse['total'] == 0 || empty($topicResponse['topics'])) {
+                if ($topicResponse->total == 0 || empty($topicResponse->topics)) {
                     break;
                 }
 
-                foreach ($topicResponse['topics'] as $topic) {
-                    $subscriberTotal += $this->messaging->listSubscribers($topic['$id'], [Query::limit(1)])['total'];
-                    $lastTopic = $topic['$id'];
+                foreach ($topicResponse->topics as $topic) {
+                    $subscriberTotal += $this->messaging->listSubscribers($topic->id, [Query::limit(1)])->total;
+                    $lastTopic = $topic->id;
                 }
 
-                if (\count($topicResponse['topics']) < self::DEFAULT_PAGE_LIMIT) {
+                if (\count($topicResponse->topics) < self::DEFAULT_PAGE_LIMIT) {
                     break;
                 }
             }
@@ -1726,7 +1726,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            $report[Resource::TYPE_MESSAGE] = $this->messaging->listMessages($messageQueries)['total'];
+            $report[Resource::TYPE_MESSAGE] = $this->messaging->listMessages($messageQueries)->total;
         }
     }
 
@@ -1812,24 +1812,24 @@ class Appwrite extends Source
 
             $response = $this->messaging->listProviders($queries);
 
-            if ($response['total'] == 0) {
+            if ($response->total == 0) {
                 break;
             }
 
-            foreach ($response['providers'] as $provider) {
+            foreach ($response->providers as $provider) {
                 $providers[] = new Provider(
-                    $provider['$id'],
-                    $provider['name'],
-                    $provider['provider'],
-                    $provider['type'],
-                    $provider['enabled'],
-                    $provider['credentials'] ?? [],
-                    $provider['options'] ?? [],
-                    $provider['$createdAt'] ?? '',
-                    $provider['$updatedAt'] ?? '',
+                    $provider->id,
+                    $provider->name,
+                    $provider->provider,
+                    $provider->type,
+                    $provider->enabled,
+                    $provider->credentials ?? [],
+                    $provider->options ?? [],
+                    $provider->createdAt ?? '',
+                    $provider->updatedAt ?? '',
                 );
 
-                $lastDocument = $provider['$id'];
+                $lastDocument = $provider->id;
             }
 
             $this->callback($providers);
@@ -1863,20 +1863,20 @@ class Appwrite extends Source
 
             $response = $this->messaging->listTopics($queries);
 
-            if ($response['total'] == 0) {
+            if ($response->total == 0) {
                 break;
             }
 
-            foreach ($response['topics'] as $topic) {
+            foreach ($response->topics as $topic) {
                 $topics[] = new Topic(
-                    $topic['$id'],
-                    $topic['name'],
-                    $topic['subscribe'] ?? [],
-                    $topic['$createdAt'] ?? '',
-                    $topic['$updatedAt'] ?? '',
+                    $topic->id,
+                    $topic->name,
+                    $topic->subscribe ?? [],
+                    $topic->createdAt ?? '',
+                    $topic->updatedAt ?? '',
                 );
 
-                $lastDocument = $topic['$id'];
+                $lastDocument = $topic->id;
             }
 
             $this->callback($topics);
@@ -1909,23 +1909,23 @@ class Appwrite extends Source
 
                 $response = $this->messaging->listSubscribers($topic->getId(), $queries);
 
-                if ($response['total'] == 0) {
+                if ($response->total == 0) {
                     break;
                 }
 
-                foreach ($response['subscribers'] as $subscriber) {
+                foreach ($response->subscribers as $subscriber) {
                     $subscribers[] = new Subscriber(
-                        $subscriber['$id'],
-                        $subscriber['topicId'],
-                        $subscriber['targetId'],
-                        $subscriber['userId'] ?? '',
-                        $subscriber['userName'] ?? '',
-                        $subscriber['providerType'] ?? '',
-                        $subscriber['$createdAt'] ?? '',
-                        $subscriber['$updatedAt'] ?? '',
+                        $subscriber->id,
+                        $subscriber->topicId,
+                        $subscriber->targetId,
+                        $subscriber->userId ?? '',
+                        $subscriber->userName ?? '',
+                        $subscriber->providerType ?? '',
+                        $subscriber->createdAt ?? '',
+                        $subscriber->updatedAt ?? '',
                     );
 
-                    $lastDocument = $subscriber['$id'];
+                    $lastDocument = $subscriber->id;
                 }
 
                 $this->callback($subscribers);
@@ -1960,28 +1960,28 @@ class Appwrite extends Source
 
             $response = $this->messaging->listMessages($queries);
 
-            if ($response['total'] == 0) {
+            if ($response->total == 0) {
                 break;
             }
 
-            foreach ($response['messages'] as $message) {
+            foreach ($response->messages as $message) {
                 $messages[] = new Message(
-                    $message['$id'],
-                    $message['providerType'] ?? '',
-                    $message['topics'] ?? [],
-                    $message['users'] ?? [],
-                    $message['targets'] ?? [],
-                    $message['data'] ?? [],
-                    $message['status'] ?? '',
-                    $message['scheduledAt'] ?? '',
-                    $message['deliveredAt'] ?? '',
-                    $message['deliveryErrors'] ?? [],
-                    $message['deliveredTotal'] ?? 0,
-                    $message['$createdAt'] ?? '',
-                    $message['$updatedAt'] ?? '',
+                    $message->id,
+                    $message->providerType ?? '',
+                    $message->topics ?? [],
+                    $message->users ?? [],
+                    $message->targets ?? [],
+                    $message->data ?? [],
+                    (string) $message->status,
+                    $message->scheduledAt ?? '',
+                    $message->deliveredAt ?? '',
+                    $message->deliveryErrors ?? [],
+                    $message->deliveredTotal ?? 0,
+                    $message->createdAt ?? '',
+                    $message->updatedAt ?? '',
                 );
 
-                $lastDocument = $message['$id'];
+                $lastDocument = $message->id;
             }
 
             $this->callback($messages);
@@ -2015,40 +2015,40 @@ class Appwrite extends Source
 
             $response = $this->sites->list($queries);
 
-            if ($response['total'] === 0) {
+            if ($response->total === 0) {
                 return;
             }
 
             $sites = [];
             $convertedResources = [];
 
-            foreach ($response['sites'] as $site) {
+            foreach ($response->sites as $site) {
                 $convertedSite = new Site(
-                    $site['$id'],
-                    $site['name'],
-                    $site['framework'],
-                    $site['buildRuntime'],
-                    $site['enabled'],
-                    $site['logging'],
-                    $site['timeout'],
-                    $site['installCommand'] ?? '',
-                    $site['buildCommand'] ?? '',
-                    $site['outputDirectory'] ?? '',
-                    $site['adapter'] ?? 'static',
-                    $site['fallbackFile'] ?? '',
-                    $site['specification'] ?? '',
-                    $site['deploymentId'] ?? ''
+                    $site->id,
+                    $site->name,
+                    $site->framework,
+                    $site->buildRuntime,
+                    $site->enabled,
+                    $site->logging,
+                    $site->timeout,
+                    $site->installCommand ?? '',
+                    $site->buildCommand ?? '',
+                    $site->outputDirectory ?? '',
+                    $site->adapter ?? 'static',
+                    $site->fallbackFile ?? '',
+                    $site->runtimeSpecification ?: $site->buildSpecification ?: '',
+                    $site->deploymentId ?? ''
                 );
                 $sites[] = $convertedSite;
                 $convertedResources[] = $convertedSite;
 
-                $variables = $this->sites->listVariables($site['$id']);
-                foreach ($variables['variables'] ?? [] as $var) {
+                $variables = $this->sites->listVariables($site->id);
+                foreach ($variables->variables ?? [] as $var) {
                     $convertedResources[] = new SiteEnvVar(
-                        $var['$id'],
+                        $var->id,
                         $convertedSite,
-                        $var['key'],
-                        $var['value']
+                        $var->key,
+                        $var->value
                     );
                 }
             }
@@ -2104,17 +2104,17 @@ class Appwrite extends Source
                     $queries
                 );
 
-                foreach ($response['deployments'] as $deployment) {
+                foreach ($response->deployments as $deployment) {
                     try {
                         $this->exportSiteDeploymentData($site, $deployment);
                     } catch (\Throwable $e) {
                         $site->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                     }
 
-                    $lastDocument = $deployment['$id'];
+                    $lastDocument = $deployment->id;
                 }
 
-                if (count($response['deployments']) < $batchSize) {
+                if (count($response->deployments) < $batchSize) {
                     break;
                 }
             }
@@ -2124,7 +2124,7 @@ class Appwrite extends Source
     /**
      * @throws \Exception
      */
-    private function exportSiteDeploymentData(Site $site, array $deployment): void
+    private function exportSiteDeploymentData(Site $site, \Appwrite\Models\Deployment $deployment): void
     {
         $start = 0;
         $end = Transfer::STORAGE_MAX_CHUNK_SIZE - 1;
@@ -2133,7 +2133,7 @@ class Appwrite extends Source
 
         $this->call(
             'HEAD',
-            "/sites/{$site->getId()}/deployments/{$deployment['$id']}/download",
+            "/sites/{$site->getId()}/deployments/{$deployment->id}/download",
             [],
             [],
             $responseHeaders
@@ -2142,7 +2142,7 @@ class Appwrite extends Source
         if (!\array_key_exists('content-length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
-                "/sites/{$site->getId()}/deployments/{$deployment['$id']}/download",
+                "/sites/{$site->getId()}/deployments/{$deployment->id}/download",
                 [],
                 [],
                 $responseHeaders
@@ -2155,13 +2155,13 @@ class Appwrite extends Source
             }
 
             $siteDeployment = new SiteDeployment(
-                $deployment['$id'],
+                $deployment->id,
                 $site,
                 $size,
                 $start,
                 $end,
                 $file,
-                $deployment['$id'] === $site->getActiveDeployment()
+                $deployment->id === $site->getActiveDeployment()
             );
             $siteDeployment->setSequence($siteDeployment->getId());
 
@@ -2177,13 +2177,13 @@ class Appwrite extends Source
         }
 
         $siteDeployment = new SiteDeployment(
-            $deployment['$id'],
+            $deployment->id,
             $site,
             $fileSize,
             $start,
             $end,
             '',
-            $deployment['$id'] === $site->getActiveDeployment()
+            $deployment->id === $site->getActiveDeployment()
         );
 
         $siteDeployment->setSequence($siteDeployment->getId());

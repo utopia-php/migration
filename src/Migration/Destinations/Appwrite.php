@@ -1999,7 +1999,7 @@ class Appwrite extends Destination
                     $resource->getTransformations()
                 );
 
-                $resource->setId($response['$id']);
+                $resource->setId($response->id);
         }
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
@@ -2151,11 +2151,11 @@ class Appwrite extends Destination
 
     /**
      * @param User $user
-     * @return array<string, mixed>|null
+     * @return \Appwrite\Models\User|null
      * @throws AppwriteException
      * @throws \Exception
      */
-    public function importPasswordUser(User $user): ?array
+    public function importPasswordUser(User $user): ?\Appwrite\Models\User
     {
         $hash = $user->getPasswordHash();
         $result = null;
@@ -2277,9 +2277,6 @@ class Appwrite extends Destination
                     'dart-2.17' => Runtime::DART217(),
                     'dart-2.18' => Runtime::DART218(),
                     'dart-2.19' => Runtime::DART219(),
-                    'deno-1.21' => Runtime::DENO121(),
-                    'deno-1.24' => Runtime::DENO124(),
-                    'deno-1.35' => Runtime::DENO135(),
                     'deno-1.40' => Runtime::DENO140(),
                     'deno-1.46' => Runtime::DENO146(),
                     'deno-2.0' => Runtime::DENO20(),
@@ -2310,27 +2307,29 @@ class Appwrite extends Destination
                 };
 
                 $this->functions->create(
-                    $resource->getId(),
-                    $resource->getFunctionName(),
-                    $runtime,
-                    $resource->getExecute(),
-                    $resource->getEvents(),
-                    $resource->getSchedule(),
-                    $resource->getTimeout(),
-                    $resource->getEnabled(),
-                    $resource->getLogging(),
-                    $resource->getEntrypoint(),
-                    $resource->getCommands(),
-                    $resource->getScopes(),
-                    specification: $resource->getSpecification() ?: null,
+                    functionId: $resource->getId(),
+                    name: $resource->getFunctionName(),
+                    runtime: $runtime,
+                    execute: $resource->getExecute(),
+                    events: $resource->getEvents(),
+                    schedule: $resource->getSchedule(),
+                    timeout: $resource->getTimeout(),
+                    enabled: $resource->getEnabled(),
+                    logging: $resource->getLogging(),
+                    entrypoint: $resource->getEntrypoint(),
+                    commands: $resource->getCommands(),
+                    scopes: $resource->getScopes(),
+                    buildSpecification: $resource->getSpecification() ?: null,
+                    runtimeSpecification: $resource->getSpecification() ?: null,
                 );
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
                 /** @var EnvVar $resource */
                 $this->functions->createVariable(
-                    $resource->getFunc()->getId(),
-                    $resource->getKey(),
-                    $resource->getValue()
+                    functionId: $resource->getFunc()->getId(),
+                    variableId: $resource->getId(),
+                    key: $resource->getKey(),
+                    value: $resource->getValue(),
                 );
                 break;
             case Resource::TYPE_DEPLOYMENT:
@@ -2498,9 +2497,6 @@ class Appwrite extends Destination
                     'dart-2.17' => BuildRuntime::DART217(),
                     'dart-2.18' => BuildRuntime::DART218(),
                     'dart-2.19' => BuildRuntime::DART219(),
-                    'deno-1.21' => BuildRuntime::DENO121(),
-                    'deno-1.24' => BuildRuntime::DENO124(),
-                    'deno-1.35' => BuildRuntime::DENO135(),
                     'deno-1.40' => BuildRuntime::DENO140(),
                     'deno-1.46' => BuildRuntime::DENO146(),
                     'deno-2.0' => BuildRuntime::DENO20(),
@@ -2561,27 +2557,29 @@ class Appwrite extends Destination
                 };
 
                 $this->sites->create(
-                    $resource->getId(),
-                    $resource->getSiteName(),
-                    $framework,
-                    $buildRuntime,
-                    $resource->getEnabled(),
-                    $resource->getLogging(),
-                    $resource->getTimeout(),
-                    $resource->getInstallCommand(),
-                    $resource->getBuildCommand(),
-                    $resource->getOutputDirectory(),
-                    $adapter,
+                    siteId: $resource->getId(),
+                    name: $resource->getSiteName(),
+                    framework: $framework,
+                    buildRuntime: $buildRuntime,
+                    enabled: $resource->getEnabled(),
+                    logging: $resource->getLogging(),
+                    timeout: $resource->getTimeout(),
+                    installCommand: $resource->getInstallCommand(),
+                    buildCommand: $resource->getBuildCommand(),
+                    outputDirectory: $resource->getOutputDirectory(),
+                    adapter: $adapter,
                     fallbackFile: $resource->getFallbackFile(),
-                    specification: $resource->getSpecification(),
+                    buildSpecification: $resource->getSpecification() ?: null,
+                    runtimeSpecification: $resource->getSpecification() ?: null,
                 );
                 break;
             case Resource::TYPE_SITE_VARIABLE:
                 /** @var SiteEnvVar $resource */
                 $this->sites->createVariable(
-                    $resource->getSite()->getId(),
-                    $resource->getKey(),
-                    $resource->getValue()
+                    siteId: $resource->getSite()->getId(),
+                    variableId: $resource->getId(),
+                    key: $resource->getKey(),
+                    value: $resource->getValue(),
                 );
                 break;
             case Resource::TYPE_SITE_DEPLOYMENT:
