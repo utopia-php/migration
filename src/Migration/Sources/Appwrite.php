@@ -308,7 +308,7 @@ class Appwrite extends Source
                     $currentTeams = $teamList->teams;
 
                     $allTeams = array_merge($allTeams, $currentTeams);
-                    $lastTeam = end($currentTeams)?->id ?? null;
+                    $lastTeam = empty($currentTeams) ? null : end($currentTeams)->id;
 
                     if (count($currentTeams) < self::DEFAULT_PAGE_LIMIT) {
                         break;
