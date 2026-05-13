@@ -124,7 +124,6 @@ abstract class Base extends TestCase
             throw new \Exception(curl_error($ch));
         }
 
-        curl_close($ch);
 
         if ($responseStatus >= 400) {
             if (is_array($responseBody)) {

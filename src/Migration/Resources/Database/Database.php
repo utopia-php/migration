@@ -26,7 +26,7 @@ class Database extends Resource
         protected bool $enabled = true,
         protected string $originalId = '',
         protected string $type = '',
-        protected string $database = ''
+        protected ?string $database = ''
     ) {
         $this->id = $id;
     }
@@ -52,7 +52,7 @@ class Database extends Resource
             enabled: $array['enabled'] ?? true,
             originalId: $array['originalId'] ?? '',
             type: $array['type'] ?? 'legacy',
-            database: $array['database']
+            database: $array['database'] ?? null
         );
     }
 
@@ -97,7 +97,7 @@ class Database extends Resource
         return $this->type;
     }
 
-    public function getDatabase(): string
+    public function getDatabase(): ?string
     {
         return $this->database;
     }

@@ -4,21 +4,23 @@ namespace Utopia\Migration\Sources\Appwrite\Reader;
 
 use Appwrite\AppwriteException;
 use Appwrite\Query;
-use Appwrite\Services\Databases;
-/* use Appwrite\Services\Tables; */
+use Appwrite\Services\TablesDB;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Sources\Appwrite\Reader;
 
 /**
+ * Adapts Appwrite SDK typed models to the Reader's plain-array contract so that
+ * downstream callers can use array-offset syntax interchangeably with the
+ * Database reader (which returns utopia-php Document objects).
+ *
  * @implements Reader<Query>
  */
 class API implements Reader
 {
     public function __construct(
-        private readonly Databases $database,
-        /* private readonly Tables $table, */
+        private readonly TablesDB $database,
     ) {
     }
 
@@ -53,10 +55,10 @@ class API implements Reader
         }
 
         $databasesResponse = $this->database->list($databaseQueries);
-        $databases = $databasesResponse['databases'];
+        $databases = \array_map(fn ($database) => $database->toArray(), $databasesResponse->databases);
 
         if (in_array(Resource::TYPE_DATABASE, $resources)) {
-            $report[Resource::TYPE_DATABASE] = $databasesResponse['total'];
+            $report[Resource::TYPE_DATABASE] = $databasesResponse->total;
         }
 
         if (count(array_intersect($resources, $relevantResources)) === 1 &&
@@ -73,13 +75,13 @@ class API implements Reader
             $lastTable = null;
 
             while (true) {
-                /* $currentTables = $this->tables->list(...); */
-                $currentTables = $this->database->listCollections(
+                $tablesResponse = $this->database->listTables(
                     $databaseId,
                     $lastTable
                         ? [Query::cursorAfter($lastTable)]
                         : [Query::limit($pageLimit)]
-                )['collections']; /* ['tables'] */
+                );
+                $currentTables = \array_map(fn ($table) => $table->toArray(), $tablesResponse->tables);
 
                 $tables = \array_merge($tables, $currentTables);
                 $lastTable = $tables[count($tables) - 1]['$id'] ?? null;
@@ -108,14 +110,13 @@ class API implements Reader
                     }
 
                     if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
-                        /* $rowsResponse = $this->tables->listRows(...) */
-                        $rowsResponse = $this->database->listDocuments(
+                        $rowsResponse = $this->database->listRows(
                             $databaseId,
                             $tableId,
                             [Query::limit(1)]
                         );
 
-                        $report[Resource::TYPE_ROW] += $rowsResponse['total'];
+                        $report[Resource::TYPE_ROW] += $rowsResponse->total;
                     }
                 }
             }
@@ -125,90 +126,89 @@ class API implements Reader
     }
 
     /**
+     * @return array<array<string, mixed>>
      * @throws AppwriteException
      */
     public function listDatabases(array $queries = []): array
     {
-        return $this->database->list($queries)['databases'];
+        return \array_map(
+            fn ($database) => $database->toArray(),
+            $this->database->list($queries)->databases
+        );
     }
 
     /**
+     * @return array<array<string, mixed>>
      * @throws AppwriteException
      */
     public function listTables(Database $resource, array $queries = []): array
     {
-        /* $this->tables->list(...)['tables'] */
-        return $this->database->listCollections(
-            $resource->getId(),
-            $queries
-        )['collections'];
+        return \array_map(
+            fn ($table) => $table->toArray(),
+            $this->database->listTables($resource->getId(), $queries)->tables
+        );
     }
 
     /**
-     * @param Table $resource
-     * @param array $queries
-     * @return array
+     * @return array<array<string, mixed>>
      * @throws AppwriteException
      */
     public function listColumns(Table $resource, array $queries = []): array
     {
-        /* $this->tables->listColumns(...)['columns'] */
-        return $this->database->listAttributes(
-            $resource->getDatabase()->getId(),
-            $resource->getId(),
-            $queries
-        )['attributes'];
+        return \array_map(
+            fn ($column) => $column->toArray(),
+            $this->database->listColumns(
+                $resource->getDatabase()->getId(),
+                $resource->getId(),
+                $queries
+            )->columns
+        );
     }
 
     /**
-     * @param Table $resource
-     * @param array $queries
-     * @return array
+     * @return array<array<string, mixed>>
      * @throws AppwriteException
      */
     public function listIndexes(Table $resource, array $queries = []): array
     {
-        /* $this->tables->listIndexes(...)['indexes'] */
-        return $this->database->listIndexes(
-            $resource->getDatabase()->getId(),
-            $resource->getId(),
-            $queries
-        )['indexes'];
+        return \array_map(
+            fn ($index) => $index->toArray(),
+            $this->database->listIndexes(
+                $resource->getDatabase()->getId(),
+                $resource->getId(),
+                $queries
+            )->indexes
+        );
     }
 
-
     /**
-     * @param Table $resource
-     * @param array $queries
-     * @return array
+     * @return array<array<string, mixed>>
      * @throws AppwriteException
      */
     public function listRows(Table $resource, array $queries = []): array
     {
-        /* $this->tables->listRows(...)['rows'] */
-        return $this->database->listDocuments(
-            $resource->getDatabase()->getId(),
-            $resource->getId(),
-            $queries
-        )['documents'];
+        return \array_map(
+            fn ($row) => $row->toArray(),
+            $this->database->listRows(
+                $resource->getDatabase()->getId(),
+                $resource->getId(),
+                $queries
+            )->rows
+        );
     }
 
     /**
-     * @param Table $resource
-     * @param string $rowId
-     * @param array $queries
-     * @return array
+     * @return array<string, mixed>
      * @throws AppwriteException
      */
     public function getRow(Table $resource, string $rowId, array $queries = []): array
     {
-        /* $this->tables->getRow(...) */
-        return $this->database->getDocument(
+        return $this->database->getRow(
             $resource->getDatabase()->getId(),
             $resource->getId(),
             $rowId,
             $queries
-        );
+        )->toArray();
     }
 
     /**

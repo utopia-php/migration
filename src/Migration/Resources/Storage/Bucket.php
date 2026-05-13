@@ -19,6 +19,7 @@ class Bucket extends Resource
      * @param bool $encryption
      * @param bool $antiVirus
      * @param bool $updateLimits
+     * @param bool $transformations
      */
     public function __construct(
         string $id = '',
@@ -32,6 +33,7 @@ class Bucket extends Resource
         private readonly bool $encryption = false,
         private readonly bool $antiVirus = false,
         private readonly bool $updateLimits = false,
+        private readonly bool $transformations = false,
     ) {
         $this->id = $id;
         $this->permissions = $permissions;
@@ -54,7 +56,8 @@ class Bucket extends Resource
             $array['compression'] ?? 'none',
             $array['encryption'] ?? false,
             $array['antiVirus'] ?? false,
-            $array['updateLimits'] ?? false
+            $array['updateLimits'] ?? false,
+            $array['transformations'] ?? false
         );
     }
 
@@ -74,6 +77,7 @@ class Bucket extends Resource
             'encryption' => $this->encryption,
             'antiVirus' => $this->antiVirus,
             'updateLimits' => $this->updateLimits,
+            'transformations' => $this->transformations,
         ];
     }
 
@@ -130,5 +134,10 @@ class Bucket extends Resource
     public function getAntiVirus(): bool
     {
         return $this->antiVirus;
+    }
+
+    public function getTransformations(): bool
+    {
+        return $this->transformations;
     }
 }
