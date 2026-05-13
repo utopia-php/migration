@@ -71,6 +71,8 @@ class AppwriteDestinationDsnTest extends TestCase
             dbForProject: $this->createStub(UtopiaDatabase::class),
             getDatabasesDB: fn (UtopiaDocument $database): UtopiaDatabase => $this->createStub(UtopiaDatabase::class),
             collectionStructure: ['attributes' => [], 'indexes' => []],
+            dbForPlatform: $this->createStub(UtopiaDatabase::class),
+            projectInternalId: '1',
             onDuplicate: OnDuplicate::Fail,
             getDatabaseDSN: $getDatabaseDSN,
         );
