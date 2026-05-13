@@ -98,10 +98,6 @@ class Appwrite extends Source
      */
     protected mixed $getDatabasesDB;
 
-    private bool $consoleKeyFetched = false;
-
-    private ?string $consoleKey = null;
-
     /**
      * @throws \Exception
      */
@@ -150,38 +146,6 @@ class Appwrite extends Source
             default:
                 throw new \Exception('Unknown source', Exception::CODE_VALIDATION);
         }
-    }
-
-    public function setConsoleKey(string $key): void
-    {
-        $this->consoleKey = $key;
-        $this->consoleKeyFetched = true;
-    }
-
-    /**
-     * @return array<string, string>|null
-     */
-    protected function getConsoleHeaders(): ?array
-    {
-        if (!$this->consoleKeyFetched) {
-            $this->consoleKeyFetched = true;
-
-            try {
-                $response = $this->call('POST', '/migrations/appwrite/console-key');
-                $this->consoleKey = $response['key'] ?? null;
-            } catch (\Throwable) {
-                $this->consoleKey = null;
-            }
-        }
-
-        if ($this->consoleKey === null) {
-            return null;
-        }
-
-        return [
-            'x-appwrite-project' => 'console',
-            'x-appwrite-key' => $this->consoleKey,
-        ];
     }
 
     public static function getName(): string
@@ -2260,14 +2224,8 @@ class Appwrite extends Source
     private function reportIntegrations(array $resources, array &$report, array $resourceIds = []): void
     {
         if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
-            $consoleHeaders = $this->getConsoleHeaders();
-
-            if ($consoleHeaders === null) {
-                return;
-            }
-
             try {
-                $response = $this->call('GET', '/projects/' . $this->project . '/platforms', $consoleHeaders);
+                $response = $this->call('GET', '/projects/' . $this->project . '/platforms');
                 $report[Resource::TYPE_PLATFORM] = $response['total'] ?? 0;
             } catch (\Throwable) {
                 $report[Resource::TYPE_PLATFORM] = 0;
@@ -2306,37 +2264,17 @@ class Appwrite extends Source
     protected function exportGroupIntegrations(int $batchSize, array $resources): void
     {
         if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
-            $this->exportWithConsoleHeaders(
-                Resource::TYPE_PLATFORM,
-                Transfer::GROUP_INTEGRATIONS,
-                $this->exportPlatforms(...)
-            );
-        }
-    }
-
-    protected function exportWithConsoleHeaders(string $resourceType, string $group, callable $callback): void
-    {
-        $consoleHeaders = $this->getConsoleHeaders();
-
-        if ($consoleHeaders === null) {
-            $this->addError(new Exception(
-                $resourceType,
-                $group,
-                message: 'Console key unavailable for source instance',
-            ));
-            return;
-        }
-
-        try {
-            $callback($consoleHeaders);
-        } catch (\Throwable $e) {
-            $this->addError(new Exception(
-                $resourceType,
-                $group,
-                message: $e->getMessage(),
-                code: $e->getCode(),
-                previous: $e
-            ));
+            try {
+                $this->exportPlatforms();
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_PLATFORM,
+                    Transfer::GROUP_INTEGRATIONS,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                ));
+            }
         }
     }
 
@@ -2373,9 +2311,9 @@ class Appwrite extends Source
     /**
      * @throws AppwriteException
      */
-    private function exportPlatforms(array $consoleHeaders): void
+    private function exportPlatforms(): void
     {
-        $response = $this->call('GET', '/projects/' . $this->project . '/platforms', $consoleHeaders);
+        $response = $this->call('GET', '/projects/' . $this->project . '/platforms');
 
         if (empty($response['platforms'])) {
             return;
