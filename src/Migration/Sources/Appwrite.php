@@ -7,6 +7,7 @@ use Appwrite\Client;
 use Appwrite\Query;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
+use Appwrite\Services\Project;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
 use Appwrite\Services\TablesDB;
@@ -93,6 +94,8 @@ class Appwrite extends Source
 
     private Sites $sites;
 
+    private Project $projectService;
+
     /**
      * @var callable(UtopiaDocument $database|null): UtopiaDatabase
      */
@@ -121,6 +124,7 @@ class Appwrite extends Source
         $this->functions = new Functions($this->client);
         $this->messaging = new Messaging($this->client);
         $this->sites = new Sites($this->client);
+        $this->projectService = new Project($this->client);
 
         $this->headers['x-appwrite-project'] = $this->project;
         $this->headers['x-appwrite-key'] = $this->key;
@@ -2225,8 +2229,7 @@ class Appwrite extends Source
     {
         if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
             try {
-                $response = $this->call('GET', '/projects/' . $this->project . '/platforms');
-                $report[Resource::TYPE_PLATFORM] = $response['total'] ?? 0;
+                $report[Resource::TYPE_PLATFORM] = $this->projectService->listPlatforms([Query::limit(1)])->total;
             } catch (\Throwable) {
                 $report[Resource::TYPE_PLATFORM] = 0;
             }
@@ -2265,7 +2268,7 @@ class Appwrite extends Source
     {
         if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
             try {
-                $this->exportPlatforms();
+                $this->exportPlatforms($batchSize);
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_PLATFORM,
@@ -2311,30 +2314,47 @@ class Appwrite extends Source
     /**
      * @throws AppwriteException
      */
-    private function exportPlatforms(): void
+    private function exportPlatforms(int $batchSize): void
     {
-        $response = $this->call('GET', '/projects/' . $this->project . '/platforms');
+        $lastId = null;
 
-        if (empty($response['platforms'])) {
-            return;
+        while (true) {
+            $queries = [Query::limit($batchSize)];
+
+            if ($lastId !== null) {
+                $queries[] = Query::cursorAfter($lastId);
+            }
+
+            $response = $this->projectService->listPlatforms($queries);
+            if ($response->total === 0) {
+                break;
+            }
+
+            $platforms = [];
+
+            // SDK returns the raw platforms array (mixed PlatformWeb/Apple/Android/etc payloads),
+            // so we read the unified REST fields directly rather than via typed accessors.
+            foreach ($response->platforms as $platform) {
+                $platforms[] = new Platform(
+                    $platform['$id'] ?? '',
+                    $platform['type'] ?? '',
+                    $platform['name'] ?? '',
+                    $platform['key'] ?? '',
+                    $platform['store'] ?? '',
+                    $platform['hostname'] ?? '',
+                    createdAt: $platform['$createdAt'] ?? '',
+                    updatedAt: $platform['$updatedAt'] ?? '',
+                );
+
+                $lastId = $platform['$id'] ?? null;
+            }
+
+            $this->callback($platforms);
+
+            if (\count($response->platforms) < $batchSize) {
+                break;
+            }
         }
-
-        $platforms = [];
-
-        foreach ($response['platforms'] as $platform) {
-            $platforms[] = new Platform(
-                $platform['$id'] ?? '',
-                $platform['type'] ?? '',
-                $platform['name'] ?? '',
-                $platform['key'] ?? '',
-                $platform['store'] ?? '',
-                $platform['hostname'] ?? '',
-                createdAt: $platform['$createdAt'] ?? '',
-                updatedAt: $platform['$updatedAt'] ?? '',
-            );
-        }
-
-        $this->callback($platforms);
     }
 
     /**
