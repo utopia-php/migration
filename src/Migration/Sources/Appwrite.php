@@ -95,7 +95,7 @@ class Appwrite extends Source
 
     private Sites $sites;
 
-    private Project $projectService;
+    private Project $project;
 
     /**
      * @var callable(UtopiaDocument $database|null): UtopiaDatabase
@@ -106,7 +106,7 @@ class Appwrite extends Source
      * @throws \Exception
      */
     public function __construct(
-        protected string $project,
+        protected string $projectId,
         protected string $endpoint,
         protected string $key,
         callable $getDatabasesDB,
@@ -116,7 +116,7 @@ class Appwrite extends Source
     ) {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
-            ->setProject($project)
+            ->setProject($projectId)
             ->setKey($key);
 
         $this->users = new Users($this->client);
@@ -125,9 +125,9 @@ class Appwrite extends Source
         $this->functions = new Functions($this->client);
         $this->messaging = new Messaging($this->client);
         $this->sites = new Sites($this->client);
-        $this->projectService = new Project($this->client);
+        $this->project = new Project($this->client);
 
-        $this->headers['x-appwrite-project'] = $this->project;
+        $this->headers['x-appwrite-project'] = $this->projectId;
         $this->headers['x-appwrite-key'] = $this->key;
 
         $this->getDatabasesDB = $getDatabasesDB;
@@ -144,7 +144,7 @@ class Appwrite extends Source
                 $this->reader = new DatabaseReader(
                     $this->dbForProject,
                     $this->getDatabasesDB,
-                    $this->project
+                    $this->projectId
                 );
                 break;
 
@@ -2236,7 +2236,7 @@ class Appwrite extends Source
                 limit: 1
             );
             try {
-                $report[Resource::TYPE_PLATFORM] = $this->projectService->listPlatforms($platformQueries)->total;
+                $report[Resource::TYPE_PLATFORM] = $this->project->listPlatforms($platformQueries)->total;
             } catch (\Throwable) {
                 $report[Resource::TYPE_PLATFORM] = 0;
             }
@@ -2385,7 +2385,7 @@ class Appwrite extends Source
                 $queries[] = Query::cursorAfter($lastId);
             }
 
-            $response = $this->projectService->listPlatforms($queries);
+            $response = $this->project->listPlatforms($queries);
             if ($response->total === 0) {
                 break;
             }
