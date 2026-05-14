@@ -50,6 +50,7 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Integrations\ApiKey;
 use Utopia\Migration\Resources\Integrations\Platform;
 use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
@@ -275,6 +276,7 @@ class Appwrite extends Destination
 
             // Integrations
             Resource::TYPE_PLATFORM,
+            Resource::TYPE_API_KEY,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -3074,6 +3076,10 @@ class Appwrite extends Destination
                 /** @var Platform $resource */
                 $this->createPlatform($resource);
                 break;
+            case Resource::TYPE_API_KEY:
+                /** @var ApiKey $resource */
+                $this->createApiKey($resource);
+                break;
         }
 
         if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
@@ -3118,6 +3124,49 @@ class Appwrite extends Destination
             ]));
         } catch (DuplicateException) {
             $resource->setStatus(Resource::STATUS_SKIPPED, 'Platform already exists');
+            return false;
+        }
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
+
+        return true;
+    }
+
+    protected function createApiKey(ApiKey $resource): bool
+    {
+        $existing = $this->dbForPlatform->findOne('keys', [
+            Query::equal('resourceType', ['projects']),
+            Query::equal('resourceInternalId', [$this->projectInternalId]),
+            Query::equal('name', [$resource->getApiKeyName()]),
+        ]);
+
+        if ($existing !== false && !$existing->isEmpty()) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'API key already exists');
+            return false;
+        }
+
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+        $expire = $resource->getExpire();
+
+        try {
+            $this->dbForPlatform->createDocument('keys', new UtopiaDocument([
+                '$id' => ID::unique(),
+                '$permissions' => $resource->getPermissions(),
+                'resourceInternalId' => $this->projectInternalId,
+                'resourceId' => $this->project,
+                'resourceType' => 'projects',
+                'name' => $resource->getApiKeyName(),
+                'scopes' => $resource->getScopes(),
+                'expire' => empty($expire) ? null : $expire,
+                'sdks' => $resource->getSdks(),
+                'accessedAt' => null,
+                'secret' => 'standard_' . \bin2hex(\random_bytes(128)),
+                '$createdAt' => $createdAt,
+                '$updatedAt' => $updatedAt,
+            ]));
+        } catch (DuplicateException) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'API key already exists');
             return false;
         }
 

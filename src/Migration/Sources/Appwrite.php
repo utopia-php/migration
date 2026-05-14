@@ -55,6 +55,7 @@ use Utopia\Migration\Resources\Database\VectorsDB;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Integrations\ApiKey;
 use Utopia\Migration\Resources\Integrations\Platform;
 use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
@@ -207,6 +208,7 @@ class Appwrite extends Source
 
             // Integrations
             Resource::TYPE_PLATFORM,
+            Resource::TYPE_API_KEY,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -2239,6 +2241,19 @@ class Appwrite extends Source
                 $report[Resource::TYPE_PLATFORM] = 0;
             }
         }
+
+        if (\in_array(Resource::TYPE_API_KEY, $resources)) {
+            $keyQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_API_KEY,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            try {
+                $report[Resource::TYPE_API_KEY] = $this->project->listKeys($keyQueries)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_API_KEY] = 0;
+            }
+        }
     }
 
     /**
@@ -2277,6 +2292,20 @@ class Appwrite extends Source
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_PLATFORM,
+                    Transfer::GROUP_INTEGRATIONS,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                ));
+            }
+        }
+
+        if (\in_array(Resource::TYPE_API_KEY, $resources)) {
+            try {
+                $this->exportApiKeys($batchSize);
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_API_KEY,
                     Transfer::GROUP_INTEGRATIONS,
                     message: $e->getMessage(),
                     code: $e->getCode(),
@@ -2362,6 +2391,55 @@ class Appwrite extends Source
             $this->callback($platforms);
 
             if (\count($response->platforms) < $batchSize) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportApiKeys(int $batchSize): void
+    {
+        $lastId = null;
+
+        while (true) {
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_API_KEY) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastId !== null) {
+                $queries[] = Query::cursorAfter($lastId);
+            }
+
+            $response = $this->project->listKeys($queries);
+            if ($response->total === 0) {
+                break;
+            }
+
+            $apiKeys = [];
+
+            foreach ($response->keys as $key) {
+                $apiKeys[] = new ApiKey(
+                    $key->id,
+                    $key->name,
+                    $key->scopes,
+                    $key->expire,
+                    $key->accessedAt,
+                    $key->sdks,
+                    createdAt: $key->createdAt,
+                    updatedAt: $key->updatedAt,
+                );
+
+                $lastId = $key->id;
+            }
+
+            $this->callback($apiKeys);
+
+            if (\count($response->keys) < $batchSize) {
                 break;
             }
         }
