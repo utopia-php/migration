@@ -3151,11 +3151,7 @@ class Appwrite extends Destination
         try {
             $this->dbForPlatform->createDocument('keys', new UtopiaDocument([
                 '$id' => ID::unique(),
-                '$permissions' => [
-                    Permission::read(Role::any()),
-                    Permission::update(Role::any()),
-                    Permission::delete(Role::any()),
-                ],
+                '$permissions' => $resource->getPermissions(),
                 'projectInternalId' => $this->projectInternalId,
                 'projectId' => $this->project,
                 'resourceInternalId' => $this->projectInternalId,
