@@ -3152,14 +3152,7 @@ class Appwrite extends Destination
         try {
             $this->dbForPlatform->createDocument('keys', new UtopiaDocument([
                 '$id' => ID::unique(),
-                // Match upstream createKey — keys carry no per-doc perm semantics in Appwrite.
-                '$permissions' => [
-                    Permission::read(Role::any()),
-                    Permission::update(Role::any()),
-                    Permission::delete(Role::any()),
-                ],
-                'projectInternalId' => $this->projectInternalId,
-                'projectId' => $this->project,
+                '$permissions' => [],
                 'resourceInternalId' => $this->projectInternalId,
                 'resourceId' => $this->project,
                 'resourceType' => 'projects',
