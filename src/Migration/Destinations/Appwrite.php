@@ -3135,7 +3135,8 @@ class Appwrite extends Destination
     protected function createApiKey(ApiKey $resource): bool
     {
         $existing = $this->dbForPlatform->findOne('keys', [
-            Query::equal('projectInternalId', [$this->projectInternalId]),
+            Query::equal('resourceType', ['projects']),
+            Query::equal('resourceInternalId', [$this->projectInternalId]),
             Query::equal('name', [$resource->getApiKeyName()]),
         ]);
 
