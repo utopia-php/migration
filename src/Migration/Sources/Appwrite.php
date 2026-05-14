@@ -2228,8 +2228,13 @@ class Appwrite extends Source
     private function reportIntegrations(array $resources, array &$report, array $resourceIds = []): void
     {
         if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
+            $platformQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_PLATFORM,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
             try {
-                $report[Resource::TYPE_PLATFORM] = $this->projectService->listPlatforms([Query::limit(1)])->total;
+                $report[Resource::TYPE_PLATFORM] = $this->projectService->listPlatforms($platformQueries)->total;
             } catch (\Throwable) {
                 $report[Resource::TYPE_PLATFORM] = 0;
             }
