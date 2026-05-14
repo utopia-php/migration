@@ -105,11 +105,6 @@ class Appwrite extends Destination
     */
     protected $getDatabasesDB;
 
-    private bool $consoleKeyFetched = false;
-
-    private ?string $consoleKey = null;
-
-
     /**
      * Resolves the DSN written into the destination's `_databases.database`
      * for a migrated database. When the source and destination projects don't
@@ -230,33 +225,6 @@ class Appwrite extends Destination
         $this->rowBuffer = [];
         $this->orphansByTable = [];
         $this->processedTwoWayPairs = [];
-    }
-
-    /**
-     * @return array<string, string>|null
-     */
-    protected function getConsoleHeaders(): ?array
-    {
-        if (!$this->consoleKeyFetched) {
-            $this->consoleKeyFetched = true;
-
-            try {
-                $response = $this->call('POST', '/migrations/appwrite/console-key');
-                $this->consoleKey = $response['key'] ?? null;
-            } catch (\Throwable) {
-                $this->consoleKey = null;
-            }
-        }
-
-        if ($this->consoleKey === null) {
-            return null;
-        }
-
-        return [
-            'Content-Type' => 'application/json',
-            'x-appwrite-project' => 'console',
-            'x-appwrite-key' => $this->consoleKey,
-        ];
     }
 
     public static function getName(): string
@@ -3169,38 +3137,48 @@ class Appwrite extends Destination
 
     protected function createApiKey(ApiKey $resource): bool
     {
-        $consoleHeaders = $this->getConsoleHeaders();
+        $existing = $this->dbForPlatform->findOne('keys', [
+            Query::equal('projectInternalId', [$this->projectInternalId]),
+            Query::equal('name', [$resource->getApiKeyName()]),
+        ]);
 
-        if ($consoleHeaders === null) {
-            throw new \Exception('Failed to get console headers');
+        if ($existing !== false && !$existing->isEmpty()) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'API key already exists');
+            return false;
         }
+
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+        $expire = $resource->getExpire();
 
         try {
-            $params = [
-                'keyId' => ID::unique(),
+            $this->dbForPlatform->createDocument('keys', new UtopiaDocument([
+                '$id' => ID::unique(),
+                '$permissions' => [
+                    Permission::read(Role::any()),
+                    Permission::update(Role::any()),
+                    Permission::delete(Role::any()),
+                ],
+                'projectInternalId' => $this->projectInternalId,
+                'projectId' => $this->project,
+                'resourceInternalId' => $this->projectInternalId,
+                'resourceId' => $this->project,
+                'resourceType' => 'projects',
                 'name' => $resource->getApiKeyName(),
                 'scopes' => $resource->getScopes(),
-            ];
-
-            $expire = $resource->getExpire();
-            if (!empty($expire)) {
-                $params['expire'] = $expire;
-            }
-
-            $this->call(
-                'POST',
-                '/projects/' . $this->project . '/keys',
-                $consoleHeaders,
-                $params
-            );
-        } catch (\Throwable $e) {
-            if ($e->getCode() === 409) {
-                $resource->setStatus(Resource::STATUS_SKIPPED, 'API key already exists');
-                return false;
-            }
-
-            throw $e;
+                'expire' => empty($expire) ? null : $expire,
+                'sdks' => $resource->getSdks(),
+                'accessedAt' => null,
+                'secret' => 'standard_' . \bin2hex(\random_bytes(128)),
+                '$createdAt' => $createdAt,
+                '$updatedAt' => $updatedAt,
+            ]));
+        } catch (DuplicateException) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'API key already exists');
+            return false;
         }
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
 
         return true;
     }

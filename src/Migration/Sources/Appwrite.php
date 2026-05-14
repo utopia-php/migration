@@ -2243,16 +2243,15 @@ class Appwrite extends Source
         }
 
         if (\in_array(Resource::TYPE_API_KEY, $resources)) {
-            $consoleHeaders = $this->getConsoleHeaders();
-            if ($consoleHeaders === null) {
+            $keyQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_API_KEY,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            try {
+                $report[Resource::TYPE_API_KEY] = $this->project->listKeys($keyQueries)->total;
+            } catch (\Throwable) {
                 $report[Resource::TYPE_API_KEY] = 0;
-            } else {
-                try {
-                    $response = $this->call('GET', '/projects/' . $this->project . '/keys', $consoleHeaders);
-                    $report[Resource::TYPE_API_KEY] = $response['total'] ?? 0;
-                } catch (\Throwable) {
-                    $report[Resource::TYPE_API_KEY] = 0;
-                }
             }
         }
     }
@@ -2302,37 +2301,17 @@ class Appwrite extends Source
         }
 
         if (\in_array(Resource::TYPE_API_KEY, $resources)) {
-            $this->exportWithConsoleHeaders(
-                Resource::TYPE_API_KEY,
-                Transfer::GROUP_INTEGRATIONS,
-                $this->exportApiKeys(...)
-            );
-        }
-    }
-
-    protected function exportWithConsoleHeaders(string $resourceType, string $group, callable $callback): void
-    {
-        $consoleHeaders = $this->getConsoleHeaders();
-
-        if ($consoleHeaders === null) {
-            $this->addError(new Exception(
-                $resourceType,
-                $group,
-                message: 'Console key unavailable for source instance',
-            ));
-            return;
-        }
-
-        try {
-            $callback($consoleHeaders);
-        } catch (\Throwable $e) {
-            $this->addError(new Exception(
-                $resourceType,
-                $group,
-                message: $e->getMessage(),
-                code: $e->getCode(),
-                previous: $e
-            ));
+            try {
+                $this->exportApiKeys($batchSize);
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_API_KEY,
+                    Transfer::GROUP_INTEGRATIONS,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                ));
+            }
         }
     }
 
@@ -2417,30 +2396,53 @@ class Appwrite extends Source
         }
     }
 
-    private function exportApiKeys(array $consoleHeaders): void
+    /**
+     * @throws AppwriteException
+     */
+    private function exportApiKeys(int $batchSize): void
     {
-        $response = $this->call('GET', '/projects/' . $this->project . '/keys', $consoleHeaders);
+        $lastId = null;
 
-        if (empty($response['keys'])) {
-            return;
+        while (true) {
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_API_KEY) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastId !== null) {
+                $queries[] = Query::cursorAfter($lastId);
+            }
+
+            $response = $this->project->listKeys($queries);
+            if ($response->total === 0) {
+                break;
+            }
+
+            $apiKeys = [];
+
+            foreach ($response->keys as $key) {
+                $apiKeys[] = new ApiKey(
+                    $key->id,
+                    $key->name,
+                    $key->scopes,
+                    $key->expire,
+                    $key->accessedAt,
+                    $key->sdks,
+                    createdAt: $key->createdAt,
+                    updatedAt: $key->updatedAt,
+                );
+
+                $lastId = $key->id;
+            }
+
+            $this->callback($apiKeys);
+
+            if (\count($response->keys) < $batchSize) {
+                break;
+            }
         }
-
-        $apiKeys = [];
-
-        foreach ($response['keys'] as $key) {
-            $apiKeys[] = new ApiKey(
-                $key['$id'] ?? '',
-                $key['name'] ?? '',
-                $key['scopes'] ?? [],
-                $key['expire'] ?? '',
-                $key['accessedAt'] ?? '',
-                $key['sdks'] ?? [],
-                createdAt: $key['$createdAt'] ?? '',
-                updatedAt: $key['$updatedAt'] ?? '',
-            );
-        }
-
-        $this->callback($apiKeys);
     }
 
     /**
