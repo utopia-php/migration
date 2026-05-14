@@ -2326,6 +2326,11 @@ class Appwrite extends Source
         while (true) {
             $queries = [Query::limit($batchSize)];
 
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_PLATFORM) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
             if ($lastId !== null) {
                 $queries[] = Query::cursorAfter($lastId);
             }
