@@ -74,8 +74,12 @@ abstract class Resource implements \JsonSerializable
     // Integrations
     public const TYPE_PLATFORM = 'platform';
     public const TYPE_API_KEY = 'api-key';
-    public const TYPE_SUBSCRIBER = 'subscriber';
 
+    // Settings
+    public const TYPE_PROJECT_VARIABLE = 'project-variable';
+
+    // Messaging
+    public const TYPE_SUBSCRIBER = 'subscriber';
     public const TYPE_MESSAGE = 'message';
 
     // Backups
@@ -114,6 +118,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_MEMBERSHIP,
         self::TYPE_PLATFORM,
         self::TYPE_API_KEY,
+        self::TYPE_PROJECT_VARIABLE,
         self::TYPE_PROVIDER,
         self::TYPE_TOPIC,
         self::TYPE_SUBSCRIBER,

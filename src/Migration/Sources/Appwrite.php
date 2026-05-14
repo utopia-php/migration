@@ -61,6 +61,7 @@ use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
 use Utopia\Migration\Resources\Messaging\Topic;
+use Utopia\Migration\Resources\Settings\ProjectVariable;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
@@ -214,6 +215,7 @@ class Appwrite extends Source
             Resource::TYPE_BACKUP_POLICY,
 
             // Settings
+            Resource::TYPE_PROJECT_VARIABLE,
         ];
     }
 
@@ -254,6 +256,7 @@ class Appwrite extends Source
             $this->reportSites($resources, $report, $resourceIds);
             $this->reportIntegrations($resources, $report, $resourceIds);
             $this->reportBackups($resources, $report, $resourceIds);
+            $this->reportSettings($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1446,6 +1449,90 @@ class Appwrite extends Source
     {
         if (\in_array(Resource::TYPE_BACKUP_POLICY, $resources)) {
             $report[Resource::TYPE_BACKUP_POLICY] = 0;
+        }
+    }
+
+    private function reportSettings(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (\in_array(Resource::TYPE_PROJECT_VARIABLE, $resources)) {
+            $variableQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_PROJECT_VARIABLE,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            try {
+                $report[Resource::TYPE_PROJECT_VARIABLE] = $this->project->listVariables($variableQueries)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_PROJECT_VARIABLE] = 0;
+            }
+        }
+    }
+
+    /**
+     * @param int $batchSize
+     * @param array<string> $resources
+     */
+    protected function exportGroupSettings(int $batchSize, array $resources): void
+    {
+        if (\in_array(Resource::TYPE_PROJECT_VARIABLE, $resources)) {
+            try {
+                $this->exportProjectVariables($batchSize);
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_PROJECT_VARIABLE,
+                    Transfer::GROUP_SETTINGS,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                ));
+            }
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportProjectVariables(int $batchSize): void
+    {
+        $lastId = null;
+
+        while (true) {
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_PROJECT_VARIABLE) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastId !== null) {
+                $queries[] = Query::cursorAfter($lastId);
+            }
+
+            $response = $this->project->listVariables($queries);
+            if ($response->total === 0) {
+                break;
+            }
+
+            $variables = [];
+
+            foreach ($response->variables as $variable) {
+                $variables[] = new ProjectVariable(
+                    $variable->id,
+                    $variable->key,
+                    $variable->value,
+                    $variable->secret,
+                    createdAt: $variable->createdAt,
+                    updatedAt: $variable->updatedAt,
+                );
+
+                $lastId = $variable->id;
+            }
+
+            $this->callback($variables);
+
+            if (\count($response->variables) < $batchSize) {
+                break;
+            }
         }
     }
 

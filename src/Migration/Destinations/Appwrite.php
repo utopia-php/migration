@@ -56,6 +56,7 @@ use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
 use Utopia\Migration\Resources\Messaging\Topic;
+use Utopia\Migration\Resources\Settings\ProjectVariable;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
@@ -278,6 +279,9 @@ class Appwrite extends Destination
             Resource::TYPE_PLATFORM,
             Resource::TYPE_API_KEY,
 
+            // Settings
+            Resource::TYPE_PROJECT_VARIABLE,
+
             // Backups
             Resource::TYPE_BACKUP_POLICY,
         ];
@@ -438,6 +442,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_SITES => $this->importSiteResource($resource),
                     Transfer::GROUP_INTEGRATIONS => $this->importIntegrationsResource($resource),
                     Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
+                    Transfer::GROUP_SETTINGS => $this->importSettingsResource($resource),
                     default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
             } catch (\Throwable $e) {
@@ -3087,6 +3092,61 @@ class Appwrite extends Destination
         }
 
         return $resource;
+    }
+
+    public function importSettingsResource(Resource $resource): Resource
+    {
+        switch ($resource->getName()) {
+            case Resource::TYPE_PROJECT_VARIABLE:
+                /** @var ProjectVariable $resource */
+                $this->createProjectVariable($resource);
+                break;
+        }
+
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        }
+
+        return $resource;
+    }
+
+    protected function createProjectVariable(ProjectVariable $resource): bool
+    {
+        $existing = $this->dbForProject->findOne('variables', [
+            Query::equal('resourceType', ['project']),
+            Query::equal('key', [$resource->getKey()]),
+        ]);
+
+        if ($existing !== false && !$existing->isEmpty()) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Project variable already exists');
+            return false;
+        }
+
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+        $variableId = ID::unique();
+        $key = $resource->getKey();
+
+        try {
+            $this->dbForProject->createDocument('variables', new UtopiaDocument([
+                '$id' => $variableId,
+                '$permissions' => $resource->getPermissions(),
+                'resourceInternalId' => '',
+                'resourceId' => '',
+                'resourceType' => 'project',
+                'key' => $key,
+                'value' => $resource->getValue(),
+                'secret' => $resource->isSecret(),
+                'search' => \implode(' ', [$variableId, $key, 'project']),
+                '$createdAt' => $createdAt,
+                '$updatedAt' => $updatedAt,
+            ]));
+        } catch (DuplicateException) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Project variable already exists');
+            return false;
+        }
+
+        return true;
     }
 
     /**

@@ -28,6 +28,8 @@ class Transfer
 
     public const GROUP_BACKUPS = 'backups';
 
+    public const GROUP_SETTINGS = 'settings';
+
     public const GROUP_AUTH_RESOURCES = [
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
@@ -92,7 +94,9 @@ class Transfer
         Resource::TYPE_ATTRIBUTE
     ];
 
-    public const GROUP_SETTINGS_RESOURCES = [];
+    public const GROUP_SETTINGS_RESOURCES = [
+        Resource::TYPE_PROJECT_VARIABLE,
+    ];
 
     public const GROUP_BACKUPS_RESOURCES = [
         Resource::TYPE_BACKUP_POLICY,
@@ -131,6 +135,9 @@ class Transfer
         // Integrations
         Resource::TYPE_PLATFORM,
         Resource::TYPE_API_KEY,
+
+        // Settings
+        Resource::TYPE_PROJECT_VARIABLE,
 
         // legacy
         Resource::TYPE_DOCUMENT,
