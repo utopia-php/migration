@@ -3112,8 +3112,6 @@ class Appwrite extends Destination
 
     protected function createProjectVariable(ProjectVariable $resource): bool
     {
-        // Variables live in dbForProject (not dbForPlatform). resourceType is 'project' (singular)
-        // for project-scope variables; function/site-scope variables use 'function'/'site'.
         $existing = $this->dbForProject->findOne('variables', [
             Query::equal('resourceType', ['project']),
             Query::equal('key', [$resource->getKey()]),
