@@ -91,6 +91,8 @@ class Appwrite extends Destination
     protected Client $client;
     protected string $project;
 
+    protected string $key;
+
     private Functions $functions;
     private Messaging $messaging;
     private Sites $sites;
@@ -167,6 +169,8 @@ class Appwrite extends Destination
         ?callable $getDatabaseDSN = null,
     ) {
         $this->project = $project;
+        $this->endpoint = $endpoint;
+        $this->key = $key;
 
         $this->client = (new Client())
             ->setEndpoint($endpoint)
