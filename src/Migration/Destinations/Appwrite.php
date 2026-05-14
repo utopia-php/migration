@@ -3151,7 +3151,14 @@ class Appwrite extends Destination
         try {
             $this->dbForPlatform->createDocument('keys', new UtopiaDocument([
                 '$id' => ID::unique(),
-                '$permissions' => $resource->getPermissions(),
+                // SDK's Key model doesn't expose $permissions, so we can't read the source doc's perms.
+                // Mirror appwrite/appwrite's createKey controller default — `dbForPlatform.keys` is
+                // gated by endpoint scope, not document perms, so this is the upstream invariant.
+                '$permissions' => [
+                    Permission::read(Role::any()),
+                    Permission::update(Role::any()),
+                    Permission::delete(Role::any()),
+                ],
                 'projectInternalId' => $this->projectInternalId,
                 'projectId' => $this->project,
                 'resourceInternalId' => $this->projectInternalId,
