@@ -3151,8 +3151,7 @@ class Appwrite extends Destination
         try {
             $this->dbForPlatform->createDocument('keys', new UtopiaDocument([
                 '$id' => ID::unique(),
-                // SDK's Key model doesn't expose $permissions, so we can't copy source perms through.
-                // Mirror appwrite/appwrite's createKey controller so migrated docs match natively-created keys.
+                // Match upstream createKey — keys carry no per-doc perm semantics in Appwrite.
                 '$permissions' => [
                     Permission::read(Role::any()),
                     Permission::update(Role::any()),
