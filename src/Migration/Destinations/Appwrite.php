@@ -91,8 +91,6 @@ class Appwrite extends Destination
     protected Client $client;
     protected string $project;
 
-    protected string $key;
-
     private Functions $functions;
     private Messaging $messaging;
     private Sites $sites;
@@ -169,8 +167,6 @@ class Appwrite extends Destination
         ?callable $getDatabaseDSN = null,
     ) {
         $this->project = $project;
-        $this->endpoint = $endpoint;
-        $this->key = $key;
 
         $this->client = (new Client())
             ->setEndpoint($endpoint)
@@ -183,9 +179,6 @@ class Appwrite extends Destination
         $this->storage = new Storage($this->client);
         $this->teams = new Teams($this->client);
         $this->users = new Users($this->client);
-
-        $this->headers['x-appwrite-project'] = $this->project;
-        $this->headers['x-appwrite-key'] = $this->key;
 
         $this->getDatabasesDB = $getDatabasesDB;
         $this->getDatabaseDSN = $getDatabaseDSN;
@@ -3085,7 +3078,7 @@ class Appwrite extends Destination
                 break;
         }
 
-        if ($resource->getStatus() !== Resource::STATUS_SKIPPED && $resource->getStatus() !== Resource::STATUS_ERROR) {
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
             $resource->setStatus(Resource::STATUS_SUCCESS);
         }
 
