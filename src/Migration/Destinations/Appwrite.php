@@ -425,7 +425,7 @@ class Appwrite extends Destination
 
             try {
                 $this->dbForProject->setPreserveDates(true);
-                $this->dbForPlatform?->setPreserveDates(true);
+                $this->dbForPlatform->setPreserveDates(true);
 
                 $responseResource = match ($resource->getGroup()) {
                     Transfer::GROUP_DATABASES => $this->importDatabaseResource($resource, $isLast),
@@ -453,7 +453,7 @@ class Appwrite extends Destination
                 $responseResource = $resource;
             } finally {
                 $this->dbForProject->setPreserveDates(false);
-                $this->dbForPlatform?->setPreserveDates(false);
+                $this->dbForPlatform->setPreserveDates(false);
             }
 
             $this->cache->update($responseResource);
