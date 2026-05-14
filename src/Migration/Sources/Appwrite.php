@@ -7,6 +7,7 @@ use Appwrite\Client;
 use Appwrite\Query;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
+use Appwrite\Services\Project;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
 use Appwrite\Services\TablesDB;
@@ -54,6 +55,7 @@ use Utopia\Migration\Resources\Database\VectorsDB;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Integrations\Platform;
 use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
@@ -92,6 +94,8 @@ class Appwrite extends Source
 
     private Sites $sites;
 
+    private Project $project;
+
     /**
      * @var callable(UtopiaDocument $database|null): UtopiaDatabase
      */
@@ -101,7 +105,7 @@ class Appwrite extends Source
      * @throws \Exception
      */
     public function __construct(
-        protected string $project,
+        protected string $projectId,
         protected string $endpoint,
         protected string $key,
         callable $getDatabasesDB,
@@ -111,7 +115,7 @@ class Appwrite extends Source
     ) {
         $this->client = (new Client())
             ->setEndpoint($endpoint)
-            ->setProject($project)
+            ->setProject($projectId)
             ->setKey($key);
 
         $this->users = new Users($this->client);
@@ -120,8 +124,9 @@ class Appwrite extends Source
         $this->functions = new Functions($this->client);
         $this->messaging = new Messaging($this->client);
         $this->sites = new Sites($this->client);
+        $this->project = new Project($this->client);
 
-        $this->headers['x-appwrite-project'] = $this->project;
+        $this->headers['x-appwrite-project'] = $this->projectId;
         $this->headers['x-appwrite-key'] = $this->key;
 
         $this->getDatabasesDB = $getDatabasesDB;
@@ -138,7 +143,7 @@ class Appwrite extends Source
                 $this->reader = new DatabaseReader(
                     $this->dbForProject,
                     $this->getDatabasesDB,
-                    $this->project
+                    $this->projectId
                 );
                 break;
 
@@ -200,6 +205,9 @@ class Appwrite extends Source
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
 
+            // Integrations
+            Resource::TYPE_PLATFORM,
+
             // Backups
             Resource::TYPE_BACKUP_POLICY,
 
@@ -242,6 +250,7 @@ class Appwrite extends Source
             $this->reportFunctions($resources, $report, $resourceIds);
             $this->reportMessaging($resources, $report, $resourceIds);
             $this->reportSites($resources, $report, $resourceIds);
+            $this->reportIntegrations($resources, $report, $resourceIds);
             $this->reportBackups($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
@@ -2212,6 +2221,27 @@ class Appwrite extends Source
     }
 
     /**
+     * @param array<string> $resources
+     * @param array<string, int> $report
+     * @param array<string, array<string>> $resourceIds
+     */
+    private function reportIntegrations(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
+            $platformQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_PLATFORM,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            try {
+                $report[Resource::TYPE_PLATFORM] = $this->project->listPlatforms($platformQueries)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_PLATFORM] = 0;
+            }
+        }
+    }
+
+    /**
      * @param string $databaseType
      * @param array $database {
      *     id: string,
@@ -2232,6 +2262,27 @@ class Appwrite extends Source
                 return VectorsDB::fromArray($database);
             default:
                 return Database::fromArray($database);
+        }
+    }
+
+    /**
+     * @param int $batchSize
+     * @param array<string> $resources
+     */
+    protected function exportGroupIntegrations(int $batchSize, array $resources): void
+    {
+        if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
+            try {
+                $this->exportPlatforms($batchSize);
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_PLATFORM,
+                    Transfer::GROUP_INTEGRATIONS,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                ));
+            }
         }
     }
 
@@ -2262,6 +2313,57 @@ class Appwrite extends Source
                 return Collection::fromArray($entity);
             default:
                 return Table::fromArray($entity);
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportPlatforms(int $batchSize): void
+    {
+        $lastId = null;
+
+        while (true) {
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_PLATFORM) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastId !== null) {
+                $queries[] = Query::cursorAfter($lastId);
+            }
+
+            $response = $this->project->listPlatforms($queries);
+            if ($response->total === 0) {
+                break;
+            }
+
+            $platforms = [];
+
+            // SDK returns the raw platforms array (mixed PlatformWeb/Apple/Android/etc payloads),
+            // so we read the unified REST fields directly rather than via typed accessors.
+            foreach ($response->platforms as $platform) {
+                $platforms[] = new Platform(
+                    $platform['$id'] ?? '',
+                    $platform['type'] ?? '',
+                    $platform['name'] ?? '',
+                    $platform['key'] ?? '',
+                    $platform['store'] ?? '',
+                    $platform['hostname'] ?? '',
+                    createdAt: $platform['$createdAt'] ?? '',
+                    updatedAt: $platform['$updatedAt'] ?? '',
+                );
+
+                $lastId = $platform['$id'] ?? null;
+            }
+
+            $this->callback($platforms);
+
+            if (\count($response->platforms) < $batchSize) {
+                break;
+            }
         }
     }
 

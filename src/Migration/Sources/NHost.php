@@ -953,6 +953,11 @@ class NHost extends Source
         throw new \Exception('Not Implemented');
     }
 
+    protected function exportGroupIntegrations(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
     protected function exportGroupBackups(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');

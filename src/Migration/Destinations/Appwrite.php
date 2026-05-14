@@ -50,6 +50,7 @@ use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
+use Utopia\Migration\Resources\Integrations\Platform;
 use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
@@ -161,6 +162,8 @@ class Appwrite extends Destination
         protected UtopiaDatabase $dbForProject,
         callable $getDatabasesDB,
         protected array $collectionStructure,
+        protected UtopiaDatabase $dbForPlatform,
+        protected string $projectInternalId,
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
         ?callable $getDatabaseDSN = null,
     ) {
@@ -269,6 +272,9 @@ class Appwrite extends Destination
             Resource::TYPE_SITE,
             Resource::TYPE_SITE_DEPLOYMENT,
             Resource::TYPE_SITE_VARIABLE,
+
+            // Integrations
+            Resource::TYPE_PLATFORM,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -419,6 +425,7 @@ class Appwrite extends Destination
 
             try {
                 $this->dbForProject->setPreserveDates(true);
+                $this->dbForPlatform->setPreserveDates(true);
 
                 $responseResource = match ($resource->getGroup()) {
                     Transfer::GROUP_DATABASES => $this->importDatabaseResource($resource, $isLast),
@@ -427,6 +434,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_FUNCTIONS => $this->importFunctionResource($resource),
                     Transfer::GROUP_MESSAGING => $this->importMessagingResource($resource),
                     Transfer::GROUP_SITES => $this->importSiteResource($resource),
+                    Transfer::GROUP_INTEGRATIONS => $this->importIntegrationsResource($resource),
                     Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
                     default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
@@ -445,6 +453,7 @@ class Appwrite extends Destination
                 $responseResource = $resource;
             } finally {
                 $this->dbForProject->setPreserveDates(false);
+                $this->dbForPlatform->setPreserveDates(false);
             }
 
             $this->cache->update($responseResource);
@@ -3053,6 +3062,68 @@ class Appwrite extends Destination
         }
 
         return $deployment;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function importIntegrationsResource(Resource $resource): Resource
+    {
+        switch ($resource->getName()) {
+            case Resource::TYPE_PLATFORM:
+                /** @var Platform $resource */
+                $this->createPlatform($resource);
+                break;
+        }
+
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        }
+
+        return $resource;
+    }
+
+    /**
+     * @throws \Throwable
+     */
+    protected function createPlatform(Platform $resource): bool
+    {
+        $existing = $this->dbForPlatform->findOne('platforms', [
+            Query::equal('projectId', [$this->project]),
+            Query::equal('type', [$resource->getType()]),
+            Query::equal('name', [$resource->getPlatformName()]),
+        ]);
+
+        if ($existing !== false && !$existing->isEmpty()) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Platform already exists');
+            return false;
+        }
+
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
+        try {
+            $this->dbForPlatform->createDocument('platforms', new UtopiaDocument([
+                '$id' => ID::unique(),
+                '$permissions' => $resource->getPermissions(),
+                'projectInternalId' => $this->projectInternalId,
+                'projectId' => $this->project,
+                'type' => $resource->getType(),
+                'name' => $resource->getPlatformName(),
+                'key' => $resource->getKey(),
+                'store' => $resource->getStore(),
+                'hostname' => $resource->getHostname(),
+                '$createdAt' => $createdAt,
+                '$updatedAt' => $updatedAt,
+            ]));
+        } catch (DuplicateException) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Platform already exists');
+            return false;
+        }
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
+
+        return true;
     }
 
     private function validateFieldsForIndexes(Index $resource, UtopiaDocument $table, array &$lengths)
