@@ -70,12 +70,15 @@ abstract class Source extends Target
      *
      * @param array<string> $resources Resources to transfer
      * @param callable $callback Callback to run after transfer
-     * @param string $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
+     * @param string $rootResourceId Root resource ID. If set, only this root resource is transferred.
+     * @param string $rootResourceType Resource type for $rootResourceId. Required when $rootResourceId is set.
+     * @param string $rootResourceChildId Optional child filter under the root resource. For database roots, this is the collection/table ID.
      */
-    public function run(array $resources, callable $callback, string $rootResourceId = '', string $rootResourceType = ''): void
+    public function run(array $resources, callable $callback, string $rootResourceId = '', string $rootResourceType = '', string $rootResourceChildId = ''): void
     {
         $this->rootResourceId = $rootResourceId;
         $this->rootResourceType = $rootResourceType;
+        $this->rootResourceChildId = $rootResourceChildId;
 
         $this->transferCallback = function (array $returnedResources) use ($callback, $resources) {
             $prunedResources = [];

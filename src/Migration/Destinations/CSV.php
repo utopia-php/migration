@@ -17,7 +17,8 @@ use Utopia\Storage\Device\Local;
 class CSV extends Destination
 {
     protected Device $deviceForFiles;
-    protected string $resourceId;
+    protected string $databaseId;
+    protected string $tableId;
     protected string $directory;
     protected string $outputFile;
     protected Local $local;
@@ -32,7 +33,8 @@ class CSV extends Destination
      */
     public function __construct(
         Device $deviceForFiles,
-        string $resourceId,
+        string $databaseId,
+        string $tableId,
         string $directory,
         string $filename,
         array $allowedColumns = [],
@@ -42,7 +44,8 @@ class CSV extends Destination
         private readonly bool $includeHeaders = true,
     ) {
         $this->deviceForFiles = $deviceForFiles;
-        $this->resourceId = $resourceId;
+        $this->databaseId = $databaseId;
+        $this->tableId = $tableId;
         $this->directory = $directory;
         $this->outputFile = $this->sanitizeFilename($filename);
         $this->local = new Local(\sys_get_temp_dir() . '/csv_export_' . uniqid());
@@ -168,7 +171,7 @@ class CSV extends Destination
         $destPath = $this->deviceForFiles->getPath($this->directory . '/' . $filename);
 
         if (!$this->local->exists($sourcePath)) {
-            throw new \Exception("No data to export for resource: $this->resourceId", MigrationException::CODE_NOT_FOUND);
+            throw new \Exception("No data to export for table {$this->tableId} in database {$this->databaseId}", MigrationException::CODE_NOT_FOUND);
         }
 
         try {
@@ -193,7 +196,7 @@ class CSV extends Destination
                     UtopiaResource::TYPE_ROW,
                     Transfer::GROUP_DATABASES,
                     'Error cleaning up: ' . $this->local->getRoot(),
-                    $this->resourceId
+                    $this->tableId
                 ));
             }
         }
