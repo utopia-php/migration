@@ -5,6 +5,7 @@ namespace Utopia\Migration\Destinations;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Enums\Adapter;
+use Appwrite\Enums\AuthMethod;
 use Appwrite\Enums\BuildRuntime;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\Framework;
@@ -14,6 +15,7 @@ use Appwrite\Enums\SmtpEncryption;
 use Appwrite\InputFile;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
+use Appwrite\Services\Project;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
@@ -37,6 +39,7 @@ use Utopia\Database\Validator\UID;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
+use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
@@ -91,12 +94,13 @@ class Appwrite extends Destination
     ];
 
     protected Client $client;
-    protected string $project;
+    protected string $projectId;
 
     protected string $key;
 
     private Functions $functions;
     private Messaging $messaging;
+    private Project $project;
     private Sites $sites;
     private Storage $storage;
     private Teams $teams;
@@ -170,7 +174,7 @@ class Appwrite extends Destination
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
         ?callable $getDatabaseDSN = null,
     ) {
-        $this->project = $project;
+        $this->projectId = $project;
         $this->endpoint = $endpoint;
         $this->key = $key;
 
@@ -181,6 +185,7 @@ class Appwrite extends Destination
 
         $this->functions = new Functions($this->client);
         $this->messaging = new Messaging($this->client);
+        $this->project = new Project($this->client);
         $this->sites = new Sites($this->client);
         $this->storage = new Storage($this->client);
         $this->teams = new Teams($this->client);
@@ -2160,6 +2165,10 @@ class Appwrite extends Destination
                     userId: $user->getId(),
                 );
                 break;
+            case Resource::TYPE_AUTH_METHODS:
+                /** @var AuthMethods $resource */
+                $this->createAuthMethods($resource);
+                break;
         }
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
@@ -3175,7 +3184,7 @@ class Appwrite extends Destination
                 '$id' => ID::unique(),
                 '$permissions' => $resource->getPermissions(),
                 'projectInternalId' => $this->projectInternalId,
-                'projectId' => $this->project,
+                'projectId' => $this->projectId,
                 'name' => $resource->getWebhookName(),
                 'events' => $resource->getEvents(),
                 'url' => $resource->getUrl(),
@@ -3194,7 +3203,7 @@ class Appwrite extends Destination
             return false;
         }
 
-        $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
     }
@@ -3205,7 +3214,7 @@ class Appwrite extends Destination
     protected function createPlatform(Platform $resource): bool
     {
         $existing = $this->dbForPlatform->findOne('platforms', [
-            Query::equal('projectId', [$this->project]),
+            Query::equal('projectId', [$this->projectId]),
             Query::equal('type', [$resource->getType()]),
             Query::equal('name', [$resource->getPlatformName()]),
         ]);
@@ -3223,7 +3232,7 @@ class Appwrite extends Destination
                 '$id' => ID::unique(),
                 '$permissions' => $resource->getPermissions(),
                 'projectInternalId' => $this->projectInternalId,
-                'projectId' => $this->project,
+                'projectId' => $this->projectId,
                 'type' => $resource->getType(),
                 'name' => $resource->getPlatformName(),
                 'key' => $resource->getKey(),
@@ -3237,7 +3246,32 @@ class Appwrite extends Destination
             return false;
         }
 
-        $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
+    /**
+     * Flip each auth-method flag on the destination project via the SDK. Seven
+     * single-field updates rather than one bulk write — the SDK only exposes
+     * per-flag setters, and the destination needs to honor any server-side
+     * validation per flag (e.g. provider-specific guards).
+     */
+    protected function createAuthMethods(AuthMethods $resource): bool
+    {
+        $flags = [
+            [AuthMethod::EMAILPASSWORD(), $resource->getEmailPassword()],
+            [AuthMethod::MAGICURL(),      $resource->getMagicURL()],
+            [AuthMethod::EMAILOTP(),      $resource->getEmailOtp()],
+            [AuthMethod::ANONYMOUS(),     $resource->getAnonymous()],
+            [AuthMethod::INVITES(),       $resource->getInvites()],
+            [AuthMethod::JWT(),           $resource->getJwt()],
+            [AuthMethod::PHONE(),         $resource->getPhone()],
+        ];
+
+        foreach ($flags as [$method, $enabled]) {
+            $this->project->updateAuthMethod($method, $enabled);
+        }
 
         return true;
     }
@@ -3264,7 +3298,7 @@ class Appwrite extends Destination
                 '$id' => ID::unique(),
                 '$permissions' => $resource->getPermissions(),
                 'resourceInternalId' => $this->projectInternalId,
-                'resourceId' => $this->project,
+                'resourceId' => $this->projectId,
                 'resourceType' => 'projects',
                 'name' => $resource->getApiKeyName(),
                 'scopes' => $resource->getScopes(),
@@ -3280,7 +3314,7 @@ class Appwrite extends Destination
             return false;
         }
 
-        $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
     }

@@ -19,6 +19,7 @@ use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
+use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
 use Utopia\Migration\Resources\Auth\Team;
@@ -359,6 +360,11 @@ class Appwrite extends Source
                 )->total;
             }
         }
+
+        if (\in_array(Resource::TYPE_AUTH_METHODS, $resources)) {
+            // Singleton — there is exactly one auth-methods config per project.
+            $report[Resource::TYPE_AUTH_METHODS] = 1;
+        }
     }
 
     /**
@@ -599,6 +605,48 @@ class Appwrite extends Source
                 previous: $e
             ));
         }
+
+        try {
+            if (\in_array(Resource::TYPE_AUTH_METHODS, $resources)) {
+                $this->exportAuthMethods();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_AUTH_METHODS,
+                Transfer::GROUP_AUTH,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
+        }
+    }
+
+    /**
+     * Read auth-method flags from the source project document.
+     * No SDK Project.get() exists; using raw HTTP against /v1/project.
+     */
+    private function exportAuthMethods(): void
+    {
+        $response = $this->call('GET', '/v1/project');
+
+        if (!\is_array($response)) {
+            return;
+        }
+
+        $authMethods = new AuthMethods(
+            $this->projectId,
+            (bool) ($response['authEmailPassword'] ?? true),
+            (bool) ($response['authUsersAuthMagicURL'] ?? true),
+            (bool) ($response['authEmailOtp'] ?? true),
+            (bool) ($response['authAnonymous'] ?? true),
+            (bool) ($response['authInvites'] ?? true),
+            (bool) ($response['authJWT'] ?? true),
+            (bool) ($response['authPhone'] ?? true),
+            createdAt: $response['$createdAt'] ?? '',
+            updatedAt: $response['$updatedAt'] ?? '',
+        );
+
+        $this->callback([$authMethods]);
     }
 
     /**

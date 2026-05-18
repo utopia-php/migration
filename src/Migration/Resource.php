@@ -69,6 +69,8 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_HASH = 'hash';
 
+    public const TYPE_AUTH_METHODS = 'auth-methods';
+
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
 
     // Integrations
@@ -117,6 +119,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_ENVIRONMENT_VARIABLE,
         self::TYPE_TEAM,
         self::TYPE_MEMBERSHIP,
+        self::TYPE_AUTH_METHODS,
         self::TYPE_PLATFORM,
         self::TYPE_API_KEY,
         self::TYPE_PROJECT_VARIABLE,

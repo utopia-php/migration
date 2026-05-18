@@ -34,7 +34,8 @@ class Transfer
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
         Resource::TYPE_MEMBERSHIP,
-        Resource::TYPE_HASH
+        Resource::TYPE_HASH,
+        Resource::TYPE_AUTH_METHODS,
     ];
 
     public const GROUP_STORAGE_RESOURCES = [
@@ -114,6 +115,7 @@ class Transfer
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
         Resource::TYPE_MEMBERSHIP,
+        Resource::TYPE_AUTH_METHODS,
         Resource::TYPE_FILE,
         Resource::TYPE_BUCKET,
         Resource::TYPE_FUNCTION,
