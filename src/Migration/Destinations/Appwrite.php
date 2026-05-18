@@ -246,6 +246,7 @@ class Appwrite extends Destination
             Resource::TYPE_USER,
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
+            Resource::TYPE_AUTH_METHODS,
 
             // Database
             Resource::TYPE_DATABASE,
