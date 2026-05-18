@@ -656,7 +656,7 @@ class Appwrite extends Source
      */
     private function exportPolicies(): void
     {
-        $response = $this->call('GET', '/v1/project');
+        $response = $this->call('GET', '/project');
 
         if (!\is_array($response)) {
             return;
@@ -690,7 +690,7 @@ class Appwrite extends Source
      */
     private function exportAuthMethods(): void
     {
-        $response = $this->call('GET', '/v1/project');
+        $response = $this->call('GET', '/project');
 
         if (!\is_array($response)) {
             return;
@@ -1697,7 +1697,7 @@ class Appwrite extends Source
      */
     private function exportServices(): void
     {
-        $response = $this->call('GET', '/v1/project');
+        $response = $this->call('GET', '/project');
 
         if (!\is_array($response)) {
             return;
@@ -1734,7 +1734,7 @@ class Appwrite extends Source
      */
     private function exportLabels(): void
     {
-        $response = $this->call('GET', '/v1/project');
+        $response = $this->call('GET', '/project');
 
         if (!\is_array($response)) {
             return;
@@ -1756,7 +1756,7 @@ class Appwrite extends Source
      */
     private function exportProtocols(): void
     {
-        $response = $this->call('GET', '/v1/project');
+        $response = $this->call('GET', '/project');
 
         if (!\is_array($response)) {
             return;
