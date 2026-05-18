@@ -12,6 +12,7 @@ use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\ProtocolId;
 use Appwrite\Enums\Runtime;
+use Appwrite\Enums\ServiceId;
 use Appwrite\Enums\SmtpEncryption;
 use Appwrite\InputFile;
 use Appwrite\Services\Functions;
@@ -63,6 +64,7 @@ use Utopia\Migration\Resources\Messaging\Topic;
 use Utopia\Migration\Resources\Settings\Labels;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
 use Utopia\Migration\Resources\Settings\Protocols;
+use Utopia\Migration\Resources\Settings\Services as ServicesResource;
 use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
@@ -294,6 +296,7 @@ class Appwrite extends Destination
             Resource::TYPE_WEBHOOK,
             Resource::TYPE_PROTOCOLS,
             Resource::TYPE_LABELS,
+            Resource::TYPE_SERVICES,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -3130,6 +3133,10 @@ class Appwrite extends Destination
                 /** @var Labels $resource */
                 $this->createLabels($resource);
                 break;
+            case Resource::TYPE_SERVICES:
+                /** @var ServicesResource $resource */
+                $this->createServices($resource);
+                break;
         }
 
         if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
@@ -3205,6 +3212,40 @@ class Appwrite extends Destination
     protected function createLabels(Labels $resource): bool
     {
         $this->project->updateLabels($resource->getLabels());
+
+        return true;
+    }
+
+    /**
+     * Flip each service flag on the destination via the SDK. 17 single-field
+     * updates rather than one bulk write — the SDK only exposes per-service
+     * setters, matching upstream's per-flag controller.
+     */
+    protected function createServices(ServicesResource $resource): bool
+    {
+        $flags = [
+            [ServiceId::ACCOUNT(),    $resource->getAccount()],
+            [ServiceId::AVATARS(),    $resource->getAvatars()],
+            [ServiceId::DATABASES(),  $resource->getDatabases()],
+            [ServiceId::TABLESDB(),   $resource->getTablesdb()],
+            [ServiceId::LOCALE(),     $resource->getLocale()],
+            [ServiceId::HEALTH(),     $resource->getHealth()],
+            [ServiceId::PROJECT(),    $resource->getProject()],
+            [ServiceId::STORAGE(),    $resource->getStorage()],
+            [ServiceId::TEAMS(),      $resource->getTeams()],
+            [ServiceId::USERS(),      $resource->getUsers()],
+            [ServiceId::VCS(),        $resource->getVcs()],
+            [ServiceId::SITES(),      $resource->getSites()],
+            [ServiceId::FUNCTIONS(),  $resource->getFunctions()],
+            [ServiceId::PROXY(),      $resource->getProxy()],
+            [ServiceId::GRAPHQL(),    $resource->getGraphql()],
+            [ServiceId::MIGRATIONS(), $resource->getMigrations()],
+            [ServiceId::MESSAGING(),  $resource->getMessaging()],
+        ];
+
+        foreach ($flags as [$service, $enabled]) {
+            $this->project->updateService($service, $enabled);
+        }
 
         return true;
     }

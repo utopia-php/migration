@@ -100,6 +100,7 @@ class Transfer
         Resource::TYPE_WEBHOOK,
         Resource::TYPE_PROTOCOLS,
         Resource::TYPE_LABELS,
+        Resource::TYPE_SERVICES,
     ];
 
     public const GROUP_BACKUPS_RESOURCES = [
@@ -146,6 +147,7 @@ class Transfer
         Resource::TYPE_WEBHOOK,
         Resource::TYPE_PROTOCOLS,
         Resource::TYPE_LABELS,
+        Resource::TYPE_SERVICES,
 
         // legacy
         Resource::TYPE_DOCUMENT,

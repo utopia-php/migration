@@ -66,6 +66,7 @@ use Utopia\Migration\Resources\Messaging\Topic;
 use Utopia\Migration\Resources\Settings\Labels;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
 use Utopia\Migration\Resources\Settings\Protocols;
+use Utopia\Migration\Resources\Settings\Services as ServicesResource;
 use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
@@ -228,6 +229,7 @@ class Appwrite extends Source
             Resource::TYPE_WEBHOOK,
             Resource::TYPE_PROTOCOLS,
             Resource::TYPE_LABELS,
+            Resource::TYPE_SERVICES,
         ];
     }
 
@@ -1548,6 +1550,11 @@ class Appwrite extends Source
             // Singleton — one labels array per project.
             $report[Resource::TYPE_LABELS] = 1;
         }
+
+        if (\in_array(Resource::TYPE_SERVICES, $resources)) {
+            // Singleton — one services config per project.
+            $report[Resource::TYPE_SERVICES] = 1;
+        }
     }
 
     /**
@@ -1611,6 +1618,59 @@ class Appwrite extends Source
                 previous: $e
             ));
         }
+
+        try {
+            if (\in_array(Resource::TYPE_SERVICES, $resources)) {
+                $this->exportServices();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_SERVICES,
+                Transfer::GROUP_SETTINGS,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+    }
+
+    /**
+     * Read service enable/disable flags from /v1/project. The response exposes
+     * them as `serviceStatusFor<Name>` keys; we collapse them into one Services
+     * resource carrying all 17 toggles.
+     */
+    private function exportServices(): void
+    {
+        $response = $this->call('GET', '/v1/project');
+
+        if (!\is_array($response)) {
+            return;
+        }
+
+        $services = new ServicesResource(
+            $this->projectId,
+            (bool) ($response['serviceStatusForAccount'] ?? true),
+            (bool) ($response['serviceStatusForAvatars'] ?? true),
+            (bool) ($response['serviceStatusForDatabases'] ?? true),
+            (bool) ($response['serviceStatusForTablesdb'] ?? true),
+            (bool) ($response['serviceStatusForLocale'] ?? true),
+            (bool) ($response['serviceStatusForHealth'] ?? true),
+            (bool) ($response['serviceStatusForProject'] ?? true),
+            (bool) ($response['serviceStatusForStorage'] ?? true),
+            (bool) ($response['serviceStatusForTeams'] ?? true),
+            (bool) ($response['serviceStatusForUsers'] ?? true),
+            (bool) ($response['serviceStatusForVcs'] ?? true),
+            (bool) ($response['serviceStatusForSites'] ?? true),
+            (bool) ($response['serviceStatusForFunctions'] ?? true),
+            (bool) ($response['serviceStatusForProxy'] ?? true),
+            (bool) ($response['serviceStatusForGraphql'] ?? true),
+            (bool) ($response['serviceStatusForMigrations'] ?? true),
+            (bool) ($response['serviceStatusForMessaging'] ?? true),
+            createdAt: $response['$createdAt'] ?? '',
+            updatedAt: $response['$updatedAt'] ?? '',
+        );
+
+        $this->callback([$services]);
     }
 
     /**
