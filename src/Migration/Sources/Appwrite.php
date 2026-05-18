@@ -63,6 +63,7 @@ use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
 use Utopia\Migration\Resources\Messaging\Topic;
+use Utopia\Migration\Resources\Settings\Labels;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
 use Utopia\Migration\Resources\Settings\Protocols;
 use Utopia\Migration\Resources\Settings\Webhook;
@@ -226,6 +227,7 @@ class Appwrite extends Source
             Resource::TYPE_PROJECT_VARIABLE,
             Resource::TYPE_WEBHOOK,
             Resource::TYPE_PROTOCOLS,
+            Resource::TYPE_LABELS,
         ];
     }
 
@@ -1541,6 +1543,11 @@ class Appwrite extends Source
             // Singleton — there is exactly one protocols config per project.
             $report[Resource::TYPE_PROTOCOLS] = 1;
         }
+
+        if (\in_array(Resource::TYPE_LABELS, $resources)) {
+            // Singleton — one labels array per project.
+            $report[Resource::TYPE_LABELS] = 1;
+        }
     }
 
     /**
@@ -1590,6 +1597,41 @@ class Appwrite extends Source
                 previous: $e
             ));
         }
+
+        try {
+            if (\in_array(Resource::TYPE_LABELS, $resources)) {
+                $this->exportLabels();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_LABELS,
+                Transfer::GROUP_SETTINGS,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+    }
+
+    /**
+     * Read project-level labels from /v1/project. No SDK Project.get() exposed.
+     */
+    private function exportLabels(): void
+    {
+        $response = $this->call('GET', '/v1/project');
+
+        if (!\is_array($response)) {
+            return;
+        }
+
+        $labels = new Labels(
+            $this->projectId,
+            (array) ($response['labels'] ?? []),
+            createdAt: $response['$createdAt'] ?? '',
+            updatedAt: $response['$updatedAt'] ?? '',
+        );
+
+        $this->callback([$labels]);
     }
 
     /**

@@ -60,6 +60,7 @@ use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
 use Utopia\Migration\Resources\Messaging\Topic;
+use Utopia\Migration\Resources\Settings\Labels;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
 use Utopia\Migration\Resources\Settings\Protocols;
 use Utopia\Migration\Resources\Settings\Webhook;
@@ -292,6 +293,7 @@ class Appwrite extends Destination
             Resource::TYPE_PROJECT_VARIABLE,
             Resource::TYPE_WEBHOOK,
             Resource::TYPE_PROTOCOLS,
+            Resource::TYPE_LABELS,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -3124,6 +3126,10 @@ class Appwrite extends Destination
                 /** @var Protocols $resource */
                 $this->createProtocols($resource);
                 break;
+            case Resource::TYPE_LABELS:
+                /** @var Labels $resource */
+                $this->createLabels($resource);
+                break;
         }
 
         if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
@@ -3188,6 +3194,17 @@ class Appwrite extends Destination
         foreach ($flags as [$protocol, $enabled]) {
             $this->project->updateProtocol($protocol, $enabled);
         }
+
+        return true;
+    }
+
+    /**
+     * Overwrite destination labels with the source array. Project::updateLabels
+     * is a wholesale replace, so the source's array is authoritative.
+     */
+    protected function createLabels(Labels $resource): bool
+    {
+        $this->project->updateLabels($resource->getLabels());
 
         return true;
     }
