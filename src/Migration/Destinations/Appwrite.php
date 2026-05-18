@@ -10,6 +10,7 @@ use Appwrite\Enums\BuildRuntime;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
+use Appwrite\Enums\ProtocolId;
 use Appwrite\Enums\Runtime;
 use Appwrite\Enums\SmtpEncryption;
 use Appwrite\InputFile;
@@ -60,6 +61,7 @@ use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
 use Utopia\Migration\Resources\Messaging\Topic;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
+use Utopia\Migration\Resources\Settings\Protocols;
 use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
@@ -289,6 +291,7 @@ class Appwrite extends Destination
             // Settings
             Resource::TYPE_PROJECT_VARIABLE,
             Resource::TYPE_WEBHOOK,
+            Resource::TYPE_PROTOCOLS,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -3117,6 +3120,10 @@ class Appwrite extends Destination
                 /** @var Webhook $resource */
                 $this->createWebhook($resource);
                 break;
+            case Resource::TYPE_PROTOCOLS:
+                /** @var Protocols $resource */
+                $this->createProtocols($resource);
+                break;
         }
 
         if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
@@ -3160,6 +3167,26 @@ class Appwrite extends Destination
         } catch (DuplicateException) {
             $resource->setStatus(Resource::STATUS_SKIPPED, 'Project variable already exists');
             return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Flip each protocol on the destination via the SDK. Three single-field
+     * updates rather than one bulk write — the SDK only exposes per-protocol
+     * setters, mirroring upstream's per-flag controllers.
+     */
+    protected function createProtocols(Protocols $resource): bool
+    {
+        $flags = [
+            [ProtocolId::REST(),      $resource->getRest()],
+            [ProtocolId::GRAPHQL(),   $resource->getGraphql()],
+            [ProtocolId::WEBSOCKET(), $resource->getWebsocket()],
+        ];
+
+        foreach ($flags as [$protocol, $enabled]) {
+            $this->project->updateProtocol($protocol, $enabled);
         }
 
         return true;

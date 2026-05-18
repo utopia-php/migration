@@ -64,6 +64,7 @@ use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
 use Utopia\Migration\Resources\Messaging\Topic;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
+use Utopia\Migration\Resources\Settings\Protocols;
 use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
@@ -224,6 +225,7 @@ class Appwrite extends Source
             // Settings
             Resource::TYPE_PROJECT_VARIABLE,
             Resource::TYPE_WEBHOOK,
+            Resource::TYPE_PROTOCOLS,
         ];
     }
 
@@ -1534,6 +1536,11 @@ class Appwrite extends Source
                 $report[Resource::TYPE_WEBHOOK] = 0;
             }
         }
+
+        if (\in_array(Resource::TYPE_PROTOCOLS, $resources)) {
+            // Singleton — there is exactly one protocols config per project.
+            $report[Resource::TYPE_PROTOCOLS] = 1;
+        }
     }
 
     /**
@@ -1569,6 +1576,44 @@ class Appwrite extends Source
                 ));
             }
         }
+
+        try {
+            if (\in_array(Resource::TYPE_PROTOCOLS, $resources)) {
+                $this->exportProtocols();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_PROTOCOLS,
+                Transfer::GROUP_SETTINGS,
+                message: $e->getMessage(),
+                code: $e->getCode(),
+                previous: $e
+            ));
+        }
+    }
+
+    /**
+     * Read protocol flags from the source project document.
+     * No SDK Project.get() exposed; using raw HTTP against /v1/project.
+     */
+    private function exportProtocols(): void
+    {
+        $response = $this->call('GET', '/v1/project');
+
+        if (!\is_array($response)) {
+            return;
+        }
+
+        $protocols = new Protocols(
+            $this->projectId,
+            (bool) ($response['protocolStatusForRest'] ?? true),
+            (bool) ($response['protocolStatusForGraphql'] ?? true),
+            (bool) ($response['protocolStatusForWebsocket'] ?? true),
+            createdAt: $response['$createdAt'] ?? '',
+            updatedAt: $response['$updatedAt'] ?? '',
+        );
+
+        $this->callback([$protocols]);
     }
 
     /**

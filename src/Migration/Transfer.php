@@ -98,6 +98,7 @@ class Transfer
     public const GROUP_SETTINGS_RESOURCES = [
         Resource::TYPE_PROJECT_VARIABLE,
         Resource::TYPE_WEBHOOK,
+        Resource::TYPE_PROTOCOLS,
     ];
 
     public const GROUP_BACKUPS_RESOURCES = [
@@ -142,6 +143,7 @@ class Transfer
         // Settings
         Resource::TYPE_PROJECT_VARIABLE,
         Resource::TYPE_WEBHOOK,
+        Resource::TYPE_PROTOCOLS,
 
         // legacy
         Resource::TYPE_DOCUMENT,
