@@ -22,6 +22,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
+use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
 use Utopia\Migration\Resources\Database\Attribute;
@@ -179,6 +180,7 @@ class Appwrite extends Source
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
             Resource::TYPE_AUTH_METHODS,
+            Resource::TYPE_POLICIES,
 
             // Database
             Resource::TYPE_DATABASE,
@@ -371,6 +373,11 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_AUTH_METHODS, $resources)) {
             // Singleton — there is exactly one auth-methods config per project.
             $report[Resource::TYPE_AUTH_METHODS] = 1;
+        }
+
+        if (\in_array(Resource::TYPE_POLICIES, $resources)) {
+            // Singleton — one policies config per project.
+            $report[Resource::TYPE_POLICIES] = 1;
         }
     }
 
@@ -626,6 +633,55 @@ class Appwrite extends Source
                 previous: $e
             ));
         }
+
+        try {
+            if (\in_array(Resource::TYPE_POLICIES, $resources)) {
+                $this->exportPolicies();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_POLICIES,
+                Transfer::GROUP_AUTH,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
+        }
+    }
+
+    /**
+     * Read project security policies from /v1/project. 9 sub-policies collapse
+     * into a single Policies resource carrying 13 fields (MembershipPrivacy
+     * alone has 5 sub-flags).
+     */
+    private function exportPolicies(): void
+    {
+        $response = $this->call('GET', '/v1/project');
+
+        if (!\is_array($response)) {
+            return;
+        }
+
+        $policies = new Policies(
+            $this->projectId,
+            (int) ($response['authPasswordHistory'] ?? 0),
+            (int) ($response['authDuration'] ?? 31536000),
+            (int) ($response['authSessionsLimit'] ?? 100),
+            (int) ($response['authLimit'] ?? 0),
+            (bool) ($response['authPasswordDictionary'] ?? false),
+            (bool) ($response['authPersonalDataCheck'] ?? false),
+            (bool) ($response['authSessionAlerts'] ?? false),
+            (bool) ($response['authInvalidateSessions'] ?? false),
+            (bool) ($response['authMembershipsUserId'] ?? true),
+            (bool) ($response['authMembershipsUserEmail'] ?? true),
+            (bool) ($response['authMembershipsUserName'] ?? true),
+            (bool) ($response['authMembershipsMfa'] ?? true),
+            (bool) ($response['authMembershipsUserPhone'] ?? true),
+            createdAt: $response['$createdAt'] ?? '',
+            updatedAt: $response['$updatedAt'] ?? '',
+        );
+
+        $this->callback([$policies]);
     }
 
     /**

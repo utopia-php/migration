@@ -44,6 +44,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
+use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
 use Utopia\Migration\Resources\Database\Attribute;
@@ -252,6 +253,7 @@ class Appwrite extends Destination
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
             Resource::TYPE_AUTH_METHODS,
+            Resource::TYPE_POLICIES,
 
             // Database
             Resource::TYPE_DATABASE,
@@ -2178,6 +2180,10 @@ class Appwrite extends Destination
                 /** @var AuthMethods $resource */
                 $this->createAuthMethods($resource);
                 break;
+            case Resource::TYPE_POLICIES:
+                /** @var Policies $resource */
+                $this->createPolicies($resource);
+                break;
         }
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
@@ -3358,6 +3364,33 @@ class Appwrite extends Destination
         foreach ($flags as [$method, $enabled]) {
             $this->project->updateAuthMethod($method, $enabled);
         }
+
+        return true;
+    }
+
+    /**
+     * Replay each project security policy on the destination via the SDK. Nine
+     * single-policy updates rather than one bulk write — each policy endpoint
+     * runs its own validation (history bounds, session-duration window, etc.),
+     * and membership-privacy bundles its five sub-flags into one call.
+     */
+    protected function createPolicies(Policies $resource): bool
+    {
+        $this->project->updatePasswordHistoryPolicy($resource->getPasswordHistory());
+        $this->project->updateSessionDurationPolicy($resource->getSessionDuration());
+        $this->project->updateSessionLimitPolicy($resource->getSessionsLimit());
+        $this->project->updateUserLimitPolicy($resource->getUserLimit());
+        $this->project->updatePasswordDictionaryPolicy($resource->getPasswordDictionary());
+        $this->project->updatePasswordPersonalDataPolicy($resource->getPersonalDataCheck());
+        $this->project->updateSessionAlertPolicy($resource->getSessionAlerts());
+        $this->project->updateSessionInvalidationPolicy($resource->getSessionInvalidation());
+        $this->project->updateMembershipPrivacyPolicy(
+            userId: $resource->getMembershipsUserId(),
+            userEmail: $resource->getMembershipsUserEmail(),
+            userPhone: $resource->getMembershipsUserPhone(),
+            userName: $resource->getMembershipsUserName(),
+            userMFA: $resource->getMembershipsUserMfa(),
+        );
 
         return true;
     }
