@@ -3373,13 +3373,20 @@ class Appwrite extends Destination
      * single-policy updates rather than one bulk write — each policy endpoint
      * runs its own validation (history bounds, session-duration window, etc.),
      * and membership-privacy bundles its five sub-flags into one call.
+     *
+     * passwordHistory / sessionsLimit / userLimit treat 0 as "disabled" in the
+     * source's project document, but the server validators reject 0 — they
+     * accept a positive int or null. Coerce 0 → null at the call site so the
+     * disabled state round-trips correctly.
      */
     protected function createPolicies(Policies $resource): bool
     {
-        $this->project->updatePasswordHistoryPolicy($resource->getPasswordHistory());
+        $nullIfZero = fn (int $v): ?int => $v > 0 ? $v : null;
+
+        $this->project->updatePasswordHistoryPolicy($nullIfZero($resource->getPasswordHistory()));
         $this->project->updateSessionDurationPolicy($resource->getSessionDuration());
-        $this->project->updateSessionLimitPolicy($resource->getSessionsLimit());
-        $this->project->updateUserLimitPolicy($resource->getUserLimit());
+        $this->project->updateSessionLimitPolicy($nullIfZero($resource->getSessionsLimit()));
+        $this->project->updateUserLimitPolicy($nullIfZero($resource->getUserLimit()));
         $this->project->updatePasswordDictionaryPolicy($resource->getPasswordDictionary());
         $this->project->updatePasswordPersonalDataPolicy($resource->getPersonalDataCheck());
         $this->project->updateSessionAlertPolicy($resource->getSessionAlerts());
