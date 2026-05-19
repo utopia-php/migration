@@ -3411,11 +3411,14 @@ class Appwrite extends Destination
         $auths['membershipsMfa']       = $resource->getMembershipsUserMfa();
         $auths['membershipsUserPhone'] = $resource->getMembershipsUserPhone();
 
-        $this->dbForPlatform->updateDocument(
+        // The projects document is restricted to team-owner role on update;
+        // we're running in the migration worker which has no team context, so
+        // skip authorization the same way the upstream policy controllers do.
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
             'projects',
             $this->projectId,
             new UtopiaDocument(['auths' => $auths]),
-        );
+        ));
 
         $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
