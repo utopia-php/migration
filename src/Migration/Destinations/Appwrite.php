@@ -3369,35 +3369,55 @@ class Appwrite extends Destination
     }
 
     /**
-     * Replay each project security policy on the destination via the SDK. Nine
-     * single-policy updates rather than one bulk write — each policy endpoint
-     * runs its own validation (history bounds, session-duration window, etc.),
-     * and membership-privacy bundles its five sub-flags into one call.
+     * Write all 9 policies into the project document's `auths` attribute in a
+     * single `updateDocument` call. Matches the convention used by Webhook /
+     * Platform / ProjectVariable / ApiKey destinations.
      *
-     * passwordHistory / sessionsLimit / userLimit treat 0 as "disabled" in the
-     * source's project document, but the server validators reject 0 — they
-     * accept a positive int or null. Coerce 0 → null at the call site so the
-     * disabled state round-trips correctly.
+     * Direct DB write — chosen over the SDK setter methods because:
+     *   - SDK methods (updatePasswordHistoryPolicy, etc.) return the full
+     *     Project response model. Cloud's response emits `billingLimits: {}`
+     *     which crashes typed-SDK deserialization on the required `bandwidth`
+     *     field, so every per-policy call would crash even though its write
+     *     succeeded server-side.
+     *   - PasswordHistory/UserLimit/SessionLimit endpoints reject `total: 0`
+     *     even though `0` is the storage value for "disabled" (see response
+     *     model docs). A round-trip of disabled state goes through 0 in
+     *     storage but the validator only accepts 1-N or null.
+     *
+     * Going direct to the underlying document sidesteps both. The data shape
+     * matches what the per-policy controllers themselves write into `auths`.
      */
     protected function createPolicies(Policies $resource): bool
     {
-        $nullIfZero = fn (int $v): ?int => $v > 0 ? $v : null;
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $auths = $project->getAttribute('auths', []);
 
-        $this->project->updatePasswordHistoryPolicy($nullIfZero($resource->getPasswordHistory()));
-        $this->project->updateSessionDurationPolicy($resource->getSessionDuration());
-        $this->project->updateSessionLimitPolicy($nullIfZero($resource->getSessionsLimit()));
-        $this->project->updateUserLimitPolicy($nullIfZero($resource->getUserLimit()));
-        $this->project->updatePasswordDictionaryPolicy($resource->getPasswordDictionary());
-        $this->project->updatePasswordPersonalDataPolicy($resource->getPersonalDataCheck());
-        $this->project->updateSessionAlertPolicy($resource->getSessionAlerts());
-        $this->project->updateSessionInvalidationPolicy($resource->getSessionInvalidation());
-        $this->project->updateMembershipPrivacyPolicy(
-            userId: $resource->getMembershipsUserId(),
-            userEmail: $resource->getMembershipsUserEmail(),
-            userPhone: $resource->getMembershipsUserPhone(),
-            userName: $resource->getMembershipsUserName(),
-            userMFA: $resource->getMembershipsUserMfa(),
+        // Ints. Source's 0 = disabled; the same convention applies in storage.
+        $auths['passwordHistory'] = $resource->getPasswordHistory();
+        $auths['duration']        = $resource->getSessionDuration();
+        $auths['maxSessions']     = $resource->getSessionsLimit();
+        $auths['limit']           = $resource->getUserLimit();
+
+        // Booleans.
+        $auths['passwordDictionary'] = $resource->getPasswordDictionary();
+        $auths['personalDataCheck']  = $resource->getPersonalDataCheck();
+        $auths['sessionAlerts']      = $resource->getSessionAlerts();
+        $auths['invalidateSessions'] = $resource->getSessionInvalidation();
+
+        // Membership-privacy bundle.
+        $auths['membershipsUserId']    = $resource->getMembershipsUserId();
+        $auths['membershipsUserEmail'] = $resource->getMembershipsUserEmail();
+        $auths['membershipsUserName']  = $resource->getMembershipsUserName();
+        $auths['membershipsMfa']       = $resource->getMembershipsUserMfa();
+        $auths['membershipsUserPhone'] = $resource->getMembershipsUserPhone();
+
+        $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['auths' => $auths]),
         );
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
     }
