@@ -65,6 +65,7 @@ use Utopia\Migration\Resources\Settings\Labels;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
 use Utopia\Migration\Resources\Settings\Protocols;
 use Utopia\Migration\Resources\Settings\Services as ServicesResource;
+use Utopia\Migration\Resources\Settings\SMTP;
 use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
@@ -298,6 +299,7 @@ class Appwrite extends Destination
             Resource::TYPE_PROTOCOLS,
             Resource::TYPE_LABELS,
             Resource::TYPE_SERVICES,
+            Resource::TYPE_SMTP,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -3142,6 +3144,10 @@ class Appwrite extends Destination
                 /** @var ServicesResource $resource */
                 $this->createServices($resource);
                 break;
+            case Resource::TYPE_SMTP:
+                /** @var SMTP $resource */
+                $this->createSMTP($resource);
+                break;
         }
 
         if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
@@ -3252,6 +3258,36 @@ class Appwrite extends Destination
             'projects',
             $this->projectId,
             new UtopiaDocument(['services' => $services]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
+    /**
+     * Password is intentionally not copied — source API never exposes it.
+     * Read-then-merge preserves the destination's existing password.
+     */
+    protected function createSMTP(SMTP $resource): bool
+    {
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $smtp = $project->getAttribute('smtp', []);
+
+        $smtp['enabled']      = $resource->getEnabled();
+        $smtp['senderName']   = $resource->getSenderName();
+        $smtp['senderEmail']  = $resource->getSenderEmail();
+        $smtp['replyToName']  = $resource->getReplyToName();
+        $smtp['replyToEmail'] = $resource->getReplyToEmail();
+        $smtp['host']         = $resource->getHost();
+        $smtp['port']         = $resource->getPort();
+        $smtp['username']     = $resource->getUsername();
+        $smtp['secure']       = $resource->getSecure();
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['smtp' => $smtp]),
         ));
 
         $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
