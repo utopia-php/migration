@@ -4,6 +4,7 @@ namespace Utopia\Migration\Sources;
 
 use Appwrite\AppwriteException;
 use Appwrite\Client;
+use Appwrite\Enums\ProjectPolicyId;
 use Appwrite\Query;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
@@ -650,35 +651,54 @@ class Appwrite extends Source
     }
 
     /**
-     * Read project security policies from /v1/project. 9 sub-policies collapse
-     * into a single Policies resource carrying 13 fields (MembershipPrivacy
-     * alone has 5 sub-flags).
+     * Read project security policies via the per-policy SDK endpoints.
+     *
+     * The /v1/project response doesn't expose the per-policy fields at the
+     * top level — they live inside the project document's `auths` attribute
+     * which the public Project response model omits. The dedicated per-policy
+     * SDK methods read each policy individually and return per-policy typed
+     * models (PolicyPasswordHistory, PolicySessionAlert, etc.), avoiding the
+     * Project response model entirely.
+     *
+     * 9 single-policy reads collapse into one Policies resource carrying 13
+     * fields (MembershipPrivacy alone has 5 sub-flags).
      */
     private function exportPolicies(): void
     {
-        $response = $this->call('GET', '/project');
-
-        if (!\is_array($response)) {
-            return;
-        }
+        /** @var \Appwrite\Models\PolicyPasswordHistory $passwordHistory */
+        $passwordHistory = $this->project->getPolicy(ProjectPolicyId::PASSWORDHISTORY());
+        /** @var \Appwrite\Models\PolicyPasswordDictionary $passwordDictionary */
+        $passwordDictionary = $this->project->getPolicy(ProjectPolicyId::PASSWORDDICTIONARY());
+        /** @var \Appwrite\Models\PolicyPasswordPersonalData $passwordPersonalData */
+        $passwordPersonalData = $this->project->getPolicy(ProjectPolicyId::PASSWORDPERSONALDATA());
+        /** @var \Appwrite\Models\PolicySessionAlert $sessionAlert */
+        $sessionAlert = $this->project->getPolicy(ProjectPolicyId::SESSIONALERT());
+        /** @var \Appwrite\Models\PolicySessionDuration $sessionDuration */
+        $sessionDuration = $this->project->getPolicy(ProjectPolicyId::SESSIONDURATION());
+        /** @var \Appwrite\Models\PolicySessionInvalidation $sessionInvalidation */
+        $sessionInvalidation = $this->project->getPolicy(ProjectPolicyId::SESSIONINVALIDATION());
+        /** @var \Appwrite\Models\PolicySessionLimit $sessionLimit */
+        $sessionLimit = $this->project->getPolicy(ProjectPolicyId::SESSIONLIMIT());
+        /** @var \Appwrite\Models\PolicyUserLimit $userLimit */
+        $userLimit = $this->project->getPolicy(ProjectPolicyId::USERLIMIT());
+        /** @var \Appwrite\Models\PolicyMembershipPrivacy $membershipPrivacy */
+        $membershipPrivacy = $this->project->getPolicy(ProjectPolicyId::MEMBERSHIPPRIVACY());
 
         $policies = new Policies(
             $this->projectId,
-            (int) ($response['authPasswordHistory'] ?? 0),
-            (int) ($response['authDuration'] ?? 31536000),
-            (int) ($response['authSessionsLimit'] ?? 100),
-            (int) ($response['authLimit'] ?? 0),
-            (bool) ($response['authPasswordDictionary'] ?? false),
-            (bool) ($response['authPersonalDataCheck'] ?? false),
-            (bool) ($response['authSessionAlerts'] ?? false),
-            (bool) ($response['authInvalidateSessions'] ?? false),
-            (bool) ($response['authMembershipsUserId'] ?? true),
-            (bool) ($response['authMembershipsUserEmail'] ?? true),
-            (bool) ($response['authMembershipsUserName'] ?? true),
-            (bool) ($response['authMembershipsMfa'] ?? true),
-            (bool) ($response['authMembershipsUserPhone'] ?? true),
-            createdAt: $response['$createdAt'] ?? '',
-            updatedAt: $response['$updatedAt'] ?? '',
+            $passwordHistory->total,
+            $sessionDuration->duration,
+            $sessionLimit->total,
+            $userLimit->total,
+            $passwordDictionary->enabled,
+            $passwordPersonalData->enabled,
+            $sessionAlert->enabled,
+            $sessionInvalidation->enabled,
+            $membershipPrivacy->userId,
+            $membershipPrivacy->userEmail,
+            $membershipPrivacy->userName,
+            $membershipPrivacy->userMFA,
+            $membershipPrivacy->userPhone,
         );
 
         $this->callback([$policies]);
