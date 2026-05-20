@@ -5,14 +5,14 @@ namespace Utopia\Migration\Destinations;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Enums\Adapter;
-use Appwrite\Enums\AuthMethod;
+use Appwrite\Enums\ProjectAuthMethodId;
 use Appwrite\Enums\BuildRuntime;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
-use Appwrite\Enums\ProtocolId;
+use Appwrite\Enums\ProjectProtocolId;
 use Appwrite\Enums\Runtime;
-use Appwrite\Enums\ServiceId;
+use Appwrite\Enums\ProjectServiceId;
 use Appwrite\Enums\SmtpEncryption;
 use Appwrite\InputFile;
 use Appwrite\Services\Functions;
@@ -3199,9 +3199,9 @@ class Appwrite extends Destination
     protected function createProtocols(Protocols $resource): bool
     {
         $flags = [
-            [ProtocolId::REST(),      $resource->getRest()],
-            [ProtocolId::GRAPHQL(),   $resource->getGraphql()],
-            [ProtocolId::WEBSOCKET(), $resource->getWebsocket()],
+            [ProjectProtocolId::REST(),      $resource->getRest()],
+            [ProjectProtocolId::GRAPHQL(),   $resource->getGraphql()],
+            [ProjectProtocolId::WEBSOCKET(), $resource->getWebsocket()],
         ];
 
         foreach ($flags as [$protocol, $enabled]) {
@@ -3230,23 +3230,23 @@ class Appwrite extends Destination
     protected function createServices(ServicesResource $resource): bool
     {
         $flags = [
-            [ServiceId::ACCOUNT(),    $resource->getAccount()],
-            [ServiceId::AVATARS(),    $resource->getAvatars()],
-            [ServiceId::DATABASES(),  $resource->getDatabases()],
-            [ServiceId::TABLESDB(),   $resource->getTablesdb()],
-            [ServiceId::LOCALE(),     $resource->getLocale()],
-            [ServiceId::HEALTH(),     $resource->getHealth()],
-            [ServiceId::PROJECT(),    $resource->getProject()],
-            [ServiceId::STORAGE(),    $resource->getStorage()],
-            [ServiceId::TEAMS(),      $resource->getTeams()],
-            [ServiceId::USERS(),      $resource->getUsers()],
-            [ServiceId::VCS(),        $resource->getVcs()],
-            [ServiceId::SITES(),      $resource->getSites()],
-            [ServiceId::FUNCTIONS(),  $resource->getFunctions()],
-            [ServiceId::PROXY(),      $resource->getProxy()],
-            [ServiceId::GRAPHQL(),    $resource->getGraphql()],
-            [ServiceId::MIGRATIONS(), $resource->getMigrations()],
-            [ServiceId::MESSAGING(),  $resource->getMessaging()],
+            [ProjectServiceId::ACCOUNT(),    $resource->getAccount()],
+            [ProjectServiceId::AVATARS(),    $resource->getAvatars()],
+            [ProjectServiceId::DATABASES(),  $resource->getDatabases()],
+            [ProjectServiceId::TABLESDB(),   $resource->getTablesdb()],
+            [ProjectServiceId::LOCALE(),     $resource->getLocale()],
+            [ProjectServiceId::HEALTH(),     $resource->getHealth()],
+            [ProjectServiceId::PROJECT(),    $resource->getProject()],
+            [ProjectServiceId::STORAGE(),    $resource->getStorage()],
+            [ProjectServiceId::TEAMS(),      $resource->getTeams()],
+            [ProjectServiceId::USERS(),      $resource->getUsers()],
+            [ProjectServiceId::VCS(),        $resource->getVcs()],
+            [ProjectServiceId::SITES(),      $resource->getSites()],
+            [ProjectServiceId::FUNCTIONS(),  $resource->getFunctions()],
+            [ProjectServiceId::PROXY(),      $resource->getProxy()],
+            [ProjectServiceId::GRAPHQL(),    $resource->getGraphql()],
+            [ProjectServiceId::MIGRATIONS(), $resource->getMigrations()],
+            [ProjectServiceId::MESSAGING(),  $resource->getMessaging()],
         ];
 
         foreach ($flags as [$service, $enabled]) {
@@ -3352,13 +3352,13 @@ class Appwrite extends Destination
     protected function createAuthMethods(AuthMethods $resource): bool
     {
         $flags = [
-            [AuthMethod::EMAILPASSWORD(), $resource->getEmailPassword()],
-            [AuthMethod::MAGICURL(),      $resource->getMagicURL()],
-            [AuthMethod::EMAILOTP(),      $resource->getEmailOtp()],
-            [AuthMethod::ANONYMOUS(),     $resource->getAnonymous()],
-            [AuthMethod::INVITES(),       $resource->getInvites()],
-            [AuthMethod::JWT(),           $resource->getJwt()],
-            [AuthMethod::PHONE(),         $resource->getPhone()],
+            [ProjectAuthMethodId::EMAILPASSWORD(), $resource->getEmailPassword()],
+            [ProjectAuthMethodId::MAGICURL(),      $resource->getMagicURL()],
+            [ProjectAuthMethodId::EMAILOTP(),      $resource->getEmailOtp()],
+            [ProjectAuthMethodId::ANONYMOUS(),     $resource->getAnonymous()],
+            [ProjectAuthMethodId::INVITES(),       $resource->getInvites()],
+            [ProjectAuthMethodId::JWT(),           $resource->getJwt()],
+            [ProjectAuthMethodId::PHONE(),         $resource->getPhone()],
         ];
 
         foreach ($flags as [$method, $enabled]) {
