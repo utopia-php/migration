@@ -5,7 +5,6 @@ namespace Utopia\Migration\Destinations;
 use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Enums\Adapter;
-use Appwrite\Enums\ProjectAuthMethodId;
 use Appwrite\Enums\BuildRuntime;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\Framework;
@@ -3196,62 +3195,86 @@ class Appwrite extends Destination
      * updates rather than one bulk write — the SDK only exposes per-protocol
      * setters, mirroring upstream's per-flag controllers.
      */
+    /**
+     * Write protocol flags directly to the project document's `apis` attribute.
+     * Mirrors upstream's per-protocol Update handler which does the same map merge
+     * + auth-skipped write, but bundles the 3 flags into a single document write.
+     */
     protected function createProtocols(Protocols $resource): bool
     {
-        $flags = [
-            [ProjectProtocolId::REST(),      $resource->getRest()],
-            [ProjectProtocolId::GRAPHQL(),   $resource->getGraphql()],
-            [ProjectProtocolId::WEBSOCKET(), $resource->getWebsocket()],
-        ];
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $apis = $project->getAttribute('apis', []);
 
-        foreach ($flags as [$protocol, $enabled]) {
-            $this->project->updateProtocol($protocol, $enabled);
-        }
+        $apis[(string) ProjectProtocolId::REST()]      = $resource->getRest();
+        $apis[(string) ProjectProtocolId::GRAPHQL()]   = $resource->getGraphql();
+        $apis[(string) ProjectProtocolId::WEBSOCKET()] = $resource->getWebsocket();
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['apis' => $apis]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
     }
 
     /**
-     * Overwrite destination labels with the source array. Project::updateLabels
-     * is a wholesale replace, so the source's array is authoritative.
+     * Overwrite destination labels with the source array. Mirrors upstream's
+     * Labels Update handler which dedupes via array_unique + array_values.
      */
     protected function createLabels(Labels $resource): bool
     {
-        $this->project->updateLabels($resource->getLabels());
+        $labels = \array_values(\array_unique($resource->getLabels()));
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['labels' => $labels]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
     }
 
     /**
-     * Flip each service flag on the destination via the SDK. 17 single-field
-     * updates rather than one bulk write — the SDK only exposes per-service
-     * setters, matching upstream's per-flag controller.
+     * Write all 17 service flags directly to the project document's `services`
+     * map in a single document write. Mirrors upstream's per-service Update
+     * handler which also reads/merges the `services` map; this bundles the 17
+     * flags into one update instead of 17 round-trips.
      */
     protected function createServices(ServicesResource $resource): bool
     {
-        $flags = [
-            [ProjectServiceId::ACCOUNT(),    $resource->getAccount()],
-            [ProjectServiceId::AVATARS(),    $resource->getAvatars()],
-            [ProjectServiceId::DATABASES(),  $resource->getDatabases()],
-            [ProjectServiceId::TABLESDB(),   $resource->getTablesdb()],
-            [ProjectServiceId::LOCALE(),     $resource->getLocale()],
-            [ProjectServiceId::HEALTH(),     $resource->getHealth()],
-            [ProjectServiceId::PROJECT(),    $resource->getProject()],
-            [ProjectServiceId::STORAGE(),    $resource->getStorage()],
-            [ProjectServiceId::TEAMS(),      $resource->getTeams()],
-            [ProjectServiceId::USERS(),      $resource->getUsers()],
-            [ProjectServiceId::VCS(),        $resource->getVcs()],
-            [ProjectServiceId::SITES(),      $resource->getSites()],
-            [ProjectServiceId::FUNCTIONS(),  $resource->getFunctions()],
-            [ProjectServiceId::PROXY(),      $resource->getProxy()],
-            [ProjectServiceId::GRAPHQL(),    $resource->getGraphql()],
-            [ProjectServiceId::MIGRATIONS(), $resource->getMigrations()],
-            [ProjectServiceId::MESSAGING(),  $resource->getMessaging()],
-        ];
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $services = $project->getAttribute('services', []);
 
-        foreach ($flags as [$service, $enabled]) {
-            $this->project->updateService($service, $enabled);
-        }
+        $services[(string) ProjectServiceId::ACCOUNT()]    = $resource->getAccount();
+        $services[(string) ProjectServiceId::AVATARS()]    = $resource->getAvatars();
+        $services[(string) ProjectServiceId::DATABASES()]  = $resource->getDatabases();
+        $services[(string) ProjectServiceId::TABLESDB()]   = $resource->getTablesdb();
+        $services[(string) ProjectServiceId::LOCALE()]     = $resource->getLocale();
+        $services[(string) ProjectServiceId::HEALTH()]     = $resource->getHealth();
+        $services[(string) ProjectServiceId::PROJECT()]    = $resource->getProject();
+        $services[(string) ProjectServiceId::STORAGE()]    = $resource->getStorage();
+        $services[(string) ProjectServiceId::TEAMS()]      = $resource->getTeams();
+        $services[(string) ProjectServiceId::USERS()]      = $resource->getUsers();
+        $services[(string) ProjectServiceId::VCS()]        = $resource->getVcs();
+        $services[(string) ProjectServiceId::SITES()]      = $resource->getSites();
+        $services[(string) ProjectServiceId::FUNCTIONS()]  = $resource->getFunctions();
+        $services[(string) ProjectServiceId::PROXY()]      = $resource->getProxy();
+        $services[(string) ProjectServiceId::GRAPHQL()]    = $resource->getGraphql();
+        $services[(string) ProjectServiceId::MIGRATIONS()] = $resource->getMigrations();
+        $services[(string) ProjectServiceId::MESSAGING()]  = $resource->getMessaging();
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['services' => $services]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
     }
@@ -3344,26 +3367,40 @@ class Appwrite extends Destination
     }
 
     /**
-     * Flip each auth-method flag on the destination project via the SDK. Seven
-     * single-field updates rather than one bulk write — the SDK only exposes
-     * per-flag setters, and the destination needs to honor any server-side
-     * validation per flag (e.g. provider-specific guards).
+     * Write all 7 auth-method flags directly to the project document's `auths`
+     * map in a single document write. Mirrors upstream's per-method Update
+     * handler which also reads/merges the `auths` map; this bundles the 7
+     * flags into one update instead of 7 round-trips.
+     *
+     * The auths-map storage keys are NOT the same as the SDK enum values:
+     * `email-password` → `emailPassword`, `magic-url` → `usersAuthMagicURL`,
+     * `email-otp` → `emailOtp`, `jwt` → `JWT`. The mapping mirrors
+     * `app/config/auth.php` on the server.
+     *
+     * The same `auths` map also stores policy values (see createPolicies). The
+     * read-then-merge pattern preserves whatever Policies wrote earlier in the
+     * migration (and vice versa).
      */
     protected function createAuthMethods(AuthMethods $resource): bool
     {
-        $flags = [
-            [ProjectAuthMethodId::EMAILPASSWORD(), $resource->getEmailPassword()],
-            [ProjectAuthMethodId::MAGICURL(),      $resource->getMagicURL()],
-            [ProjectAuthMethodId::EMAILOTP(),      $resource->getEmailOtp()],
-            [ProjectAuthMethodId::ANONYMOUS(),     $resource->getAnonymous()],
-            [ProjectAuthMethodId::INVITES(),       $resource->getInvites()],
-            [ProjectAuthMethodId::JWT(),           $resource->getJwt()],
-            [ProjectAuthMethodId::PHONE(),         $resource->getPhone()],
-        ];
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $auths = $project->getAttribute('auths', []);
 
-        foreach ($flags as [$method, $enabled]) {
-            $this->project->updateAuthMethod($method, $enabled);
-        }
+        $auths['emailPassword']     = $resource->getEmailPassword();
+        $auths['usersAuthMagicURL'] = $resource->getMagicURL();
+        $auths['emailOtp']          = $resource->getEmailOtp();
+        $auths['anonymous']         = $resource->getAnonymous();
+        $auths['invites']           = $resource->getInvites();
+        $auths['JWT']               = $resource->getJwt();
+        $auths['phone']             = $resource->getPhone();
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['auths' => $auths]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
     }
