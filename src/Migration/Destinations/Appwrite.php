@@ -3190,16 +3190,6 @@ class Appwrite extends Destination
         return true;
     }
 
-    /**
-     * Flip each protocol on the destination via the SDK. Three single-field
-     * updates rather than one bulk write — the SDK only exposes per-protocol
-     * setters, mirroring upstream's per-flag controllers.
-     */
-    /**
-     * Write protocol flags directly to the project document's `apis` attribute.
-     * Mirrors upstream's per-protocol Update handler which does the same map merge
-     * + auth-skipped write, but bundles the 3 flags into a single document write.
-     */
     protected function createProtocols(Protocols $resource): bool
     {
         $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
@@ -3220,10 +3210,6 @@ class Appwrite extends Destination
         return true;
     }
 
-    /**
-     * Overwrite destination labels with the source array. Mirrors upstream's
-     * Labels Update handler which dedupes via array_unique + array_values.
-     */
     protected function createLabels(Labels $resource): bool
     {
         $labels = \array_values(\array_unique($resource->getLabels()));
@@ -3239,12 +3225,6 @@ class Appwrite extends Destination
         return true;
     }
 
-    /**
-     * Write all 17 service flags directly to the project document's `services`
-     * map in a single document write. Mirrors upstream's per-service Update
-     * handler which also reads/merges the `services` map; this bundles the 17
-     * flags into one update instead of 17 round-trips.
-     */
     protected function createServices(ServicesResource $resource): bool
     {
         $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
@@ -3367,19 +3347,8 @@ class Appwrite extends Destination
     }
 
     /**
-     * Write all 7 auth-method flags directly to the project document's `auths`
-     * map in a single document write. Mirrors upstream's per-method Update
-     * handler which also reads/merges the `auths` map; this bundles the 7
-     * flags into one update instead of 7 round-trips.
-     *
-     * The auths-map storage keys are NOT the same as the SDK enum values:
-     * `email-password` → `emailPassword`, `magic-url` → `usersAuthMagicURL`,
-     * `email-otp` → `emailOtp`, `jwt` → `JWT`. The mapping mirrors
-     * `app/config/auth.php` on the server.
-     *
-     * The same `auths` map also stores policy values (see createPolicies). The
-     * read-then-merge pattern preserves whatever Policies wrote earlier in the
-     * migration (and vice versa).
+     * Storage keys mirror app/config/auth.php, not the SDK enum values.
+     * Shares the `auths` map with createPolicies — read-then-merge.
      */
     protected function createAuthMethods(AuthMethods $resource): bool
     {
@@ -3406,51 +3375,31 @@ class Appwrite extends Destination
     }
 
     /**
-     * Write all 9 policies into the project document's `auths` attribute in a
-     * single `updateDocument` call. Matches the convention used by Webhook /
-     * Platform / ProjectVariable / ApiKey destinations.
-     *
-     * Direct DB write — chosen over the SDK setter methods because:
-     *   - SDK methods (updatePasswordHistoryPolicy, etc.) return the full
-     *     Project response model. Cloud's response emits `billingLimits: {}`
-     *     which crashes typed-SDK deserialization on the required `bandwidth`
-     *     field, so every per-policy call would crash even though its write
-     *     succeeded server-side.
-     *   - PasswordHistory/UserLimit/SessionLimit endpoints reject `total: 0`
-     *     even though `0` is the storage value for "disabled" (see response
-     *     model docs). A round-trip of disabled state goes through 0 in
-     *     storage but the validator only accepts 1-N or null.
-     *
-     * Going direct to the underlying document sidesteps both. The data shape
-     * matches what the per-policy controllers themselves write into `auths`.
+     * Direct DB write — SDK policy setters reject `total: 0` but `0` is the
+     * storage value for "disabled". Shares the `auths` map with
+     * createAuthMethods — read-then-merge.
      */
     protected function createPolicies(Policies $resource): bool
     {
         $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
         $auths = $project->getAttribute('auths', []);
 
-        // Ints. Source's 0 = disabled; the same convention applies in storage.
         $auths['passwordHistory'] = $resource->getPasswordHistory();
         $auths['duration']        = $resource->getSessionDuration();
         $auths['maxSessions']     = $resource->getSessionsLimit();
         $auths['limit']           = $resource->getUserLimit();
 
-        // Booleans.
         $auths['passwordDictionary'] = $resource->getPasswordDictionary();
         $auths['personalDataCheck']  = $resource->getPersonalDataCheck();
         $auths['sessionAlerts']      = $resource->getSessionAlerts();
         $auths['invalidateSessions'] = $resource->getSessionInvalidation();
 
-        // Membership-privacy bundle.
         $auths['membershipsUserId']    = $resource->getMembershipsUserId();
         $auths['membershipsUserEmail'] = $resource->getMembershipsUserEmail();
         $auths['membershipsUserName']  = $resource->getMembershipsUserName();
         $auths['membershipsMfa']       = $resource->getMembershipsUserMfa();
         $auths['membershipsUserPhone'] = $resource->getMembershipsUserPhone();
 
-        // The projects document is restricted to team-owner role on update;
-        // we're running in the migration worker which has no team context, so
-        // skip authorization the same way the upstream policy controllers do.
         $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
             'projects',
             $this->projectId,

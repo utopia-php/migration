@@ -653,38 +653,16 @@ class Appwrite extends Source
         }
     }
 
-    /**
-     * Read project security policies via the per-policy SDK endpoints.
-     *
-     * The /v1/project response doesn't expose the per-policy fields at the
-     * top level — they live inside the project document's `auths` attribute
-     * which the public Project response model omits. The dedicated per-policy
-     * SDK methods read each policy individually and return per-policy typed
-     * models (PolicyPasswordHistory, PolicySessionAlert, etc.), avoiding the
-     * Project response model entirely.
-     *
-     * 9 single-policy reads collapse into one Policies resource carrying 13
-     * fields (MembershipPrivacy alone has 5 sub-flags).
-     */
     private function exportPolicies(): void
     {
-        /** @var \Appwrite\Models\PolicyPasswordHistory $passwordHistory */
         $passwordHistory = $this->project->getPolicy(ProjectPolicyId::PASSWORDHISTORY());
-        /** @var \Appwrite\Models\PolicyPasswordDictionary $passwordDictionary */
         $passwordDictionary = $this->project->getPolicy(ProjectPolicyId::PASSWORDDICTIONARY());
-        /** @var \Appwrite\Models\PolicyPasswordPersonalData $passwordPersonalData */
         $passwordPersonalData = $this->project->getPolicy(ProjectPolicyId::PASSWORDPERSONALDATA());
-        /** @var \Appwrite\Models\PolicySessionAlert $sessionAlert */
         $sessionAlert = $this->project->getPolicy(ProjectPolicyId::SESSIONALERT());
-        /** @var \Appwrite\Models\PolicySessionDuration $sessionDuration */
         $sessionDuration = $this->project->getPolicy(ProjectPolicyId::SESSIONDURATION());
-        /** @var \Appwrite\Models\PolicySessionInvalidation $sessionInvalidation */
         $sessionInvalidation = $this->project->getPolicy(ProjectPolicyId::SESSIONINVALIDATION());
-        /** @var \Appwrite\Models\PolicySessionLimit $sessionLimit */
         $sessionLimit = $this->project->getPolicy(ProjectPolicyId::SESSIONLIMIT());
-        /** @var \Appwrite\Models\PolicyUserLimit $userLimit */
         $userLimit = $this->project->getPolicy(ProjectPolicyId::USERLIMIT());
-        /** @var \Appwrite\Models\PolicyMembershipPrivacy $membershipPrivacy */
         $membershipPrivacy = $this->project->getPolicy(ProjectPolicyId::MEMBERSHIPPRIVACY());
 
         $policies = new Policies(
@@ -707,10 +685,6 @@ class Appwrite extends Source
         $this->callback([$policies]);
     }
 
-    /**
-     * Read auth-method flags from the source project document.
-     * No SDK Project.get() exists; using raw HTTP against /v1/project.
-     */
     private function exportAuthMethods(): void
     {
         $project = $this->project->get();
@@ -1714,11 +1688,6 @@ class Appwrite extends Source
         }
     }
 
-    /**
-     * Read service enable/disable flags from /v1/project. The response exposes
-     * them as `serviceStatusFor<Name>` keys; we collapse them into one Services
-     * resource carrying all 17 toggles.
-     */
     private function exportServices(): void
     {
         $project = $this->project->get();
@@ -1754,9 +1723,6 @@ class Appwrite extends Source
         $this->callback([$services]);
     }
 
-    /**
-     * Read project-level labels via the typed Project model.
-     */
     private function exportLabels(): void
     {
         $project = $this->project->get();
@@ -1771,9 +1737,6 @@ class Appwrite extends Source
         $this->callback([$labels]);
     }
 
-    /**
-     * Read protocol flags from the typed Project model.
-     */
     private function exportProtocols(): void
     {
         $project = $this->project->get();
