@@ -4,7 +4,10 @@ namespace Utopia\Migration\Sources;
 
 use Appwrite\AppwriteException;
 use Appwrite\Client;
+use Appwrite\Enums\ProjectAuthMethodId;
 use Appwrite\Enums\ProjectPolicyId;
+use Appwrite\Enums\ProjectProtocolId;
+use Appwrite\Enums\ProjectServiceId;
 use Appwrite\Query;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
@@ -710,23 +713,24 @@ class Appwrite extends Source
      */
     private function exportAuthMethods(): void
     {
-        $response = $this->call('GET', '/project');
+        $project = $this->project->get();
 
-        if (!\is_array($response)) {
-            return;
+        $byId = [];
+        foreach ($project->authMethods as $method) {
+            $byId[(string) $method->id] = $method->enabled;
         }
 
         $authMethods = new AuthMethods(
             $this->projectId,
-            (bool) ($response['authEmailPassword'] ?? true),
-            (bool) ($response['authUsersAuthMagicURL'] ?? true),
-            (bool) ($response['authEmailOtp'] ?? true),
-            (bool) ($response['authAnonymous'] ?? true),
-            (bool) ($response['authInvites'] ?? true),
-            (bool) ($response['authJWT'] ?? true),
-            (bool) ($response['authPhone'] ?? true),
-            createdAt: $response['$createdAt'] ?? '',
-            updatedAt: $response['$updatedAt'] ?? '',
+            $byId[(string) ProjectAuthMethodId::EMAILPASSWORD()] ?? true,
+            $byId[(string) ProjectAuthMethodId::MAGICURL()] ?? true,
+            $byId[(string) ProjectAuthMethodId::EMAILOTP()] ?? true,
+            $byId[(string) ProjectAuthMethodId::ANONYMOUS()] ?? true,
+            $byId[(string) ProjectAuthMethodId::INVITES()] ?? true,
+            $byId[(string) ProjectAuthMethodId::JWT()] ?? true,
+            $byId[(string) ProjectAuthMethodId::PHONE()] ?? true,
+            createdAt: $project->createdAt,
+            updatedAt: $project->updatedAt,
         );
 
         $this->callback([$authMethods]);
@@ -1717,78 +1721,75 @@ class Appwrite extends Source
      */
     private function exportServices(): void
     {
-        $response = $this->call('GET', '/project');
+        $project = $this->project->get();
 
-        if (!\is_array($response)) {
-            return;
+        $byId = [];
+        foreach ($project->services as $service) {
+            $byId[(string) $service->id] = $service->enabled;
         }
 
         $services = new ServicesResource(
             $this->projectId,
-            (bool) ($response['serviceStatusForAccount'] ?? true),
-            (bool) ($response['serviceStatusForAvatars'] ?? true),
-            (bool) ($response['serviceStatusForDatabases'] ?? true),
-            (bool) ($response['serviceStatusForTablesdb'] ?? true),
-            (bool) ($response['serviceStatusForLocale'] ?? true),
-            (bool) ($response['serviceStatusForHealth'] ?? true),
-            (bool) ($response['serviceStatusForProject'] ?? true),
-            (bool) ($response['serviceStatusForStorage'] ?? true),
-            (bool) ($response['serviceStatusForTeams'] ?? true),
-            (bool) ($response['serviceStatusForUsers'] ?? true),
-            (bool) ($response['serviceStatusForVcs'] ?? true),
-            (bool) ($response['serviceStatusForSites'] ?? true),
-            (bool) ($response['serviceStatusForFunctions'] ?? true),
-            (bool) ($response['serviceStatusForProxy'] ?? true),
-            (bool) ($response['serviceStatusForGraphql'] ?? true),
-            (bool) ($response['serviceStatusForMigrations'] ?? true),
-            (bool) ($response['serviceStatusForMessaging'] ?? true),
-            createdAt: $response['$createdAt'] ?? '',
-            updatedAt: $response['$updatedAt'] ?? '',
+            $byId[(string) ProjectServiceId::ACCOUNT()] ?? true,
+            $byId[(string) ProjectServiceId::AVATARS()] ?? true,
+            $byId[(string) ProjectServiceId::DATABASES()] ?? true,
+            $byId[(string) ProjectServiceId::TABLESDB()] ?? true,
+            $byId[(string) ProjectServiceId::LOCALE()] ?? true,
+            $byId[(string) ProjectServiceId::HEALTH()] ?? true,
+            $byId[(string) ProjectServiceId::PROJECT()] ?? true,
+            $byId[(string) ProjectServiceId::STORAGE()] ?? true,
+            $byId[(string) ProjectServiceId::TEAMS()] ?? true,
+            $byId[(string) ProjectServiceId::USERS()] ?? true,
+            $byId[(string) ProjectServiceId::VCS()] ?? true,
+            $byId[(string) ProjectServiceId::SITES()] ?? true,
+            $byId[(string) ProjectServiceId::FUNCTIONS()] ?? true,
+            $byId[(string) ProjectServiceId::PROXY()] ?? true,
+            $byId[(string) ProjectServiceId::GRAPHQL()] ?? true,
+            $byId[(string) ProjectServiceId::MIGRATIONS()] ?? true,
+            $byId[(string) ProjectServiceId::MESSAGING()] ?? true,
+            createdAt: $project->createdAt,
+            updatedAt: $project->updatedAt,
         );
 
         $this->callback([$services]);
     }
 
     /**
-     * Read project-level labels from /v1/project. No SDK Project.get() exposed.
+     * Read project-level labels via the typed Project model.
      */
     private function exportLabels(): void
     {
-        $response = $this->call('GET', '/project');
-
-        if (!\is_array($response)) {
-            return;
-        }
+        $project = $this->project->get();
 
         $labels = new Labels(
             $this->projectId,
-            (array) ($response['labels'] ?? []),
-            createdAt: $response['$createdAt'] ?? '',
-            updatedAt: $response['$updatedAt'] ?? '',
+            $project->labels,
+            createdAt: $project->createdAt,
+            updatedAt: $project->updatedAt,
         );
 
         $this->callback([$labels]);
     }
 
     /**
-     * Read protocol flags from the source project document.
-     * No SDK Project.get() exposed; using raw HTTP against /v1/project.
+     * Read protocol flags from the typed Project model.
      */
     private function exportProtocols(): void
     {
-        $response = $this->call('GET', '/project');
+        $project = $this->project->get();
 
-        if (!\is_array($response)) {
-            return;
+        $byId = [];
+        foreach ($project->protocols as $protocol) {
+            $byId[(string) $protocol->id] = $protocol->enabled;
         }
 
         $protocols = new Protocols(
             $this->projectId,
-            (bool) ($response['protocolStatusForRest'] ?? true),
-            (bool) ($response['protocolStatusForGraphql'] ?? true),
-            (bool) ($response['protocolStatusForWebsocket'] ?? true),
-            createdAt: $response['$createdAt'] ?? '',
-            updatedAt: $response['$updatedAt'] ?? '',
+            $byId[(string) ProjectProtocolId::REST()] ?? true,
+            $byId[(string) ProjectProtocolId::GRAPHQL()] ?? true,
+            $byId[(string) ProjectProtocolId::WEBSOCKET()] ?? true,
+            createdAt: $project->createdAt,
+            updatedAt: $project->updatedAt,
         );
 
         $this->callback([$protocols]);
