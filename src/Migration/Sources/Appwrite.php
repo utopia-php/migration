@@ -1632,7 +1632,7 @@ class Appwrite extends Source
                     Resource::TYPE_PROJECT_VARIABLE,
                     Transfer::GROUP_SETTINGS,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 ));
             }
@@ -1646,7 +1646,7 @@ class Appwrite extends Source
                     Resource::TYPE_WEBHOOK,
                     Transfer::GROUP_SETTINGS,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 ));
             }
@@ -1661,7 +1661,7 @@ class Appwrite extends Source
                 Resource::TYPE_PROTOCOLS,
                 Transfer::GROUP_SETTINGS,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -1675,7 +1675,7 @@ class Appwrite extends Source
                 Resource::TYPE_LABELS,
                 Transfer::GROUP_SETTINGS,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
@@ -1689,7 +1689,7 @@ class Appwrite extends Source
                 Resource::TYPE_SERVICES,
                 Transfer::GROUP_SETTINGS,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
