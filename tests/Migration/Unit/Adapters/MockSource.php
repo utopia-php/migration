@@ -251,4 +251,15 @@ class MockSource extends Source
             $this->handleResourceTransfer(Transfer::GROUP_DOMAINS, $resource);
         }
     }
+
+    protected function exportGroupTemplates(int $batchSize, array $resources): void
+    {
+        foreach (Transfer::GROUP_TEMPLATES_RESOURCES as $resource) {
+            if (!\in_array($resource, $resources)) {
+                continue;
+            }
+
+            $this->handleResourceTransfer(Transfer::GROUP_TEMPLATES, $resource);
+        }
+    }
 }

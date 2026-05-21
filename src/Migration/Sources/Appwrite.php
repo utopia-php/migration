@@ -79,6 +79,7 @@ use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
+use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
@@ -246,6 +247,9 @@ class Appwrite extends Source
 
             // Domains
             Resource::TYPE_RULE,
+
+            // Templates
+            Resource::TYPE_EMAIL_TEMPLATE,
         ];
     }
 
@@ -288,6 +292,7 @@ class Appwrite extends Source
             $this->reportBackups($resources, $report, $resourceIds);
             $this->reportSettings($resources, $report, $resourceIds);
             $this->reportDomains($resources, $report, $resourceIds);
+            $this->reportTemplates($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1589,6 +1594,19 @@ class Appwrite extends Source
         }
     }
 
+    private function reportTemplates(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (\in_array(Resource::TYPE_EMAIL_TEMPLATE, $resources)) {
+            try {
+                // listEmailTemplates is paginated by limit/offset (not cursor); pass total: true
+                // so the report count is accurate even if the page is empty.
+                $report[Resource::TYPE_EMAIL_TEMPLATE] = $this->project->listEmailTemplates([Query::limit(1)], total: true)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_EMAIL_TEMPLATE] = 0;
+            }
+        }
+    }
+
     private function reportSettings(array $resources, array &$report, array $resourceIds = []): void
     {
         if (\in_array(Resource::TYPE_PROJECT_VARIABLE, $resources)) {
@@ -1882,6 +1900,71 @@ class Appwrite extends Source
             if (count($response->rules) < $batchSize) {
                 break;
             }
+        }
+    }
+
+    protected function exportGroupTemplates(int $batchSize, array $resources): void
+    {
+        if (\in_array(Resource::TYPE_EMAIL_TEMPLATE, $resources)) {
+            try {
+                $this->exportEmailTemplates($batchSize);
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_EMAIL_TEMPLATE,
+                    Transfer::GROUP_TEMPLATES,
+                    message: $e->getMessage(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                    previous: $e
+                ));
+            }
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportEmailTemplates(int $batchSize): void
+    {
+        // listEmailTemplates is offset-paginated (cursor not supported — the list is
+        // assembled from a project attribute map, not a collection). Walk the offset
+        // until a page comes back smaller than the requested limit.
+        $offset = 0;
+
+        while (true) {
+            $response = $this->project->listEmailTemplates([
+                Query::limit($batchSize),
+                Query::offset($offset),
+            ]);
+
+            if (\count($response->templates) === 0) {
+                break;
+            }
+
+            $templates = [];
+
+            foreach ($response->templates as $template) {
+                $id = 'email.' . $template->templateId . '-' . $template->locale;
+
+                $templates[] = new EmailTemplate(
+                    $id,
+                    $template->templateId,
+                    $template->locale,
+                    $template->subject,
+                    $template->message,
+                    $template->senderName,
+                    $template->senderEmail,
+                    $template->replyToEmail,
+                    $template->replyToName,
+                );
+            }
+
+            $this->callback($templates);
+
+            if (\count($response->templates) < $batchSize) {
+                break;
+            }
+
+            $offset += $batchSize;
         }
     }
 

@@ -32,6 +32,8 @@ class Transfer
 
     public const GROUP_DOMAINS = 'domains';
 
+    public const GROUP_TEMPLATES = 'templates';
+
     public const GROUP_AUTH_RESOURCES = [
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
@@ -107,6 +109,10 @@ class Transfer
         Resource::TYPE_SMTP,
     ];
 
+    public const GROUP_TEMPLATES_RESOURCES = [
+        Resource::TYPE_EMAIL_TEMPLATE,
+    ];
+
     public const GROUP_BACKUPS_RESOURCES = [
         Resource::TYPE_BACKUP_POLICY,
     ];
@@ -161,6 +167,9 @@ class Transfer
 
         // Domains
         Resource::TYPE_RULE,
+
+        // Templates
+        Resource::TYPE_EMAIL_TEMPLATE,
 
         // legacy
         Resource::TYPE_DOCUMENT,
@@ -448,6 +457,7 @@ class Transfer
                 self::GROUP_MESSAGING => array_merge($resources, self::GROUP_MESSAGING_RESOURCES),
                 self::GROUP_BACKUPS => array_merge($resources, self::GROUP_BACKUPS_RESOURCES),
                 self::GROUP_DOMAINS => array_merge($resources, self::GROUP_DOMAINS_RESOURCES),
+                self::GROUP_TEMPLATES => array_merge($resources, self::GROUP_TEMPLATES_RESOURCES),
                 default => throw new \Exception('No service group found'),
             };
         }

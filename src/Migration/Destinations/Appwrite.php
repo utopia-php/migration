@@ -76,6 +76,7 @@ use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
+use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Transfer;
 
 class Appwrite extends Destination
@@ -312,6 +313,9 @@ class Appwrite extends Destination
 
             // Domains
             Resource::TYPE_RULE,
+
+            // Templates
+            Resource::TYPE_EMAIL_TEMPLATE,
         ];
     }
 
@@ -472,6 +476,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
                     Transfer::GROUP_SETTINGS => $this->importSettingsResource($resource),
                     Transfer::GROUP_DOMAINS => $this->importDomainsResource($resource),
+                    Transfer::GROUP_TEMPLATES => $this->importTemplatesResource($resource),
                     default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
             } catch (\Throwable $e) {
@@ -3186,6 +3191,22 @@ class Appwrite extends Destination
         return $resource;
     }
 
+    public function importTemplatesResource(Resource $resource): Resource
+    {
+        switch ($resource->getName()) {
+            case Resource::TYPE_EMAIL_TEMPLATE:
+                /** @var EmailTemplate $resource */
+                $this->createEmailTemplate($resource);
+                break;
+        }
+
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        }
+
+        return $resource;
+    }
+
     protected function createProjectVariable(ProjectVariable $resource): bool
     {
         $existing = $this->dbForProject->findOne('variables', [
@@ -3317,6 +3338,42 @@ class Appwrite extends Destination
             'projects',
             $this->projectId,
             new UtopiaDocument(['smtp' => $smtp]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
+    /**
+     * Direct DB write rather than the SDK's updateEmailTemplate — the SDK path
+     * rejects the call unless custom SMTP is enabled on the project. Templates
+     * may legitimately migrate before SMTP (different groups, different runs),
+     * so bypass that check by writing the project.templates map directly.
+     * Read-then-merge preserves any templates already configured on the
+     * destination (other locales, untouched template types).
+     */
+    protected function createEmailTemplate(EmailTemplate $resource): bool
+    {
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $templates = $project->getAttribute('templates', []);
+
+        $key = 'email.' . $resource->getTemplateId() . '-' . $resource->getLocale();
+        $existing = $templates[$key] ?? [];
+
+        $existing['subject']      = $resource->getSubject();
+        $existing['message']      = $resource->getMessage();
+        $existing['senderName']   = $resource->getSenderName();
+        $existing['senderEmail']  = $resource->getSenderEmail();
+        $existing['replyToEmail'] = $resource->getReplyToEmail();
+        $existing['replyToName']  = $resource->getReplyToName();
+
+        $templates[$key] = $existing;
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['templates' => $templates]),
         ));
 
         $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
