@@ -17,7 +17,7 @@ class EmailTemplate extends Resource
         private readonly string $templateId,
         private readonly string $locale,
         private readonly string $subject,
-        private readonly string $message,
+        private readonly string $body,
         private readonly string $senderName = '',
         private readonly string $senderEmail = '',
         private readonly string $replyToEmail = '',
@@ -60,7 +60,7 @@ class EmailTemplate extends Resource
             'templateId' => $this->templateId,
             'locale' => $this->locale,
             'subject' => $this->subject,
-            'message' => $this->message,
+            'message' => $this->body,
             'senderName' => $this->senderName,
             'senderEmail' => $this->senderEmail,
             'replyToEmail' => $this->replyToEmail,
@@ -95,9 +95,9 @@ class EmailTemplate extends Resource
         return $this->subject;
     }
 
-    public function getMessage(): string
+    public function getBody(): string
     {
-        return $this->message;
+        return $this->body;
     }
 
     public function getSenderName(): string

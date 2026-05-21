@@ -3362,7 +3362,7 @@ class Appwrite extends Destination
         $existing = $templates[$key] ?? [];
 
         $existing['subject']      = $resource->getSubject();
-        $existing['message']      = $resource->getMessage();
+        $existing['message']      = $resource->getBody();
         $existing['senderName']   = $resource->getSenderName();
         $existing['senderEmail']  = $resource->getSenderEmail();
         $existing['replyToEmail'] = $resource->getReplyToEmail();
