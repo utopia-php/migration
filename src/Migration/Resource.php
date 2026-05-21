@@ -87,6 +87,9 @@ abstract class Resource implements \JsonSerializable
     public const TYPE_SERVICES = 'services';
     public const TYPE_SMTP = 'smtp';
 
+    // Domains
+    public const TYPE_RULE = 'rule';
+
     // Messaging
     public const TYPE_SUBSCRIBER = 'subscriber';
     public const TYPE_MESSAGE = 'message';
@@ -135,6 +138,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_LABELS,
         self::TYPE_SERVICES,
         self::TYPE_SMTP,
+        self::TYPE_RULE,
         self::TYPE_PROVIDER,
         self::TYPE_TOPIC,
         self::TYPE_SUBSCRIBER,
