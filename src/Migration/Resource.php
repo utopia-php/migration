@@ -69,6 +69,10 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_HASH = 'hash';
 
+    public const TYPE_AUTH_METHODS = 'auth-methods';
+
+    public const TYPE_POLICIES = 'policies';
+
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
 
     // Integrations
@@ -78,6 +82,9 @@ abstract class Resource implements \JsonSerializable
     // Settings
     public const TYPE_PROJECT_VARIABLE = 'project-variable';
     public const TYPE_WEBHOOK = 'webhook';
+    public const TYPE_PROTOCOLS = 'protocols';
+    public const TYPE_LABELS = 'labels';
+    public const TYPE_SERVICES = 'services';
 
     // Messaging
     public const TYPE_SUBSCRIBER = 'subscriber';
@@ -117,10 +124,15 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_ENVIRONMENT_VARIABLE,
         self::TYPE_TEAM,
         self::TYPE_MEMBERSHIP,
+        self::TYPE_AUTH_METHODS,
+        self::TYPE_POLICIES,
         self::TYPE_PLATFORM,
         self::TYPE_API_KEY,
         self::TYPE_PROJECT_VARIABLE,
         self::TYPE_WEBHOOK,
+        self::TYPE_PROTOCOLS,
+        self::TYPE_LABELS,
+        self::TYPE_SERVICES,
         self::TYPE_PROVIDER,
         self::TYPE_TOPIC,
         self::TYPE_SUBSCRIBER,

@@ -9,11 +9,14 @@ use Appwrite\Enums\BuildRuntime;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
+use Appwrite\Enums\ProjectProtocolId;
+use Appwrite\Enums\ProjectServiceId;
 use Appwrite\Enums\Runtime;
 use Appwrite\Enums\SmtpEncryption;
 use Appwrite\InputFile;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
+use Appwrite\Services\Project;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
@@ -37,8 +40,10 @@ use Utopia\Database\Validator\UID;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
+use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
+use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
 use Utopia\Migration\Resources\Database\Attribute;
@@ -56,7 +61,10 @@ use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
 use Utopia\Migration\Resources\Messaging\Topic;
+use Utopia\Migration\Resources\Settings\Labels;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
+use Utopia\Migration\Resources\Settings\Protocols;
+use Utopia\Migration\Resources\Settings\Services as ServicesResource;
 use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
@@ -91,12 +99,13 @@ class Appwrite extends Destination
     ];
 
     protected Client $client;
-    protected string $project;
+    protected string $projectId;
 
     protected string $key;
 
     private Functions $functions;
     private Messaging $messaging;
+    private Project $project;
     private Sites $sites;
     private Storage $storage;
     private Teams $teams;
@@ -170,7 +179,7 @@ class Appwrite extends Destination
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
         ?callable $getDatabaseDSN = null,
     ) {
-        $this->project = $project;
+        $this->projectId = $project;
         $this->endpoint = $endpoint;
         $this->key = $key;
 
@@ -181,6 +190,7 @@ class Appwrite extends Destination
 
         $this->functions = new Functions($this->client);
         $this->messaging = new Messaging($this->client);
+        $this->project = new Project($this->client);
         $this->sites = new Sites($this->client);
         $this->storage = new Storage($this->client);
         $this->teams = new Teams($this->client);
@@ -241,6 +251,8 @@ class Appwrite extends Destination
             Resource::TYPE_USER,
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
+            Resource::TYPE_AUTH_METHODS,
+            Resource::TYPE_POLICIES,
 
             // Database
             Resource::TYPE_DATABASE,
@@ -283,6 +295,9 @@ class Appwrite extends Destination
             // Settings
             Resource::TYPE_PROJECT_VARIABLE,
             Resource::TYPE_WEBHOOK,
+            Resource::TYPE_PROTOCOLS,
+            Resource::TYPE_LABELS,
+            Resource::TYPE_SERVICES,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -2160,6 +2175,14 @@ class Appwrite extends Destination
                     userId: $user->getId(),
                 );
                 break;
+            case Resource::TYPE_AUTH_METHODS:
+                /** @var AuthMethods $resource */
+                $this->createAuthMethods($resource);
+                break;
+            case Resource::TYPE_POLICIES:
+                /** @var Policies $resource */
+                $this->createPolicies($resource);
+                break;
         }
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
@@ -3107,6 +3130,18 @@ class Appwrite extends Destination
                 /** @var Webhook $resource */
                 $this->createWebhook($resource);
                 break;
+            case Resource::TYPE_PROTOCOLS:
+                /** @var Protocols $resource */
+                $this->createProtocols($resource);
+                break;
+            case Resource::TYPE_LABELS:
+                /** @var Labels $resource */
+                $this->createLabels($resource);
+                break;
+            case Resource::TYPE_SERVICES:
+                /** @var ServicesResource $resource */
+                $this->createServices($resource);
+                break;
         }
 
         if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
@@ -3155,6 +3190,75 @@ class Appwrite extends Destination
         return true;
     }
 
+    protected function createProtocols(Protocols $resource): bool
+    {
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $apis = $project->getAttribute('apis', []);
+
+        $apis[(string) ProjectProtocolId::REST()]      = $resource->getRest();
+        $apis[(string) ProjectProtocolId::GRAPHQL()]   = $resource->getGraphql();
+        $apis[(string) ProjectProtocolId::WEBSOCKET()] = $resource->getWebsocket();
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['apis' => $apis]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
+    protected function createLabels(Labels $resource): bool
+    {
+        $labels = \array_values(\array_unique($resource->getLabels()));
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['labels' => $labels]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
+    protected function createServices(ServicesResource $resource): bool
+    {
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $services = $project->getAttribute('services', []);
+
+        $services[(string) ProjectServiceId::ACCOUNT()]    = $resource->getAccount();
+        $services[(string) ProjectServiceId::AVATARS()]    = $resource->getAvatars();
+        $services[(string) ProjectServiceId::DATABASES()]  = $resource->getDatabases();
+        $services[(string) ProjectServiceId::TABLESDB()]   = $resource->getTablesdb();
+        $services[(string) ProjectServiceId::LOCALE()]     = $resource->getLocale();
+        $services[(string) ProjectServiceId::HEALTH()]     = $resource->getHealth();
+        $services[(string) ProjectServiceId::PROJECT()]    = $resource->getProject();
+        $services[(string) ProjectServiceId::STORAGE()]    = $resource->getStorage();
+        $services[(string) ProjectServiceId::TEAMS()]      = $resource->getTeams();
+        $services[(string) ProjectServiceId::USERS()]      = $resource->getUsers();
+        $services[(string) ProjectServiceId::VCS()]        = $resource->getVcs();
+        $services[(string) ProjectServiceId::SITES()]      = $resource->getSites();
+        $services[(string) ProjectServiceId::FUNCTIONS()]  = $resource->getFunctions();
+        $services[(string) ProjectServiceId::PROXY()]      = $resource->getProxy();
+        $services[(string) ProjectServiceId::GRAPHQL()]    = $resource->getGraphql();
+        $services[(string) ProjectServiceId::MIGRATIONS()] = $resource->getMigrations();
+        $services[(string) ProjectServiceId::MESSAGING()]  = $resource->getMessaging();
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['services' => $services]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
     protected function createWebhook(Webhook $resource): bool
     {
         $existing = $this->dbForPlatform->findOne('webhooks', [
@@ -3175,7 +3279,7 @@ class Appwrite extends Destination
                 '$id' => ID::unique(),
                 '$permissions' => $resource->getPermissions(),
                 'projectInternalId' => $this->projectInternalId,
-                'projectId' => $this->project,
+                'projectId' => $this->projectId,
                 'name' => $resource->getWebhookName(),
                 'events' => $resource->getEvents(),
                 'url' => $resource->getUrl(),
@@ -3194,7 +3298,7 @@ class Appwrite extends Destination
             return false;
         }
 
-        $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
     }
@@ -3205,7 +3309,7 @@ class Appwrite extends Destination
     protected function createPlatform(Platform $resource): bool
     {
         $existing = $this->dbForPlatform->findOne('platforms', [
-            Query::equal('projectId', [$this->project]),
+            Query::equal('projectId', [$this->projectId]),
             Query::equal('type', [$resource->getType()]),
             Query::equal('name', [$resource->getPlatformName()]),
         ]);
@@ -3223,7 +3327,7 @@ class Appwrite extends Destination
                 '$id' => ID::unique(),
                 '$permissions' => $resource->getPermissions(),
                 'projectInternalId' => $this->projectInternalId,
-                'projectId' => $this->project,
+                'projectId' => $this->projectId,
                 'type' => $resource->getType(),
                 'name' => $resource->getPlatformName(),
                 'key' => $resource->getKey(),
@@ -3237,7 +3341,72 @@ class Appwrite extends Destination
             return false;
         }
 
-        $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
+    /**
+     * Storage keys mirror app/config/auth.php, not the SDK enum values.
+     * Shares the `auths` map with createPolicies — read-then-merge.
+     */
+    protected function createAuthMethods(AuthMethods $resource): bool
+    {
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $auths = $project->getAttribute('auths', []);
+
+        $auths['emailPassword']     = $resource->getEmailPassword();
+        $auths['usersAuthMagicURL'] = $resource->getMagicURL();
+        $auths['emailOtp']          = $resource->getEmailOtp();
+        $auths['anonymous']         = $resource->getAnonymous();
+        $auths['invites']           = $resource->getInvites();
+        $auths['JWT']               = $resource->getJwt();
+        $auths['phone']             = $resource->getPhone();
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['auths' => $auths]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
+    /**
+     * Direct DB write — SDK policy setters reject `total: 0` but `0` is the
+     * storage value for "disabled". Shares the `auths` map with
+     * createAuthMethods — read-then-merge.
+     */
+    protected function createPolicies(Policies $resource): bool
+    {
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $auths = $project->getAttribute('auths', []);
+
+        $auths['passwordHistory'] = $resource->getPasswordHistory();
+        $auths['duration']        = $resource->getSessionDuration();
+        $auths['maxSessions']     = $resource->getSessionsLimit();
+        $auths['limit']           = $resource->getUserLimit();
+
+        $auths['passwordDictionary'] = $resource->getPasswordDictionary();
+        $auths['personalDataCheck']  = $resource->getPersonalDataCheck();
+        $auths['sessionAlerts']      = $resource->getSessionAlerts();
+        $auths['invalidateSessions'] = $resource->getSessionInvalidation();
+
+        $auths['membershipsUserId']    = $resource->getMembershipsUserId();
+        $auths['membershipsUserEmail'] = $resource->getMembershipsUserEmail();
+        $auths['membershipsUserName']  = $resource->getMembershipsUserName();
+        $auths['membershipsMfa']       = $resource->getMembershipsUserMfa();
+        $auths['membershipsUserPhone'] = $resource->getMembershipsUserPhone();
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['auths' => $auths]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
     }
@@ -3264,7 +3433,7 @@ class Appwrite extends Destination
                 '$id' => ID::unique(),
                 '$permissions' => $resource->getPermissions(),
                 'resourceInternalId' => $this->projectInternalId,
-                'resourceId' => $this->project,
+                'resourceId' => $this->projectId,
                 'resourceType' => 'projects',
                 'name' => $resource->getApiKeyName(),
                 'scopes' => $resource->getScopes(),
@@ -3280,7 +3449,7 @@ class Appwrite extends Destination
             return false;
         }
 
-        $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
     }

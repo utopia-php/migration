@@ -4,6 +4,10 @@ namespace Utopia\Migration\Sources;
 
 use Appwrite\AppwriteException;
 use Appwrite\Client;
+use Appwrite\Enums\ProjectAuthMethodId;
+use Appwrite\Enums\ProjectPolicyId;
+use Appwrite\Enums\ProjectProtocolId;
+use Appwrite\Enums\ProjectServiceId;
 use Appwrite\Query;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
@@ -19,8 +23,10 @@ use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
+use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
+use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
 use Utopia\Migration\Resources\Database\Attribute;
@@ -62,7 +68,10 @@ use Utopia\Migration\Resources\Messaging\Message;
 use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
 use Utopia\Migration\Resources\Messaging\Topic;
+use Utopia\Migration\Resources\Settings\Labels;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
+use Utopia\Migration\Resources\Settings\Protocols;
+use Utopia\Migration\Resources\Settings\Services as ServicesResource;
 use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
@@ -174,6 +183,8 @@ class Appwrite extends Source
             Resource::TYPE_USER,
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
+            Resource::TYPE_AUTH_METHODS,
+            Resource::TYPE_POLICIES,
 
             // Database
             Resource::TYPE_DATABASE,
@@ -222,6 +233,9 @@ class Appwrite extends Source
             // Settings
             Resource::TYPE_PROJECT_VARIABLE,
             Resource::TYPE_WEBHOOK,
+            Resource::TYPE_PROTOCOLS,
+            Resource::TYPE_LABELS,
+            Resource::TYPE_SERVICES,
         ];
     }
 
@@ -358,6 +372,16 @@ class Appwrite extends Source
                     [Query::limit(1)]
                 )->total;
             }
+        }
+
+        if (\in_array(Resource::TYPE_AUTH_METHODS, $resources)) {
+            // Singleton — there is exactly one auth-methods config per project.
+            $report[Resource::TYPE_AUTH_METHODS] = 1;
+        }
+
+        if (\in_array(Resource::TYPE_POLICIES, $resources)) {
+            // Singleton — one policies config per project.
+            $report[Resource::TYPE_POLICIES] = 1;
         }
     }
 
@@ -599,6 +623,91 @@ class Appwrite extends Source
                 previous: $e
             ));
         }
+
+        try {
+            if (\in_array(Resource::TYPE_AUTH_METHODS, $resources)) {
+                $this->exportAuthMethods();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_AUTH_METHODS,
+                Transfer::GROUP_AUTH,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_POLICIES, $resources)) {
+                $this->exportPolicies();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_POLICIES,
+                Transfer::GROUP_AUTH,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
+        }
+    }
+
+    private function exportPolicies(): void
+    {
+        $passwordHistory = $this->project->getPolicy(ProjectPolicyId::PASSWORDHISTORY());
+        $passwordDictionary = $this->project->getPolicy(ProjectPolicyId::PASSWORDDICTIONARY());
+        $passwordPersonalData = $this->project->getPolicy(ProjectPolicyId::PASSWORDPERSONALDATA());
+        $sessionAlert = $this->project->getPolicy(ProjectPolicyId::SESSIONALERT());
+        $sessionDuration = $this->project->getPolicy(ProjectPolicyId::SESSIONDURATION());
+        $sessionInvalidation = $this->project->getPolicy(ProjectPolicyId::SESSIONINVALIDATION());
+        $sessionLimit = $this->project->getPolicy(ProjectPolicyId::SESSIONLIMIT());
+        $userLimit = $this->project->getPolicy(ProjectPolicyId::USERLIMIT());
+        $membershipPrivacy = $this->project->getPolicy(ProjectPolicyId::MEMBERSHIPPRIVACY());
+
+        $policies = new Policies(
+            $this->projectId,
+            $passwordHistory->total,
+            $sessionDuration->duration,
+            $sessionLimit->total,
+            $userLimit->total,
+            $passwordDictionary->enabled,
+            $passwordPersonalData->enabled,
+            $sessionAlert->enabled,
+            $sessionInvalidation->enabled,
+            $membershipPrivacy->userId,
+            $membershipPrivacy->userEmail,
+            $membershipPrivacy->userName,
+            $membershipPrivacy->userMFA,
+            $membershipPrivacy->userPhone,
+        );
+
+        $this->callback([$policies]);
+    }
+
+    private function exportAuthMethods(): void
+    {
+        $project = $this->project->get();
+
+        $byId = [];
+        foreach ($project->authMethods as $method) {
+            $byId[(string) $method->id] = $method->enabled;
+        }
+
+        $authMethods = new AuthMethods(
+            $this->projectId,
+            $byId[(string) ProjectAuthMethodId::EMAILPASSWORD()] ?? true,
+            $byId[(string) ProjectAuthMethodId::MAGICURL()] ?? true,
+            $byId[(string) ProjectAuthMethodId::EMAILOTP()] ?? true,
+            $byId[(string) ProjectAuthMethodId::ANONYMOUS()] ?? true,
+            $byId[(string) ProjectAuthMethodId::INVITES()] ?? true,
+            $byId[(string) ProjectAuthMethodId::JWT()] ?? true,
+            $byId[(string) ProjectAuthMethodId::PHONE()] ?? true,
+            createdAt: $project->createdAt,
+            updatedAt: $project->updatedAt,
+        );
+
+        $this->callback([$authMethods]);
     }
 
     /**
@@ -1485,6 +1594,21 @@ class Appwrite extends Source
                 $report[Resource::TYPE_WEBHOOK] = 0;
             }
         }
+
+        if (\in_array(Resource::TYPE_PROTOCOLS, $resources)) {
+            // Singleton — there is exactly one protocols config per project.
+            $report[Resource::TYPE_PROTOCOLS] = 1;
+        }
+
+        if (\in_array(Resource::TYPE_LABELS, $resources)) {
+            // Singleton — one labels array per project.
+            $report[Resource::TYPE_LABELS] = 1;
+        }
+
+        if (\in_array(Resource::TYPE_SERVICES, $resources)) {
+            // Singleton — one services config per project.
+            $report[Resource::TYPE_SERVICES] = 1;
+        }
     }
 
     /**
@@ -1501,7 +1625,7 @@ class Appwrite extends Source
                     Resource::TYPE_PROJECT_VARIABLE,
                     Transfer::GROUP_SETTINGS,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 ));
             }
@@ -1515,11 +1639,123 @@ class Appwrite extends Source
                     Resource::TYPE_WEBHOOK,
                     Transfer::GROUP_SETTINGS,
                     message: $e->getMessage(),
-                    code: $e->getCode(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
                 ));
             }
         }
+
+        try {
+            if (\in_array(Resource::TYPE_PROTOCOLS, $resources)) {
+                $this->exportProtocols();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_PROTOCOLS,
+                Transfer::GROUP_SETTINGS,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_LABELS, $resources)) {
+                $this->exportLabels();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_LABELS,
+                Transfer::GROUP_SETTINGS,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_SERVICES, $resources)) {
+                $this->exportServices();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_SERVICES,
+                Transfer::GROUP_SETTINGS,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
+        }
+    }
+
+    private function exportServices(): void
+    {
+        $project = $this->project->get();
+
+        $byId = [];
+        foreach ($project->services as $service) {
+            $byId[(string) $service->id] = $service->enabled;
+        }
+
+        $services = new ServicesResource(
+            $this->projectId,
+            $byId[(string) ProjectServiceId::ACCOUNT()] ?? true,
+            $byId[(string) ProjectServiceId::AVATARS()] ?? true,
+            $byId[(string) ProjectServiceId::DATABASES()] ?? true,
+            $byId[(string) ProjectServiceId::TABLESDB()] ?? true,
+            $byId[(string) ProjectServiceId::LOCALE()] ?? true,
+            $byId[(string) ProjectServiceId::HEALTH()] ?? true,
+            $byId[(string) ProjectServiceId::PROJECT()] ?? true,
+            $byId[(string) ProjectServiceId::STORAGE()] ?? true,
+            $byId[(string) ProjectServiceId::TEAMS()] ?? true,
+            $byId[(string) ProjectServiceId::USERS()] ?? true,
+            $byId[(string) ProjectServiceId::VCS()] ?? true,
+            $byId[(string) ProjectServiceId::SITES()] ?? true,
+            $byId[(string) ProjectServiceId::FUNCTIONS()] ?? true,
+            $byId[(string) ProjectServiceId::PROXY()] ?? true,
+            $byId[(string) ProjectServiceId::GRAPHQL()] ?? true,
+            $byId[(string) ProjectServiceId::MIGRATIONS()] ?? true,
+            $byId[(string) ProjectServiceId::MESSAGING()] ?? true,
+            createdAt: $project->createdAt,
+            updatedAt: $project->updatedAt,
+        );
+
+        $this->callback([$services]);
+    }
+
+    private function exportLabels(): void
+    {
+        $project = $this->project->get();
+
+        $labels = new Labels(
+            $this->projectId,
+            $project->labels,
+            createdAt: $project->createdAt,
+            updatedAt: $project->updatedAt,
+        );
+
+        $this->callback([$labels]);
+    }
+
+    private function exportProtocols(): void
+    {
+        $project = $this->project->get();
+
+        $byId = [];
+        foreach ($project->protocols as $protocol) {
+            $byId[(string) $protocol->id] = $protocol->enabled;
+        }
+
+        $protocols = new Protocols(
+            $this->projectId,
+            $byId[(string) ProjectProtocolId::REST()] ?? true,
+            $byId[(string) ProjectProtocolId::GRAPHQL()] ?? true,
+            $byId[(string) ProjectProtocolId::WEBSOCKET()] ?? true,
+            createdAt: $project->createdAt,
+            updatedAt: $project->updatedAt,
+        );
+
+        $this->callback([$protocols]);
     }
 
     /**
