@@ -240,4 +240,15 @@ class MockSource extends Source
             $this->handleResourceTransfer(Transfer::GROUP_SETTINGS, $resource);
         }
     }
+
+    protected function exportGroupDomains(int $batchSize, array $resources): void
+    {
+        foreach (Transfer::GROUP_DOMAINS_RESOURCES as $resource) {
+            if (!\in_array($resource, $resources)) {
+                continue;
+            }
+
+            $this->handleResourceTransfer(Transfer::GROUP_DOMAINS, $resource);
+        }
+    }
 }

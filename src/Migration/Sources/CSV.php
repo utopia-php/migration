@@ -445,6 +445,11 @@ class CSV extends Source
         throw new \Exception('Not Implemented');
     }
 
+    protected function exportGroupDomains(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
     /**
      * @param callable(resource $stream, string $delimiter): void $callback
      * @return void

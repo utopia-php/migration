@@ -967,4 +967,9 @@ class NHost extends Source
     {
         throw new \Exception('Not Implemented');
     }
+
+    protected function exportGroupDomains(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
 }
