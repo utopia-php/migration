@@ -102,6 +102,7 @@ class Transfer
         Resource::TYPE_PROTOCOLS,
         Resource::TYPE_LABELS,
         Resource::TYPE_SERVICES,
+        Resource::TYPE_SMTP,
     ];
 
     public const GROUP_BACKUPS_RESOURCES = [
@@ -150,6 +151,7 @@ class Transfer
         Resource::TYPE_PROTOCOLS,
         Resource::TYPE_LABELS,
         Resource::TYPE_SERVICES,
+        Resource::TYPE_SMTP,
 
         // legacy
         Resource::TYPE_DOCUMENT,

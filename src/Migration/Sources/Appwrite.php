@@ -72,6 +72,7 @@ use Utopia\Migration\Resources\Settings\Labels;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
 use Utopia\Migration\Resources\Settings\Protocols;
 use Utopia\Migration\Resources\Settings\Services as ServicesResource;
+use Utopia\Migration\Resources\Settings\SMTP;
 use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
@@ -236,6 +237,7 @@ class Appwrite extends Source
             Resource::TYPE_PROTOCOLS,
             Resource::TYPE_LABELS,
             Resource::TYPE_SERVICES,
+            Resource::TYPE_SMTP,
         ];
     }
 
@@ -1609,6 +1611,11 @@ class Appwrite extends Source
             // Singleton — one services config per project.
             $report[Resource::TYPE_SERVICES] = 1;
         }
+
+        if (\in_array(Resource::TYPE_SMTP, $resources)) {
+            // Singleton — one SMTP config per project.
+            $report[Resource::TYPE_SMTP] = 1;
+        }
     }
 
     /**
@@ -1686,6 +1693,20 @@ class Appwrite extends Source
                 previous: $e
             ));
         }
+
+        try {
+            if (\in_array(Resource::TYPE_SMTP, $resources)) {
+                $this->exportSMTP();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_SMTP,
+                Transfer::GROUP_SETTINGS,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
+        }
     }
 
     private function exportServices(): void
@@ -1756,6 +1777,28 @@ class Appwrite extends Source
         );
 
         $this->callback([$protocols]);
+    }
+
+    private function exportSMTP(): void
+    {
+        $project = $this->project->get();
+
+        $smtp = new SMTP(
+            $this->projectId,
+            $project->smtpEnabled,
+            $project->smtpSenderName,
+            $project->smtpSenderEmail,
+            $project->smtpReplyToName,
+            $project->smtpReplyToEmail,
+            $project->smtpHost,
+            $project->smtpPort,
+            $project->smtpUsername,
+            $project->smtpSecure,
+            createdAt: $project->createdAt,
+            updatedAt: $project->updatedAt,
+        );
+
+        $this->callback([$smtp]);
     }
 
     /**
