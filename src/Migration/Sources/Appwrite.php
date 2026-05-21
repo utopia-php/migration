@@ -1703,7 +1703,7 @@ class Appwrite extends Source
                 Resource::TYPE_SMTP,
                 Transfer::GROUP_SETTINGS,
                 message: $e->getMessage(),
-                code: $e->getCode(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
