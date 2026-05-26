@@ -46,6 +46,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
+use Utopia\Migration\Resources\Auth\OAuthProviders;
 use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
@@ -260,6 +261,7 @@ class Appwrite extends Destination
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
             Resource::TYPE_AUTH_METHODS,
+            Resource::TYPE_OAUTH_PROVIDERS,
             Resource::TYPE_POLICIES,
 
             // Database
@@ -2196,6 +2198,10 @@ class Appwrite extends Destination
                 /** @var AuthMethods $resource */
                 $this->createAuthMethods($resource);
                 break;
+            case Resource::TYPE_OAUTH_PROVIDERS:
+                /** @var OAuthProviders $resource */
+                $this->createOAuthProviders($resource);
+                break;
             case Resource::TYPE_POLICIES:
                 /** @var Policies $resource */
                 $this->createPolicies($resource);
@@ -3574,6 +3580,36 @@ class Appwrite extends Destination
             'projects',
             $this->projectId,
             new UtopiaDocument(['auths' => $auths]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
+    /**
+     * Read-then-merge the project's `oAuthProviders` map. Each provider expands
+     * into `{key}Enabled` and `{key}Appid` flat entries; the `{key}Secret`
+     * entry is left untouched so the destination user can re-enter it post-migration.
+     */
+    protected function createOAuthProviders(OAuthProviders $resource): bool
+    {
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $oAuthProviders = $project->getAttribute('oAuthProviders', []);
+
+        foreach ($resource->getProviders() as $provider) {
+            $key = $provider['key'];
+            if ($key === '') {
+                continue;
+            }
+            $oAuthProviders[$key . 'Enabled'] = $provider['enabled'];
+            $oAuthProviders[$key . 'Appid']   = $provider['appId'];
+        }
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['oAuthProviders' => $oAuthProviders]),
         ));
 
         $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);

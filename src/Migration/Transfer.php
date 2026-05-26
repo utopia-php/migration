@@ -40,6 +40,7 @@ class Transfer
         Resource::TYPE_MEMBERSHIP,
         Resource::TYPE_HASH,
         Resource::TYPE_AUTH_METHODS,
+        Resource::TYPE_OAUTH_PROVIDERS,
         Resource::TYPE_POLICIES,
     ];
 
@@ -133,6 +134,7 @@ class Transfer
         Resource::TYPE_TEAM,
         Resource::TYPE_MEMBERSHIP,
         Resource::TYPE_AUTH_METHODS,
+        Resource::TYPE_OAUTH_PROVIDERS,
         Resource::TYPE_POLICIES,
         Resource::TYPE_FILE,
         Resource::TYPE_BUCKET,

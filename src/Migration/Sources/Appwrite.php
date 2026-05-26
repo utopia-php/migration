@@ -27,6 +27,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
+use Utopia\Migration\Resources\Auth\OAuthProviders;
 use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
@@ -191,6 +192,7 @@ class Appwrite extends Source
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
             Resource::TYPE_AUTH_METHODS,
+            Resource::TYPE_OAUTH_PROVIDERS,
             Resource::TYPE_POLICIES,
 
             // Database
@@ -393,6 +395,11 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_AUTH_METHODS, $resources)) {
             // Singleton — there is exactly one auth-methods config per project.
             $report[Resource::TYPE_AUTH_METHODS] = 1;
+        }
+
+        if (\in_array(Resource::TYPE_OAUTH_PROVIDERS, $resources)) {
+            // Singleton — one OAuth providers config map per project.
+            $report[Resource::TYPE_OAUTH_PROVIDERS] = 1;
         }
 
         if (\in_array(Resource::TYPE_POLICIES, $resources)) {
@@ -667,6 +674,20 @@ class Appwrite extends Source
                 previous: $e
             ));
         }
+
+        try {
+            if (\in_array(Resource::TYPE_OAUTH_PROVIDERS, $resources)) {
+                $this->exportOAuthProviders();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_OAUTH_PROVIDERS,
+                Transfer::GROUP_AUTH,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
+        }
     }
 
     private function exportPolicies(): void
@@ -724,6 +745,29 @@ class Appwrite extends Source
         );
 
         $this->callback([$authMethods]);
+    }
+
+    private function exportOAuthProviders(): void
+    {
+        $project = $this->project->get();
+
+        $providers = [];
+        foreach ($project->oAuthProviders as $provider) {
+            $providers[] = [
+                'key' => (string) $provider->key,
+                'enabled' => (bool) $provider->enabled,
+                'appId' => (string) $provider->appId,
+            ];
+        }
+
+        $oAuthProviders = new OAuthProviders(
+            $this->projectId,
+            $providers,
+            createdAt: $project->createdAt,
+            updatedAt: $project->updatedAt,
+        );
+
+        $this->callback([$oAuthProviders]);
     }
 
     /**

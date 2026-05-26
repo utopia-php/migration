@@ -71,6 +71,8 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_AUTH_METHODS = 'auth-methods';
 
+    public const TYPE_OAUTH_PROVIDERS = 'oauth-providers';
+
     public const TYPE_POLICIES = 'policies';
 
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
@@ -132,6 +134,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_TEAM,
         self::TYPE_MEMBERSHIP,
         self::TYPE_AUTH_METHODS,
+        self::TYPE_OAUTH_PROVIDERS,
         self::TYPE_POLICIES,
         self::TYPE_PLATFORM,
         self::TYPE_API_KEY,
