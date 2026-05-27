@@ -448,6 +448,7 @@ class Transfer
                 self::GROUP_MESSAGING => array_merge($resources, self::GROUP_MESSAGING_RESOURCES),
                 self::GROUP_BACKUPS => array_merge($resources, self::GROUP_BACKUPS_RESOURCES),
                 self::GROUP_DOMAINS => array_merge($resources, self::GROUP_DOMAINS_RESOURCES),
+                self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
                 default => throw new \Exception('No service group found'),
             };
         }
