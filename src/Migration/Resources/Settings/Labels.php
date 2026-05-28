@@ -54,12 +54,12 @@ class Labels extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_LABELS;
+        return Resource::TYPE_PROJECT_LABELS;
     }
 
     public function getGroup(): string
     {
-        return Transfer::GROUP_SETTINGS;
+        return Transfer::GROUP_PROJECTS;
     }
 
     /**

@@ -214,17 +214,12 @@ class JSON extends Source
         throw new \Exception('Not Implemented');
     }
 
-    protected function exportGroupSettings(int $batchSize, array $resources): void
+    protected function exportGroupProjects(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
     }
 
     protected function exportGroupDomains(int $batchSize, array $resources): void
-    {
-        throw new \Exception('Not Implemented');
-    }
-
-    protected function exportGroupTemplates(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
     }

@@ -72,12 +72,12 @@ class EmailTemplate extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_EMAIL_TEMPLATE;
+        return Resource::TYPE_PROJECT_EMAIL_TEMPLATE;
     }
 
     public function getGroup(): string
     {
-        return Transfer::GROUP_TEMPLATES;
+        return Transfer::GROUP_PROJECTS;
     }
 
     public function getTemplateId(): string

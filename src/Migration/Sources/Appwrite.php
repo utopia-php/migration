@@ -7,7 +7,6 @@ use Appwrite\Client;
 use Appwrite\Enums\ProjectAuthMethodId;
 use Appwrite\Enums\ProjectPolicyId;
 use Appwrite\Enums\ProjectProtocolId;
-use Appwrite\Enums\ProjectServiceId;
 use Appwrite\Query;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
@@ -80,9 +79,9 @@ use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
-use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
+use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Appwrite\Reader;
 use Utopia\Migration\Sources\Appwrite\Reader\API as APIReader;
@@ -235,23 +234,21 @@ class Appwrite extends Source
             // Integrations
             Resource::TYPE_PLATFORM,
             Resource::TYPE_API_KEY,
+            Resource::TYPE_WEBHOOK,
+            Resource::TYPE_SMTP,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
 
-            // Settings
+            // Project
             Resource::TYPE_PROJECT_VARIABLE,
-            Resource::TYPE_WEBHOOK,
-            Resource::TYPE_PROTOCOLS,
-            Resource::TYPE_LABELS,
-            Resource::TYPE_SERVICES,
-            Resource::TYPE_SMTP,
+            Resource::TYPE_PROJECT_PROTOCOLS,
+            Resource::TYPE_PROJECT_LABELS,
+            Resource::TYPE_PROJECT_SERVICES,
+            Resource::TYPE_PROJECT_EMAIL_TEMPLATE,
 
             // Domains
             Resource::TYPE_RULE,
-
-            // Templates
-            Resource::TYPE_EMAIL_TEMPLATE,
         ];
     }
 
@@ -292,9 +289,8 @@ class Appwrite extends Source
             $this->reportSites($resources, $report, $resourceIds);
             $this->reportIntegrations($resources, $report, $resourceIds);
             $this->reportBackups($resources, $report, $resourceIds);
-            $this->reportSettings($resources, $report, $resourceIds);
+            $this->reportProjects($resources, $report, $resourceIds);
             $this->reportDomains($resources, $report, $resourceIds);
-            $this->reportTemplates($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1638,20 +1634,7 @@ class Appwrite extends Source
         }
     }
 
-    private function reportTemplates(array $resources, array &$report, array $resourceIds = []): void
-    {
-        if (\in_array(Resource::TYPE_EMAIL_TEMPLATE, $resources)) {
-            try {
-                // listEmailTemplates is paginated by limit/offset (not cursor); pass total: true
-                // so the report count is accurate even if the page is empty.
-                $report[Resource::TYPE_EMAIL_TEMPLATE] = $this->project->listEmailTemplates([Query::limit(1)], total: true)->total;
-            } catch (\Throwable) {
-                $report[Resource::TYPE_EMAIL_TEMPLATE] = 0;
-            }
-        }
-    }
-
-    private function reportSettings(array $resources, array &$report, array $resourceIds = []): void
+    private function reportProjects(array $resources, array &$report, array $resourceIds = []): void
     {
         if (\in_array(Resource::TYPE_PROJECT_VARIABLE, $resources)) {
             $variableQueries = $this->buildQueries(
@@ -1666,37 +1649,29 @@ class Appwrite extends Source
             }
         }
 
-        if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
-            $webhookQueries = $this->buildQueries(
-                resourceType: Resource::TYPE_WEBHOOK,
-                resourceIds: $resourceIds,
-                limit: 1
-            );
-            try {
-                $report[Resource::TYPE_WEBHOOK] = $this->webhooks->list($webhookQueries)->total;
-            } catch (\Throwable) {
-                $report[Resource::TYPE_WEBHOOK] = 0;
-            }
-        }
-
-        if (\in_array(Resource::TYPE_PROTOCOLS, $resources)) {
+        if (\in_array(Resource::TYPE_PROJECT_PROTOCOLS, $resources)) {
             // Singleton — there is exactly one protocols config per project.
-            $report[Resource::TYPE_PROTOCOLS] = 1;
+            $report[Resource::TYPE_PROJECT_PROTOCOLS] = 1;
         }
 
-        if (\in_array(Resource::TYPE_LABELS, $resources)) {
+        if (\in_array(Resource::TYPE_PROJECT_LABELS, $resources)) {
             // Singleton — one labels array per project.
-            $report[Resource::TYPE_LABELS] = 1;
+            $report[Resource::TYPE_PROJECT_LABELS] = 1;
         }
 
-        if (\in_array(Resource::TYPE_SERVICES, $resources)) {
+        if (\in_array(Resource::TYPE_PROJECT_SERVICES, $resources)) {
             // Singleton — one services config per project.
-            $report[Resource::TYPE_SERVICES] = 1;
+            $report[Resource::TYPE_PROJECT_SERVICES] = 1;
         }
 
-        if (\in_array(Resource::TYPE_SMTP, $resources)) {
-            // Singleton — one SMTP config per project.
-            $report[Resource::TYPE_SMTP] = 1;
+        if (\in_array(Resource::TYPE_PROJECT_EMAIL_TEMPLATE, $resources)) {
+            try {
+                // listEmailTemplates is paginated by limit/offset (not cursor); pass total: true
+                // so the report count is accurate even if the page is empty.
+                $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = $this->project->listEmailTemplates([Query::limit(1)], total: true)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = 0;
+            }
         }
     }
 
@@ -1704,7 +1679,7 @@ class Appwrite extends Source
      * @param int $batchSize
      * @param array<string> $resources
      */
-    protected function exportGroupSettings(int $batchSize, array $resources): void
+    protected function exportGroupProjects(int $batchSize, array $resources): void
     {
         if (\in_array(Resource::TYPE_PROJECT_VARIABLE, $resources)) {
             try {
@@ -1712,21 +1687,7 @@ class Appwrite extends Source
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_PROJECT_VARIABLE,
-                    Transfer::GROUP_SETTINGS,
-                    message: $e->getMessage(),
-                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
-                    previous: $e
-                ));
-            }
-        }
-
-        if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
-            try {
-                $this->exportWebhooks($batchSize);
-            } catch (\Throwable $e) {
-                $this->addError(new Exception(
-                    Resource::TYPE_WEBHOOK,
-                    Transfer::GROUP_SETTINGS,
+                    Transfer::GROUP_PROJECTS,
                     message: $e->getMessage(),
                     code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
@@ -1735,13 +1696,13 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_PROTOCOLS, $resources)) {
+            if (\in_array(Resource::TYPE_PROJECT_PROTOCOLS, $resources)) {
                 $this->exportProtocols();
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
-                Resource::TYPE_PROTOCOLS,
-                Transfer::GROUP_SETTINGS,
+                Resource::TYPE_PROJECT_PROTOCOLS,
+                Transfer::GROUP_PROJECTS,
                 message: $e->getMessage(),
                 code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
@@ -1749,13 +1710,13 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_LABELS, $resources)) {
+            if (\in_array(Resource::TYPE_PROJECT_LABELS, $resources)) {
                 $this->exportLabels();
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
-                Resource::TYPE_LABELS,
-                Transfer::GROUP_SETTINGS,
+                Resource::TYPE_PROJECT_LABELS,
+                Transfer::GROUP_PROJECTS,
                 message: $e->getMessage(),
                 code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
@@ -1763,31 +1724,31 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_SERVICES, $resources)) {
+            if (\in_array(Resource::TYPE_PROJECT_SERVICES, $resources)) {
                 $this->exportServices();
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
-                Resource::TYPE_SERVICES,
-                Transfer::GROUP_SETTINGS,
+                Resource::TYPE_PROJECT_SERVICES,
+                Transfer::GROUP_PROJECTS,
                 message: $e->getMessage(),
                 code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
             ));
         }
 
-        try {
-            if (\in_array(Resource::TYPE_SMTP, $resources)) {
-                $this->exportSMTP();
+        if (\in_array(Resource::TYPE_PROJECT_EMAIL_TEMPLATE, $resources)) {
+            try {
+                $this->exportEmailTemplates($batchSize);
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_PROJECT_EMAIL_TEMPLATE,
+                    Transfer::GROUP_PROJECTS,
+                    message: $e->getMessage(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                    previous: $e
+                ));
             }
-        } catch (\Throwable $e) {
-            $this->addError(new Exception(
-                Resource::TYPE_SMTP,
-                Transfer::GROUP_SETTINGS,
-                message: $e->getMessage(),
-                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
-                previous: $e
-            ));
         }
     }
 
@@ -1797,28 +1758,12 @@ class Appwrite extends Source
 
         $byId = [];
         foreach ($project->services as $service) {
-            $byId[(string) $service->id] = $service->enabled;
+            $byId[(string) $service->id] = (bool) $service->enabled;
         }
 
         $services = new ServicesResource(
             $this->projectId,
-            $byId[(string) ProjectServiceId::ACCOUNT()] ?? true,
-            $byId[(string) ProjectServiceId::AVATARS()] ?? true,
-            $byId[(string) ProjectServiceId::DATABASES()] ?? true,
-            $byId[(string) ProjectServiceId::TABLESDB()] ?? true,
-            $byId[(string) ProjectServiceId::LOCALE()] ?? true,
-            $byId[(string) ProjectServiceId::HEALTH()] ?? true,
-            $byId[(string) ProjectServiceId::PROJECT()] ?? true,
-            $byId[(string) ProjectServiceId::STORAGE()] ?? true,
-            $byId[(string) ProjectServiceId::TEAMS()] ?? true,
-            $byId[(string) ProjectServiceId::USERS()] ?? true,
-            $byId[(string) ProjectServiceId::VCS()] ?? true,
-            $byId[(string) ProjectServiceId::SITES()] ?? true,
-            $byId[(string) ProjectServiceId::FUNCTIONS()] ?? true,
-            $byId[(string) ProjectServiceId::PROXY()] ?? true,
-            $byId[(string) ProjectServiceId::GRAPHQL()] ?? true,
-            $byId[(string) ProjectServiceId::MIGRATIONS()] ?? true,
-            $byId[(string) ProjectServiceId::MESSAGING()] ?? true,
+            $byId,
             createdAt: $project->createdAt,
             updatedAt: $project->updatedAt,
         );
@@ -1943,23 +1888,6 @@ class Appwrite extends Source
 
             if (count($response->rules) < $batchSize) {
                 break;
-            }
-        }
-    }
-
-    protected function exportGroupTemplates(int $batchSize, array $resources): void
-    {
-        if (\in_array(Resource::TYPE_EMAIL_TEMPLATE, $resources)) {
-            try {
-                $this->exportEmailTemplates($batchSize);
-            } catch (\Throwable $e) {
-                $this->addError(new Exception(
-                    Resource::TYPE_EMAIL_TEMPLATE,
-                    Transfer::GROUP_TEMPLATES,
-                    message: $e->getMessage(),
-                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
-                    previous: $e
-                ));
             }
         }
     }
@@ -2915,6 +2843,24 @@ class Appwrite extends Source
                 $report[Resource::TYPE_API_KEY] = 0;
             }
         }
+
+        if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
+            $webhookQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_WEBHOOK,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            try {
+                $report[Resource::TYPE_WEBHOOK] = $this->webhooks->list($webhookQueries)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_WEBHOOK] = 0;
+            }
+        }
+
+        if (\in_array(Resource::TYPE_SMTP, $resources)) {
+            // Singleton — one SMTP config per project.
+            $report[Resource::TYPE_SMTP] = 1;
+        }
     }
 
     /**
@@ -2973,6 +2919,34 @@ class Appwrite extends Source
                     previous: $e
                 ));
             }
+        }
+
+        if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
+            try {
+                $this->exportWebhooks($batchSize);
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_WEBHOOK,
+                    Transfer::GROUP_INTEGRATIONS,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                ));
+            }
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_SMTP, $resources)) {
+                $this->exportSMTP();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_SMTP,
+                Transfer::GROUP_INTEGRATIONS,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
         }
     }
 
