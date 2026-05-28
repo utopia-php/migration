@@ -227,6 +227,7 @@ class Appwrite extends Source
             Resource::TYPE_PLATFORM,
             Resource::TYPE_API_KEY,
             Resource::TYPE_WEBHOOK,
+            Resource::TYPE_SMTP,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -236,7 +237,6 @@ class Appwrite extends Source
             Resource::TYPE_PROJECT_PROTOCOLS,
             Resource::TYPE_PROJECT_LABELS,
             Resource::TYPE_PROJECT_SERVICES,
-            Resource::TYPE_SMTP,
         ];
     }
 
@@ -1597,11 +1597,6 @@ class Appwrite extends Source
             // Singleton — one services config per project.
             $report[Resource::TYPE_PROJECT_SERVICES] = 1;
         }
-
-        if (\in_array(Resource::TYPE_SMTP, $resources)) {
-            // Singleton — one SMTP config per project.
-            $report[Resource::TYPE_SMTP] = 1;
-        }
     }
 
     /**
@@ -1666,19 +1661,6 @@ class Appwrite extends Source
             ));
         }
 
-        try {
-            if (\in_array(Resource::TYPE_SMTP, $resources)) {
-                $this->exportSMTP();
-            }
-        } catch (\Throwable $e) {
-            $this->addError(new Exception(
-                Resource::TYPE_SMTP,
-                Transfer::GROUP_PROJECTS,
-                message: $e->getMessage(),
-                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
-                previous: $e
-            ));
-        }
     }
 
     private function exportServices(): void
@@ -2673,6 +2655,11 @@ class Appwrite extends Source
                 $report[Resource::TYPE_WEBHOOK] = 0;
             }
         }
+
+        if (\in_array(Resource::TYPE_SMTP, $resources)) {
+            // Singleton — one SMTP config per project.
+            $report[Resource::TYPE_SMTP] = 1;
+        }
     }
 
     /**
@@ -2745,6 +2732,20 @@ class Appwrite extends Source
                     previous: $e
                 ));
             }
+        }
+
+        try {
+            if (\in_array(Resource::TYPE_SMTP, $resources)) {
+                $this->exportSMTP();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_SMTP,
+                Transfer::GROUP_INTEGRATIONS,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
         }
     }
 

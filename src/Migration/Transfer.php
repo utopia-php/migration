@@ -68,6 +68,7 @@ class Transfer
         Resource::TYPE_PLATFORM,
         Resource::TYPE_API_KEY,
         Resource::TYPE_WEBHOOK,
+        Resource::TYPE_SMTP,
     ];
     public const GROUP_DOCUMENTSDB_RESOURCES = [
         Resource::TYPE_DATABASE_DOCUMENTSDB,
@@ -102,7 +103,6 @@ class Transfer
         Resource::TYPE_PROJECT_PROTOCOLS,
         Resource::TYPE_PROJECT_LABELS,
         Resource::TYPE_PROJECT_SERVICES,
-        Resource::TYPE_SMTP,
     ];
 
     public const GROUP_BACKUPS_RESOURCES = [
@@ -145,13 +145,13 @@ class Transfer
         Resource::TYPE_PLATFORM,
         Resource::TYPE_API_KEY,
         Resource::TYPE_WEBHOOK,
+        Resource::TYPE_SMTP,
 
         // Project
         Resource::TYPE_PROJECT_VARIABLE,
         Resource::TYPE_PROJECT_PROTOCOLS,
         Resource::TYPE_PROJECT_LABELS,
         Resource::TYPE_PROJECT_SERVICES,
-        Resource::TYPE_SMTP,
 
         // legacy
         Resource::TYPE_DOCUMENT,

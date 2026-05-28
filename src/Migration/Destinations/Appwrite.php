@@ -292,13 +292,13 @@ class Appwrite extends Destination
             Resource::TYPE_PLATFORM,
             Resource::TYPE_API_KEY,
             Resource::TYPE_WEBHOOK,
+            Resource::TYPE_SMTP,
 
             // Project
             Resource::TYPE_PROJECT_VARIABLE,
             Resource::TYPE_PROJECT_PROTOCOLS,
             Resource::TYPE_PROJECT_LABELS,
             Resource::TYPE_PROJECT_SERVICES,
-            Resource::TYPE_SMTP,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -3115,6 +3115,10 @@ class Appwrite extends Destination
                 /** @var Webhook $resource */
                 $this->createWebhook($resource);
                 break;
+            case Resource::TYPE_SMTP:
+                /** @var SMTP $resource */
+                $this->createSMTP($resource);
+                break;
         }
 
         if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
@@ -3142,10 +3146,6 @@ class Appwrite extends Destination
             case Resource::TYPE_PROJECT_SERVICES:
                 /** @var ServicesResource $resource */
                 $this->createServices($resource);
-                break;
-            case Resource::TYPE_SMTP:
-                /** @var SMTP $resource */
-                $this->createSMTP($resource);
                 break;
         }
 
