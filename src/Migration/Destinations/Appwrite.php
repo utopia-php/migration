@@ -3417,7 +3417,7 @@ class Appwrite extends Destination
 
                     $resourceType = $deploymentResourceType === 'site'
                         ? ProxyResourceType::SITE()
-                        : ProxyResourceType::FUNCTION();
+                        : ProxyResourceType::FUNCTIONMODEL();
 
                     $this->proxy->createRedirectRule(
                         $resource->getDomain(),
