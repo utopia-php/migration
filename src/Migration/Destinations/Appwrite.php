@@ -9,8 +9,6 @@ use Appwrite\Enums\BuildRuntime;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
-use Appwrite\Enums\ProjectProtocolId;
-use Appwrite\Enums\ProjectServiceId;
 use Appwrite\Enums\Runtime;
 use Appwrite\Enums\SmtpEncryption;
 use Appwrite\InputFile;
@@ -3195,9 +3193,9 @@ class Appwrite extends Destination
         $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
         $apis = $project->getAttribute('apis', []);
 
-        $apis[(string) ProjectProtocolId::REST()]      = $resource->getRest();
-        $apis[(string) ProjectProtocolId::GRAPHQL()]   = $resource->getGraphql();
-        $apis[(string) ProjectProtocolId::WEBSOCKET()] = $resource->getWebsocket();
+        foreach ($resource->getProtocols() as $protocolId => $enabled) {
+            $apis[$protocolId] = (bool) $enabled;
+        }
 
         $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
             'projects',
@@ -3230,23 +3228,9 @@ class Appwrite extends Destination
         $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
         $services = $project->getAttribute('services', []);
 
-        $services[(string) ProjectServiceId::ACCOUNT()]    = $resource->getAccount();
-        $services[(string) ProjectServiceId::AVATARS()]    = $resource->getAvatars();
-        $services[(string) ProjectServiceId::DATABASES()]  = $resource->getDatabases();
-        $services[(string) ProjectServiceId::TABLESDB()]   = $resource->getTablesdb();
-        $services[(string) ProjectServiceId::LOCALE()]     = $resource->getLocale();
-        $services[(string) ProjectServiceId::HEALTH()]     = $resource->getHealth();
-        $services[(string) ProjectServiceId::PROJECT()]    = $resource->getProject();
-        $services[(string) ProjectServiceId::STORAGE()]    = $resource->getStorage();
-        $services[(string) ProjectServiceId::TEAMS()]      = $resource->getTeams();
-        $services[(string) ProjectServiceId::USERS()]      = $resource->getUsers();
-        $services[(string) ProjectServiceId::VCS()]        = $resource->getVcs();
-        $services[(string) ProjectServiceId::SITES()]      = $resource->getSites();
-        $services[(string) ProjectServiceId::FUNCTIONS()]  = $resource->getFunctions();
-        $services[(string) ProjectServiceId::PROXY()]      = $resource->getProxy();
-        $services[(string) ProjectServiceId::GRAPHQL()]    = $resource->getGraphql();
-        $services[(string) ProjectServiceId::MIGRATIONS()] = $resource->getMigrations();
-        $services[(string) ProjectServiceId::MESSAGING()]  = $resource->getMessaging();
+        foreach ($resource->getServices() as $serviceId => $enabled) {
+            $services[$serviceId] = (bool) $enabled;
+        }
 
         $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
             'projects',

@@ -6,8 +6,6 @@ use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Enums\ProjectAuthMethodId;
 use Appwrite\Enums\ProjectPolicyId;
-use Appwrite\Enums\ProjectProtocolId;
-use Appwrite\Enums\ProjectServiceId;
 use Appwrite\Query;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
@@ -1667,28 +1665,12 @@ class Appwrite extends Source
 
         $byId = [];
         foreach ($project->services as $service) {
-            $byId[(string) $service->id] = $service->enabled;
+            $byId[(string) $service->id] = (bool) $service->enabled;
         }
 
         $services = new ServicesResource(
             $this->projectId,
-            $byId[(string) ProjectServiceId::ACCOUNT()] ?? true,
-            $byId[(string) ProjectServiceId::AVATARS()] ?? true,
-            $byId[(string) ProjectServiceId::DATABASES()] ?? true,
-            $byId[(string) ProjectServiceId::TABLESDB()] ?? true,
-            $byId[(string) ProjectServiceId::LOCALE()] ?? true,
-            $byId[(string) ProjectServiceId::HEALTH()] ?? true,
-            $byId[(string) ProjectServiceId::PROJECT()] ?? true,
-            $byId[(string) ProjectServiceId::STORAGE()] ?? true,
-            $byId[(string) ProjectServiceId::TEAMS()] ?? true,
-            $byId[(string) ProjectServiceId::USERS()] ?? true,
-            $byId[(string) ProjectServiceId::VCS()] ?? true,
-            $byId[(string) ProjectServiceId::SITES()] ?? true,
-            $byId[(string) ProjectServiceId::FUNCTIONS()] ?? true,
-            $byId[(string) ProjectServiceId::PROXY()] ?? true,
-            $byId[(string) ProjectServiceId::GRAPHQL()] ?? true,
-            $byId[(string) ProjectServiceId::MIGRATIONS()] ?? true,
-            $byId[(string) ProjectServiceId::MESSAGING()] ?? true,
+            $byId,
             createdAt: $project->createdAt,
             updatedAt: $project->updatedAt,
         );
@@ -1716,14 +1698,12 @@ class Appwrite extends Source
 
         $byId = [];
         foreach ($project->protocols as $protocol) {
-            $byId[(string) $protocol->id] = $protocol->enabled;
+            $byId[(string) $protocol->id] = (bool) $protocol->enabled;
         }
 
         $protocols = new Protocols(
             $this->projectId,
-            $byId[(string) ProjectProtocolId::REST()] ?? true,
-            $byId[(string) ProjectProtocolId::GRAPHQL()] ?? true,
-            $byId[(string) ProjectProtocolId::WEBSOCKET()] ?? true,
+            $byId,
             createdAt: $project->createdAt,
             updatedAt: $project->updatedAt,
         );

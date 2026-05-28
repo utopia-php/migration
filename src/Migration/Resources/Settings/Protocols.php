@@ -7,16 +7,17 @@ use Utopia\Migration\Transfer;
 
 /**
  * Singleton resource representing the project's exposed API protocols
- * (REST, GraphQL, WebSocket). One per project; destination flips each
- * via Project::updateProtocol().
+ * (REST, GraphQL, WebSocket), keyed by ProtocolId value. One per project;
+ * destination merges each entry into the project's protocols map.
  */
 class Protocols extends Resource
 {
+    /**
+     * @param array<string, bool> $protocols Map of ProtocolId string → enabled flag.
+     */
     public function __construct(
         string $id,
-        private readonly bool $rest = true,
-        private readonly bool $graphql = true,
-        private readonly bool $websocket = true,
+        private readonly array $protocols = [],
         string $createdAt = '',
         string $updatedAt = '',
     ) {
@@ -32,9 +33,7 @@ class Protocols extends Resource
     {
         return new self(
             $array['id'],
-            (bool) ($array['rest'] ?? true),
-            (bool) ($array['graphql'] ?? true),
-            (bool) ($array['websocket'] ?? true),
+            (array) ($array['protocols'] ?? []),
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );
@@ -47,9 +46,7 @@ class Protocols extends Resource
     {
         return [
             'id' => $this->id,
-            'rest' => $this->rest,
-            'graphql' => $this->graphql,
-            'websocket' => $this->websocket,
+            'protocols' => $this->protocols,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
         ];
@@ -65,18 +62,11 @@ class Protocols extends Resource
         return Transfer::GROUP_PROJECTS;
     }
 
-    public function getRest(): bool
+    /**
+     * @return array<string, bool>
+     */
+    public function getProtocols(): array
     {
-        return $this->rest;
-    }
-
-    public function getGraphql(): bool
-    {
-        return $this->graphql;
-    }
-
-    public function getWebsocket(): bool
-    {
-        return $this->websocket;
+        return $this->protocols;
     }
 }
