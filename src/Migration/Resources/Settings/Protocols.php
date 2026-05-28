@@ -57,12 +57,12 @@ class Protocols extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_PROTOCOLS;
+        return Resource::TYPE_PROJECT_PROTOCOLS;
     }
 
     public function getGroup(): string
     {
-        return Transfer::GROUP_SETTINGS;
+        return Transfer::GROUP_PROJECTS;
     }
 
     public function getRest(): bool

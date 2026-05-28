@@ -78,14 +78,14 @@ abstract class Resource implements \JsonSerializable
     // Integrations
     public const TYPE_PLATFORM = 'platform';
     public const TYPE_API_KEY = 'api-key';
-
-    // Settings
-    public const TYPE_PROJECT_VARIABLE = 'project-variable';
     public const TYPE_WEBHOOK = 'webhook';
-    public const TYPE_PROTOCOLS = 'protocols';
-    public const TYPE_LABELS = 'labels';
-    public const TYPE_SERVICES = 'services';
     public const TYPE_SMTP = 'smtp';
+
+    // Project (per-project singleton/settings resources)
+    public const TYPE_PROJECT_VARIABLE = 'project-variable';
+    public const TYPE_PROJECT_PROTOCOLS = 'project-protocols';
+    public const TYPE_PROJECT_LABELS = 'project-labels';
+    public const TYPE_PROJECT_SERVICES = 'project-services';
 
     // Messaging
     public const TYPE_SUBSCRIBER = 'subscriber';
@@ -129,12 +129,12 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_POLICIES,
         self::TYPE_PLATFORM,
         self::TYPE_API_KEY,
-        self::TYPE_PROJECT_VARIABLE,
         self::TYPE_WEBHOOK,
-        self::TYPE_PROTOCOLS,
-        self::TYPE_LABELS,
-        self::TYPE_SERVICES,
         self::TYPE_SMTP,
+        self::TYPE_PROJECT_VARIABLE,
+        self::TYPE_PROJECT_PROTOCOLS,
+        self::TYPE_PROJECT_LABELS,
+        self::TYPE_PROJECT_SERVICES,
         self::TYPE_PROVIDER,
         self::TYPE_TOPIC,
         self::TYPE_SUBSCRIBER,
