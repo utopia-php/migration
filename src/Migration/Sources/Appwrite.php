@@ -658,12 +658,12 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_POLICIES, $resources)) {
-                $this->exportPolicies();
+            if (\in_array(Resource::TYPE_OAUTH_PROVIDERS, $resources)) {
+                $this->exportOAuthProviders();
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
-                Resource::TYPE_POLICIES,
+                Resource::TYPE_OAUTH_PROVIDERS,
                 Transfer::GROUP_AUTH,
                 message: $e->getMessage(),
                 code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
@@ -672,12 +672,12 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_OAUTH_PROVIDERS, $resources)) {
-                $this->exportOAuthProviders();
+            if (\in_array(Resource::TYPE_POLICIES, $resources)) {
+                $this->exportPolicies();
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
-                Resource::TYPE_OAUTH_PROVIDERS,
+                Resource::TYPE_POLICIES,
                 Transfer::GROUP_AUTH,
                 message: $e->getMessage(),
                 code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,

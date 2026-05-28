@@ -3559,8 +3559,10 @@ class Appwrite extends Destination
 
     /**
      * Read-then-merge the project's `oAuthProviders` map. Each provider expands
-     * into `{key}Enabled` and `{key}Appid` flat entries; the `{key}Secret`
-     * entry is left untouched so the destination user can re-enter it post-migration.
+     * into `{key}Enabled` and (when carried) `{key}Appid` flat entries; the
+     * `{key}Secret` entry is left untouched so the destination user can re-enter
+     * it post-migration. Empty `appId` is skipped rather than overwritten so
+     * pre-existing destination credentials aren't clobbered.
      */
     protected function createOAuthProviders(OAuthProviders $resource): bool
     {
@@ -3573,7 +3575,9 @@ class Appwrite extends Destination
                 continue;
             }
             $oAuthProviders[$key . 'Enabled'] = $provider['enabled'];
-            $oAuthProviders[$key . 'Appid']   = $provider['appId'];
+            if ($provider['appId'] !== '') {
+                $oAuthProviders[$key . 'Appid'] = $provider['appId'];
+            }
         }
 
         $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
