@@ -9,6 +9,7 @@ use Appwrite\Enums\BuildRuntime;
 use Appwrite\Enums\Compression;
 use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
+use Appwrite\Enums\ProjectProtocolId;
 use Appwrite\Enums\Runtime;
 use Appwrite\Enums\SmtpEncryption;
 use Appwrite\InputFile;
@@ -3193,9 +3194,9 @@ class Appwrite extends Destination
         $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
         $apis = $project->getAttribute('apis', []);
 
-        foreach ($resource->getProtocols() as $protocolId => $enabled) {
-            $apis[$protocolId] = (bool) $enabled;
-        }
+        $apis[(string) ProjectProtocolId::REST()]      = $resource->getRest();
+        $apis[(string) ProjectProtocolId::GRAPHQL()]   = $resource->getGraphql();
+        $apis[(string) ProjectProtocolId::WEBSOCKET()] = $resource->getWebsocket();
 
         $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
             'projects',

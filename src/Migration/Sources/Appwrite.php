@@ -6,6 +6,7 @@ use Appwrite\AppwriteException;
 use Appwrite\Client;
 use Appwrite\Enums\ProjectAuthMethodId;
 use Appwrite\Enums\ProjectPolicyId;
+use Appwrite\Enums\ProjectProtocolId;
 use Appwrite\Query;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
@@ -1698,12 +1699,14 @@ class Appwrite extends Source
 
         $byId = [];
         foreach ($project->protocols as $protocol) {
-            $byId[(string) $protocol->id] = (bool) $protocol->enabled;
+            $byId[(string) $protocol->id] = $protocol->enabled;
         }
 
         $protocols = new Protocols(
             $this->projectId,
-            $byId,
+            $byId[(string) ProjectProtocolId::REST()] ?? true,
+            $byId[(string) ProjectProtocolId::GRAPHQL()] ?? true,
+            $byId[(string) ProjectProtocolId::WEBSOCKET()] ?? true,
             createdAt: $project->createdAt,
             updatedAt: $project->updatedAt,
         );

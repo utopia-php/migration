@@ -7,17 +7,16 @@ use Utopia\Migration\Transfer;
 
 /**
  * Singleton resource representing the project's exposed API protocols
- * (REST, GraphQL, WebSocket), keyed by ProtocolId value. One per project;
- * destination merges each entry into the project's protocols map.
+ * (REST, GraphQL, WebSocket). One per project; destination flips each
+ * via Project::updateProtocol().
  */
 class Protocols extends Resource
 {
-    /**
-     * @param array<string, bool> $protocols Map of ProtocolId string → enabled flag.
-     */
     public function __construct(
         string $id,
-        private readonly array $protocols = [],
+        private readonly bool $rest = true,
+        private readonly bool $graphql = true,
+        private readonly bool $websocket = true,
         string $createdAt = '',
         string $updatedAt = '',
     ) {
@@ -33,7 +32,9 @@ class Protocols extends Resource
     {
         return new self(
             $array['id'],
-            (array) ($array['protocols'] ?? []),
+            (bool) ($array['rest'] ?? true),
+            (bool) ($array['graphql'] ?? true),
+            (bool) ($array['websocket'] ?? true),
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );
@@ -46,7 +47,9 @@ class Protocols extends Resource
     {
         return [
             'id' => $this->id,
-            'protocols' => $this->protocols,
+            'rest' => $this->rest,
+            'graphql' => $this->graphql,
+            'websocket' => $this->websocket,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
         ];
@@ -62,11 +65,18 @@ class Protocols extends Resource
         return Transfer::GROUP_PROJECTS;
     }
 
-    /**
-     * @return array<string, bool>
-     */
-    public function getProtocols(): array
+    public function getRest(): bool
     {
-        return $this->protocols;
+        return $this->rest;
+    }
+
+    public function getGraphql(): bool
+    {
+        return $this->graphql;
+    }
+
+    public function getWebsocket(): bool
+    {
+        return $this->websocket;
     }
 }
