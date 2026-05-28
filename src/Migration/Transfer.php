@@ -67,6 +67,7 @@ class Transfer
     public const GROUP_INTEGRATIONS_RESOURCES = [
         Resource::TYPE_PLATFORM,
         Resource::TYPE_API_KEY,
+        Resource::TYPE_WEBHOOK,
     ];
     public const GROUP_DOCUMENTSDB_RESOURCES = [
         Resource::TYPE_DATABASE_DOCUMENTSDB,
@@ -98,7 +99,6 @@ class Transfer
 
     public const GROUP_SETTINGS_RESOURCES = [
         Resource::TYPE_PROJECT_VARIABLE,
-        Resource::TYPE_WEBHOOK,
         Resource::TYPE_PROTOCOLS,
         Resource::TYPE_LABELS,
         Resource::TYPE_SERVICES,
@@ -143,10 +143,10 @@ class Transfer
         // Integrations
         Resource::TYPE_PLATFORM,
         Resource::TYPE_API_KEY,
+        Resource::TYPE_WEBHOOK,
 
         // Settings
         Resource::TYPE_PROJECT_VARIABLE,
-        Resource::TYPE_WEBHOOK,
         Resource::TYPE_PROTOCOLS,
         Resource::TYPE_LABELS,
         Resource::TYPE_SERVICES,

@@ -226,13 +226,13 @@ class Appwrite extends Source
             // Integrations
             Resource::TYPE_PLATFORM,
             Resource::TYPE_API_KEY,
+            Resource::TYPE_WEBHOOK,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
 
             // Settings
             Resource::TYPE_PROJECT_VARIABLE,
-            Resource::TYPE_WEBHOOK,
             Resource::TYPE_PROTOCOLS,
             Resource::TYPE_LABELS,
             Resource::TYPE_SERVICES,
@@ -1582,19 +1582,6 @@ class Appwrite extends Source
             }
         }
 
-        if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
-            $webhookQueries = $this->buildQueries(
-                resourceType: Resource::TYPE_WEBHOOK,
-                resourceIds: $resourceIds,
-                limit: 1
-            );
-            try {
-                $report[Resource::TYPE_WEBHOOK] = $this->webhooks->list($webhookQueries)->total;
-            } catch (\Throwable) {
-                $report[Resource::TYPE_WEBHOOK] = 0;
-            }
-        }
-
         if (\in_array(Resource::TYPE_PROTOCOLS, $resources)) {
             // Singleton — there is exactly one protocols config per project.
             $report[Resource::TYPE_PROTOCOLS] = 1;
@@ -1623,20 +1610,6 @@ class Appwrite extends Source
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_PROJECT_VARIABLE,
-                    Transfer::GROUP_SETTINGS,
-                    message: $e->getMessage(),
-                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
-                    previous: $e
-                ));
-            }
-        }
-
-        if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
-            try {
-                $this->exportWebhooks($batchSize);
-            } catch (\Throwable $e) {
-                $this->addError(new Exception(
-                    Resource::TYPE_WEBHOOK,
                     Transfer::GROUP_SETTINGS,
                     message: $e->getMessage(),
                     code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
@@ -2661,6 +2634,19 @@ class Appwrite extends Source
                 $report[Resource::TYPE_API_KEY] = 0;
             }
         }
+
+        if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
+            $webhookQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_WEBHOOK,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            try {
+                $report[Resource::TYPE_WEBHOOK] = $this->webhooks->list($webhookQueries)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_WEBHOOK] = 0;
+            }
+        }
     }
 
     /**
@@ -2713,6 +2699,20 @@ class Appwrite extends Source
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_API_KEY,
+                    Transfer::GROUP_INTEGRATIONS,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                ));
+            }
+        }
+
+        if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
+            try {
+                $this->exportWebhooks($batchSize);
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_WEBHOOK,
                     Transfer::GROUP_INTEGRATIONS,
                     message: $e->getMessage(),
                     code: $e->getCode(),
