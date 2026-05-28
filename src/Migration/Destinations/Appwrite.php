@@ -293,11 +293,11 @@ class Appwrite extends Destination
             Resource::TYPE_API_KEY,
             Resource::TYPE_WEBHOOK,
 
-            // Settings
+            // Project
             Resource::TYPE_PROJECT_VARIABLE,
-            Resource::TYPE_PROTOCOLS,
-            Resource::TYPE_LABELS,
-            Resource::TYPE_SERVICES,
+            Resource::TYPE_PROJECT_PROTOCOLS,
+            Resource::TYPE_PROJECT_LABELS,
+            Resource::TYPE_PROJECT_SERVICES,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -459,7 +459,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_SITES => $this->importSiteResource($resource),
                     Transfer::GROUP_INTEGRATIONS => $this->importIntegrationsResource($resource),
                     Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
-                    Transfer::GROUP_SETTINGS => $this->importSettingsResource($resource),
+                    Transfer::GROUP_PROJECTS => $this->importProjectsResource($resource),
                     default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
             } catch (\Throwable $e) {
@@ -3123,22 +3123,22 @@ class Appwrite extends Destination
         return $resource;
     }
 
-    public function importSettingsResource(Resource $resource): Resource
+    public function importProjectsResource(Resource $resource): Resource
     {
         switch ($resource->getName()) {
             case Resource::TYPE_PROJECT_VARIABLE:
                 /** @var ProjectVariable $resource */
                 $this->createProjectVariable($resource);
                 break;
-            case Resource::TYPE_PROTOCOLS:
+            case Resource::TYPE_PROJECT_PROTOCOLS:
                 /** @var Protocols $resource */
                 $this->createProtocols($resource);
                 break;
-            case Resource::TYPE_LABELS:
+            case Resource::TYPE_PROJECT_LABELS:
                 /** @var Labels $resource */
                 $this->createLabels($resource);
                 break;
-            case Resource::TYPE_SERVICES:
+            case Resource::TYPE_PROJECT_SERVICES:
                 /** @var ServicesResource $resource */
                 $this->createServices($resource);
                 break;

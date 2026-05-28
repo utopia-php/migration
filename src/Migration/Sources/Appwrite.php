@@ -231,11 +231,11 @@ class Appwrite extends Source
             // Backups
             Resource::TYPE_BACKUP_POLICY,
 
-            // Settings
+            // Project
             Resource::TYPE_PROJECT_VARIABLE,
-            Resource::TYPE_PROTOCOLS,
-            Resource::TYPE_LABELS,
-            Resource::TYPE_SERVICES,
+            Resource::TYPE_PROJECT_PROTOCOLS,
+            Resource::TYPE_PROJECT_LABELS,
+            Resource::TYPE_PROJECT_SERVICES,
         ];
     }
 
@@ -276,7 +276,7 @@ class Appwrite extends Source
             $this->reportSites($resources, $report, $resourceIds);
             $this->reportIntegrations($resources, $report, $resourceIds);
             $this->reportBackups($resources, $report, $resourceIds);
-            $this->reportSettings($resources, $report, $resourceIds);
+            $this->reportProjects($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1567,7 +1567,7 @@ class Appwrite extends Source
         }
     }
 
-    private function reportSettings(array $resources, array &$report, array $resourceIds = []): void
+    private function reportProjects(array $resources, array &$report, array $resourceIds = []): void
     {
         if (\in_array(Resource::TYPE_PROJECT_VARIABLE, $resources)) {
             $variableQueries = $this->buildQueries(
@@ -1582,19 +1582,19 @@ class Appwrite extends Source
             }
         }
 
-        if (\in_array(Resource::TYPE_PROTOCOLS, $resources)) {
+        if (\in_array(Resource::TYPE_PROJECT_PROTOCOLS, $resources)) {
             // Singleton — there is exactly one protocols config per project.
-            $report[Resource::TYPE_PROTOCOLS] = 1;
+            $report[Resource::TYPE_PROJECT_PROTOCOLS] = 1;
         }
 
-        if (\in_array(Resource::TYPE_LABELS, $resources)) {
+        if (\in_array(Resource::TYPE_PROJECT_LABELS, $resources)) {
             // Singleton — one labels array per project.
-            $report[Resource::TYPE_LABELS] = 1;
+            $report[Resource::TYPE_PROJECT_LABELS] = 1;
         }
 
-        if (\in_array(Resource::TYPE_SERVICES, $resources)) {
+        if (\in_array(Resource::TYPE_PROJECT_SERVICES, $resources)) {
             // Singleton — one services config per project.
-            $report[Resource::TYPE_SERVICES] = 1;
+            $report[Resource::TYPE_PROJECT_SERVICES] = 1;
         }
     }
 
@@ -1602,7 +1602,7 @@ class Appwrite extends Source
      * @param int $batchSize
      * @param array<string> $resources
      */
-    protected function exportGroupSettings(int $batchSize, array $resources): void
+    protected function exportGroupProjects(int $batchSize, array $resources): void
     {
         if (\in_array(Resource::TYPE_PROJECT_VARIABLE, $resources)) {
             try {
@@ -1610,7 +1610,7 @@ class Appwrite extends Source
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_PROJECT_VARIABLE,
-                    Transfer::GROUP_SETTINGS,
+                    Transfer::GROUP_PROJECTS,
                     message: $e->getMessage(),
                     code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                     previous: $e
@@ -1619,13 +1619,13 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_PROTOCOLS, $resources)) {
+            if (\in_array(Resource::TYPE_PROJECT_PROTOCOLS, $resources)) {
                 $this->exportProtocols();
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
-                Resource::TYPE_PROTOCOLS,
-                Transfer::GROUP_SETTINGS,
+                Resource::TYPE_PROJECT_PROTOCOLS,
+                Transfer::GROUP_PROJECTS,
                 message: $e->getMessage(),
                 code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
@@ -1633,13 +1633,13 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_LABELS, $resources)) {
+            if (\in_array(Resource::TYPE_PROJECT_LABELS, $resources)) {
                 $this->exportLabels();
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
-                Resource::TYPE_LABELS,
-                Transfer::GROUP_SETTINGS,
+                Resource::TYPE_PROJECT_LABELS,
+                Transfer::GROUP_PROJECTS,
                 message: $e->getMessage(),
                 code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e
@@ -1647,13 +1647,13 @@ class Appwrite extends Source
         }
 
         try {
-            if (\in_array(Resource::TYPE_SERVICES, $resources)) {
+            if (\in_array(Resource::TYPE_PROJECT_SERVICES, $resources)) {
                 $this->exportServices();
             }
         } catch (\Throwable $e) {
             $this->addError(new Exception(
-                Resource::TYPE_SERVICES,
-                Transfer::GROUP_SETTINGS,
+                Resource::TYPE_PROJECT_SERVICES,
+                Transfer::GROUP_PROJECTS,
                 message: $e->getMessage(),
                 code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
                 previous: $e

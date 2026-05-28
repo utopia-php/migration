@@ -28,7 +28,7 @@ class Transfer
 
     public const GROUP_BACKUPS = 'backups';
 
-    public const GROUP_SETTINGS = 'settings';
+    public const GROUP_PROJECTS = 'projects';
 
     public const GROUP_AUTH_RESOURCES = [
         Resource::TYPE_USER,
@@ -97,11 +97,11 @@ class Transfer
         Resource::TYPE_ATTRIBUTE
     ];
 
-    public const GROUP_SETTINGS_RESOURCES = [
+    public const GROUP_PROJECTS_RESOURCES = [
         Resource::TYPE_PROJECT_VARIABLE,
-        Resource::TYPE_PROTOCOLS,
-        Resource::TYPE_LABELS,
-        Resource::TYPE_SERVICES,
+        Resource::TYPE_PROJECT_PROTOCOLS,
+        Resource::TYPE_PROJECT_LABELS,
+        Resource::TYPE_PROJECT_SERVICES,
     ];
 
     public const GROUP_BACKUPS_RESOURCES = [
@@ -145,11 +145,11 @@ class Transfer
         Resource::TYPE_API_KEY,
         Resource::TYPE_WEBHOOK,
 
-        // Settings
+        // Project
         Resource::TYPE_PROJECT_VARIABLE,
-        Resource::TYPE_PROTOCOLS,
-        Resource::TYPE_LABELS,
-        Resource::TYPE_SERVICES,
+        Resource::TYPE_PROJECT_PROTOCOLS,
+        Resource::TYPE_PROJECT_LABELS,
+        Resource::TYPE_PROJECT_SERVICES,
 
         // legacy
         Resource::TYPE_DOCUMENT,
@@ -436,7 +436,7 @@ class Transfer
                 self::GROUP_DATABASES_VECTOR_DB => array_merge($resources, self::GROUP_VECTORSDB_RESOURCES),
                 self::GROUP_MESSAGING => array_merge($resources, self::GROUP_MESSAGING_RESOURCES),
                 self::GROUP_BACKUPS => array_merge($resources, self::GROUP_BACKUPS_RESOURCES),
-                self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
+                self::GROUP_PROJECTS => array_merge($resources, self::GROUP_PROJECTS_RESOURCES),
                 default => throw new \Exception('No service group found'),
             };
         }

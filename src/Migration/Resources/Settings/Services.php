@@ -99,12 +99,12 @@ class Services extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_SERVICES;
+        return Resource::TYPE_PROJECT_SERVICES;
     }
 
     public function getGroup(): string
     {
-        return Transfer::GROUP_SETTINGS;
+        return Transfer::GROUP_PROJECTS;
     }
 
     public function getAccount(): bool
