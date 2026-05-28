@@ -279,10 +279,10 @@ class Appwrite extends Destination
             // Integrations
             Resource::TYPE_PLATFORM,
             Resource::TYPE_API_KEY,
+            Resource::TYPE_WEBHOOK,
 
             // Settings
             Resource::TYPE_PROJECT_VARIABLE,
-            Resource::TYPE_WEBHOOK,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -3087,6 +3087,10 @@ class Appwrite extends Destination
                 /** @var ApiKey $resource */
                 $this->createApiKey($resource);
                 break;
+            case Resource::TYPE_WEBHOOK:
+                /** @var Webhook $resource */
+                $this->createWebhook($resource);
+                break;
         }
 
         if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
@@ -3102,10 +3106,6 @@ class Appwrite extends Destination
             case Resource::TYPE_PROJECT_VARIABLE:
                 /** @var ProjectVariable $resource */
                 $this->createProjectVariable($resource);
-                break;
-            case Resource::TYPE_WEBHOOK:
-                /** @var Webhook $resource */
-                $this->createWebhook($resource);
                 break;
         }
 
