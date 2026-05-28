@@ -3558,11 +3558,15 @@ class Appwrite extends Destination
     }
 
     /**
-     * Read-then-merge the project's `oAuthProviders` map. Each provider expands
-     * into `{key}Enabled` and (when carried) `{key}Appid` flat entries; the
-     * `{key}Secret` entry is left untouched so the destination user can re-enter
-     * it post-migration. Empty `appId` is skipped rather than overwritten so
-     * pre-existing destination credentials aren't clobbered.
+     * Read-then-merge the project's `oAuthProviders` map. Migration only flips
+     * `{key}Enabled` — credentials (`{key}Appid`, `{key}Secret`) are never
+     * migrated because the source API masks them on read.
+     *
+     * Enabling a provider that has no `{key}Appid` configured on the destination
+     * would redirect end users to the OAuth server with an empty client_id and
+     * break sign-in at runtime. To avoid that, `enabled = true` is only applied
+     * if the destination already has credentials registered for the provider.
+     * Disables are always applied — they can never produce a broken sign-in.
      */
     protected function createOAuthProviders(OAuthProviders $resource): bool
     {
@@ -3574,10 +3578,12 @@ class Appwrite extends Destination
             if ($key === '') {
                 continue;
             }
-            $oAuthProviders[$key . 'Enabled'] = $provider['enabled'];
-            if ($provider['appId'] !== '') {
-                $oAuthProviders[$key . 'Appid'] = $provider['appId'];
+            if ($provider['enabled'] && empty($oAuthProviders[$key . 'Appid'])) {
+                // Destination has no credentials for this provider — skip the
+                // enable to keep sign-in functional.
+                continue;
             }
+            $oAuthProviders[$key . 'Enabled'] = $provider['enabled'];
         }
 
         $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
