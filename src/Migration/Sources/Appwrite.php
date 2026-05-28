@@ -745,22 +745,26 @@ class Appwrite extends Source
 
     private function exportOAuthProviders(): void
     {
-        $project = $this->project->get();
+        // listOAuth2Providers returns a heterogeneous list — each entry is a typed
+        // OAuth2{Provider} payload with provider-specific field names (Google's
+        // `clientId` vs Apple's `serviceId`). We only migrate the `enabled` toggle;
+        // credential fields (clientId/secret/serviceId/keyId/...) are intentionally
+        // not migrated — destination user must re-register the OAuth app and
+        // re-enter credentials, same caveat as the SMTP password.
+        $response = $this->project->listOAuth2Providers();
 
         $providers = [];
-        foreach ($project->oAuthProviders as $provider) {
+        foreach ($response->providers as $provider) {
             $providers[] = [
-                'key' => (string) $provider->key,
-                'enabled' => (bool) $provider->enabled,
-                'appId' => (string) $provider->appId,
+                'key' => (string) ($provider['$id'] ?? ''),
+                'enabled' => (bool) ($provider['enabled'] ?? false),
+                'appId' => '',
             ];
         }
 
         $oAuthProviders = new OAuthProviders(
             $this->projectId,
             $providers,
-            createdAt: $project->createdAt,
-            updatedAt: $project->updatedAt,
         );
 
         $this->callback([$oAuthProviders]);
