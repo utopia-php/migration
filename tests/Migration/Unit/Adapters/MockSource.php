@@ -230,14 +230,14 @@ class MockSource extends Source
         }
     }
 
-    protected function exportGroupSettings(int $batchSize, array $resources): void
+    protected function exportGroupProjects(int $batchSize, array $resources): void
     {
-        foreach (Transfer::GROUP_SETTINGS_RESOURCES as $resource) {
+        foreach (Transfer::GROUP_PROJECTS_RESOURCES as $resource) {
             if (!\in_array($resource, $resources)) {
                 continue;
             }
 
-            $this->handleResourceTransfer(Transfer::GROUP_SETTINGS, $resource);
+            $this->handleResourceTransfer(Transfer::GROUP_PROJECTS, $resource);
         }
     }
 

@@ -28,7 +28,7 @@ class Transfer
 
     public const GROUP_BACKUPS = 'backups';
 
-    public const GROUP_SETTINGS = 'settings';
+    public const GROUP_PROJECTS = 'projects';
 
     public const GROUP_DOMAINS = 'domains';
 
@@ -69,6 +69,8 @@ class Transfer
     public const GROUP_INTEGRATIONS_RESOURCES = [
         Resource::TYPE_PLATFORM,
         Resource::TYPE_API_KEY,
+        Resource::TYPE_WEBHOOK,
+        Resource::TYPE_SMTP,
     ];
     public const GROUP_DOCUMENTSDB_RESOURCES = [
         Resource::TYPE_DATABASE_DOCUMENTSDB,
@@ -98,13 +100,11 @@ class Transfer
         Resource::TYPE_ATTRIBUTE
     ];
 
-    public const GROUP_SETTINGS_RESOURCES = [
+    public const GROUP_PROJECTS_RESOURCES = [
         Resource::TYPE_PROJECT_VARIABLE,
-        Resource::TYPE_WEBHOOK,
-        Resource::TYPE_PROTOCOLS,
-        Resource::TYPE_LABELS,
-        Resource::TYPE_SERVICES,
-        Resource::TYPE_SMTP,
+        Resource::TYPE_PROJECT_PROTOCOLS,
+        Resource::TYPE_PROJECT_LABELS,
+        Resource::TYPE_PROJECT_SERVICES,
     ];
 
     public const GROUP_BACKUPS_RESOURCES = [
@@ -150,14 +150,14 @@ class Transfer
         // Integrations
         Resource::TYPE_PLATFORM,
         Resource::TYPE_API_KEY,
-
-        // Settings
-        Resource::TYPE_PROJECT_VARIABLE,
         Resource::TYPE_WEBHOOK,
-        Resource::TYPE_PROTOCOLS,
-        Resource::TYPE_LABELS,
-        Resource::TYPE_SERVICES,
         Resource::TYPE_SMTP,
+
+        // Project
+        Resource::TYPE_PROJECT_VARIABLE,
+        Resource::TYPE_PROJECT_PROTOCOLS,
+        Resource::TYPE_PROJECT_LABELS,
+        Resource::TYPE_PROJECT_SERVICES,
 
         // Domains
         Resource::TYPE_RULE,
@@ -447,8 +447,8 @@ class Transfer
                 self::GROUP_DATABASES_VECTOR_DB => array_merge($resources, self::GROUP_VECTORSDB_RESOURCES),
                 self::GROUP_MESSAGING => array_merge($resources, self::GROUP_MESSAGING_RESOURCES),
                 self::GROUP_BACKUPS => array_merge($resources, self::GROUP_BACKUPS_RESOURCES),
+                self::GROUP_PROJECTS => array_merge($resources, self::GROUP_PROJECTS_RESOURCES),
                 self::GROUP_DOMAINS => array_merge($resources, self::GROUP_DOMAINS_RESOURCES),
-                self::GROUP_SETTINGS => array_merge($resources, self::GROUP_SETTINGS_RESOURCES),
                 default => throw new \Exception('No service group found'),
             };
         }

@@ -79,7 +79,7 @@ class SMTP extends Resource
 
     public function getGroup(): string
     {
-        return Transfer::GROUP_SETTINGS;
+        return Transfer::GROUP_INTEGRATIONS;
     }
 
     public function getEnabled(): bool
