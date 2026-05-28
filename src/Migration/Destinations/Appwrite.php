@@ -10,7 +10,6 @@ use Appwrite\Enums\Compression;
 use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\ProjectProtocolId;
-use Appwrite\Enums\ProjectServiceId;
 use Appwrite\Enums\ProxyResourceType;
 use Appwrite\Enums\Runtime;
 use Appwrite\Enums\SmtpEncryption;
@@ -299,23 +298,21 @@ class Appwrite extends Destination
             // Integrations
             Resource::TYPE_PLATFORM,
             Resource::TYPE_API_KEY,
-
-            // Settings
-            Resource::TYPE_PROJECT_VARIABLE,
             Resource::TYPE_WEBHOOK,
-            Resource::TYPE_PROTOCOLS,
-            Resource::TYPE_LABELS,
-            Resource::TYPE_SERVICES,
             Resource::TYPE_SMTP,
+
+            // Project
+            Resource::TYPE_PROJECT_VARIABLE,
+            Resource::TYPE_PROJECT_PROTOCOLS,
+            Resource::TYPE_PROJECT_LABELS,
+            Resource::TYPE_PROJECT_SERVICES,
+            Resource::TYPE_PROJECT_EMAIL_TEMPLATE,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
 
             // Domains
             Resource::TYPE_RULE,
-
-            // Templates
-            Resource::TYPE_EMAIL_TEMPLATE,
         ];
     }
 
@@ -474,9 +471,8 @@ class Appwrite extends Destination
                     Transfer::GROUP_SITES => $this->importSiteResource($resource),
                     Transfer::GROUP_INTEGRATIONS => $this->importIntegrationsResource($resource),
                     Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
-                    Transfer::GROUP_SETTINGS => $this->importSettingsResource($resource),
+                    Transfer::GROUP_PROJECTS => $this->importProjectsResource($resource),
                     Transfer::GROUP_DOMAINS => $this->importDomainsResource($resource),
-                    Transfer::GROUP_TEMPLATES => $this->importTemplatesResource($resource),
                     default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
             } catch (\Throwable $e) {
@@ -3127,6 +3123,14 @@ class Appwrite extends Destination
                 /** @var ApiKey $resource */
                 $this->createApiKey($resource);
                 break;
+            case Resource::TYPE_WEBHOOK:
+                /** @var Webhook $resource */
+                $this->createWebhook($resource);
+                break;
+            case Resource::TYPE_SMTP:
+                /** @var SMTP $resource */
+                $this->createSMTP($resource);
+                break;
         }
 
         if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
@@ -3136,32 +3140,28 @@ class Appwrite extends Destination
         return $resource;
     }
 
-    public function importSettingsResource(Resource $resource): Resource
+    public function importProjectsResource(Resource $resource): Resource
     {
         switch ($resource->getName()) {
             case Resource::TYPE_PROJECT_VARIABLE:
                 /** @var ProjectVariable $resource */
                 $this->createProjectVariable($resource);
                 break;
-            case Resource::TYPE_WEBHOOK:
-                /** @var Webhook $resource */
-                $this->createWebhook($resource);
-                break;
-            case Resource::TYPE_PROTOCOLS:
+            case Resource::TYPE_PROJECT_PROTOCOLS:
                 /** @var Protocols $resource */
                 $this->createProtocols($resource);
                 break;
-            case Resource::TYPE_LABELS:
+            case Resource::TYPE_PROJECT_LABELS:
                 /** @var Labels $resource */
                 $this->createLabels($resource);
                 break;
-            case Resource::TYPE_SERVICES:
+            case Resource::TYPE_PROJECT_SERVICES:
                 /** @var ServicesResource $resource */
                 $this->createServices($resource);
                 break;
-            case Resource::TYPE_SMTP:
-                /** @var SMTP $resource */
-                $this->createSMTP($resource);
+            case Resource::TYPE_PROJECT_EMAIL_TEMPLATE:
+                /** @var EmailTemplate $resource */
+                $this->createEmailTemplate($resource);
                 break;
         }
 
@@ -3181,22 +3181,6 @@ class Appwrite extends Destination
                 if (!$success) {
                     return $resource;
                 }
-                break;
-        }
-
-        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
-            $resource->setStatus(Resource::STATUS_SUCCESS);
-        }
-
-        return $resource;
-    }
-
-    public function importTemplatesResource(Resource $resource): Resource
-    {
-        switch ($resource->getName()) {
-            case Resource::TYPE_EMAIL_TEMPLATE:
-                /** @var EmailTemplate $resource */
-                $this->createEmailTemplate($resource);
                 break;
         }
 
@@ -3286,23 +3270,9 @@ class Appwrite extends Destination
         $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
         $services = $project->getAttribute('services', []);
 
-        $services[(string) ProjectServiceId::ACCOUNT()]    = $resource->getAccount();
-        $services[(string) ProjectServiceId::AVATARS()]    = $resource->getAvatars();
-        $services[(string) ProjectServiceId::DATABASES()]  = $resource->getDatabases();
-        $services[(string) ProjectServiceId::TABLESDB()]   = $resource->getTablesdb();
-        $services[(string) ProjectServiceId::LOCALE()]     = $resource->getLocale();
-        $services[(string) ProjectServiceId::HEALTH()]     = $resource->getHealth();
-        $services[(string) ProjectServiceId::PROJECT()]    = $resource->getProject();
-        $services[(string) ProjectServiceId::STORAGE()]    = $resource->getStorage();
-        $services[(string) ProjectServiceId::TEAMS()]      = $resource->getTeams();
-        $services[(string) ProjectServiceId::USERS()]      = $resource->getUsers();
-        $services[(string) ProjectServiceId::VCS()]        = $resource->getVcs();
-        $services[(string) ProjectServiceId::SITES()]      = $resource->getSites();
-        $services[(string) ProjectServiceId::FUNCTIONS()]  = $resource->getFunctions();
-        $services[(string) ProjectServiceId::PROXY()]      = $resource->getProxy();
-        $services[(string) ProjectServiceId::GRAPHQL()]    = $resource->getGraphql();
-        $services[(string) ProjectServiceId::MIGRATIONS()] = $resource->getMigrations();
-        $services[(string) ProjectServiceId::MESSAGING()]  = $resource->getMessaging();
+        foreach ($resource->getServices() as $serviceId => $enabled) {
+            $services[$serviceId] = (bool) $enabled;
+        }
 
         $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
             'projects',

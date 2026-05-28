@@ -58,7 +58,7 @@ class ProjectVariable extends Resource
 
     public function getGroup(): string
     {
-        return Transfer::GROUP_SETTINGS;
+        return Transfer::GROUP_PROJECTS;
     }
 
     public function getKey(): string
