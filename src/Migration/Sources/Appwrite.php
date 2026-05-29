@@ -26,6 +26,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
+use Utopia\Migration\Resources\Auth\OAuth2;
 use Utopia\Migration\Resources\Auth\OAuth2\OAuth2Provider;
 use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
@@ -754,52 +755,80 @@ class Appwrite extends Source
     }
 
     /**
-     * Map of provider `$id` → fully-qualified migration Resource class.
-     * Each class extends `OAuth2Provider` and knows how to deserialize its
-     * provider's payload via `fromArray()`.
+     * Migration Resource classes for every OAuth2 provider exposed by
+     * `listOAuth2Providers`. The provider key (`'github'`, `'apple'`, …)
+     * lives only on the class via `OAuth2Provider::getProviderKey()` —
+     * `oauth2ClassFor()` lazily builds the key→class lookup.
+     *
+     * Adding a provider: drop one new file under Resources/Auth/OAuth2/ and
+     * append one line below.
+     *
+     * @var array<class-string<OAuth2Provider>>
      */
     private const OAUTH2_PROVIDER_CLASSES = [
-        'amazon'      => \Utopia\Migration\Resources\Auth\OAuth2\Amazon::class,
-        'apple'       => \Utopia\Migration\Resources\Auth\OAuth2\Apple::class,
-        'auth0'       => \Utopia\Migration\Resources\Auth\OAuth2\Auth0::class,
-        'authentik'   => \Utopia\Migration\Resources\Auth\OAuth2\Authentik::class,
-        'autodesk'    => \Utopia\Migration\Resources\Auth\OAuth2\Autodesk::class,
-        'bitbucket'   => \Utopia\Migration\Resources\Auth\OAuth2\Bitbucket::class,
-        'bitly'       => \Utopia\Migration\Resources\Auth\OAuth2\Bitly::class,
-        'box'         => \Utopia\Migration\Resources\Auth\OAuth2\Box::class,
-        'dailymotion' => \Utopia\Migration\Resources\Auth\OAuth2\Dailymotion::class,
-        'discord'     => \Utopia\Migration\Resources\Auth\OAuth2\Discord::class,
-        'disqus'      => \Utopia\Migration\Resources\Auth\OAuth2\Disqus::class,
-        'dropbox'     => \Utopia\Migration\Resources\Auth\OAuth2\Dropbox::class,
-        'etsy'        => \Utopia\Migration\Resources\Auth\OAuth2\Etsy::class,
-        'facebook'    => \Utopia\Migration\Resources\Auth\OAuth2\Facebook::class,
-        'figma'       => \Utopia\Migration\Resources\Auth\OAuth2\Figma::class,
-        'fusionauth'  => \Utopia\Migration\Resources\Auth\OAuth2\FusionAuth::class,
-        'github'      => \Utopia\Migration\Resources\Auth\OAuth2\Github::class,
-        'gitlab'      => \Utopia\Migration\Resources\Auth\OAuth2\Gitlab::class,
-        'google'      => \Utopia\Migration\Resources\Auth\OAuth2\Google::class,
-        'keycloak'    => \Utopia\Migration\Resources\Auth\OAuth2\Keycloak::class,
-        'kick'        => \Utopia\Migration\Resources\Auth\OAuth2\Kick::class,
-        'linkedin'    => \Utopia\Migration\Resources\Auth\OAuth2\Linkedin::class,
-        'microsoft'   => \Utopia\Migration\Resources\Auth\OAuth2\Microsoft::class,
-        'notion'      => \Utopia\Migration\Resources\Auth\OAuth2\Notion::class,
-        'oidc'        => \Utopia\Migration\Resources\Auth\OAuth2\Oidc::class,
-        'okta'        => \Utopia\Migration\Resources\Auth\OAuth2\Okta::class,
-        'paypal'      => \Utopia\Migration\Resources\Auth\OAuth2\Paypal::class,
-        'podio'       => \Utopia\Migration\Resources\Auth\OAuth2\Podio::class,
-        'salesforce'  => \Utopia\Migration\Resources\Auth\OAuth2\Salesforce::class,
-        'slack'       => \Utopia\Migration\Resources\Auth\OAuth2\Slack::class,
-        'spotify'     => \Utopia\Migration\Resources\Auth\OAuth2\Spotify::class,
-        'stripe'      => \Utopia\Migration\Resources\Auth\OAuth2\Stripe::class,
-        'tradeshift'  => \Utopia\Migration\Resources\Auth\OAuth2\Tradeshift::class,
-        'twitch'      => \Utopia\Migration\Resources\Auth\OAuth2\Twitch::class,
-        'wordpress'   => \Utopia\Migration\Resources\Auth\OAuth2\Wordpress::class,
-        'x'           => \Utopia\Migration\Resources\Auth\OAuth2\X::class,
-        'yahoo'       => \Utopia\Migration\Resources\Auth\OAuth2\Yahoo::class,
-        'yandex'      => \Utopia\Migration\Resources\Auth\OAuth2\Yandex::class,
-        'zoho'        => \Utopia\Migration\Resources\Auth\OAuth2\Zoho::class,
-        'zoom'        => \Utopia\Migration\Resources\Auth\OAuth2\Zoom::class,
+        OAuth2\Amazon::class,
+        OAuth2\Apple::class,
+        OAuth2\Auth0::class,
+        OAuth2\Authentik::class,
+        OAuth2\Autodesk::class,
+        OAuth2\Bitbucket::class,
+        OAuth2\Bitly::class,
+        OAuth2\Box::class,
+        OAuth2\Dailymotion::class,
+        OAuth2\Discord::class,
+        OAuth2\Disqus::class,
+        OAuth2\Dropbox::class,
+        OAuth2\Etsy::class,
+        OAuth2\Facebook::class,
+        OAuth2\Figma::class,
+        OAuth2\FusionAuth::class,
+        OAuth2\Github::class,
+        OAuth2\Gitlab::class,
+        OAuth2\Google::class,
+        OAuth2\Keycloak::class,
+        OAuth2\Kick::class,
+        OAuth2\Linkedin::class,
+        OAuth2\Microsoft::class,
+        OAuth2\Notion::class,
+        OAuth2\Oidc::class,
+        OAuth2\Okta::class,
+        OAuth2\Paypal::class,
+        OAuth2\Podio::class,
+        OAuth2\Salesforce::class,
+        OAuth2\Slack::class,
+        OAuth2\Spotify::class,
+        OAuth2\Stripe::class,
+        OAuth2\Tradeshift::class,
+        OAuth2\Twitch::class,
+        OAuth2\Wordpress::class,
+        OAuth2\X::class,
+        OAuth2\Yahoo::class,
+        OAuth2\Yandex::class,
+        OAuth2\Zoho::class,
+        OAuth2\Zoom::class,
     ];
+
+    /** @var array<string, class-string<OAuth2Provider>>|null */
+    private static ?array $oauth2ClassByKey = null;
+
+    /**
+     * Resolve a provider key (from the SDK list response's `$id`) to its
+     * Resource class. Returns `null` when the server lists a provider this
+     * lib has no class for yet (e.g. a newly added upstream provider).
+     *
+     * @return class-string<OAuth2Provider>|null
+     */
+    private static function oauth2ClassFor(string $key): ?string
+    {
+        if (self::$oauth2ClassByKey === null) {
+            self::$oauth2ClassByKey = [];
+            foreach (self::OAUTH2_PROVIDER_CLASSES as $class) {
+                self::$oauth2ClassByKey[$class::getProviderKey()] = $class;
+            }
+        }
+
+        return self::$oauth2ClassByKey[$key] ?? null;
+    }
 
     /**
      * `listOAuth2Providers` returns a heterogeneous list — each entry is a
@@ -821,7 +850,7 @@ class Appwrite extends Source
                 continue;
             }
 
-            $class = self::OAUTH2_PROVIDER_CLASSES[$key] ?? null;
+            $class = self::oauth2ClassFor($key);
             if ($class === null) {
                 // Server exposes a provider we don't have a Resource class for
                 // yet (e.g. a new provider added upstream after this lib was
