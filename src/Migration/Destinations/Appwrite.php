@@ -3567,15 +3567,16 @@ class Appwrite extends Destination
      * Read-then-merge a single OAuth2 provider's entries on the project's
      * `oAuthProviders` map. The same storage shape covers every provider —
      * `{providerKey}Appid` for the readable client identifier, `{providerKey}Secret`
-     * for the credential blob (write-only, never overwritten), and
-     * `{providerKey}Enabled` for the toggle. Per-provider extras (Apple's
-     * keyId/teamId merged into the secret JSON, Microsoft's tenant, OIDC's
-     * endpoint, Google's prompt) are handled in the per-shape branches.
+     * for the credential blob, and `{providerKey}Enabled` for the toggle.
+     * Per-provider extras (Apple's keyId/teamId merged into the secret JSON,
+     * Microsoft's tenant, OIDC's endpoint, Google's prompt) are handled in the
+     * per-shape branches.
      *
-     * Safety guard: `enabled = true` is only applied if the destination already
-     * has a `{providerKey}Secret` set. Otherwise sign-in would redirect users to
-     * the OAuth server with no credentials and fail at runtime. Disables are
-     * always applied — they can never produce a broken sign-in.
+     * The actual secret material the OAuth handshake needs (`clientSecret` for
+     * standard providers, `p8File` for Apple) is write-only on the source API,
+     * so it never makes it to the destination — the admin must re-enter it
+     * post-migration. `enabled` is propagated as-is; until the admin enters the
+     * secret, sign-in attempts for that provider will fail at runtime.
      */
     protected function createOAuth2Provider(OAuth2Provider $resource): bool
     {
@@ -3583,7 +3584,6 @@ class Appwrite extends Destination
         $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
         $oAuthProviders = $project->getAttribute('oAuthProviders', []);
 
-        // Common: write the readable client identifier (clientId / serviceId).
         if ($resource instanceof OAuth2Apple) {
             if ($resource->getServiceId() !== '') {
                 $oAuthProviders[$key . 'Appid'] = $resource->getServiceId();
@@ -3620,15 +3620,7 @@ class Appwrite extends Destination
             }
         }
 
-        if ($resource->getEnabled()) {
-            // Don't flip enabled = true unless the destination already has a
-            // secret configured — see method doc.
-            if (!empty($oAuthProviders[$key . 'Secret'])) {
-                $oAuthProviders[$key . 'Enabled'] = true;
-            }
-        } else {
-            $oAuthProviders[$key . 'Enabled'] = false;
-        }
+        $oAuthProviders[$key . 'Enabled'] = $resource->getEnabled();
 
         $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
             'projects',
