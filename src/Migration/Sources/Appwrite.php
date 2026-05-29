@@ -26,7 +26,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
-use Utopia\Migration\Resources\Auth\OAuthProviders;
+use Utopia\Migration\Resources\Auth\OAuth2\OAuth2Provider;
 use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
@@ -191,8 +191,8 @@ class Appwrite extends Source
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
             Resource::TYPE_AUTH_METHODS,
-            Resource::TYPE_OAUTH_PROVIDERS,
             Resource::TYPE_POLICIES,
+            ...Transfer::GROUP_AUTH_OAUTH2_RESOURCES,
 
             // Database
             Resource::TYPE_DATABASE,
@@ -393,9 +393,13 @@ class Appwrite extends Source
             $report[Resource::TYPE_AUTH_METHODS] = 1;
         }
 
-        if (\in_array(Resource::TYPE_OAUTH_PROVIDERS, $resources)) {
-            // Singleton — one OAuth providers config map per project.
-            $report[Resource::TYPE_OAUTH_PROVIDERS] = 1;
+        // OAuth2 providers — one resource per provider type. Each is a
+        // singleton config (one map entry per project) but emitted as its own
+        // typed Resource so per-provider status/failures are visible.
+        foreach (Transfer::GROUP_AUTH_OAUTH2_RESOURCES as $oauth2Type) {
+            if (\in_array($oauth2Type, $resources)) {
+                $report[$oauth2Type] = 1;
+            }
         }
 
         if (\in_array(Resource::TYPE_POLICIES, $resources)) {
@@ -657,18 +661,26 @@ class Appwrite extends Source
             ));
         }
 
-        try {
-            if (\in_array(Resource::TYPE_OAUTH_PROVIDERS, $resources)) {
-                $this->exportOAuthProviders();
+        // A single `listOAuth2Providers` call returns the full per-provider
+        // payload; dispatch is by type. We catch and tag errors per-provider
+        // so one provider's failure doesn't suppress the others.
+        if (\count(\array_intersect(Transfer::GROUP_AUTH_OAUTH2_RESOURCES, $resources)) > 0) {
+            try {
+                $this->exportOAuth2Providers($resources);
+            } catch (\Throwable $e) {
+                foreach (Transfer::GROUP_AUTH_OAUTH2_RESOURCES as $oauth2Type) {
+                    if (!\in_array($oauth2Type, $resources)) {
+                        continue;
+                    }
+                    $this->addError(new Exception(
+                        $oauth2Type,
+                        Transfer::GROUP_AUTH,
+                        message: $e->getMessage(),
+                        code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                        previous: $e
+                    ));
+                }
             }
-        } catch (\Throwable $e) {
-            $this->addError(new Exception(
-                Resource::TYPE_OAUTH_PROVIDERS,
-                Transfer::GROUP_AUTH,
-                message: $e->getMessage(),
-                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
-                previous: $e
-            ));
         }
 
         try {
@@ -743,31 +755,100 @@ class Appwrite extends Source
         $this->callback([$authMethods]);
     }
 
-    private function exportOAuthProviders(): void
+    /**
+     * Map of provider `$id` → fully-qualified migration Resource class.
+     * Each class extends `OAuth2Provider` and knows how to deserialize its
+     * provider's payload via `fromArray()`.
+     */
+    private const OAUTH2_PROVIDER_CLASSES = [
+        'amazon'      => \Utopia\Migration\Resources\Auth\OAuth2\Amazon::class,
+        'apple'       => \Utopia\Migration\Resources\Auth\OAuth2\Apple::class,
+        'auth0'       => \Utopia\Migration\Resources\Auth\OAuth2\Auth0::class,
+        'authentik'   => \Utopia\Migration\Resources\Auth\OAuth2\Authentik::class,
+        'autodesk'    => \Utopia\Migration\Resources\Auth\OAuth2\Autodesk::class,
+        'bitbucket'   => \Utopia\Migration\Resources\Auth\OAuth2\Bitbucket::class,
+        'bitly'       => \Utopia\Migration\Resources\Auth\OAuth2\Bitly::class,
+        'box'         => \Utopia\Migration\Resources\Auth\OAuth2\Box::class,
+        'dailymotion' => \Utopia\Migration\Resources\Auth\OAuth2\Dailymotion::class,
+        'discord'     => \Utopia\Migration\Resources\Auth\OAuth2\Discord::class,
+        'disqus'      => \Utopia\Migration\Resources\Auth\OAuth2\Disqus::class,
+        'dropbox'     => \Utopia\Migration\Resources\Auth\OAuth2\Dropbox::class,
+        'etsy'        => \Utopia\Migration\Resources\Auth\OAuth2\Etsy::class,
+        'facebook'    => \Utopia\Migration\Resources\Auth\OAuth2\Facebook::class,
+        'figma'       => \Utopia\Migration\Resources\Auth\OAuth2\Figma::class,
+        'fusionauth'  => \Utopia\Migration\Resources\Auth\OAuth2\FusionAuth::class,
+        'github'      => \Utopia\Migration\Resources\Auth\OAuth2\Github::class,
+        'gitlab'      => \Utopia\Migration\Resources\Auth\OAuth2\Gitlab::class,
+        'google'      => \Utopia\Migration\Resources\Auth\OAuth2\Google::class,
+        'keycloak'    => \Utopia\Migration\Resources\Auth\OAuth2\Keycloak::class,
+        'kick'        => \Utopia\Migration\Resources\Auth\OAuth2\Kick::class,
+        'linkedin'    => \Utopia\Migration\Resources\Auth\OAuth2\Linkedin::class,
+        'microsoft'   => \Utopia\Migration\Resources\Auth\OAuth2\Microsoft::class,
+        'notion'      => \Utopia\Migration\Resources\Auth\OAuth2\Notion::class,
+        'oidc'        => \Utopia\Migration\Resources\Auth\OAuth2\Oidc::class,
+        'okta'        => \Utopia\Migration\Resources\Auth\OAuth2\Okta::class,
+        'paypal'      => \Utopia\Migration\Resources\Auth\OAuth2\Paypal::class,
+        'podio'       => \Utopia\Migration\Resources\Auth\OAuth2\Podio::class,
+        'salesforce'  => \Utopia\Migration\Resources\Auth\OAuth2\Salesforce::class,
+        'slack'       => \Utopia\Migration\Resources\Auth\OAuth2\Slack::class,
+        'spotify'     => \Utopia\Migration\Resources\Auth\OAuth2\Spotify::class,
+        'stripe'      => \Utopia\Migration\Resources\Auth\OAuth2\Stripe::class,
+        'tradeshift'  => \Utopia\Migration\Resources\Auth\OAuth2\Tradeshift::class,
+        'twitch'      => \Utopia\Migration\Resources\Auth\OAuth2\Twitch::class,
+        'wordpress'   => \Utopia\Migration\Resources\Auth\OAuth2\Wordpress::class,
+        'x'           => \Utopia\Migration\Resources\Auth\OAuth2\X::class,
+        'yahoo'       => \Utopia\Migration\Resources\Auth\OAuth2\Yahoo::class,
+        'yandex'      => \Utopia\Migration\Resources\Auth\OAuth2\Yandex::class,
+        'zoho'        => \Utopia\Migration\Resources\Auth\OAuth2\Zoho::class,
+        'zoom'        => \Utopia\Migration\Resources\Auth\OAuth2\Zoom::class,
+    ];
+
+    /**
+     * `listOAuth2Providers` returns a heterogeneous list — each entry is a
+     * typed `OAuth2{Provider}` payload with provider-specific fields. We
+     * route each one through its concrete migration Resource class
+     * (`Resources/Auth/OAuth2/{Provider}.php`), which extracts the readable
+     * non-secret fields. Credential fields (`clientSecret`, `p8File`) come
+     * back blanked from the server and are intentionally not migrated —
+     * destination admin must re-enter them per provider.
+     *
+     * @param array<string> $resources Resources selected for migration.
+     */
+    private function exportOAuth2Providers(array $resources): void
     {
-        // listOAuth2Providers returns a heterogeneous list — each entry is a typed
-        // OAuth2{Provider} payload with provider-specific field names (Google's
-        // `clientId` vs Apple's `serviceId`). We only migrate the `enabled` toggle;
-        // credential fields (clientId/secret/serviceId/keyId/...) are intentionally
-        // not migrated — destination user must re-register the OAuth app and
-        // re-enter credentials, same caveat as the SMTP password.
         $response = $this->project->listOAuth2Providers();
 
-        $providers = [];
+        $emitted = [];
         foreach ($response->providers as $provider) {
-            $providers[] = [
-                'key' => (string) ($provider['$id'] ?? ''),
-                'enabled' => (bool) ($provider['enabled'] ?? false),
-                'appId' => '',
-            ];
+            $key = (string) ($provider['$id'] ?? '');
+            if ($key === '') {
+                continue;
+            }
+
+            $class = self::OAUTH2_PROVIDER_CLASSES[$key] ?? null;
+            if ($class === null) {
+                // Server exposes a provider we don't have a Resource class for
+                // yet (e.g. a new provider added upstream after this lib was
+                // released). Skip silently — adding it is a one-file change.
+                continue;
+            }
+
+            /** @var class-string<OAuth2Provider> $class */
+            $type = $class::getName();
+            if (!\in_array($type, $resources, true)) {
+                continue;
+            }
+
+            // Hand the raw payload to the per-provider fromArray, which knows
+            // which fields it cares about.
+            $payload = $provider;
+            $payload['id'] = $this->projectId . '-' . $key;
+            $emitted[] = $class::fromArray($payload);
         }
 
-        $oAuthProviders = new OAuthProviders(
-            $this->projectId,
-            $providers,
-        );
-
-        $this->callback([$oAuthProviders]);
+        if (!empty($emitted)) {
+            $this->callback($emitted);
+        }
     }
 
     /**

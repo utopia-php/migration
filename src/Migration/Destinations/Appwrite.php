@@ -45,7 +45,12 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
-use Utopia\Migration\Resources\Auth\OAuthProviders;
+use Utopia\Migration\Resources\Auth\OAuth2\Apple as OAuth2Apple;
+use Utopia\Migration\Resources\Auth\OAuth2\Google as OAuth2Google;
+use Utopia\Migration\Resources\Auth\OAuth2\Microsoft as OAuth2Microsoft;
+use Utopia\Migration\Resources\Auth\OAuth2\OAuth2Provider;
+use Utopia\Migration\Resources\Auth\OAuth2\StandardProvider as OAuth2Standard;
+use Utopia\Migration\Resources\Auth\OAuth2\WithEndpointProvider as OAuth2WithEndpoint;
 use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
@@ -260,8 +265,8 @@ class Appwrite extends Destination
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
             Resource::TYPE_AUTH_METHODS,
-            Resource::TYPE_OAUTH_PROVIDERS,
             Resource::TYPE_POLICIES,
+            ...Transfer::GROUP_AUTH_OAUTH2_RESOURCES,
 
             // Database
             Resource::TYPE_DATABASE,
@@ -2194,13 +2199,14 @@ class Appwrite extends Destination
                 /** @var AuthMethods $resource */
                 $this->createAuthMethods($resource);
                 break;
-            case Resource::TYPE_OAUTH_PROVIDERS:
-                /** @var OAuthProviders $resource */
-                $this->createOAuthProviders($resource);
-                break;
             case Resource::TYPE_POLICIES:
                 /** @var Policies $resource */
                 $this->createPolicies($resource);
+                break;
+            default:
+                if ($resource instanceof OAuth2Provider) {
+                    $this->createOAuth2Provider($resource);
+                }
                 break;
         }
 
@@ -3558,32 +3564,70 @@ class Appwrite extends Destination
     }
 
     /**
-     * Read-then-merge the project's `oAuthProviders` map. Migration only flips
-     * `{key}Enabled` — credentials (`{key}Appid`, `{key}Secret`) are never
-     * migrated because the source API masks them on read.
+     * Read-then-merge a single OAuth2 provider's entries on the project's
+     * `oAuthProviders` map. The same storage shape covers every provider —
+     * `{providerKey}Appid` for the readable client identifier, `{providerKey}Secret`
+     * for the credential blob (write-only, never overwritten), and
+     * `{providerKey}Enabled` for the toggle. Per-provider extras (Apple's
+     * keyId/teamId merged into the secret JSON, Microsoft's tenant, OIDC's
+     * endpoint, Google's prompt) are handled in the per-shape branches.
      *
-     * Enabling a provider that has no `{key}Appid` configured on the destination
-     * would redirect end users to the OAuth server with an empty client_id and
-     * break sign-in at runtime. To avoid that, `enabled = true` is only applied
-     * if the destination already has credentials registered for the provider.
-     * Disables are always applied — they can never produce a broken sign-in.
+     * Safety guard: `enabled = true` is only applied if the destination already
+     * has a `{providerKey}Secret` set. Otherwise sign-in would redirect users to
+     * the OAuth server with no credentials and fail at runtime. Disables are
+     * always applied — they can never produce a broken sign-in.
      */
-    protected function createOAuthProviders(OAuthProviders $resource): bool
+    protected function createOAuth2Provider(OAuth2Provider $resource): bool
     {
+        $key = $resource::getProviderKey();
         $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
         $oAuthProviders = $project->getAttribute('oAuthProviders', []);
 
-        foreach ($resource->getProviders() as $provider) {
-            $key = $provider['key'];
-            if ($key === '') {
-                continue;
+        // Common: write the readable client identifier (clientId / serviceId).
+        if ($resource instanceof OAuth2Apple) {
+            if ($resource->getServiceId() !== '') {
+                $oAuthProviders[$key . 'Appid'] = $resource->getServiceId();
             }
-            if ($provider['enabled'] && empty($oAuthProviders[$key . 'Appid'])) {
-                // Destination has no credentials for this provider — skip the
-                // enable to keep sign-in functional.
-                continue;
+            $oAuthProviders[$key . 'Secret'] = $this->mergeAppleSecret(
+                $oAuthProviders[$key . 'Secret'] ?? '',
+                $resource->getKeyId(),
+                $resource->getTeamId(),
+            );
+        } elseif ($resource instanceof OAuth2Standard) {
+            if ($resource->getClientId() !== '') {
+                $oAuthProviders[$key . 'Appid'] = $resource->getClientId();
             }
-            $oAuthProviders[$key . 'Enabled'] = $provider['enabled'];
+            if ($resource instanceof OAuth2WithEndpoint && $resource->getEndpoint() !== '') {
+                // Endpoint providers (Auth0/Authentik/FusionAuth/Gitlab/Keycloak/Okta/OIDC)
+                // bundle the endpoint URL inside the JSON secret blob alongside
+                // the client secret on the destination.
+                $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
+                    $oAuthProviders[$key . 'Secret'] ?? '',
+                    ['endpoint' => $resource->getEndpoint()],
+                );
+            }
+            if ($resource instanceof OAuth2Microsoft && $resource->getTenant() !== '') {
+                $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
+                    $oAuthProviders[$key . 'Secret'] ?? '',
+                    ['tenant' => $resource->getTenant()],
+                );
+            }
+            if ($resource instanceof OAuth2Google && !empty($resource->getPrompt())) {
+                $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
+                    $oAuthProviders[$key . 'Secret'] ?? '',
+                    ['prompt' => $resource->getPrompt()],
+                );
+            }
+        }
+
+        if ($resource->getEnabled()) {
+            // Don't flip enabled = true unless the destination already has a
+            // secret configured — see method doc.
+            if (!empty($oAuthProviders[$key . 'Secret'])) {
+                $oAuthProviders[$key . 'Enabled'] = true;
+            }
+        } else {
+            $oAuthProviders[$key . 'Enabled'] = false;
         }
 
         $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
@@ -3595,6 +3639,43 @@ class Appwrite extends Destination
         $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
+    }
+
+    /**
+     * Apple stores its credential as a JSON blob of `{keyID, teamID, p8}`.
+     * Migration carries keyID/teamID (readable) but not p8 (write-only).
+     * Read the destination's existing blob, overlay the migrated fields, keep
+     * the destination's `p8` untouched.
+     */
+    private function mergeAppleSecret(string $existing, string $keyId, string $teamId): string
+    {
+        $decoded = $existing === '' ? [] : (\json_decode($existing, true) ?: []);
+        if ($keyId !== '') {
+            $decoded['keyID'] = $keyId;
+        }
+        if ($teamId !== '') {
+            $decoded['teamID'] = $teamId;
+        }
+
+        return \json_encode($decoded) ?: '';
+    }
+
+    /**
+     * Merge a partial fields map into a JSON-encoded secret blob (used for
+     * Microsoft tenant, OIDC/Auth0/etc. endpoint, Google prompt). Preserves
+     * any existing keys on the destination — only overrides the ones we
+     * carry from the source.
+     *
+     * @param array<string, mixed> $fields
+     */
+    private function mergeJsonSecret(string $existing, array $fields): string
+    {
+        $decoded = $existing === '' ? [] : (\json_decode($existing, true) ?: []);
+        foreach ($fields as $name => $value) {
+            $decoded[$name] = $value;
+        }
+
+        return \json_encode($decoded) ?: '';
     }
 
     /**
