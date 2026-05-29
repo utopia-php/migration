@@ -73,50 +73,13 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_POLICIES = 'policies';
 
-    // OAuth2 providers — one type constant per provider. Each maps to its own
-    // typed Resource subclass under Resources/Auth/OAuth2/. Credential fields
-    // (clientSecret, p8File) are never migrated; only the readable
-    // non-secret configuration crosses over.
-    public const TYPE_OAUTH2_AMAZON       = 'oauth2-amazon';
-    public const TYPE_OAUTH2_APPLE        = 'oauth2-apple';
-    public const TYPE_OAUTH2_AUTH0        = 'oauth2-auth0';
-    public const TYPE_OAUTH2_AUTHENTIK    = 'oauth2-authentik';
-    public const TYPE_OAUTH2_AUTODESK     = 'oauth2-autodesk';
-    public const TYPE_OAUTH2_BITBUCKET    = 'oauth2-bitbucket';
-    public const TYPE_OAUTH2_BITLY        = 'oauth2-bitly';
-    public const TYPE_OAUTH2_BOX          = 'oauth2-box';
-    public const TYPE_OAUTH2_DAILYMOTION  = 'oauth2-dailymotion';
-    public const TYPE_OAUTH2_DISCORD      = 'oauth2-discord';
-    public const TYPE_OAUTH2_DISQUS       = 'oauth2-disqus';
-    public const TYPE_OAUTH2_DROPBOX      = 'oauth2-dropbox';
-    public const TYPE_OAUTH2_ETSY         = 'oauth2-etsy';
-    public const TYPE_OAUTH2_FACEBOOK     = 'oauth2-facebook';
-    public const TYPE_OAUTH2_FIGMA        = 'oauth2-figma';
-    public const TYPE_OAUTH2_FUSIONAUTH   = 'oauth2-fusionauth';
-    public const TYPE_OAUTH2_GITHUB       = 'oauth2-github';
-    public const TYPE_OAUTH2_GITLAB       = 'oauth2-gitlab';
-    public const TYPE_OAUTH2_GOOGLE       = 'oauth2-google';
-    public const TYPE_OAUTH2_KEYCLOAK     = 'oauth2-keycloak';
-    public const TYPE_OAUTH2_KICK         = 'oauth2-kick';
-    public const TYPE_OAUTH2_LINKEDIN     = 'oauth2-linkedin';
-    public const TYPE_OAUTH2_MICROSOFT    = 'oauth2-microsoft';
-    public const TYPE_OAUTH2_NOTION       = 'oauth2-notion';
-    public const TYPE_OAUTH2_OIDC         = 'oauth2-oidc';
-    public const TYPE_OAUTH2_OKTA         = 'oauth2-okta';
-    public const TYPE_OAUTH2_PAYPAL       = 'oauth2-paypal';
-    public const TYPE_OAUTH2_PODIO        = 'oauth2-podio';
-    public const TYPE_OAUTH2_SALESFORCE   = 'oauth2-salesforce';
-    public const TYPE_OAUTH2_SLACK        = 'oauth2-slack';
-    public const TYPE_OAUTH2_SPOTIFY      = 'oauth2-spotify';
-    public const TYPE_OAUTH2_STRIPE       = 'oauth2-stripe';
-    public const TYPE_OAUTH2_TRADESHIFT   = 'oauth2-tradeshift';
-    public const TYPE_OAUTH2_TWITCH       = 'oauth2-twitch';
-    public const TYPE_OAUTH2_WORDPRESS    = 'oauth2-wordpress';
-    public const TYPE_OAUTH2_X            = 'oauth2-x';
-    public const TYPE_OAUTH2_YAHOO        = 'oauth2-yahoo';
-    public const TYPE_OAUTH2_YANDEX       = 'oauth2-yandex';
-    public const TYPE_OAUTH2_ZOHO         = 'oauth2-zoho';
-    public const TYPE_OAUTH2_ZOOM         = 'oauth2-zoom';
+    // OAuth2 providers — one type constant shared by all 40 provider
+    // Resource classes under Resources/Auth/OAuth2/. Per-provider dispatch on
+    // the destination uses `instanceof` on the concrete subclass; the single
+    // type constant keeps status counters compact (a per-provider constant
+    // explosion would push the OSS migration document's `statusCounters` JSON
+    // past its 3KB column limit when OAuth migration is selected).
+    public const TYPE_OAUTH2_PROVIDER = 'oauth2-provider';
 
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
 
@@ -176,46 +139,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_MEMBERSHIP,
         self::TYPE_AUTH_METHODS,
         self::TYPE_POLICIES,
-        self::TYPE_OAUTH2_AMAZON,
-        self::TYPE_OAUTH2_APPLE,
-        self::TYPE_OAUTH2_AUTH0,
-        self::TYPE_OAUTH2_AUTHENTIK,
-        self::TYPE_OAUTH2_AUTODESK,
-        self::TYPE_OAUTH2_BITBUCKET,
-        self::TYPE_OAUTH2_BITLY,
-        self::TYPE_OAUTH2_BOX,
-        self::TYPE_OAUTH2_DAILYMOTION,
-        self::TYPE_OAUTH2_DISCORD,
-        self::TYPE_OAUTH2_DISQUS,
-        self::TYPE_OAUTH2_DROPBOX,
-        self::TYPE_OAUTH2_ETSY,
-        self::TYPE_OAUTH2_FACEBOOK,
-        self::TYPE_OAUTH2_FIGMA,
-        self::TYPE_OAUTH2_FUSIONAUTH,
-        self::TYPE_OAUTH2_GITHUB,
-        self::TYPE_OAUTH2_GITLAB,
-        self::TYPE_OAUTH2_GOOGLE,
-        self::TYPE_OAUTH2_KEYCLOAK,
-        self::TYPE_OAUTH2_KICK,
-        self::TYPE_OAUTH2_LINKEDIN,
-        self::TYPE_OAUTH2_MICROSOFT,
-        self::TYPE_OAUTH2_NOTION,
-        self::TYPE_OAUTH2_OIDC,
-        self::TYPE_OAUTH2_OKTA,
-        self::TYPE_OAUTH2_PAYPAL,
-        self::TYPE_OAUTH2_PODIO,
-        self::TYPE_OAUTH2_SALESFORCE,
-        self::TYPE_OAUTH2_SLACK,
-        self::TYPE_OAUTH2_SPOTIFY,
-        self::TYPE_OAUTH2_STRIPE,
-        self::TYPE_OAUTH2_TRADESHIFT,
-        self::TYPE_OAUTH2_TWITCH,
-        self::TYPE_OAUTH2_WORDPRESS,
-        self::TYPE_OAUTH2_X,
-        self::TYPE_OAUTH2_YAHOO,
-        self::TYPE_OAUTH2_YANDEX,
-        self::TYPE_OAUTH2_ZOHO,
-        self::TYPE_OAUTH2_ZOOM,
+        self::TYPE_OAUTH2_PROVIDER,
         self::TYPE_PLATFORM,
         self::TYPE_API_KEY,
         self::TYPE_WEBHOOK,

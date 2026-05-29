@@ -266,7 +266,7 @@ class Appwrite extends Destination
             Resource::TYPE_MEMBERSHIP,
             Resource::TYPE_AUTH_METHODS,
             Resource::TYPE_POLICIES,
-            ...Transfer::GROUP_AUTH_OAUTH2_RESOURCES,
+            Resource::TYPE_OAUTH2_PROVIDER,
 
             // Database
             Resource::TYPE_DATABASE,

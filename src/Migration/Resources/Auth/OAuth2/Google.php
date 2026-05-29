@@ -2,8 +2,6 @@
 
 namespace Utopia\Migration\Resources\Auth\OAuth2;
 
-use Utopia\Migration\Resource;
-
 /**
  * Google OAuth2 provider. Standard `clientId` plus an array of OAuth `prompt`
  * modes (consent / none / select_account).
@@ -52,11 +50,6 @@ class Google extends StandardProvider
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
         ];
-    }
-
-    public static function getName(): string
-    {
-        return Resource::TYPE_OAUTH2_GOOGLE;
     }
 
     public static function getProviderKey(): string

@@ -2,8 +2,6 @@
 
 namespace Utopia\Migration\Resources\Auth\OAuth2;
 
-use Utopia\Migration\Resource;
-
 /**
  * Microsoft OAuth2 provider. Standard `clientId` plus a `tenant` field
  * identifying the Azure AD tenant.
@@ -49,11 +47,6 @@ class Microsoft extends StandardProvider
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
         ];
-    }
-
-    public static function getName(): string
-    {
-        return Resource::TYPE_OAUTH2_MICROSOFT;
     }
 
     public static function getProviderKey(): string

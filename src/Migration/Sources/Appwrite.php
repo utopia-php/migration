@@ -192,7 +192,7 @@ class Appwrite extends Source
             Resource::TYPE_MEMBERSHIP,
             Resource::TYPE_AUTH_METHODS,
             Resource::TYPE_POLICIES,
-            ...Transfer::GROUP_AUTH_OAUTH2_RESOURCES,
+            Resource::TYPE_OAUTH2_PROVIDER,
 
             // Database
             Resource::TYPE_DATABASE,
@@ -393,12 +393,15 @@ class Appwrite extends Source
             $report[Resource::TYPE_AUTH_METHODS] = 1;
         }
 
-        // OAuth2 providers — one resource per provider type. Each is a
-        // singleton config (one map entry per project) but emitted as its own
-        // typed Resource so per-provider status/failures are visible.
-        foreach (Transfer::GROUP_AUTH_OAUTH2_RESOURCES as $oauth2Type) {
-            if (\in_array($oauth2Type, $resources)) {
-                $report[$oauth2Type] = 1;
+        // OAuth2 providers — all 40 share one TYPE constant; the report
+        // counts one entry per enabled provider on the source.
+        if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
+            try {
+                $report[Resource::TYPE_OAUTH2_PROVIDER] = \count(
+                    $this->project->listOAuth2Providers()->providers ?? []
+                );
+            } catch (\Throwable) {
+                $report[Resource::TYPE_OAUTH2_PROVIDER] = 0;
             }
         }
 
@@ -661,25 +664,20 @@ class Appwrite extends Source
             ));
         }
 
-        // A single `listOAuth2Providers` call returns the full per-provider
-        // payload; dispatch is by type. We catch and tag errors per-provider
-        // so one provider's failure doesn't suppress the others.
-        if (\count(\array_intersect(Transfer::GROUP_AUTH_OAUTH2_RESOURCES, $resources)) > 0) {
+        // A single `listOAuth2Providers` call returns every provider; each one
+        // is emitted as its own typed Resource (with shared TYPE_OAUTH2_PROVIDER).
+        // Per-provider failures surface in `$this->errors[]`.
+        if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
             try {
-                $this->exportOAuth2Providers($resources);
+                $this->exportOAuth2Providers();
             } catch (\Throwable $e) {
-                foreach (Transfer::GROUP_AUTH_OAUTH2_RESOURCES as $oauth2Type) {
-                    if (!\in_array($oauth2Type, $resources)) {
-                        continue;
-                    }
-                    $this->addError(new Exception(
-                        $oauth2Type,
-                        Transfer::GROUP_AUTH,
-                        message: $e->getMessage(),
-                        code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
-                        previous: $e
-                    ));
-                }
+                $this->addError(new Exception(
+                    Resource::TYPE_OAUTH2_PROVIDER,
+                    Transfer::GROUP_AUTH,
+                    message: $e->getMessage(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                    previous: $e
+                ));
             }
         }
 
@@ -811,10 +809,8 @@ class Appwrite extends Source
      * non-secret fields. Credential fields (`clientSecret`, `p8File`) come
      * back blanked from the server and are intentionally not migrated —
      * destination admin must re-enter them per provider.
-     *
-     * @param array<string> $resources Resources selected for migration.
      */
-    private function exportOAuth2Providers(array $resources): void
+    private function exportOAuth2Providers(): void
     {
         $response = $this->project->listOAuth2Providers();
 
@@ -830,12 +826,6 @@ class Appwrite extends Source
                 // Server exposes a provider we don't have a Resource class for
                 // yet (e.g. a new provider added upstream after this lib was
                 // released). Skip silently — adding it is a one-file change.
-                continue;
-            }
-
-            /** @var class-string<OAuth2Provider> $class */
-            $type = $class::getName();
-            if (!\in_array($type, $resources, true)) {
                 continue;
             }
 

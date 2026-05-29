@@ -24,6 +24,19 @@ abstract class OAuth2Provider extends Resource
      */
     abstract public static function fromArray(array $array): self;
 
+    /**
+     * Every OAuth2 provider Resource shares one type name. Per-provider
+     * dispatch happens via `instanceof` on the concrete subclass — the type
+     * constant exists only to bucket all OAuth2 resources under one status
+     * counter (a per-provider TYPE explosion would blow past the 3KB cap on
+     * the OSS migration document's `statusCounters` column for projects that
+     * select OAuth migration).
+     */
+    public static function getName(): string
+    {
+        return Resource::TYPE_OAUTH2_PROVIDER;
+    }
+
     public function __construct(
         string $id,
         protected readonly bool $enabled = false,

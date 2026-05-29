@@ -2,8 +2,6 @@
 
 namespace Utopia\Migration\Resources\Auth\OAuth2;
 
-use Utopia\Migration\Resource;
-
 /**
  * Apple OAuth2 provider. Bespoke shape — the credential is split across four
  * fields. `serviceId`/`keyId`/`teamId` are readable on the source and
@@ -53,11 +51,6 @@ class Apple extends OAuth2Provider
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
         ];
-    }
-
-    public static function getName(): string
-    {
-        return Resource::TYPE_OAUTH2_APPLE;
     }
 
     public static function getProviderKey(): string
