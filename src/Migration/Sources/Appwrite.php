@@ -397,13 +397,9 @@ class Appwrite extends Source
         // OAuth2 providers — all 40 share one TYPE constant; the report
         // counts one entry per enabled provider on the source.
         if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
-            try {
-                $report[Resource::TYPE_OAUTH2_PROVIDER] = \count(
-                    $this->project->listOAuth2Providers()->providers ?? []
-                );
-            } catch (\Throwable) {
-                $report[Resource::TYPE_OAUTH2_PROVIDER] = 0;
-            }
+            $report[Resource::TYPE_OAUTH2_PROVIDER] = \count(
+                $this->project->listOAuth2Providers()->providers ?? []
+            );
         }
 
         if (\in_array(Resource::TYPE_POLICIES, $resources)) {
@@ -668,18 +664,18 @@ class Appwrite extends Source
         // A single `listOAuth2Providers` call returns every provider; each one
         // is emitted as its own typed Resource (with shared TYPE_OAUTH2_PROVIDER).
         // Per-provider failures surface in `$this->errors[]`.
-        if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
-            try {
+        try {
+            if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
                 $this->exportOAuth2Providers();
-            } catch (\Throwable $e) {
-                $this->addError(new Exception(
-                    Resource::TYPE_OAUTH2_PROVIDER,
-                    Transfer::GROUP_AUTH,
-                    message: $e->getMessage(),
-                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
-                    previous: $e
-                ));
             }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_OAUTH2_PROVIDER,
+                Transfer::GROUP_AUTH,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
         }
 
         try {

@@ -9,11 +9,14 @@ use Utopia\Migration\Transfer;
  * Base class for per-provider OAuth2 migration resources. One concrete subclass
  * per provider id (Google, Apple, GitHub, …). Each subclass:
  *
- * - Declares its own `Resource::TYPE_OAUTH2_*` type constant via getName()
  * - Carries the provider-specific non-secret fields readable from the source
  *   (clientId/serviceId/endpoint/tenant/prompt/keyId/teamId/…)
  * - Leaves the actual secret (clientSecret / p8File) unmigrated — destination
  *   admin must re-enter it post-migration
+ *
+ * All subclasses share the single `Resource::TYPE_OAUTH2_PROVIDER` type (see
+ * getName() below); per-provider dispatch on the destination is by `instanceof`
+ * on the concrete subclass.
  *
  * @phpstan-consistent-constructor
  */

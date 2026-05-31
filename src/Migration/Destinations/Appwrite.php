@@ -2203,10 +2203,9 @@ class Appwrite extends Destination
                 /** @var Policies $resource */
                 $this->createPolicies($resource);
                 break;
-            default:
-                if ($resource instanceof OAuth2Provider) {
-                    $this->createOAuth2Provider($resource);
-                }
+            case Resource::TYPE_OAUTH2_PROVIDER:
+                /** @var OAuth2Provider $resource */
+                $this->createOAuth2Provider($resource);
                 break;
         }
 
@@ -3642,6 +3641,9 @@ class Appwrite extends Destination
     private function mergeAppleSecret(string $existing, string $keyId, string $teamId): string
     {
         $decoded = $existing === '' ? [] : (\json_decode($existing, true) ?: []);
+        if (!\is_array($decoded)) {
+            $decoded = [];
+        }
         if ($keyId !== '') {
             $decoded['keyID'] = $keyId;
         }
@@ -3663,6 +3665,9 @@ class Appwrite extends Destination
     private function mergeJsonSecret(string $existing, array $fields): string
     {
         $decoded = $existing === '' ? [] : (\json_decode($existing, true) ?: []);
+        if (!\is_array($decoded)) {
+            $decoded = [];
+        }
         foreach ($fields as $name => $value) {
             $decoded[$name] = $value;
         }
