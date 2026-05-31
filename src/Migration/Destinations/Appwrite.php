@@ -3596,6 +3596,8 @@ class Appwrite extends Destination
             if ($resource->getClientId() !== '') {
                 $oAuthProviders[$key . 'Appid'] = $resource->getClientId();
             }
+            // A provider is at most one of these shapes — the per-shape extras
+            // (endpoint/tenant/prompt) are folded into the JSON secret blob.
             if ($resource instanceof OAuth2WithEndpoint && $resource->getEndpoint() !== '') {
                 // Endpoint providers (Auth0/Authentik/FusionAuth/Gitlab/Keycloak/Okta/OIDC)
                 // bundle the endpoint URL inside the JSON secret blob alongside
@@ -3604,14 +3606,12 @@ class Appwrite extends Destination
                     $oAuthProviders[$key . 'Secret'] ?? '',
                     ['endpoint' => $resource->getEndpoint()],
                 );
-            }
-            if ($resource instanceof OAuth2Microsoft && $resource->getTenant() !== '') {
+            } elseif ($resource instanceof OAuth2Microsoft && $resource->getTenant() !== '') {
                 $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
                     $oAuthProviders[$key . 'Secret'] ?? '',
                     ['tenant' => $resource->getTenant()],
                 );
-            }
-            if ($resource instanceof OAuth2Google && !empty($resource->getPrompt())) {
+            } elseif ($resource instanceof OAuth2Google && !empty($resource->getPrompt())) {
                 $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
                     $oAuthProviders[$key . 'Secret'] ?? '',
                     ['prompt' => $resource->getPrompt()],
@@ -3640,18 +3640,15 @@ class Appwrite extends Destination
      */
     private function mergeAppleSecret(string $existing, string $keyId, string $teamId): string
     {
-        $decoded = $existing === '' ? [] : (\json_decode($existing, true) ?: []);
-        if (!\is_array($decoded)) {
-            $decoded = [];
-        }
+        $fields = [];
         if ($keyId !== '') {
-            $decoded['keyID'] = $keyId;
+            $fields['keyID'] = $keyId;
         }
         if ($teamId !== '') {
-            $decoded['teamID'] = $teamId;
+            $fields['teamID'] = $teamId;
         }
 
-        return \json_encode($decoded) ?: '';
+        return $this->mergeJsonSecret($existing, $fields);
     }
 
     /**

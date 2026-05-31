@@ -394,12 +394,19 @@ class Appwrite extends Source
             $report[Resource::TYPE_AUTH_METHODS] = 1;
         }
 
-        // OAuth2 providers — all 40 share one TYPE constant; the report
-        // counts one entry per enabled provider on the source.
+        // OAuth2 providers — every provider shares one TYPE constant. Count
+        // only the providers we can actually migrate (those with a matching
+        // Resource class), mirroring exportOAuth2Providers(); providers the
+        // source lists but this lib can't map are reported as errors there.
         if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
-            $report[Resource::TYPE_OAUTH2_PROVIDER] = \count(
-                $this->project->listOAuth2Providers()->providers ?? []
-            );
+            $count = 0;
+            foreach ($this->project->listOAuth2Providers()->providers ?? [] as $provider) {
+                $key = (string) ($provider['$id'] ?? '');
+                if ($key !== '' && self::oauth2ClassFor($key) !== null) {
+                    $count++;
+                }
+            }
+            $report[Resource::TYPE_OAUTH2_PROVIDER] = $count;
         }
 
         if (\in_array(Resource::TYPE_POLICIES, $resources)) {
@@ -848,9 +855,16 @@ class Appwrite extends Source
 
             $class = self::oauth2ClassFor($key);
             if ($class === null) {
-                // Server exposes a provider we don't have a Resource class for
-                // yet (e.g. a new provider added upstream after this lib was
-                // released). Skip silently — adding it is a one-file change.
+                // Server exposes a provider this lib has no Resource class for
+                // (e.g. one added upstream after this release). Surface it as a
+                // non-fatal error so it shows in the migration report instead of
+                // vanishing — adding coverage is a one-file change.
+                $this->addError(new Exception(
+                    Resource::TYPE_OAUTH2_PROVIDER,
+                    Transfer::GROUP_AUTH,
+                    message: "No migration resource for OAuth2 provider '{$key}'; skipped.",
+                    code: Exception::CODE_INTERNAL,
+                ));
                 continue;
             }
 
