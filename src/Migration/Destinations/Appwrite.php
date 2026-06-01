@@ -3316,12 +3316,9 @@ class Appwrite extends Destination
     }
 
     /**
-     * Direct DB write rather than the SDK's updateEmailTemplate — the SDK path
-     * rejects the call unless custom SMTP is enabled on the project. Templates
-     * may legitimately migrate before SMTP (different groups, different runs),
-     * so bypass that check by writing the project.templates map directly.
-     * Read-then-merge preserves any templates already configured on the
-     * destination (other locales, untouched template types).
+     * Direct DB write rather than the SDK's updateEmailTemplate, which rejects
+     * the call unless custom SMTP is enabled — templates may migrate before SMTP.
+     * Read-then-merge preserves templates already on the destination.
      */
     protected function createEmailTemplate(EmailTemplate $resource): bool
     {
