@@ -73,12 +73,9 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_POLICIES = 'policies';
 
-    // OAuth2 providers — one type constant shared by all 40 provider
-    // Resource classes under Resources/Auth/OAuth2/. Per-provider dispatch on
-    // the destination uses `instanceof` on the concrete subclass; the single
-    // type constant keeps status counters compact (a per-provider constant
-    // explosion would push the OSS migration document's `statusCounters` JSON
-    // past its 3KB column limit when OAuth migration is selected).
+    // One type shared by all OAuth2 provider Resource classes (dispatch is by
+    // `instanceof` on the destination). A per-provider type would overflow the
+    // migration document's 3KB `statusCounters` column when OAuth is selected.
     public const TYPE_OAUTH2_PROVIDER = 'oauth2-provider';
 
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';

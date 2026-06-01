@@ -3560,19 +3560,11 @@ class Appwrite extends Destination
     }
 
     /**
-     * Read-then-merge a single OAuth2 provider's entries on the project's
-     * `oAuthProviders` map. The same storage shape covers every provider —
-     * `{providerKey}Appid` for the readable client identifier, `{providerKey}Secret`
-     * for the credential blob, and `{providerKey}Enabled` for the toggle.
-     * Per-provider extras (Apple's keyId/teamId merged into the secret JSON,
-     * Microsoft's tenant, OIDC's endpoint, Google's prompt) are handled in the
-     * per-shape branches.
-     *
-     * The actual secret material the OAuth handshake needs (`clientSecret` for
-     * standard providers, `p8File` for Apple) is write-only on the source API,
-     * so it never makes it to the destination — the admin must re-enter it
-     * post-migration. `enabled` is propagated as-is; until the admin enters the
-     * secret, sign-in attempts for that provider will fail at runtime.
+     * Read-then-merge a single provider's entries on the project's
+     * `oAuthProviders` map, keyed `{providerKey}Appid` / `{providerKey}Secret` /
+     * `{providerKey}Enabled`. The handshake secret is never migrated (see
+     * OAuth2Provider), so `enabled` is propagated as-is and sign-in will fail
+     * until the admin re-enters the secret on the destination.
      */
     protected function createOAuth2Provider(OAuth2Provider $resource): bool
     {
@@ -3593,12 +3585,8 @@ class Appwrite extends Destination
             if ($resource->getClientId() !== '') {
                 $oAuthProviders[$key . 'Appid'] = $resource->getClientId();
             }
-            // A provider is at most one of these shapes — the per-shape extras
-            // (endpoint/tenant/prompt) are folded into the JSON secret blob.
+            // Per-shape extras (endpoint/tenant/prompt) ride inside the JSON secret blob.
             if ($resource instanceof OAuth2WithEndpoint && $resource->getEndpoint() !== '') {
-                // Endpoint providers (Auth0/Authentik/FusionAuth/Gitlab/Keycloak/Okta/OIDC)
-                // bundle the endpoint URL inside the JSON secret blob alongside
-                // the client secret on the destination.
                 $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
                     $oAuthProviders[$key . 'Secret'] ?? '',
                     ['endpoint' => $resource->getEndpoint()],
@@ -3649,10 +3637,8 @@ class Appwrite extends Destination
     }
 
     /**
-     * Merge a partial fields map into a JSON-encoded secret blob (used for
-     * Microsoft tenant, OIDC/Auth0/etc. endpoint, Google prompt). Preserves
-     * any existing keys on the destination — only overrides the ones we
-     * carry from the source.
+     * Merge a partial fields map into a JSON-encoded secret blob, preserving
+     * existing keys on the destination and overriding only the migrated ones.
      *
      * @param array<string, mixed> $fields
      */

@@ -6,17 +6,14 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
 /**
- * Base class for per-provider OAuth2 migration resources. One concrete subclass
- * per provider id (Google, Apple, GitHub, …). Each subclass:
+ * Base class for per-provider OAuth2 migration resources — one concrete subclass
+ * per provider id (Google, Apple, GitHub, …), each carrying that provider's
+ * readable non-secret fields (clientId/serviceId/endpoint/tenant/prompt/…). The
+ * secret (clientSecret / p8File) is write-only on the source, so it is not
+ * migrated — the destination admin must re-enter it post-migration.
  *
- * - Carries the provider-specific non-secret fields readable from the source
- *   (clientId/serviceId/endpoint/tenant/prompt/keyId/teamId/…)
- * - Leaves the actual secret (clientSecret / p8File) unmigrated — destination
- *   admin must re-enter it post-migration
- *
- * All subclasses share the single `Resource::TYPE_OAUTH2_PROVIDER` type (see
- * getName() below); per-provider dispatch on the destination is by `instanceof`
- * on the concrete subclass.
+ * All subclasses share Resource::TYPE_OAUTH2_PROVIDER; the destination dispatches
+ * per provider via `instanceof` on the concrete subclass.
  *
  * @phpstan-consistent-constructor
  */
@@ -27,14 +24,6 @@ abstract class OAuth2Provider extends Resource
      */
     abstract public static function fromArray(array $array): self;
 
-    /**
-     * Every OAuth2 provider Resource shares one type name. Per-provider
-     * dispatch happens via `instanceof` on the concrete subclass — the type
-     * constant exists only to bucket all OAuth2 resources under one status
-     * counter (a per-provider TYPE explosion would blow past the 3KB cap on
-     * the OSS migration document's `statusCounters` column for projects that
-     * select OAuth migration).
-     */
     public static function getName(): string
     {
         return Resource::TYPE_OAUTH2_PROVIDER;
@@ -57,10 +46,9 @@ abstract class OAuth2Provider extends Resource
     }
 
     /**
-     * The OAuth2 provider key as stored on the project doc (e.g. 'google',
-     * 'apple', 'github'). Used by the destination to compute the
-     * `{providerKey}Enabled`/`{providerKey}Appid`/`{providerKey}Secret`
-     * storage attribute names.
+     * Provider key as stored on the project doc (e.g. 'google', 'apple'). The
+     * destination derives the `{providerKey}Enabled/Appid/Secret` attribute
+     * names from it.
      */
     abstract public static function getProviderKey(): string;
 

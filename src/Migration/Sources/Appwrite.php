@@ -394,10 +394,7 @@ class Appwrite extends Source
             $report[Resource::TYPE_AUTH_METHODS] = 1;
         }
 
-        // OAuth2 providers — every provider shares one TYPE constant. Count
-        // only the providers we can actually migrate (those with a matching
-        // Resource class), mirroring exportOAuth2Providers(); providers the
-        // source lists but this lib can't map are reported as errors there.
+        // Count only mappable providers, to match what exportOAuth2Providers() emits.
         if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
             $count = 0;
             foreach ($this->project->listOAuth2Providers()->providers ?? [] as $provider) {
@@ -668,9 +665,6 @@ class Appwrite extends Source
             ));
         }
 
-        // A single `listOAuth2Providers` call returns every provider; each one
-        // is emitted as its own typed Resource (with shared TYPE_OAUTH2_PROVIDER).
-        // Per-provider failures surface in `$this->errors[]`.
         try {
             if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
                 $this->exportOAuth2Providers();
@@ -758,13 +752,9 @@ class Appwrite extends Source
     }
 
     /**
-     * Migration Resource classes for every OAuth2 provider exposed by
-     * `listOAuth2Providers`. The provider key (`'github'`, `'apple'`, …)
-     * lives only on the class via `OAuth2Provider::getProviderKey()` —
-     * `oauth2ClassFor()` lazily builds the key→class lookup.
-     *
-     * Adding a provider: drop one new file under Resources/Auth/OAuth2/ and
-     * append one line below.
+     * Every migratable OAuth2 provider class. The provider key lives only on the
+     * class (OAuth2Provider::getProviderKey()); oauth2ClassFor() builds the
+     * key→class lookup. Add a provider by adding a file here and one line below.
      *
      * @var array<class-string<OAuth2Provider>>
      */
@@ -834,13 +824,9 @@ class Appwrite extends Source
     }
 
     /**
-     * `listOAuth2Providers` returns a heterogeneous list — each entry is a
-     * typed `OAuth2{Provider}` payload with provider-specific fields. We
-     * route each one through its concrete migration Resource class
-     * (`Resources/Auth/OAuth2/{Provider}.php`), which extracts the readable
-     * non-secret fields. Credential fields (`clientSecret`, `p8File`) come
-     * back blanked from the server and are intentionally not migrated —
-     * destination admin must re-enter them per provider.
+     * Route each entry of the heterogeneous `listOAuth2Providers` response
+     * through its concrete Resource class, which extracts that provider's
+     * readable fields. Secrets come back blanked and are not migrated.
      */
     private function exportOAuth2Providers(): void
     {
@@ -855,10 +841,8 @@ class Appwrite extends Source
 
             $class = self::oauth2ClassFor($key);
             if ($class === null) {
-                // Server exposes a provider this lib has no Resource class for
-                // (e.g. one added upstream after this release). Surface it as a
-                // non-fatal error so it shows in the migration report instead of
-                // vanishing — adding coverage is a one-file change.
+                // Provider with no Resource class yet (added upstream after this
+                // release): report it as non-fatal rather than dropping it silently.
                 $this->addError(new Exception(
                     Resource::TYPE_OAUTH2_PROVIDER,
                     Transfer::GROUP_AUTH,
@@ -868,8 +852,6 @@ class Appwrite extends Source
                 continue;
             }
 
-            // Hand the raw payload to the per-provider fromArray, which knows
-            // which fields it cares about.
             $payload = $provider;
             $payload['id'] = $this->projectId . '-' . $key;
             $emitted[] = $class::fromArray($payload);
