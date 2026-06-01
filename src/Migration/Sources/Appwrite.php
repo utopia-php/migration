@@ -1780,8 +1780,7 @@ class Appwrite extends Source
 
         if (\in_array(Resource::TYPE_PROJECT_EMAIL_TEMPLATE, $resources)) {
             try {
-                // listEmailTemplates is paginated by limit/offset (not cursor); pass total: true
-                // so the report count is accurate even if the page is empty.
+                // total:true returns the real count without fetching every row.
                 $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = $this->project->listEmailTemplates([Query::limit(1)], total: true)->total;
             } catch (\Throwable) {
                 $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = 0;
@@ -2011,9 +2010,8 @@ class Appwrite extends Source
      */
     private function exportEmailTemplates(int $batchSize): void
     {
-        // listEmailTemplates is offset-paginated (cursor not supported — the list is
-        // assembled from a project attribute map, not a collection). Walk the offset
-        // until a page comes back smaller than the requested limit.
+        // Offset pagination: templates come from a project attribute map, not a
+        // collection, so cursor pagination isn't available here.
         $offset = 0;
 
         while (true) {
