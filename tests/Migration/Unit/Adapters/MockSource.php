@@ -88,6 +88,7 @@ class MockSource extends Source
             Resource::TYPE_SUBSCRIBER,
             Resource::TYPE_MESSAGE,
             Resource::TYPE_BACKUP_POLICY,
+            Resource::TYPE_RULE,
 
             // legacy
             Resource::TYPE_DOCUMENT,
