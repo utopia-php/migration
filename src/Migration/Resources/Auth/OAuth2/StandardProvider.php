@@ -53,4 +53,9 @@ abstract class StandardProvider extends OAuth2Provider
     {
         return $this->clientId;
     }
+
+    public function isConfigured(): bool
+    {
+        return $this->enabled || $this->clientId !== '';
+    }
 }

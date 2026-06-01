@@ -394,12 +394,17 @@ class Appwrite extends Source
             $report[Resource::TYPE_AUTH_METHODS] = 1;
         }
 
-        // Count only mappable providers, to match what exportOAuth2Providers() emits.
+        // Count only configured providers, matching exportOAuth2Providers().
         if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
             $count = 0;
             foreach ($this->project->listOAuth2Providers()->providers ?? [] as $provider) {
                 $key = (string) ($provider['$id'] ?? '');
-                if ($key !== '' && self::oauth2ClassFor($key) !== null) {
+                $class = $key !== '' ? self::oauth2ClassFor($key) : null;
+                if ($class === null) {
+                    continue;
+                }
+                $provider['id'] = $key;
+                if ($class::fromArray($provider)->isConfigured()) {
                     $count++;
                 }
             }
@@ -856,7 +861,14 @@ class Appwrite extends Source
 
             $payload = $provider;
             $payload['id'] = $this->projectId . '-' . $key;
-            $emitted[] = $class::fromArray($payload);
+            $resource = $class::fromArray($payload);
+
+            // The server lists every provider; carry over only configured ones.
+            if (!$resource->isConfigured()) {
+                continue;
+            }
+
+            $emitted[] = $resource;
         }
 
         if (!empty($emitted)) {

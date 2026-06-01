@@ -56,4 +56,14 @@ abstract class OAuth2Provider extends Resource
     {
         return $this->enabled;
     }
+
+    /**
+     * Whether the project actually set this provider up — `listOAuth2Providers`
+     * returns every supported provider, but only configured ones are migrated.
+     * Subclasses also count a set-but-disabled appId.
+     */
+    public function isConfigured(): bool
+    {
+        return $this->enabled;
+    }
 }

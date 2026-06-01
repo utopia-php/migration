@@ -58,6 +58,11 @@ class Apple extends OAuth2Provider
         return 'apple';
     }
 
+    public function isConfigured(): bool
+    {
+        return $this->enabled || $this->serviceId !== '';
+    }
+
     public function getServiceId(): string
     {
         return $this->serviceId;
