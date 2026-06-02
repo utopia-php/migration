@@ -1113,6 +1113,9 @@ class Appwrite extends Source
                 }
 
                 $selects = ['*', '$id', '$permissions', '$updatedAt', '$createdAt']; // We want relations flat!
+                if ($this->source === self::SOURCE_DATABASE) {
+                    $selects[] = '$sequence';
+                }
                 $manyToMany = [];
 
                 if ($this->reader->getSupportForAttributes()) {
