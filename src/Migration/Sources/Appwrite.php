@@ -840,7 +840,7 @@ class Appwrite extends Source
         $response = $this->project->listOAuth2Providers();
 
         $emitted = [];
-        foreach ($response->providers as $provider) {
+        foreach ($response->providers ?? [] as $provider) {
             $key = (string) ($provider['$id'] ?? '');
             if ($key === '') {
                 continue;
