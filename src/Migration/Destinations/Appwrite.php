@@ -3343,8 +3343,6 @@ class Appwrite extends Destination
             new UtopiaDocument(['templates' => $templates]),
         ));
 
-        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
-
         return true;
     }
 
