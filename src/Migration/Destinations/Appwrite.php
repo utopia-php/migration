@@ -57,6 +57,7 @@ use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
 use Utopia\Migration\Resources\Messaging\Topic;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
+use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
@@ -278,6 +279,7 @@ class Appwrite extends Destination
             // Integrations
             Resource::TYPE_PLATFORM,
             Resource::TYPE_API_KEY,
+            Resource::TYPE_WEBHOOK,
 
             // Settings
             Resource::TYPE_PROJECT_VARIABLE,
@@ -3085,6 +3087,10 @@ class Appwrite extends Destination
                 /** @var ApiKey $resource */
                 $this->createApiKey($resource);
                 break;
+            case Resource::TYPE_WEBHOOK:
+                /** @var Webhook $resource */
+                $this->createWebhook($resource);
+                break;
         }
 
         if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
@@ -3145,6 +3151,50 @@ class Appwrite extends Destination
             $resource->setStatus(Resource::STATUS_SKIPPED, 'Project variable already exists');
             return false;
         }
+
+        return true;
+    }
+
+    protected function createWebhook(Webhook $resource): bool
+    {
+        $existing = $this->dbForPlatform->findOne('webhooks', [
+            Query::equal('projectInternalId', [$this->projectInternalId]),
+            Query::equal('name', [$resource->getWebhookName()]),
+        ]);
+
+        if ($existing !== false && !$existing->isEmpty()) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Webhook already exists');
+            return false;
+        }
+
+        $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
+        $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
+
+        try {
+            $this->dbForPlatform->createDocument('webhooks', new UtopiaDocument([
+                '$id' => ID::unique(),
+                '$permissions' => $resource->getPermissions(),
+                'projectInternalId' => $this->projectInternalId,
+                'projectId' => $this->project,
+                'name' => $resource->getWebhookName(),
+                'events' => $resource->getEvents(),
+                'url' => $resource->getUrl(),
+                'security' => $resource->getSecurity(),
+                'httpUser' => $resource->getHttpUser(),
+                'httpPass' => $resource->getHttpPass(),
+                // SDK only returns the signing secret on creation, never on list — regenerate
+                // a fresh one on the destination to match upstream createWebhook behavior.
+                'signatureKey' => \bin2hex(\random_bytes(64)),
+                'enabled' => $resource->isEnabled(),
+                '$createdAt' => $createdAt,
+                '$updatedAt' => $updatedAt,
+            ]));
+        } catch (DuplicateException) {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Webhook already exists');
+            return false;
+        }
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->project);
 
         return true;
     }

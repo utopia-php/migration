@@ -77,6 +77,7 @@ abstract class Resource implements \JsonSerializable
 
     // Settings
     public const TYPE_PROJECT_VARIABLE = 'project-variable';
+    public const TYPE_WEBHOOK = 'webhook';
 
     // Messaging
     public const TYPE_SUBSCRIBER = 'subscriber';
@@ -119,6 +120,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_PLATFORM,
         self::TYPE_API_KEY,
         self::TYPE_PROJECT_VARIABLE,
+        self::TYPE_WEBHOOK,
         self::TYPE_PROVIDER,
         self::TYPE_TOPIC,
         self::TYPE_SUBSCRIBER,

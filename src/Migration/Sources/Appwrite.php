@@ -13,6 +13,7 @@ use Appwrite\Services\Storage;
 use Appwrite\Services\TablesDB;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
+use Appwrite\Services\Webhooks;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Database\Document as UtopiaDocument;
@@ -62,6 +63,7 @@ use Utopia\Migration\Resources\Messaging\Provider;
 use Utopia\Migration\Resources\Messaging\Subscriber;
 use Utopia\Migration\Resources\Messaging\Topic;
 use Utopia\Migration\Resources\Settings\ProjectVariable;
+use Utopia\Migration\Resources\Settings\Webhook;
 use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
 use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
@@ -98,6 +100,8 @@ class Appwrite extends Source
 
     private Project $project;
 
+    private Webhooks $webhooks;
+
     /**
      * @var callable(UtopiaDocument $database|null): UtopiaDatabase
      */
@@ -127,6 +131,7 @@ class Appwrite extends Source
         $this->messaging = new Messaging($this->client);
         $this->sites = new Sites($this->client);
         $this->project = new Project($this->client);
+        $this->webhooks = new Webhooks($this->client);
 
         $this->headers['x-appwrite-project'] = $this->projectId;
         $this->headers['x-appwrite-key'] = $this->key;
@@ -210,6 +215,7 @@ class Appwrite extends Source
             // Integrations
             Resource::TYPE_PLATFORM,
             Resource::TYPE_API_KEY,
+            Resource::TYPE_WEBHOOK,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -1539,6 +1545,57 @@ class Appwrite extends Source
     /**
      * @throws AppwriteException
      */
+    private function exportWebhooks(int $batchSize): void
+    {
+        $lastId = null;
+
+        while (true) {
+            $queries = [Query::limit($batchSize)];
+
+            if ($this->rootResourceId !== '' && $this->rootResourceType === Resource::TYPE_WEBHOOK) {
+                $queries[] = Query::equal('$id', $this->rootResourceId);
+                $queries[] = Query::limit(1);
+            }
+
+            if ($lastId !== null) {
+                $queries[] = Query::cursorAfter($lastId);
+            }
+
+            $response = $this->webhooks->list($queries);
+            if ($response->total === 0) {
+                break;
+            }
+
+            $webhooks = [];
+
+            foreach ($response->webhooks as $webhook) {
+                $webhooks[] = new Webhook(
+                    $webhook->id,
+                    $webhook->name,
+                    $webhook->url,
+                    $webhook->events,
+                    $webhook->tls,
+                    $webhook->authUsername,
+                    $webhook->authPassword,
+                    $webhook->enabled,
+                    createdAt: $webhook->createdAt,
+                    updatedAt: $webhook->updatedAt,
+                );
+
+                $lastId = $webhook->id;
+            }
+
+            $this->callback($webhooks);
+
+            if (\count($response->webhooks) < $batchSize) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
     private function exportFunctions(int $batchSize): void
     {
         $this->functions = new Functions($this->client);
@@ -2341,6 +2398,19 @@ class Appwrite extends Source
                 $report[Resource::TYPE_API_KEY] = 0;
             }
         }
+
+        if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
+            $webhookQueries = $this->buildQueries(
+                resourceType: Resource::TYPE_WEBHOOK,
+                resourceIds: $resourceIds,
+                limit: 1
+            );
+            try {
+                $report[Resource::TYPE_WEBHOOK] = $this->webhooks->list($webhookQueries)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_WEBHOOK] = 0;
+            }
+        }
     }
 
     /**
@@ -2393,6 +2463,20 @@ class Appwrite extends Source
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_API_KEY,
+                    Transfer::GROUP_INTEGRATIONS,
+                    message: $e->getMessage(),
+                    code: $e->getCode(),
+                    previous: $e
+                ));
+            }
+        }
+
+        if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
+            try {
+                $this->exportWebhooks($batchSize);
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_WEBHOOK,
                     Transfer::GROUP_INTEGRATIONS,
                     message: $e->getMessage(),
                     code: $e->getCode(),
