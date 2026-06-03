@@ -82,6 +82,7 @@ class MockSource extends Source
             Resource::TYPE_MEMBERSHIP,
             Resource::TYPE_PLATFORM,
             Resource::TYPE_API_KEY,
+            Resource::TYPE_SMTP,
             Resource::TYPE_PROJECT_VARIABLE,
             Resource::TYPE_WEBHOOK,
             Resource::TYPE_AUTH_METHODS,
