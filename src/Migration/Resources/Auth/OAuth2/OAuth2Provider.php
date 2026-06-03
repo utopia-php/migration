@@ -19,7 +19,7 @@ final class OAuth2Provider extends Resource
      *  - target `appId`  -> the provider's `{key}Appid` attribute (one per provider)
      *  - target `secret` -> merged into the `{key}Secret` JSON blob, renamed via `key`
      *
-     * Anything not listed here (clientSecret, Apple's p8File, …) is never copied,
+     * Anything not listed here (clientSecret, Apple's p8File, etc.) is never copied,
      * so a secret field the server may add upstream cannot leak into a migration.
      *
      * @var array<string, array<string, array{target: string, key?: string}>>
@@ -48,13 +48,27 @@ final class OAuth2Provider extends Resource
         'github' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'gitlab' => ['clientId' => ['target' => self::TARGET_APP_ID], 'endpoint' => ['target' => self::TARGET_SECRET]],
         'google' => ['clientId' => ['target' => self::TARGET_APP_ID], 'prompt' => ['target' => self::TARGET_SECRET]],
-        'keycloak' => ['clientId' => ['target' => self::TARGET_APP_ID], 'endpoint' => ['target' => self::TARGET_SECRET]],
+        'keycloak' => [
+            'clientId' => ['target' => self::TARGET_APP_ID],
+            'endpoint' => ['target' => self::TARGET_SECRET, 'key' => 'keycloakDomain'],
+            'realmName' => ['target' => self::TARGET_SECRET, 'key' => 'keycloakRealm'],
+        ],
         'kick' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'linkedin' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'microsoft' => ['clientId' => ['target' => self::TARGET_APP_ID], 'tenant' => ['target' => self::TARGET_SECRET]],
         'notion' => ['clientId' => ['target' => self::TARGET_APP_ID]],
-        'oidc' => ['clientId' => ['target' => self::TARGET_APP_ID], 'endpoint' => ['target' => self::TARGET_SECRET]],
-        'okta' => ['clientId' => ['target' => self::TARGET_APP_ID], 'endpoint' => ['target' => self::TARGET_SECRET]],
+        'oidc' => [
+            'clientId' => ['target' => self::TARGET_APP_ID],
+            'wellKnownURL' => ['target' => self::TARGET_SECRET, 'key' => 'wellKnownEndpoint'],
+            'authorizationURL' => ['target' => self::TARGET_SECRET, 'key' => 'authorizationEndpoint'],
+            'tokenURL' => ['target' => self::TARGET_SECRET, 'key' => 'tokenEndpoint'],
+            'userInfoURL' => ['target' => self::TARGET_SECRET, 'key' => 'userInfoEndpoint'],
+        ],
+        'okta' => [
+            'clientId' => ['target' => self::TARGET_APP_ID],
+            'domain' => ['target' => self::TARGET_SECRET, 'key' => 'oktaDomain'],
+            'authorizationServerId' => ['target' => self::TARGET_SECRET],
+        ],
         'paypal' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'paypalSandbox' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'podio' => ['clientId' => ['target' => self::TARGET_APP_ID]],
