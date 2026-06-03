@@ -69,15 +69,22 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_HASH = 'hash';
 
+    public const TYPE_AUTH_METHODS = 'auth-methods';
+
+    public const TYPE_POLICIES = 'policies';
+
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
 
     // Integrations
     public const TYPE_PLATFORM = 'platform';
     public const TYPE_API_KEY = 'api-key';
-
-    // Settings
-    public const TYPE_PROJECT_VARIABLE = 'project-variable';
     public const TYPE_WEBHOOK = 'webhook';
+
+    // Project (per-project singleton/settings resources)
+    public const TYPE_PROJECT_VARIABLE = 'project-variable';
+    public const TYPE_PROJECT_PROTOCOLS = 'project-protocols';
+    public const TYPE_PROJECT_LABELS = 'project-labels';
+    public const TYPE_PROJECT_SERVICES = 'project-services';
 
     // Messaging
     public const TYPE_SUBSCRIBER = 'subscriber';
@@ -117,10 +124,15 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_ENVIRONMENT_VARIABLE,
         self::TYPE_TEAM,
         self::TYPE_MEMBERSHIP,
+        self::TYPE_AUTH_METHODS,
+        self::TYPE_POLICIES,
         self::TYPE_PLATFORM,
         self::TYPE_API_KEY,
-        self::TYPE_PROJECT_VARIABLE,
         self::TYPE_WEBHOOK,
+        self::TYPE_PROJECT_VARIABLE,
+        self::TYPE_PROJECT_PROTOCOLS,
+        self::TYPE_PROJECT_LABELS,
+        self::TYPE_PROJECT_SERVICES,
         self::TYPE_PROVIDER,
         self::TYPE_TOPIC,
         self::TYPE_SUBSCRIBER,

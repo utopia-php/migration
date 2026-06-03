@@ -5,13 +5,18 @@ namespace Utopia\Migration\Resources\Settings;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
-class ProjectVariable extends Resource
+/**
+ * Singleton resource representing the project's exposed API protocols
+ * (REST, GraphQL, WebSocket). One per project; destination flips each
+ * via Project::updateProtocol().
+ */
+class Protocols extends Resource
 {
     public function __construct(
         string $id,
-        private readonly string $key,
-        private readonly string $value = '',
-        private readonly bool $secret = false,
+        private readonly bool $rest = true,
+        private readonly bool $graphql = true,
+        private readonly bool $websocket = true,
         string $createdAt = '',
         string $updatedAt = '',
     ) {
@@ -22,15 +27,14 @@ class ProjectVariable extends Resource
 
     /**
      * @param array<string, mixed> $array
-     * @return self
      */
     public static function fromArray(array $array): self
     {
         return new self(
             $array['id'],
-            $array['key'],
-            $array['value'] ?? '',
-            (bool) ($array['secret'] ?? false),
+            (bool) ($array['rest'] ?? true),
+            (bool) ($array['graphql'] ?? true),
+            (bool) ($array['websocket'] ?? true),
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );
@@ -43,9 +47,9 @@ class ProjectVariable extends Resource
     {
         return [
             'id' => $this->id,
-            'key' => $this->key,
-            'value' => $this->value,
-            'secret' => $this->secret,
+            'rest' => $this->rest,
+            'graphql' => $this->graphql,
+            'websocket' => $this->websocket,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
         ];
@@ -53,7 +57,7 @@ class ProjectVariable extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_PROJECT_VARIABLE;
+        return Resource::TYPE_PROJECT_PROTOCOLS;
     }
 
     public function getGroup(): string
@@ -61,18 +65,18 @@ class ProjectVariable extends Resource
         return Transfer::GROUP_PROJECTS;
     }
 
-    public function getKey(): string
+    public function getRest(): bool
     {
-        return $this->key;
+        return $this->rest;
     }
 
-    public function getValue(): string
+    public function getGraphql(): bool
     {
-        return $this->value;
+        return $this->graphql;
     }
 
-    public function isSecret(): bool
+    public function getWebsocket(): bool
     {
-        return $this->secret;
+        return $this->websocket;
     }
 }

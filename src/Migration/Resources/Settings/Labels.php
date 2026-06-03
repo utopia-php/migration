@@ -5,13 +5,19 @@ namespace Utopia\Migration\Resources\Settings;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
-class ProjectVariable extends Resource
+/**
+ * Singleton resource carrying the project's RBAC labels (arbitrary string
+ * array). One per project; destination overwrites the array via
+ * Project::updateLabels().
+ */
+class Labels extends Resource
 {
+    /**
+     * @param array<string> $labels
+     */
     public function __construct(
         string $id,
-        private readonly string $key,
-        private readonly string $value = '',
-        private readonly bool $secret = false,
+        private readonly array $labels = [],
         string $createdAt = '',
         string $updatedAt = '',
     ) {
@@ -22,15 +28,12 @@ class ProjectVariable extends Resource
 
     /**
      * @param array<string, mixed> $array
-     * @return self
      */
     public static function fromArray(array $array): self
     {
         return new self(
             $array['id'],
-            $array['key'],
-            $array['value'] ?? '',
-            (bool) ($array['secret'] ?? false),
+            (array) ($array['labels'] ?? []),
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );
@@ -43,9 +46,7 @@ class ProjectVariable extends Resource
     {
         return [
             'id' => $this->id,
-            'key' => $this->key,
-            'value' => $this->value,
-            'secret' => $this->secret,
+            'labels' => $this->labels,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
         ];
@@ -53,7 +54,7 @@ class ProjectVariable extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_PROJECT_VARIABLE;
+        return Resource::TYPE_PROJECT_LABELS;
     }
 
     public function getGroup(): string
@@ -61,18 +62,11 @@ class ProjectVariable extends Resource
         return Transfer::GROUP_PROJECTS;
     }
 
-    public function getKey(): string
+    /**
+     * @return array<string>
+     */
+    public function getLabels(): array
     {
-        return $this->key;
-    }
-
-    public function getValue(): string
-    {
-        return $this->value;
-    }
-
-    public function isSecret(): bool
-    {
-        return $this->secret;
+        return $this->labels;
     }
 }

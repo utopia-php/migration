@@ -5,13 +5,19 @@ namespace Utopia\Migration\Resources\Settings;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
-class ProjectVariable extends Resource
+/**
+ * Singleton settings resource carrying the project's per-service enable/disable
+ * flags, keyed by ServiceId value. One per project; destination merges each
+ * entry into the project's services map.
+ */
+class Services extends Resource
 {
+    /**
+     * @param array<string, bool> $services Map of ServiceId string → enabled flag.
+     */
     public function __construct(
         string $id,
-        private readonly string $key,
-        private readonly string $value = '',
-        private readonly bool $secret = false,
+        private readonly array $services = [],
         string $createdAt = '',
         string $updatedAt = '',
     ) {
@@ -22,15 +28,12 @@ class ProjectVariable extends Resource
 
     /**
      * @param array<string, mixed> $array
-     * @return self
      */
     public static function fromArray(array $array): self
     {
         return new self(
             $array['id'],
-            $array['key'],
-            $array['value'] ?? '',
-            (bool) ($array['secret'] ?? false),
+            (array) ($array['services'] ?? []),
             createdAt: $array['createdAt'] ?? '',
             updatedAt: $array['updatedAt'] ?? '',
         );
@@ -43,9 +46,7 @@ class ProjectVariable extends Resource
     {
         return [
             'id' => $this->id,
-            'key' => $this->key,
-            'value' => $this->value,
-            'secret' => $this->secret,
+            'services' => $this->services,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
         ];
@@ -53,7 +54,7 @@ class ProjectVariable extends Resource
 
     public static function getName(): string
     {
-        return Resource::TYPE_PROJECT_VARIABLE;
+        return Resource::TYPE_PROJECT_SERVICES;
     }
 
     public function getGroup(): string
@@ -61,18 +62,11 @@ class ProjectVariable extends Resource
         return Transfer::GROUP_PROJECTS;
     }
 
-    public function getKey(): string
+    /**
+     * @return array<string, bool>
+     */
+    public function getServices(): array
     {
-        return $this->key;
-    }
-
-    public function getValue(): string
-    {
-        return $this->value;
-    }
-
-    public function isSecret(): bool
-    {
-        return $this->secret;
+        return $this->services;
     }
 }

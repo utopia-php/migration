@@ -84,6 +84,11 @@ class MockSource extends Source
             Resource::TYPE_API_KEY,
             Resource::TYPE_PROJECT_VARIABLE,
             Resource::TYPE_WEBHOOK,
+            Resource::TYPE_AUTH_METHODS,
+            Resource::TYPE_POLICIES,
+            Resource::TYPE_PROJECT_PROTOCOLS,
+            Resource::TYPE_PROJECT_LABELS,
+            Resource::TYPE_PROJECT_SERVICES,
             Resource::TYPE_PROVIDER,
             Resource::TYPE_TOPIC,
             Resource::TYPE_SUBSCRIBER,
@@ -232,14 +237,14 @@ class MockSource extends Source
         }
     }
 
-    protected function exportGroupSettings(int $batchSize, array $resources): void
+    protected function exportGroupProjects(int $batchSize, array $resources): void
     {
-        foreach (Transfer::GROUP_SETTINGS_RESOURCES as $resource) {
+        foreach (Transfer::GROUP_PROJECTS_RESOURCES as $resource) {
             if (!\in_array($resource, $resources)) {
                 continue;
             }
 
-            $this->handleResourceTransfer(Transfer::GROUP_SETTINGS, $resource);
+            $this->handleResourceTransfer(Transfer::GROUP_PROJECTS, $resource);
         }
     }
 }
