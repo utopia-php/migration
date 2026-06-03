@@ -26,7 +26,6 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
-use Utopia\Migration\Resources\Auth\OAuth2;
 use Utopia\Migration\Resources\Auth\OAuth2\OAuth2Provider;
 use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
@@ -399,12 +398,12 @@ class Appwrite extends Source
             $count = 0;
             foreach ($this->project->listOAuth2Providers()->providers ?? [] as $provider) {
                 $key = (string) ($provider['$id'] ?? '');
-                $class = $key !== '' ? self::oauth2ClassFor($key) : null;
-                if ($class === null) {
+                if ($key === '') {
                     continue;
                 }
                 $provider['id'] = $key;
-                if ($class::fromArray($provider)->isConfigured()) {
+                $resource = OAuth2Provider::fromArray($key, $provider);
+                if ($resource !== null && $resource->isConfigured()) {
                     $count++;
                 }
             }
@@ -757,83 +756,10 @@ class Appwrite extends Source
     }
 
     /**
-     * Every migratable OAuth2 provider class. The provider key lives only on the
-     * class (OAuth2Provider::getProviderKey()); oauth2ClassFor() builds the
-     * key→class lookup. Add a provider by adding a file here and one line below.
-     *
-     * @var array<class-string<OAuth2Provider>>
-     */
-    private const OAUTH2_PROVIDER_CLASSES = [
-        OAuth2\Amazon::class,
-        OAuth2\Apple::class,
-        OAuth2\Auth0::class,
-        OAuth2\Authentik::class,
-        OAuth2\Autodesk::class,
-        OAuth2\Bitbucket::class,
-        OAuth2\Bitly::class,
-        OAuth2\Box::class,
-        OAuth2\Dailymotion::class,
-        OAuth2\Discord::class,
-        OAuth2\Disqus::class,
-        OAuth2\Dropbox::class,
-        OAuth2\Etsy::class,
-        OAuth2\Facebook::class,
-        OAuth2\Figma::class,
-        OAuth2\FusionAuth::class,
-        OAuth2\Github::class,
-        OAuth2\Gitlab::class,
-        OAuth2\Google::class,
-        OAuth2\Keycloak::class,
-        OAuth2\Kick::class,
-        OAuth2\Linkedin::class,
-        OAuth2\Microsoft::class,
-        OAuth2\Notion::class,
-        OAuth2\Oidc::class,
-        OAuth2\Okta::class,
-        OAuth2\Paypal::class,
-        OAuth2\PaypalSandbox::class,
-        OAuth2\Podio::class,
-        OAuth2\Salesforce::class,
-        OAuth2\Slack::class,
-        OAuth2\Spotify::class,
-        OAuth2\Stripe::class,
-        OAuth2\Tradeshift::class,
-        OAuth2\TradeshiftSandbox::class,
-        OAuth2\Twitch::class,
-        OAuth2\Wordpress::class,
-        OAuth2\X::class,
-        OAuth2\Yahoo::class,
-        OAuth2\Yandex::class,
-        OAuth2\Zoho::class,
-        OAuth2\Zoom::class,
-    ];
-
-    /** @var array<string, class-string<OAuth2Provider>>|null */
-    private static ?array $oauth2ClassByKey = null;
-
-    /**
-     * Resolve a provider key (from the SDK list response's `$id`) to its
-     * Resource class. Returns `null` when the server lists a provider this
-     * lib has no class for yet (e.g. a newly added upstream provider).
-     *
-     * @return class-string<OAuth2Provider>|null
-     */
-    private static function oauth2ClassFor(string $key): ?string
-    {
-        if (self::$oauth2ClassByKey === null) {
-            self::$oauth2ClassByKey = [];
-            foreach (self::OAUTH2_PROVIDER_CLASSES as $class) {
-                self::$oauth2ClassByKey[$class::getProviderKey()] = $class;
-            }
-        }
-
-        return self::$oauth2ClassByKey[$key] ?? null;
-    }
-
-    /**
      * Route each entry of the heterogeneous `listOAuth2Providers` response
-     * through its concrete Resource class, which extracts that provider's
-     * readable fields. Secrets come back blanked and are not migrated.
+     * through OAuth2Provider, which extracts that provider's readable fields by
+     * key (see OAuth2Provider::PROVIDERS). Secrets come back blanked and are not
+     * migrated.
      */
     private function exportOAuth2Providers(): void
     {
@@ -846,9 +772,12 @@ class Appwrite extends Source
                 continue;
             }
 
-            $class = self::oauth2ClassFor($key);
-            if ($class === null) {
-                // Provider with no Resource class yet (added upstream after this
+            $payload = $provider;
+            $payload['id'] = $this->projectId . '-' . $key;
+            $resource = OAuth2Provider::fromArray($key, $payload);
+
+            if ($resource === null) {
+                // Provider with no field mapping yet (added upstream after this
                 // release): report it as non-fatal rather than dropping it silently.
                 $this->addError(new Exception(
                     Resource::TYPE_OAUTH2_PROVIDER,
@@ -858,10 +787,6 @@ class Appwrite extends Source
                 ));
                 continue;
             }
-
-            $payload = $provider;
-            $payload['id'] = $this->projectId . '-' . $key;
-            $resource = $class::fromArray($payload);
 
             // The server lists every provider; carry over only configured ones.
             if (!$resource->isConfigured()) {

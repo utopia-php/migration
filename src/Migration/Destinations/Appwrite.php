@@ -45,12 +45,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
-use Utopia\Migration\Resources\Auth\OAuth2\Apple as OAuth2Apple;
-use Utopia\Migration\Resources\Auth\OAuth2\Google as OAuth2Google;
-use Utopia\Migration\Resources\Auth\OAuth2\Microsoft as OAuth2Microsoft;
 use Utopia\Migration\Resources\Auth\OAuth2\OAuth2Provider;
-use Utopia\Migration\Resources\Auth\OAuth2\StandardProvider as OAuth2Standard;
-use Utopia\Migration\Resources\Auth\OAuth2\WithEndpointProvider as OAuth2WithEndpoint;
 use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
@@ -3568,39 +3563,35 @@ class Appwrite extends Destination
      */
     protected function createOAuth2Provider(OAuth2Provider $resource): bool
     {
-        $key = $resource::getProviderKey();
+        $key = $resource->getProviderKey();
         $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
         $oAuthProviders = $project->getAttribute('oAuthProviders', []);
 
-        if ($resource instanceof OAuth2Apple) {
-            if ($resource->getServiceId() !== '') {
-                $oAuthProviders[$key . 'Appid'] = $resource->getServiceId();
+        if ($key === 'apple') {
+            // Apple's app id is the serviceId; keyId/teamId ride in the secret JSON blob.
+            $serviceId = (string) $resource->getSetting('serviceId');
+            if ($serviceId !== '') {
+                $oAuthProviders[$key . 'Appid'] = $serviceId;
             }
             $oAuthProviders[$key . 'Secret'] = $this->mergeAppleSecret(
                 $oAuthProviders[$key . 'Secret'] ?? '',
-                $resource->getKeyId(),
-                $resource->getTeamId(),
+                (string) $resource->getSetting('keyId'),
+                (string) $resource->getSetting('teamId'),
             );
-        } elseif ($resource instanceof OAuth2Standard) {
-            if ($resource->getClientId() !== '') {
-                $oAuthProviders[$key . 'Appid'] = $resource->getClientId();
+        } else {
+            $clientId = (string) $resource->getSetting('clientId');
+            if ($clientId !== '') {
+                $oAuthProviders[$key . 'Appid'] = $clientId;
             }
             // Per-shape extras (endpoint/tenant/prompt) ride inside the JSON secret blob.
-            if ($resource instanceof OAuth2WithEndpoint && $resource->getEndpoint() !== '') {
-                $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
-                    $oAuthProviders[$key . 'Secret'] ?? '',
-                    ['endpoint' => $resource->getEndpoint()],
-                );
-            } elseif ($resource instanceof OAuth2Microsoft && $resource->getTenant() !== '') {
-                $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
-                    $oAuthProviders[$key . 'Secret'] ?? '',
-                    ['tenant' => $resource->getTenant()],
-                );
-            } elseif ($resource instanceof OAuth2Google && !empty($resource->getPrompt())) {
-                $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
-                    $oAuthProviders[$key . 'Secret'] ?? '',
-                    ['prompt' => $resource->getPrompt()],
-                );
+            foreach (['endpoint', 'tenant', 'prompt'] as $field) {
+                $value = $resource->getSetting($field);
+                if ($value !== null && $value !== '' && $value !== []) {
+                    $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
+                        $oAuthProviders[$key . 'Secret'] ?? '',
+                        [$field => $value],
+                    );
+                }
             }
         }
 
