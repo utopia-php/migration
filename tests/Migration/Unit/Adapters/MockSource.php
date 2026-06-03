@@ -95,6 +95,7 @@ class MockSource extends Source
             Resource::TYPE_SUBSCRIBER,
             Resource::TYPE_MESSAGE,
             Resource::TYPE_BACKUP_POLICY,
+            Resource::TYPE_RULE,
 
             // legacy
             Resource::TYPE_DOCUMENT,
@@ -246,6 +247,17 @@ class MockSource extends Source
             }
 
             $this->handleResourceTransfer(Transfer::GROUP_PROJECTS, $resource);
+        }
+    }
+
+    protected function exportGroupDomains(int $batchSize, array $resources): void
+    {
+        foreach (Transfer::GROUP_DOMAINS_RESOURCES as $resource) {
+            if (!\in_array($resource, $resources)) {
+                continue;
+            }
+
+            $this->handleResourceTransfer(Transfer::GROUP_DOMAINS, $resource);
         }
     }
 }

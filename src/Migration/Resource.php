@@ -87,6 +87,9 @@ abstract class Resource implements \JsonSerializable
     public const TYPE_PROJECT_LABELS = 'project-labels';
     public const TYPE_PROJECT_SERVICES = 'project-services';
 
+    // Domains
+    public const TYPE_RULE = 'rule';
+
     // Messaging
     public const TYPE_SUBSCRIBER = 'subscriber';
     public const TYPE_MESSAGE = 'message';
@@ -135,6 +138,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_PROJECT_PROTOCOLS,
         self::TYPE_PROJECT_LABELS,
         self::TYPE_PROJECT_SERVICES,
+        self::TYPE_RULE,
         self::TYPE_PROVIDER,
         self::TYPE_TOPIC,
         self::TYPE_SUBSCRIBER,

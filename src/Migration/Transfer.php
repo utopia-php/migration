@@ -30,6 +30,8 @@ class Transfer
 
     public const GROUP_PROJECTS = 'projects';
 
+    public const GROUP_DOMAINS = 'domains';
+
     public const GROUP_AUTH_RESOURCES = [
         Resource::TYPE_USER,
         Resource::TYPE_TEAM,
@@ -109,6 +111,10 @@ class Transfer
         Resource::TYPE_BACKUP_POLICY,
     ];
 
+    public const GROUP_DOMAINS_RESOURCES = [
+        Resource::TYPE_RULE,
+    ];
+
     public const GROUP_MESSAGING_RESOURCES = [
         Resource::TYPE_PROVIDER,
         Resource::TYPE_TOPIC,
@@ -152,6 +158,9 @@ class Transfer
         Resource::TYPE_PROJECT_PROTOCOLS,
         Resource::TYPE_PROJECT_LABELS,
         Resource::TYPE_PROJECT_SERVICES,
+
+        // Domains
+        Resource::TYPE_RULE,
 
         // legacy
         Resource::TYPE_DOCUMENT,
@@ -439,6 +448,7 @@ class Transfer
                 self::GROUP_MESSAGING => array_merge($resources, self::GROUP_MESSAGING_RESOURCES),
                 self::GROUP_BACKUPS => array_merge($resources, self::GROUP_BACKUPS_RESOURCES),
                 self::GROUP_PROJECTS => array_merge($resources, self::GROUP_PROJECTS_RESOURCES),
+                self::GROUP_DOMAINS => array_merge($resources, self::GROUP_DOMAINS_RESOURCES),
                 default => throw new \Exception('No service group found'),
             };
         }

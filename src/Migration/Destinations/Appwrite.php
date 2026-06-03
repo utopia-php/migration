@@ -10,12 +10,15 @@ use Appwrite\Enums\Compression;
 use Appwrite\Enums\Framework;
 use Appwrite\Enums\PasswordHash;
 use Appwrite\Enums\ProjectProtocolId;
+use Appwrite\Enums\ProxyResourceType;
 use Appwrite\Enums\Runtime;
 use Appwrite\Enums\SmtpEncryption;
+use Appwrite\Enums\StatusCode;
 use Appwrite\InputFile;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
 use Appwrite\Services\Project;
+use Appwrite\Services\Proxy;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
@@ -51,6 +54,7 @@ use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Resources\Database\Table;
+use Utopia\Migration\Resources\Domains\Rule;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
@@ -106,6 +110,7 @@ class Appwrite extends Destination
     private Functions $functions;
     private Messaging $messaging;
     private Project $project;
+    private Proxy $proxy;
     private Sites $sites;
     private Storage $storage;
     private Teams $teams;
@@ -191,6 +196,7 @@ class Appwrite extends Destination
         $this->functions = new Functions($this->client);
         $this->messaging = new Messaging($this->client);
         $this->project = new Project($this->client);
+        $this->proxy = new Proxy($this->client);
         $this->sites = new Sites($this->client);
         $this->storage = new Storage($this->client);
         $this->teams = new Teams($this->client);
@@ -302,6 +308,9 @@ class Appwrite extends Destination
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
+
+            // Domains
+            Resource::TYPE_RULE,
         ];
     }
 
@@ -461,6 +470,7 @@ class Appwrite extends Destination
                     Transfer::GROUP_INTEGRATIONS => $this->importIntegrationsResource($resource),
                     Transfer::GROUP_BACKUPS => $this->importBackupResource($resource),
                     Transfer::GROUP_PROJECTS => $this->importProjectsResource($resource),
+                    Transfer::GROUP_DOMAINS => $this->importDomainsResource($resource),
                     default => throw new \Exception('Invalid resource group', Exception::CODE_VALIDATION),
                 };
             } catch (\Throwable $e) {
@@ -3156,6 +3166,25 @@ class Appwrite extends Destination
         return $resource;
     }
 
+    public function importDomainsResource(Resource $resource): Resource
+    {
+        switch ($resource->getName()) {
+            case Resource::TYPE_RULE:
+                /** @var Rule $resource */
+                $success = $this->createRule($resource);
+                if (!$success) {
+                    return $resource;
+                }
+                break;
+        }
+
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        }
+
+        return $resource;
+    }
+
     protected function createProjectVariable(ProjectVariable $resource): bool
     {
         $existing = $this->dbForProject->findOne('variables', [
@@ -3276,6 +3305,91 @@ class Appwrite extends Destination
         ));
 
         $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
+    /**
+     * Auto-generated rules (default `.appwrite.network` domains for functions/sites)
+     * are recreated automatically on the destination when the parent Function/Site
+     * is migrated, so only manual rules need to be imported.
+     *
+     * Function/site IDs are preserved across migration, so the source
+     * `deploymentResourceId` is passed through directly.
+     */
+    protected function createRule(Rule $resource): bool
+    {
+        if ($resource->getTrigger() !== 'manual') {
+            $resource->setStatus(Resource::STATUS_SKIPPED, 'Auto-generated rule, recreated by parent resource migration');
+            return false;
+        }
+
+        $type = $resource->getType();
+        $deploymentResourceType = $resource->getDeploymentResourceType();
+        $branch = $resource->getDeploymentVcsProviderBranch();
+
+        try {
+            switch ($type) {
+                case 'api':
+                    $this->proxy->createAPIRule($resource->getDomain());
+                    break;
+
+                case 'redirect':
+                    $statusCode = match ($resource->getRedirectStatusCode()) {
+                        301 => StatusCode::MOVEDPERMANENTLY301(),
+                        302 => StatusCode::FOUND302(),
+                        307 => StatusCode::TEMPORARYREDIRECT307(),
+                        308 => StatusCode::PERMANENTREDIRECT308(),
+                        default => StatusCode::MOVEDPERMANENTLY301(),
+                    };
+
+                    $resourceType = $deploymentResourceType === 'site'
+                        ? ProxyResourceType::SITE()
+                        : ProxyResourceType::FUNCTIONMODEL();
+
+                    $this->proxy->createRedirectRule(
+                        $resource->getDomain(),
+                        $resource->getRedirectUrl(),
+                        $statusCode,
+                        $resource->getDeploymentResourceId(),
+                        $resourceType,
+                    );
+                    break;
+
+                case 'deployment':
+                    if ($deploymentResourceType === 'function') {
+                        $this->proxy->createFunctionRule(
+                            $resource->getDomain(),
+                            $resource->getDeploymentResourceId(),
+                            $branch !== '' ? $branch : null,
+                        );
+                    } elseif ($deploymentResourceType === 'site') {
+                        $this->proxy->createSiteRule(
+                            $resource->getDomain(),
+                            $resource->getDeploymentResourceId(),
+                            $branch !== '' ? $branch : null,
+                        );
+                    } else {
+                        $resource->setStatus(Resource::STATUS_SKIPPED, 'Unsupported deployment resource type "' . $deploymentResourceType . '"');
+                        return false;
+                    }
+                    break;
+
+                default:
+                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Unsupported rule type "' . $type . '"');
+                    return false;
+            }
+        } catch (AppwriteException $e) {
+            // 409 means the domain is owned by another project/organization — the
+            // user has to release it there before re-running. Surface as a warning,
+            // not an error, so the rest of the migration continues.
+            if ($e->getCode() === 409) {
+                $resource->setStatus(Resource::STATUS_WARNING, 'Domain "' . $resource->getDomain() . '" is owned by another project. Remove it there and re-run the migration.');
+                return false;
+            }
+
+            throw $e;
+        }
 
         return true;
     }

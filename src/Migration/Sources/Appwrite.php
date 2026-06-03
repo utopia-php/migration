@@ -11,6 +11,7 @@ use Appwrite\Query;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
 use Appwrite\Services\Project;
+use Appwrite\Services\Proxy;
 use Appwrite\Services\Sites;
 use Appwrite\Services\Storage;
 use Appwrite\Services\TablesDB;
@@ -58,6 +59,7 @@ use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Resources\Database\VectorsDB;
+use Utopia\Migration\Resources\Domains\Rule;
 use Utopia\Migration\Resources\Functions\Deployment;
 use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
@@ -111,6 +113,8 @@ class Appwrite extends Source
 
     private Webhooks $webhooks;
 
+    private Proxy $proxy;
+
     /**
      * @var callable(UtopiaDocument $database|null): UtopiaDatabase
      */
@@ -141,6 +145,7 @@ class Appwrite extends Source
         $this->sites = new Sites($this->client);
         $this->project = new Project($this->client);
         $this->webhooks = new Webhooks($this->client);
+        $this->proxy = new Proxy($this->client);
 
         $this->headers['x-appwrite-project'] = $this->projectId;
         $this->headers['x-appwrite-key'] = $this->key;
@@ -237,6 +242,9 @@ class Appwrite extends Source
             Resource::TYPE_PROJECT_PROTOCOLS,
             Resource::TYPE_PROJECT_LABELS,
             Resource::TYPE_PROJECT_SERVICES,
+
+            // Domains
+            Resource::TYPE_RULE,
         ];
     }
 
@@ -278,6 +286,7 @@ class Appwrite extends Source
             $this->reportIntegrations($resources, $report, $resourceIds);
             $this->reportBackups($resources, $report, $resourceIds);
             $this->reportProjects($resources, $report, $resourceIds);
+            $this->reportDomains($resources, $report, $resourceIds);
 
             $report['version'] = $this->call(
                 'GET',
@@ -1568,6 +1577,17 @@ class Appwrite extends Source
         }
     }
 
+    private function reportDomains(array $resources, array &$report, array $resourceIds = []): void
+    {
+        if (\in_array(Resource::TYPE_RULE, $resources)) {
+            try {
+                $report[Resource::TYPE_RULE] = $this->proxy->listRules([Query::limit(1)])->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_RULE] = 0;
+            }
+        }
+    }
+
     private function reportProjects(array $resources, array &$report, array $resourceIds = []): void
     {
         if (\in_array(Resource::TYPE_PROJECT_VARIABLE, $resources)) {
@@ -1737,6 +1757,70 @@ class Appwrite extends Source
         );
 
         $this->callback([$smtp]);
+    }
+
+    protected function exportGroupDomains(int $batchSize, array $resources): void
+    {
+        if (\in_array(Resource::TYPE_RULE, $resources)) {
+            try {
+                $this->exportRules($batchSize);
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_RULE,
+                    Transfer::GROUP_DOMAINS,
+                    message: $e->getMessage(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                    previous: $e
+                ));
+            }
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportRules(int $batchSize): void
+    {
+        $lastId = null;
+
+        while (true) {
+            $queries = [Query::limit($batchSize)];
+
+            if ($lastId !== null) {
+                $queries[] = Query::cursorAfter($lastId);
+            }
+
+            $response = $this->proxy->listRules($queries);
+            if ($response->total === 0) {
+                break;
+            }
+
+            $rules = [];
+
+            foreach ($response->rules as $rule) {
+                $rules[] = new Rule(
+                    $rule->id,
+                    $rule->domain,
+                    $rule->type,
+                    $rule->trigger,
+                    $rule->redirectUrl,
+                    $rule->redirectStatusCode,
+                    $rule->deploymentResourceType ? (string) $rule->deploymentResourceType : '',
+                    $rule->deploymentResourceId,
+                    $rule->deploymentVcsProviderBranch,
+                    createdAt: $rule->createdAt,
+                    updatedAt: $rule->updatedAt,
+                );
+
+                $lastId = $rule->id;
+            }
+
+            $this->callback($rules);
+
+            if (count($response->rules) < $batchSize) {
+                break;
+            }
+        }
     }
 
     /**
