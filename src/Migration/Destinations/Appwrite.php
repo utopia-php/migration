@@ -75,6 +75,7 @@ use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
+use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Transfer;
 
 class Appwrite extends Destination
@@ -305,6 +306,7 @@ class Appwrite extends Destination
             Resource::TYPE_PROJECT_PROTOCOLS,
             Resource::TYPE_PROJECT_LABELS,
             Resource::TYPE_PROJECT_SERVICES,
+            Resource::TYPE_PROJECT_EMAIL_TEMPLATE,
 
             // Backups
             Resource::TYPE_BACKUP_POLICY,
@@ -3157,6 +3159,10 @@ class Appwrite extends Destination
                 /** @var ServicesResource $resource */
                 $this->createServices($resource);
                 break;
+            case Resource::TYPE_PROJECT_EMAIL_TEMPLATE:
+                /** @var EmailTemplate $resource */
+                $this->createEmailTemplate($resource);
+                break;
         }
 
         if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
@@ -3305,6 +3311,37 @@ class Appwrite extends Destination
         ));
 
         $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
+    /**
+     * Direct DB write rather than the SDK's updateEmailTemplate, which rejects
+     * the call unless custom SMTP is enabled — templates may migrate before SMTP.
+     * Read-then-merge preserves templates already on the destination.
+     */
+    protected function createEmailTemplate(EmailTemplate $resource): bool
+    {
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $templates = $project->getAttribute('templates', []);
+
+        $key = 'email.' . $resource->getTemplateId() . '-' . $resource->getLocale();
+        $existing = $templates[$key] ?? [];
+
+        $existing['subject']      = $resource->getSubject();
+        $existing['message']      = $resource->getBody();
+        $existing['senderName']   = $resource->getSenderName();
+        $existing['senderEmail']  = $resource->getSenderEmail();
+        $existing['replyToEmail'] = $resource->getReplyToEmail();
+        $existing['replyToName']  = $resource->getReplyToName();
+
+        $templates[$key] = $existing;
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['templates' => $templates]),
+        ));
 
         return true;
     }

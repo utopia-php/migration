@@ -80,6 +80,7 @@ use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
+use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Appwrite\Reader;
 use Utopia\Migration\Sources\Appwrite\Reader\API as APIReader;
@@ -242,6 +243,7 @@ class Appwrite extends Source
             Resource::TYPE_PROJECT_PROTOCOLS,
             Resource::TYPE_PROJECT_LABELS,
             Resource::TYPE_PROJECT_SERVICES,
+            Resource::TYPE_PROJECT_EMAIL_TEMPLATE,
 
             // Domains
             Resource::TYPE_RULE,
@@ -1617,6 +1619,15 @@ class Appwrite extends Source
             // Singleton — one services config per project.
             $report[Resource::TYPE_PROJECT_SERVICES] = 1;
         }
+
+        if (\in_array(Resource::TYPE_PROJECT_EMAIL_TEMPLATE, $resources)) {
+            try {
+                // total:true returns the real count without fetching every row.
+                $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = $this->project->listEmailTemplates([Query::limit(1)], total: true)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = 0;
+            }
+        }
     }
 
     /**
@@ -1681,6 +1692,19 @@ class Appwrite extends Source
             ));
         }
 
+        if (\in_array(Resource::TYPE_PROJECT_EMAIL_TEMPLATE, $resources)) {
+            try {
+                $this->exportEmailTemplates($batchSize);
+            } catch (\Throwable $e) {
+                $this->addError(new Exception(
+                    Resource::TYPE_PROJECT_EMAIL_TEMPLATE,
+                    Transfer::GROUP_PROJECTS,
+                    message: $e->getMessage(),
+                    code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                    previous: $e
+                ));
+            }
+        }
     }
 
     private function exportServices(): void
@@ -1820,6 +1844,53 @@ class Appwrite extends Source
             if (count($response->rules) < $batchSize) {
                 break;
             }
+        }
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function exportEmailTemplates(int $batchSize): void
+    {
+        // Offset pagination: templates come from a project attribute map, not a
+        // collection, so cursor pagination isn't available here.
+        $offset = 0;
+
+        while (true) {
+            $response = $this->project->listEmailTemplates([
+                Query::limit($batchSize),
+                Query::offset($offset),
+            ]);
+
+            if (\count($response->templates) === 0) {
+                break;
+            }
+
+            $templates = [];
+
+            foreach ($response->templates as $template) {
+                $id = 'email.' . $template->templateId . '-' . $template->locale;
+
+                $templates[] = new EmailTemplate(
+                    $id,
+                    $template->templateId,
+                    $template->locale,
+                    $template->subject,
+                    $template->message,
+                    $template->senderName,
+                    $template->senderEmail,
+                    $template->replyToEmail,
+                    $template->replyToName,
+                );
+            }
+
+            $this->callback($templates);
+
+            if (\count($response->templates) < $batchSize) {
+                break;
+            }
+
+            $offset += $batchSize;
         }
     }
 

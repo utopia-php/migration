@@ -105,6 +105,7 @@ class Transfer
         Resource::TYPE_PROJECT_PROTOCOLS,
         Resource::TYPE_PROJECT_LABELS,
         Resource::TYPE_PROJECT_SERVICES,
+        Resource::TYPE_PROJECT_EMAIL_TEMPLATE,
     ];
 
     public const GROUP_BACKUPS_RESOURCES = [
@@ -158,6 +159,7 @@ class Transfer
         Resource::TYPE_PROJECT_PROTOCOLS,
         Resource::TYPE_PROJECT_LABELS,
         Resource::TYPE_PROJECT_SERVICES,
+        Resource::TYPE_PROJECT_EMAIL_TEMPLATE,
 
         // Domains
         Resource::TYPE_RULE,
