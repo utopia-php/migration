@@ -6,30 +6,12 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
 /**
- * OAuth2 provider migration resource — one class for every provider. The
- * provider key and that provider's readable (non-secret) field names come from
- * the {@see OAuth2Provider::PROVIDERS} map, not from per-provider subclasses.
- *
- * Only non-secret fields are migrated: the handshake secret (clientSecret, or
- * Apple's p8File) is write-only on the source, so it is not carried across — the
- * destination admin must re-enter it post-migration, after which sign-in works.
- *
- * All providers share Resource::TYPE_OAUTH2_PROVIDER; the destination dispatches
- * per provider on the provider key, not on the concrete type.
+ * OAuth2 provider secrets are write-only and are not migrated.
  */
 final class OAuth2Provider extends Resource
 {
     /**
-     * provider key => the readable, non-secret field names migrated for it.
-     *
-     * This list doubles as the secret allow-list: only these keys are copied off
-     * the (heterogeneous) `listOAuth2Providers` payload, so a secret field the
-     * server may add upstream later is never carried across by accident.
-     *
-     * Destination field routing (see Destinations\Appwrite::createOAuth2Provider):
-     *  - `clientId` / `serviceId` (Apple)   -> `{key}Appid`
-     *  - `endpoint` / `tenant` / `prompt`   -> merged into the `{key}Secret` JSON blob
-     *  - `keyId` / `teamId` (Apple)         -> merged into the Apple secret JSON blob
+     * Allow-list of readable provider fields that are safe to migrate.
      *
      * @var array<string, array<string>>
      */
@@ -78,9 +60,6 @@ final class OAuth2Provider extends Resource
         'zoom' => ['clientId'],
     ];
 
-    /**
-     * @param array<string, mixed> $settings Non-secret fields, keyed per PROVIDERS[$providerKey].
-     */
     public function __construct(
         string $id,
         protected readonly string $providerKey,
@@ -105,11 +84,6 @@ final class OAuth2Provider extends Resource
     }
 
     /**
-     * Build a provider from a single `listOAuth2Providers` entry, copying only
-     * the non-secret fields declared for `$providerKey`. Returns null for a key
-     * this lib has no mapping for yet (e.g. a provider added upstream after this
-     * release), so callers can report it rather than mis-migrate it.
-     *
      * @param array<string, mixed> $array
      */
     public static function fromArray(string $providerKey, array $array): ?self
@@ -174,11 +148,6 @@ final class OAuth2Provider extends Resource
         return $this->settings[$field] ?? null;
     }
 
-    /**
-     * Whether the project actually configured this provider — `listOAuth2Providers`
-     * returns every supported provider, but only configured ones are migrated. The
-     * app id is `serviceId` for Apple and `clientId` for everyone else.
-     */
     public function isConfigured(): bool
     {
         return $this->enabled

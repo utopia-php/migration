@@ -393,7 +393,6 @@ class Appwrite extends Source
             $report[Resource::TYPE_AUTH_METHODS] = 1;
         }
 
-        // Count only configured providers, matching exportOAuth2Providers().
         if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
             $count = 0;
             foreach ($this->project->listOAuth2Providers()->providers ?? [] as $provider) {
@@ -755,12 +754,6 @@ class Appwrite extends Source
         $this->callback([$authMethods]);
     }
 
-    /**
-     * Route each entry of the heterogeneous `listOAuth2Providers` response
-     * through OAuth2Provider, which extracts that provider's readable fields by
-     * key (see OAuth2Provider::PROVIDERS). Secrets come back blanked and are not
-     * migrated.
-     */
     private function exportOAuth2Providers(): void
     {
         $response = $this->project->listOAuth2Providers();
@@ -777,8 +770,6 @@ class Appwrite extends Source
             $resource = OAuth2Provider::fromArray($key, $payload);
 
             if ($resource === null) {
-                // Provider with no field mapping yet (added upstream after this
-                // release): report it as non-fatal rather than dropping it silently.
                 $this->addError(new Exception(
                     Resource::TYPE_OAUTH2_PROVIDER,
                     Transfer::GROUP_AUTH,
@@ -788,7 +779,6 @@ class Appwrite extends Source
                 continue;
             }
 
-            // The server lists every provider; carry over only configured ones.
             if (!$resource->isConfigured()) {
                 continue;
             }

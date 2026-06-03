@@ -3552,13 +3552,6 @@ class Appwrite extends Destination
         return true;
     }
 
-    /**
-     * Read-then-merge a single provider's entries on the project's
-     * `oAuthProviders` map, keyed `{providerKey}Appid` / `{providerKey}Secret` /
-     * `{providerKey}Enabled`. The handshake secret is never migrated (see
-     * OAuth2Provider), so `enabled` is propagated as-is and sign-in will fail
-     * until the admin re-enters the secret on the destination.
-     */
     protected function createOAuth2Provider(OAuth2Provider $resource): bool
     {
         $key = $resource->getProviderKey();
@@ -3566,7 +3559,6 @@ class Appwrite extends Destination
         $oAuthProviders = $project->getAttribute('oAuthProviders', []);
 
         if ($key === 'apple') {
-            // Apple's app id is the serviceId; keyId/teamId ride in the secret JSON blob.
             $serviceId = (string) $resource->getSetting('serviceId');
             if ($serviceId !== '') {
                 $oAuthProviders[$key . 'Appid'] = $serviceId;
@@ -3581,7 +3573,6 @@ class Appwrite extends Destination
             if ($clientId !== '') {
                 $oAuthProviders[$key . 'Appid'] = $clientId;
             }
-            // Per-shape extras (endpoint/tenant/prompt) ride inside the JSON secret blob.
             foreach (['endpoint', 'tenant', 'prompt'] as $field) {
                 $value = $resource->getSetting($field);
                 if ($value !== null && $value !== '' && $value !== []) {
@@ -3607,10 +3598,7 @@ class Appwrite extends Destination
     }
 
     /**
-     * Apple stores its credential as a JSON blob of `{keyID, teamID, p8}`.
-     * Migration carries keyID/teamID (readable) but not p8 (write-only).
-     * Read the destination's existing blob, overlay the migrated fields, keep
-     * the destination's `p8` untouched.
+     * Preserve Apple's existing p8 secret while updating readable metadata.
      */
     private function mergeAppleSecret(string $existing, string $keyId, string $teamId): string
     {
@@ -3626,9 +3614,6 @@ class Appwrite extends Destination
     }
 
     /**
-     * Merge a partial fields map into a JSON-encoded secret blob, preserving
-     * existing keys on the destination and overriding only the migrated ones.
-     *
      * @param array<string, mixed> $fields
      */
     private function mergeJsonSecret(string $existing, array $fields): string
