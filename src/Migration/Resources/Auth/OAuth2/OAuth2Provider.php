@@ -14,7 +14,13 @@ final class OAuth2Provider extends Resource
     private const TARGET_SECRET = 'secret';
 
     /**
-     * Allow-list of readable provider fields that are safe to migrate.
+     * Allow-list of readable provider fields that are safe to migrate, keyed by
+     * provider. Each field declares where it lands on the destination:
+     *  - target `appId`  -> the provider's `{key}Appid` attribute (one per provider)
+     *  - target `secret` -> merged into the `{key}Secret` JSON blob, renamed via `key`
+     *
+     * Anything not listed here (clientSecret, Apple's p8File, …) is never copied,
+     * so a secret field the server may add upstream cannot leak into a migration.
      *
      * @var array<string, array<string, array{target: string, key?: string}>>
      */
@@ -150,17 +156,21 @@ final class OAuth2Provider extends Resource
         return $this->settings;
     }
 
-    public function getSetting(string $field): mixed
-    {
-        return $this->settings[$field] ?? null;
-    }
-
-    public function getDestinationAppId(): mixed
+    /**
+     * Value for the destination's `{key}Appid` attribute (clientId, or serviceId
+     * for Apple). Null when unset, so callers can skip it without a separate
+     * emptiness check.
+     */
+    public function getDestinationAppId(): ?string
     {
         foreach ($this->getDescriptor() as $field => $metadata) {
-            if ($metadata['target'] === self::TARGET_APP_ID && \array_key_exists($field, $this->settings)) {
-                return $this->settings[$field];
+            if ($metadata['target'] !== self::TARGET_APP_ID) {
+                continue;
             }
+
+            $value = $this->settings[$field] ?? null;
+
+            return self::isEmpty($value) ? null : (string) $value;
         }
 
         return null;
@@ -190,7 +200,7 @@ final class OAuth2Provider extends Resource
 
     public function isConfigured(): bool
     {
-        return $this->enabled || !self::isEmpty($this->getDestinationAppId());
+        return $this->enabled || $this->getDestinationAppId() !== null;
     }
 
     /**

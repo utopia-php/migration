@@ -3559,7 +3559,7 @@ class Appwrite extends Destination
         $oAuthProviders = $project->getAttribute('oAuthProviders', []);
 
         $appId = $resource->getDestinationAppId();
-        if (!$this->isEmptyOAuth2Setting($appId)) {
+        if ($appId !== null) {
             $oAuthProviders[$key . 'Appid'] = $appId;
         }
 
@@ -3602,11 +3602,6 @@ class Appwrite extends Destination
         }
 
         return \json_encode($decoded) ?: '';
-    }
-
-    private function isEmptyOAuth2Setting(mixed $value): bool
-    {
-        return $value === null || $value === '' || $value === [];
     }
 
     /**
