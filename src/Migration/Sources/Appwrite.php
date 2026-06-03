@@ -394,19 +394,7 @@ class Appwrite extends Source
         }
 
         if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
-            $count = 0;
-            foreach ($this->project->listOAuth2Providers()->providers ?? [] as $provider) {
-                $key = (string) ($provider['$id'] ?? '');
-                if ($key === '') {
-                    continue;
-                }
-                $provider['id'] = $key;
-                $resource = OAuth2Provider::fromArray($key, $provider);
-                if ($resource !== null && $resource->isConfigured()) {
-                    $count++;
-                }
-            }
-            $report[Resource::TYPE_OAUTH2_PROVIDER] = $count;
+            $report[Resource::TYPE_OAUTH2_PROVIDER] = \count($this->getOAuth2ProviderResources());
         }
 
         if (\in_array(Resource::TYPE_POLICIES, $resources)) {
@@ -756,10 +744,20 @@ class Appwrite extends Source
 
     private function exportOAuth2Providers(): void
     {
-        $response = $this->project->listOAuth2Providers();
+        $resources = $this->getOAuth2ProviderResources(true);
 
-        $emitted = [];
-        foreach ($response->providers ?? [] as $provider) {
+        if (!empty($resources)) {
+            $this->callback($resources);
+        }
+    }
+
+    /**
+     * @return array<OAuth2Provider>
+     */
+    private function getOAuth2ProviderResources(bool $reportUnknownProviders = false): array
+    {
+        $resources = [];
+        foreach ($this->project->listOAuth2Providers()->providers ?? [] as $provider) {
             $key = (string) ($provider['$id'] ?? '');
             if ($key === '') {
                 continue;
@@ -770,12 +768,14 @@ class Appwrite extends Source
             $resource = OAuth2Provider::fromArray($key, $payload);
 
             if ($resource === null) {
-                $this->addError(new Exception(
-                    Resource::TYPE_OAUTH2_PROVIDER,
-                    Transfer::GROUP_AUTH,
-                    message: "No migration resource for OAuth2 provider '{$key}'; skipped.",
-                    code: Exception::CODE_INTERNAL,
-                ));
+                if ($reportUnknownProviders) {
+                    $this->addError(new Exception(
+                        Resource::TYPE_OAUTH2_PROVIDER,
+                        Transfer::GROUP_AUTH,
+                        message: "No migration resource for OAuth2 provider '{$key}'; skipped.",
+                        code: Exception::CODE_INTERNAL,
+                    ));
+                }
                 continue;
             }
 
@@ -783,12 +783,10 @@ class Appwrite extends Source
                 continue;
             }
 
-            $emitted[] = $resource;
+            $resources[] = $resource;
         }
 
-        if (!empty($emitted)) {
-            $this->callback($emitted);
-        }
+        return $resources;
     }
 
     /**

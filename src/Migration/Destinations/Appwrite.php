@@ -3558,30 +3558,17 @@ class Appwrite extends Destination
         $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
         $oAuthProviders = $project->getAttribute('oAuthProviders', []);
 
-        if ($key === 'apple') {
-            $serviceId = (string) $resource->getSetting('serviceId');
-            if ($serviceId !== '') {
-                $oAuthProviders[$key . 'Appid'] = $serviceId;
-            }
-            $oAuthProviders[$key . 'Secret'] = $this->mergeAppleSecret(
+        $appId = $resource->getDestinationAppId();
+        if (!$this->isEmptyOAuth2Setting($appId)) {
+            $oAuthProviders[$key . 'Appid'] = $appId;
+        }
+
+        $secretFields = $resource->getDestinationSecretFields();
+        if (!empty($secretFields)) {
+            $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
                 $oAuthProviders[$key . 'Secret'] ?? '',
-                (string) $resource->getSetting('keyId'),
-                (string) $resource->getSetting('teamId'),
+                $secretFields,
             );
-        } else {
-            $clientId = (string) $resource->getSetting('clientId');
-            if ($clientId !== '') {
-                $oAuthProviders[$key . 'Appid'] = $clientId;
-            }
-            foreach (['endpoint', 'tenant', 'prompt'] as $field) {
-                $value = $resource->getSetting($field);
-                if ($value !== null && $value !== '' && $value !== []) {
-                    $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
-                        $oAuthProviders[$key . 'Secret'] ?? '',
-                        [$field => $value],
-                    );
-                }
-            }
         }
 
         $oAuthProviders[$key . 'Enabled'] = $resource->getEnabled();
@@ -3598,26 +3585,14 @@ class Appwrite extends Destination
     }
 
     /**
-     * Preserve Apple's existing p8 secret while updating readable metadata.
-     */
-    private function mergeAppleSecret(string $existing, string $keyId, string $teamId): string
-    {
-        $fields = [];
-        if ($keyId !== '') {
-            $fields['keyID'] = $keyId;
-        }
-        if ($teamId !== '') {
-            $fields['teamID'] = $teamId;
-        }
-
-        return $this->mergeJsonSecret($existing, $fields);
-    }
-
-    /**
      * @param array<string, mixed> $fields
      */
     private function mergeJsonSecret(string $existing, array $fields): string
     {
+        if (empty($fields)) {
+            return $existing;
+        }
+
         $decoded = $existing === '' ? [] : (\json_decode($existing, true) ?: []);
         if (!\is_array($decoded)) {
             $decoded = [];
@@ -3627,6 +3602,11 @@ class Appwrite extends Destination
         }
 
         return \json_encode($decoded) ?: '';
+    }
+
+    private function isEmptyOAuth2Setting(mixed $value): bool
+    {
+        return $value === null || $value === '' || $value === [];
     }
 
     /**
