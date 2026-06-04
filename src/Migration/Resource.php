@@ -73,6 +73,11 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_POLICIES = 'policies';
 
+    // One type shared by all OAuth2 provider Resource classes (dispatch is by
+    // `instanceof` on the destination). A per-provider type would overflow the
+    // migration document's 3KB `statusCounters` column when OAuth is selected.
+    public const TYPE_OAUTH2_PROVIDER = 'oauth2-provider';
+
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
 
     // Integrations
@@ -131,6 +136,7 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_MEMBERSHIP,
         self::TYPE_AUTH_METHODS,
         self::TYPE_POLICIES,
+        self::TYPE_OAUTH2_PROVIDER,
         self::TYPE_PLATFORM,
         self::TYPE_API_KEY,
         self::TYPE_WEBHOOK,

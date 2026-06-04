@@ -26,6 +26,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
+use Utopia\Migration\Resources\Auth\OAuth2\OAuth2Provider;
 use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
@@ -191,6 +192,7 @@ class Appwrite extends Source
             Resource::TYPE_MEMBERSHIP,
             Resource::TYPE_AUTH_METHODS,
             Resource::TYPE_POLICIES,
+            Resource::TYPE_OAUTH2_PROVIDER,
 
             // Database
             Resource::TYPE_DATABASE,
@@ -389,6 +391,10 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_AUTH_METHODS, $resources)) {
             // Singleton — there is exactly one auth-methods config per project.
             $report[Resource::TYPE_AUTH_METHODS] = 1;
+        }
+
+        if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
+            $report[Resource::TYPE_OAUTH2_PROVIDER] = \count($this->getOAuth2ProviderResources());
         }
 
         if (\in_array(Resource::TYPE_POLICIES, $resources)) {
@@ -651,6 +657,20 @@ class Appwrite extends Source
         }
 
         try {
+            if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
+                $this->exportOAuth2Providers();
+            }
+        } catch (\Throwable $e) {
+            $this->addError(new Exception(
+                Resource::TYPE_OAUTH2_PROVIDER,
+                Transfer::GROUP_AUTH,
+                message: $e->getMessage(),
+                code: (int) $e->getCode() ?: Exception::CODE_INTERNAL,
+                previous: $e
+            ));
+        }
+
+        try {
             if (\in_array(Resource::TYPE_POLICIES, $resources)) {
                 $this->exportPolicies();
             }
@@ -720,6 +740,53 @@ class Appwrite extends Source
         );
 
         $this->callback([$authMethods]);
+    }
+
+    private function exportOAuth2Providers(): void
+    {
+        $resources = $this->getOAuth2ProviderResources(true);
+
+        if (!empty($resources)) {
+            $this->callback($resources);
+        }
+    }
+
+    /**
+     * @return array<OAuth2Provider>
+     */
+    private function getOAuth2ProviderResources(bool $reportUnknownProviders = false): array
+    {
+        $resources = [];
+        foreach ($this->project->listOAuth2Providers()->providers ?? [] as $provider) {
+            $key = (string) ($provider['$id'] ?? '');
+            if ($key === '') {
+                continue;
+            }
+
+            $payload = $provider;
+            $payload['id'] = $this->projectId . '-' . $key;
+            $resource = OAuth2Provider::fromArray($key, $payload);
+
+            if ($resource === null) {
+                if ($reportUnknownProviders) {
+                    $this->addError(new Exception(
+                        Resource::TYPE_OAUTH2_PROVIDER,
+                        Transfer::GROUP_AUTH,
+                        message: "No migration resource for OAuth2 provider '{$key}'; skipped.",
+                        code: Exception::CODE_INTERNAL,
+                    ));
+                }
+                continue;
+            }
+
+            if (!$resource->isConfigured()) {
+                continue;
+            }
+
+            $resources[] = $resource;
+        }
+
+        return $resources;
     }
 
     /**

@@ -45,6 +45,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\Membership;
+use Utopia\Migration\Resources\Auth\OAuth2\OAuth2Provider;
 use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
@@ -260,6 +261,7 @@ class Appwrite extends Destination
             Resource::TYPE_MEMBERSHIP,
             Resource::TYPE_AUTH_METHODS,
             Resource::TYPE_POLICIES,
+            Resource::TYPE_OAUTH2_PROVIDER,
 
             // Database
             Resource::TYPE_DATABASE,
@@ -2196,6 +2198,10 @@ class Appwrite extends Destination
                 /** @var Policies $resource */
                 $this->createPolicies($resource);
                 break;
+            case Resource::TYPE_OAUTH2_PROVIDER:
+                /** @var OAuth2Provider $resource */
+                $this->createOAuth2Provider($resource);
+                break;
         }
 
         $resource->setStatus(Resource::STATUS_SUCCESS);
@@ -3544,6 +3550,58 @@ class Appwrite extends Destination
         $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
 
         return true;
+    }
+
+    protected function createOAuth2Provider(OAuth2Provider $resource): bool
+    {
+        $key = $resource->getProviderKey();
+        $project = $this->dbForPlatform->getDocument('projects', $this->projectId);
+        $oAuthProviders = $project->getAttribute('oAuthProviders', []);
+
+        $appId = $resource->getDestinationAppId();
+        if ($appId !== null) {
+            $oAuthProviders[$key . 'Appid'] = $appId;
+        }
+
+        $secretFields = $resource->getDestinationSecretFields();
+        if (!empty($secretFields)) {
+            $oAuthProviders[$key . 'Secret'] = $this->mergeJsonSecret(
+                $oAuthProviders[$key . 'Secret'] ?? '',
+                $secretFields,
+            );
+        }
+
+        $oAuthProviders[$key . 'Enabled'] = $resource->getEnabled();
+
+        $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
+            'projects',
+            $this->projectId,
+            new UtopiaDocument(['oAuthProviders' => $oAuthProviders]),
+        ));
+
+        $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+
+        return true;
+    }
+
+    /**
+     * @param array<string, mixed> $fields
+     */
+    private function mergeJsonSecret(string $existing, array $fields): string
+    {
+        if (empty($fields)) {
+            return $existing;
+        }
+
+        $decoded = $existing === '' ? [] : (\json_decode($existing, true) ?: []);
+        if (!\is_array($decoded)) {
+            $decoded = [];
+        }
+        foreach ($fields as $name => $value) {
+            $decoded[$name] = $value;
+        }
+
+        return \json_encode($decoded) ?: '';
     }
 
     /**
