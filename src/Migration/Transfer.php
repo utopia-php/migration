@@ -251,6 +251,15 @@ class Transfer
         foreach ($this->cache->getAll() as $resourceType => $resources) {
             foreach ($resources as $k => $resource) {
                 if (($resourceType === Resource::TYPE_ROW || $resourceType === Resource::TYPE_DOCUMENT) && is_string($resource)) {
+                    // Only report status for resource types that were requested,
+                    // mirroring the isset() guard below. Row/document counts can be
+                    // aggregated into the cache for an unrequested type, which would
+                    // otherwise read an unseeded 'pending' key and leave a phantom,
+                    // non-empty counter.
+                    if (!isset($status[$resourceType])) {
+                        continue;
+                    }
+
                     $resource = intval($resource);
 
                     $status[$resourceType][$k] = $resource;
