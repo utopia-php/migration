@@ -52,9 +52,10 @@ abstract class Target
      * @param  array<string>  $resources  Resources to transfer
      * @param  callable  $callback  Callback to run after transfer
      * @param  string  $rootResourceId  Root resource ID. If set, only this root resource is transferred.
+     * @param  string  $rootResourceType  Resource type for $rootResourceId. Required when $rootResourceId is set.
      * @param  string  $rootResourceChildId  Optional child filter under the root resource. For database roots, this is the collection/table ID.
      */
-    abstract public function run(array $resources, callable $callback, string $rootResourceId = '', string $rootResourceChildId = ''): void;
+    abstract public function run(array $resources, callable $callback, string $rootResourceId = '', string $rootResourceType = '', string $rootResourceChildId = ''): void;
 
     /**
      * Report Resources
