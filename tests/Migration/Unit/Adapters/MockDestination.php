@@ -51,10 +51,23 @@ class MockDestination extends Destination
             Resource::TYPE_ENVIRONMENT_VARIABLE,
             Resource::TYPE_TEAM,
             Resource::TYPE_MEMBERSHIP,
+            Resource::TYPE_OAUTH2_PROVIDER,
+            Resource::TYPE_PLATFORM,
+            Resource::TYPE_API_KEY,
+            Resource::TYPE_SMTP,
+            Resource::TYPE_PROJECT_VARIABLE,
+            Resource::TYPE_WEBHOOK,
+            Resource::TYPE_AUTH_METHODS,
+            Resource::TYPE_POLICIES,
+            Resource::TYPE_PROJECT_PROTOCOLS,
+            Resource::TYPE_PROJECT_LABELS,
+            Resource::TYPE_PROJECT_SERVICES,
+            Resource::TYPE_PROJECT_EMAIL_TEMPLATE,
             Resource::TYPE_PROVIDER,
             Resource::TYPE_TOPIC,
             Resource::TYPE_SUBSCRIBER,
             Resource::TYPE_MESSAGE,
+            Resource::TYPE_RULE,
         ];
     }
 

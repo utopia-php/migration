@@ -818,7 +818,22 @@ class Firebase extends Source
         throw new \Exception('Not implemented');
     }
 
+    protected function exportGroupIntegrations(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not implemented');
+    }
+
     protected function exportGroupBackups(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not implemented');
+    }
+
+    protected function exportGroupProjects(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not implemented');
+    }
+
+    protected function exportGroupDomains(int $batchSize, array $resources): void
     {
         throw new \Exception('Not implemented');
     }

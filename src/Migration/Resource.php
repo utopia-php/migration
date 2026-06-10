@@ -69,10 +69,35 @@ abstract class Resource implements \JsonSerializable
 
     public const TYPE_HASH = 'hash';
 
+    public const TYPE_AUTH_METHODS = 'auth-methods';
+
+    public const TYPE_POLICIES = 'policies';
+
+    // One type shared by all OAuth2 provider Resource classes (dispatch is by
+    // `instanceof` on the destination). A per-provider type would overflow the
+    // migration document's 3KB `statusCounters` column when OAuth is selected.
+    public const TYPE_OAUTH2_PROVIDER = 'oauth2-provider';
+
     public const TYPE_ENVIRONMENT_VARIABLE = 'environment-variable';
 
-    public const TYPE_SUBSCRIBER = 'subscriber';
+    // Integrations
+    public const TYPE_PLATFORM = 'platform';
+    public const TYPE_API_KEY = 'api-key';
+    public const TYPE_WEBHOOK = 'webhook';
+    public const TYPE_SMTP = 'smtp';
 
+    // Project (per-project singleton/settings resources)
+    public const TYPE_PROJECT_VARIABLE = 'project-variable';
+    public const TYPE_PROJECT_PROTOCOLS = 'project-protocols';
+    public const TYPE_PROJECT_LABELS = 'project-labels';
+    public const TYPE_PROJECT_SERVICES = 'project-services';
+    public const TYPE_PROJECT_EMAIL_TEMPLATE = 'project-email-template';
+
+    // Domains
+    public const TYPE_RULE = 'rule';
+
+    // Messaging
+    public const TYPE_SUBSCRIBER = 'subscriber';
     public const TYPE_MESSAGE = 'message';
 
     // Backups
@@ -109,6 +134,19 @@ abstract class Resource implements \JsonSerializable
         self::TYPE_ENVIRONMENT_VARIABLE,
         self::TYPE_TEAM,
         self::TYPE_MEMBERSHIP,
+        self::TYPE_AUTH_METHODS,
+        self::TYPE_POLICIES,
+        self::TYPE_OAUTH2_PROVIDER,
+        self::TYPE_PLATFORM,
+        self::TYPE_API_KEY,
+        self::TYPE_WEBHOOK,
+        self::TYPE_SMTP,
+        self::TYPE_PROJECT_VARIABLE,
+        self::TYPE_PROJECT_PROTOCOLS,
+        self::TYPE_PROJECT_LABELS,
+        self::TYPE_PROJECT_SERVICES,
+        self::TYPE_PROJECT_EMAIL_TEMPLATE,
+        self::TYPE_RULE,
         self::TYPE_PROVIDER,
         self::TYPE_TOPIC,
         self::TYPE_SUBSCRIBER,

@@ -46,7 +46,22 @@ abstract class Source extends Target
         return static::$defaultBatchSize;
     }
 
+    public function getIntegrationsBatchSize(): int
+    {
+        return static::$defaultBatchSize;
+    }
+
     public function getBackupsBatchSize(): int
+    {
+        return static::$defaultBatchSize;
+    }
+
+    public function getProjectsBatchSize(): int
+    {
+        return static::$defaultBatchSize;
+    }
+
+    public function getDomainsBatchSize(): int
     {
         return static::$defaultBatchSize;
     }
@@ -117,7 +132,10 @@ abstract class Source extends Target
                 Transfer::GROUP_FUNCTIONS => Transfer::GROUP_FUNCTIONS_RESOURCES,
                 Transfer::GROUP_MESSAGING => Transfer::GROUP_MESSAGING_RESOURCES,
                 Transfer::GROUP_SITES => Transfer::GROUP_SITES_RESOURCES,
+                Transfer::GROUP_INTEGRATIONS => Transfer::GROUP_INTEGRATIONS_RESOURCES,
                 Transfer::GROUP_BACKUPS => Transfer::GROUP_BACKUPS_RESOURCES,
+                Transfer::GROUP_PROJECTS => Transfer::GROUP_PROJECTS_RESOURCES,
+                Transfer::GROUP_DOMAINS => Transfer::GROUP_DOMAINS_RESOURCES,
             ];
 
             foreach ($mapping as $group => $resources) {
@@ -152,8 +170,17 @@ abstract class Source extends Target
                 case Transfer::GROUP_SITES:
                     $this->exportGroupSites($this->getSitesBatchSize(), $resources);
                     break;
+                case Transfer::GROUP_INTEGRATIONS:
+                    $this->exportGroupIntegrations($this->getIntegrationsBatchSize(), $resources);
+                    break;
                 case Transfer::GROUP_BACKUPS:
                     $this->exportGroupBackups($this->getBackupsBatchSize(), $resources);
+                    break;
+                case Transfer::GROUP_PROJECTS:
+                    $this->exportGroupProjects($this->getProjectsBatchSize(), $resources);
+                    break;
+                case Transfer::GROUP_DOMAINS:
+                    $this->exportGroupDomains($this->getDomainsBatchSize(), $resources);
                     break;
             }
         }
@@ -208,10 +235,34 @@ abstract class Source extends Target
     abstract protected function exportGroupSites(int $batchSize, array $resources): void;
 
     /**
+     * Export Integrations Group
+     *
+     * @param int $batchSize
+     * @param array<string> $resources Resources to export
+     */
+    abstract protected function exportGroupIntegrations(int $batchSize, array $resources): void;
+
+    /**
      * Export Backups Group
      *
      * @param int $batchSize
      * @param array<string> $resources Resources to export
      */
     abstract protected function exportGroupBackups(int $batchSize, array $resources): void;
+
+    /**
+     * Export Projects Group
+     *
+     * @param int $batchSize
+     * @param array<string> $resources Resources to export
+     */
+    abstract protected function exportGroupProjects(int $batchSize, array $resources): void;
+
+    /**
+     * Export Domains Group
+     *
+     * @param int $batchSize
+     * @param array<string> $resources Resources to export
+     */
+    abstract protected function exportGroupDomains(int $batchSize, array $resources): void;
 }

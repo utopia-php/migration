@@ -5,6 +5,8 @@ namespace Utopia\Tests\Unit\General;
 use PHPUnit\Framework\TestCase;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database;
+use Utopia\Migration\Resources\Database\Row;
+use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Transfer;
 use Utopia\Tests\Unit\Adapters\MockDestination;
 use Utopia\Tests\Unit\Adapters\MockSource;
@@ -63,5 +65,30 @@ class TransferTest extends TestCase
         $this->assertNotNull($database);
         $this->assertSame('test', $database->getDatabaseName());
         $this->assertSame('test', $database->getId());
+    }
+
+    /**
+     * Row and document counts are aggregated into the cache by status. When such
+     * a count exists for a resource type that was not part of the migration
+     * request, getStatusCounters() must ignore it, exactly as it already does for
+     * non-row resources via the isset() guard. Otherwise it reads an unseeded
+     * 'pending' key (triggering an "Undefined array key" warning) and reports a
+     * phantom, non-empty counter for a type the caller never asked to migrate.
+     */
+    public function testStatusCountersIgnoreUnrequestedRowCounts(): void
+    {
+        // No resource types were requested, so 'row'/'document' are unrequested.
+        // A row count still leaks into the cache: the destination tallies row and
+        // document counts by status as it imports them.
+        $table = new Table(new Database('db', 'db'), 'table', 'table');
+        $row = new Row('row-1', $table);
+        $row->setStatus(Resource::STATUS_SUCCESS);
+
+        $this->transfer->getCache()->add($row);
+
+        $counters = $this->transfer->getStatusCounters();
+
+        $this->assertArrayNotHasKey(Resource::TYPE_ROW, $counters);
+        $this->assertSame([], $counters);
     }
 }

@@ -300,7 +300,7 @@ class CSV extends Source
 
                             $parsedData[$key] = array_map(function ($item) use ($type) {
                                 return match ($type) {
-                                    Column::TYPE_INTEGER => is_numeric($item) ? (int)$item : null,
+                                    Column::TYPE_INTEGER,Column::TYPE_BIG_INT => is_numeric($item) ? (int)$item : null,
                                     Column::TYPE_FLOAT => is_numeric($item) ? (float)$item : null,
                                     Column::TYPE_BOOLEAN => filter_var($item, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE),
                                     default => $item,
@@ -322,6 +322,7 @@ class CSV extends Source
                         'null' => null, // 'null' string is converted to null
                         '' => match ($type) {
                             Column::TYPE_INTEGER,
+                            Column::TYPE_BIG_INT,
                             Column::TYPE_FLOAT,
                             Column::TYPE_BOOLEAN,
                             Column::TYPE_DATETIME,
@@ -329,7 +330,7 @@ class CSV extends Source
                             default => '', // but empty string stays empty string for compatibility
                         },
                         default => match ($type) {
-                            Column::TYPE_INTEGER => \is_numeric($parsedValue) ? (int)$parsedValue : null,
+                            Column::TYPE_INTEGER, Column::TYPE_BIG_INT => \is_numeric($parsedValue) ? (int)$parsedValue : null,
                             Column::TYPE_FLOAT => \is_numeric($parsedValue) ? (float)$parsedValue : null,
                             Column::TYPE_BOOLEAN => \filter_var(
                                 $parsedValue,
@@ -428,7 +429,22 @@ class CSV extends Source
         throw new \Exception('Not Implemented');
     }
 
+    protected function exportGroupIntegrations(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
     protected function exportGroupBackups(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    protected function exportGroupProjects(int $batchSize, array $resources): void
+    {
+        throw new \Exception('Not Implemented');
+    }
+
+    protected function exportGroupDomains(int $batchSize, array $resources): void
     {
         throw new \Exception('Not Implemented');
     }
