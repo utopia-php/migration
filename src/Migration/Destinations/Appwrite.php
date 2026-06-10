@@ -230,9 +230,10 @@ class Appwrite extends Destination
         callable $callback,
         string $rootResourceId = '',
         string $rootResourceType = '',
+        string $rootResourceChildId = '',
     ): void {
         $this->resetRunState();
-        parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+        parent::run($resources, $callback, $rootResourceId, $rootResourceType, $rootResourceChildId);
         $this->cleanupOverwriteOrphans();
     }
 
