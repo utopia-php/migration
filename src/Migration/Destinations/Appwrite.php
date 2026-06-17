@@ -2073,6 +2073,7 @@ class Appwrite extends Destination
                 "/storage/buckets/{$bucketId}/files",
                 [
                     'content-type' => 'multipart/form-data',
+                    'X-Appwrite-Project' => $this->projectId,
                 ],
                 [
                     'bucketId' => $bucketId,
@@ -2094,6 +2095,7 @@ class Appwrite extends Destination
             [
                 'content-type' => 'multipart/form-data',
                 'content-range' => 'bytes ' . ($file->getStart()) . '-' . ($file->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $file->getEnd()) . '/' . $file->getSize(),
+                'X-Appwrite-Project' => $this->projectId,
             ],
             [
                 'bucketId' => $bucketId,
@@ -2435,6 +2437,7 @@ class Appwrite extends Destination
                 "/functions/{$functionId}/deployments",
                 [
                     'content-type' => 'multipart/form-data',
+                    'X-Appwrite-Project' => $this->projectId,
                 ],
                 [
                     'functionId' => $functionId,
@@ -2456,6 +2459,7 @@ class Appwrite extends Destination
                 'content-type' => 'multipart/form-data',
                 'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . ($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()) . '/' . $deployment->getSize(),
                 'x-appwrite-id' => $deployment->getId(),
+                'X-Appwrite-Project' => $this->projectId,
             ],
             [
                 'functionId' => $functionId,
@@ -3066,6 +3070,7 @@ class Appwrite extends Destination
                 "/sites/{$siteId}/deployments",
                 [
                     'content-type' => 'multipart/form-data',
+                    'X-Appwrite-Project' => $this->projectId,
                 ],
                 [
                     'siteId' => $siteId,
@@ -3090,6 +3095,7 @@ class Appwrite extends Destination
                 'content-type' => 'multipart/form-data',
                 'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . ($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()) . '/' . $deployment->getSize(),
                 'x-appwrite-id' => $deployment->getId(),
+                'X-Appwrite-Project' => $this->projectId,
             ],
             [
                 'siteId' => $siteId,
@@ -3379,11 +3385,11 @@ class Appwrite extends Destination
 
                 case 'redirect':
                     $statusCode = match ($resource->getRedirectStatusCode()) {
-                        301 => StatusCode::MOVEDPERMANENTLY301(),
-                        302 => StatusCode::FOUND302(),
-                        307 => StatusCode::TEMPORARYREDIRECT307(),
-                        308 => StatusCode::PERMANENTREDIRECT308(),
-                        default => StatusCode::MOVEDPERMANENTLY301(),
+                        301 => StatusCode::MOVEDPERMANENTLY(),
+                        302 => StatusCode::FOUND(),
+                        307 => StatusCode::TEMPORARYREDIRECT(),
+                        308 => StatusCode::PERMANENTREDIRECT(),
+                        default => StatusCode::MOVEDPERMANENTLY(),
                     };
 
                     $resourceType = $deploymentResourceType === 'site'

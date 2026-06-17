@@ -81,15 +81,18 @@ class Database implements Reader
 
         $dbResources = [];
         $databases = $this->listDatabases($databaseQueries);
+        $selectedDatabaseTypes = \array_intersect($resources, array_keys(Resource::DATABASE_TYPE_RESOURCE_MAP));
 
         foreach ($databases as $database) {
-            $databaseType = $database->getAttribute('type');
-            if (in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY,Resource::TYPE_DATABASE_TABLESDB])) {
-                $databaseType = Resource::TYPE_DATABASE;
+            $databaseType = $this->getDatabaseType($database);
+
+            if (
+                !empty($selectedDatabaseTypes) &&
+                !Resource::isSupported($databaseType, $selectedDatabaseTypes)
+            ) {
+                continue;
             }
-            if (!isset(Resource::DATABASE_TYPE_RESOURCE_MAP[$databaseType])) {
-                $databaseType = Resource::TYPE_DATABASE;
-            }
+
             if (Resource::isSupported($databaseType, $resources)) {
                 $report[$databaseType] += 1;
             }
@@ -97,13 +100,13 @@ class Database implements Reader
 
         // Process each database
         foreach ($databases as $database) {
-            $databaseType = $database->getAttribute('type', Resource::TYPE_DATABASE);
-            if (\in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY, Resource::TYPE_DATABASE_TABLESDB], true)) {
-                $databaseType = Resource::TYPE_DATABASE;
-            }
+            $databaseType = $this->getDatabaseType($database);
 
-            if (!isset(Resource::DATABASE_TYPE_RESOURCE_MAP[$databaseType])) {
-                $databaseType = Resource::TYPE_DATABASE;
+            if (
+                !empty($selectedDatabaseTypes) &&
+                !Resource::isSupported($databaseType, $selectedDatabaseTypes)
+            ) {
+                continue;
             }
 
             $databaseSpecificResources = Resource::DATABASE_TYPE_RESOURCE_MAP[$databaseType];
@@ -137,7 +140,7 @@ class Database implements Reader
 
                 if (Resource::isSupported($databaseSpecificResources['record'], $resources)) {
                     $rowTableId = "database_{$databaseSequence}_collection_{$tableSequence}";
-                    $count = $this->countResources($rowTableId, [], $dbResource);
+                    $count = $this->countResources($rowTableId, [], $database);
                     $report[$databaseSpecificResources['record']] += $count;
                 }
 
@@ -351,7 +354,7 @@ class Database implements Reader
         $tableId = "database_{$database->getSequence()}_collection_{$table->getSequence()}";
 
         // Use the appropriate database instance for this specific database
-        $dbInstance = $this->getDatabase($resource->getDatabase()->getDatabase());
+        $dbInstance = $this->getDatabase($database);
 
         try {
             $rows = $dbInstance->find($tableId, $queries);
@@ -404,7 +407,7 @@ class Database implements Reader
         $tableId = "database_{$database->getSequence()}_collection_{$table->getSequence()}";
 
         // Use the appropriate database instance for this specific database
-        $dbInstance = $this->getDatabase($resource->getDatabase()->getDatabase());
+        $dbInstance = $this->getDatabase($database);
 
         return $dbInstance->getDocument(
             $tableId,
@@ -495,14 +498,14 @@ class Database implements Reader
     /**
      * @param string $table
      * @param array $queries
-     * @param DatabaseResource|null $databaseResource
+     * @param UtopiaDocument|null $database
      * @return int
      */
-    private function countResources(string $table, array $queries = [], ?DatabaseResource $databaseResource = null): int
+    private function countResources(string $table, array $queries = [], ?UtopiaDocument $database = null): int
     {
         // Use the appropriate database instance for row data
-        if ($databaseResource !== null) {
-            $dbInstance = $this->getDatabase($databaseResource->getDatabase());
+        if ($database !== null) {
+            $dbInstance = $this->getDatabase($database);
             return $dbInstance->count($table, $queries);
         }
 
@@ -510,15 +513,27 @@ class Database implements Reader
         return $this->dbForProject->count($table, $queries);
     }
 
-    /**
-     * Get the appropriate database instance for the given database DSN
-     */
-    private function getDatabase(?string $databaseDSN = null): UtopiaDatabase
+    private function getDatabase(?UtopiaDocument $database = null): UtopiaDatabase
     {
-        if ($this->getDatabasesDB !== null && $databaseDSN !== null) {
-            return ($this->getDatabasesDB)(new UtopiaDocument(['database' => $databaseDSN]));
+        if ($this->getDatabasesDB !== null && $database !== null) {
+            return ($this->getDatabasesDB)($database);
         }
 
         return $this->dbForProject;
+    }
+
+    private function getDatabaseType(UtopiaDocument $database): string
+    {
+        $databaseType = $database->getAttribute('type', Resource::TYPE_DATABASE);
+
+        if (\in_array($databaseType, [Resource::TYPE_DATABASE_LEGACY, Resource::TYPE_DATABASE_TABLESDB], true)) {
+            return Resource::TYPE_DATABASE;
+        }
+
+        if (!isset(Resource::DATABASE_TYPE_RESOURCE_MAP[$databaseType])) {
+            return Resource::TYPE_DATABASE;
+        }
+
+        return $databaseType;
     }
 }
