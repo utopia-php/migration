@@ -3379,11 +3379,11 @@ class Appwrite extends Destination
 
                 case 'redirect':
                     $statusCode = match ($resource->getRedirectStatusCode()) {
-                        301 => StatusCode::MOVEDPERMANENTLY301(),
-                        302 => StatusCode::FOUND302(),
-                        307 => StatusCode::TEMPORARYREDIRECT307(),
-                        308 => StatusCode::PERMANENTREDIRECT308(),
-                        default => StatusCode::MOVEDPERMANENTLY301(),
+                        301 => StatusCode::MOVEDPERMANENTLY(),
+                        302 => StatusCode::FOUND(),
+                        307 => StatusCode::TEMPORARYREDIRECT(),
+                        308 => StatusCode::PERMANENTREDIRECT(),
+                        default => StatusCode::MOVEDPERMANENTLY(),
                     };
 
                     $resourceType = $deploymentResourceType === 'site'
