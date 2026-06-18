@@ -27,7 +27,7 @@
         "ext-openssl": "*",
 
         "appwrite/appwrite": "^26.0",
-        "utopia-php/database": "5.*",
+        "utopia-php/database": "^6.0.0",
         "utopia-php/storage": "2.*",
         "utopia-php/dsn": "0.2.*",
         "halaxa/json-machine": "^1.2"
