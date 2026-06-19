@@ -153,12 +153,12 @@ class Database implements Reader
                     isset($databaseSpecificResources['field']) &&
                     Resource::isSupported($databaseSpecificResources['field'], $resources)
                 ) {
-                    $count = $this->countResources('attributes', $commonQueries);
+                    $count = $this->countResources('attributes', $commonQueries, $database);
                     $report[$databaseSpecificResources['field']] += $count;
                 }
 
                 if (in_array(Resource::TYPE_INDEX, $resources)) {
-                    $report[Resource::TYPE_INDEX] += $this->countResources('indexes', $commonQueries);
+                    $report[Resource::TYPE_INDEX] += $this->countResources('indexes', $commonQueries, $database);
                 }
             }
         }
@@ -196,7 +196,7 @@ class Database implements Reader
         }
 
         try {
-            return $this->dbForProject->find(
+            return $this->getDatabase($database)->find(
                 'database_' . $database->getSequence(),
                 $queries
             );
@@ -228,7 +228,9 @@ class Database implements Reader
             );
         }
 
-        $table = $this->dbForProject->getDocument(
+        $dbInstance = $this->getDatabase($database);
+
+        $table = $dbInstance->getDocument(
             'database_' . $database->getSequence(),
             $resource->getId(),
         );
@@ -246,7 +248,7 @@ class Database implements Reader
         $queries[] = Query::equal('collectionInternalId', [$table->getSequence()]);
 
         try {
-            $columns = $this->dbForProject->find('attributes', $queries);
+            $columns = $dbInstance->find('attributes', $queries);
         } catch (DatabaseException $e) {
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -290,7 +292,9 @@ class Database implements Reader
             );
         }
 
-        $table = $this->dbForProject->getDocument(
+        $dbInstance = $this->getDatabase($database);
+
+        $table = $dbInstance->getDocument(
             'database_' . $database->getSequence(),
             $resource->getId(),
         );
@@ -308,7 +312,7 @@ class Database implements Reader
         $queries[] = Query::equal('collectionInternalId', [$table->getSequence()]);
 
         try {
-            return $this->dbForProject->find('indexes', $queries);
+            return $dbInstance->find('indexes', $queries);
         } catch (DatabaseException $e) {
             throw new Exception(
                 resourceName: $resource->getName(),
@@ -337,7 +341,9 @@ class Database implements Reader
             );
         }
 
-        $table = $this->dbForProject->getDocument(
+        $dbInstance = $this->getDatabase($database);
+
+        $table = $dbInstance->getDocument(
             'database_' . $database->getSequence(),
             $resource->getId(),
         );
@@ -352,9 +358,6 @@ class Database implements Reader
         }
 
         $tableId = "database_{$database->getSequence()}_collection_{$table->getSequence()}";
-
-        // Use the appropriate database instance for this specific database
-        $dbInstance = $this->getDatabase($database);
 
         try {
             $rows = $dbInstance->find($tableId, $queries);
@@ -390,7 +393,9 @@ class Database implements Reader
             );
         }
 
-        $table = $this->dbForProject->getDocument(
+        $dbInstance = $this->getDatabase($database);
+
+        $table = $dbInstance->getDocument(
             'database_' . $database->getSequence(),
             $resource->getId(),
         );
@@ -405,9 +410,6 @@ class Database implements Reader
         }
 
         $tableId = "database_{$database->getSequence()}_collection_{$table->getSequence()}";
-
-        // Use the appropriate database instance for this specific database
-        $dbInstance = $this->getDatabase($database);
 
         return $dbInstance->getDocument(
             $tableId,
