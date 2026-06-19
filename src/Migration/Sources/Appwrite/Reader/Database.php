@@ -5,6 +5,7 @@ namespace Utopia\Migration\Sources\Appwrite\Reader;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Exception as DatabaseException;
+use Utopia\Database\Exception\NotFound as DatabaseNotFoundException;
 use Utopia\Database\Query;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
@@ -22,6 +23,8 @@ use Utopia\Migration\Sources\Appwrite\Reader;
  */
 class Database implements Reader
 {
+    private const COLLECTION_NOT_FOUND = 'Collection not found';
+
     /**
      * @var callable(UtopiaDocument|null): UtopiaDatabase
     */
@@ -201,6 +204,10 @@ class Database implements Reader
                 $queries
             );
         } catch (DatabaseException $e) {
+            if ($this->isMissingCollection($e)) {
+                return [];
+            }
+
             throw new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
@@ -250,6 +257,10 @@ class Database implements Reader
         try {
             $columns = $dbInstance->find('attributes', $queries);
         } catch (DatabaseException $e) {
+            if ($this->isMissingCollection($e)) {
+                return [];
+            }
+
             throw new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
@@ -314,6 +325,10 @@ class Database implements Reader
         try {
             return $dbInstance->find('indexes', $queries);
         } catch (DatabaseException $e) {
+            if ($this->isMissingCollection($e)) {
+                return [];
+            }
+
             throw new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
@@ -362,6 +377,10 @@ class Database implements Reader
         try {
             $rows = $dbInstance->find($tableId, $queries);
         } catch (DatabaseException $e) {
+            if ($this->isMissingCollection($e)) {
+                return [];
+            }
+
             throw new Exception(
                 resourceName: $resource->getName(),
                 resourceGroup: $resource->getGroup(),
@@ -508,7 +527,16 @@ class Database implements Reader
         // Use the appropriate database instance for row data
         if ($database !== null) {
             $dbInstance = $this->getDatabase($database);
-            return $dbInstance->count($table, $queries);
+
+            try {
+                return $dbInstance->count($table, $queries);
+            } catch (DatabaseException $e) {
+                if ($this->isMissingCollection($e)) {
+                    return 0;
+                }
+
+                throw $e;
+            }
         }
 
         // Use dbForProject for metadata tables
@@ -537,5 +565,10 @@ class Database implements Reader
         }
 
         return $databaseType;
+    }
+
+    private function isMissingCollection(DatabaseException $exception): bool
+    {
+        return $exception instanceof DatabaseNotFoundException && \strcasecmp($exception->getMessage(), self::COLLECTION_NOT_FOUND) === 0;
     }
 }
