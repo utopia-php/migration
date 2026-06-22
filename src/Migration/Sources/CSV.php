@@ -245,9 +245,21 @@ class CSV extends Source
 
             $buffer = [];
 
+            $headerCount = \count($headers);
+
             while (($row = \fgetcsv($stream, 0, $delimiter, '"', '"')) !== false) {
-                if (\count($row) !== \count($headers)) {
-                    throw new \Exception('CSV row does not match the number of header columns.', Exception::CODE_VALIDATION);
+                $rowCount = \count($row);
+
+                // Skip empty rows (e.g. trailing blank lines parsed as [''])
+                if ($rowCount === 1 && \trim($row[0]) === '') {
+                    continue;
+                }
+
+                // Pad short rows with empty strings
+                if ($rowCount < $headerCount) {
+                    $row = \array_pad($row, $headerCount, '');
+                } elseif ($rowCount > $headerCount) {
+                    $row = \array_slice($row, 0, $headerCount);
                 }
 
                 $data = \array_combine($headers, $row);
