@@ -294,8 +294,6 @@ class Appwrite extends Source
             throw new \Exception('Unable to reach the migration source endpoint.', $e->getCode(), $e);
         }
 
-        // Report groups independently. A missing scope (403) is collected and surfaced together;
-        // any other failure fails the report.
         $groups = [
             Transfer::GROUP_AUTH => fn () => $this->reportAuth($resources, $report, $resourceIds),
             Transfer::GROUP_DATABASES => fn () => $this->reportDatabases($resources, $report, $resourceIds),
@@ -315,8 +313,7 @@ class Appwrite extends Source
             try {
                 $reporter();
             } catch (\Throwable $e) {
-                // Missing scope is user-fixable — collect every affected group and report together.
-                // Any other failure fails the report rather than returning partial counts.
+                // Collect missing-scope (403) failures to surface together; any other error fails the report.
                 if ($e->getCode() !== Exception::CODE_FORBIDDEN) {
                     throw $e;
                 }
@@ -334,10 +331,7 @@ class Appwrite extends Source
         return $report;
     }
 
-    /**
-     * Surface a missing-scope (403) failure from an optional reporter so report() can aggregate it;
-     * other failures are left for the caller to swallow to a zero count.
-     */
+    /** Re-throw a 403 so report() can aggregate it as a missing scope; the caller swallows other errors. */
     private function rethrowIfForbidden(\Throwable $e): void
     {
         if ($e->getCode() === Exception::CODE_FORBIDDEN) {
