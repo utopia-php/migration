@@ -294,8 +294,8 @@ class Appwrite extends Source
             throw new \Exception('Unable to reach the migration source endpoint.', $e->getCode(), $e);
         }
 
-        // Report groups independently: an unsupported resource (404) is skipped; missing scopes
-        // (403) and any other failure (invalid key, rate limit, server, connectivity) are surfaced.
+        // Report groups independently. A missing scope (403) is collected and surfaced together;
+        // any other failure fails the report.
         $groups = [
             Transfer::GROUP_AUTH => fn () => $this->reportAuth($resources, $report, $resourceIds),
             Transfer::GROUP_DATABASES => fn () => $this->reportDatabases($resources, $report, $resourceIds),
@@ -316,12 +316,12 @@ class Appwrite extends Source
                 $reporter();
             } catch (\Throwable $e) {
                 // Missing scope is user-fixable — collect every affected group and report together.
-                if ($e->getCode() === Exception::CODE_FORBIDDEN) {
-                    $missingScopes[] = $group;
-                    continue;
+                // Any other failure fails the report rather than returning partial counts.
+                if ($e->getCode() !== Exception::CODE_FORBIDDEN) {
+                    throw $e;
                 }
 
-                $this->rethrowUnlessUnsupported($e);
+                $missingScopes[] = $group;
             }
         }
 
@@ -335,13 +335,12 @@ class Appwrite extends Source
     }
 
     /**
-     * Re-throw unless the source simply does not support the resource (404). Optional resources
-     * then degrade to an empty count, while real failures — missing scope, rate limit, server
-     * error, connectivity — propagate and fail the report instead of returning partial data.
+     * Surface a missing-scope (403) failure from an optional reporter so report() can aggregate it;
+     * other failures are left for the caller to swallow to a zero count.
      */
-    private function rethrowUnlessUnsupported(\Throwable $e): void
+    private function rethrowIfForbidden(\Throwable $e): void
     {
-        if ($e->getCode() !== Exception::CODE_NOT_FOUND) {
+        if ($e->getCode() === Exception::CODE_FORBIDDEN) {
             throw $e;
         }
     }
@@ -1685,7 +1684,7 @@ class Appwrite extends Source
             try {
                 $report[Resource::TYPE_RULE] = $this->proxy->listRules([Query::limit(1)])->total;
             } catch (\Throwable $e) {
-                $this->rethrowUnlessUnsupported($e);
+                $this->rethrowIfForbidden($e);
                 $report[Resource::TYPE_RULE] = 0;
             }
         }
@@ -1702,7 +1701,7 @@ class Appwrite extends Source
             try {
                 $report[Resource::TYPE_PROJECT_VARIABLE] = $this->project->listVariables($variableQueries)->total;
             } catch (\Throwable $e) {
-                $this->rethrowUnlessUnsupported($e);
+                $this->rethrowIfForbidden($e);
                 $report[Resource::TYPE_PROJECT_VARIABLE] = 0;
             }
         }
@@ -1727,7 +1726,7 @@ class Appwrite extends Source
                 // total:true returns the real count without fetching every row.
                 $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = $this->project->listEmailTemplates([Query::limit(1)], total: true)->total;
             } catch (\Throwable $e) {
-                $this->rethrowUnlessUnsupported($e);
+                $this->rethrowIfForbidden($e);
                 $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = 0;
             }
         }
@@ -2884,7 +2883,7 @@ class Appwrite extends Source
             try {
                 $report[Resource::TYPE_PLATFORM] = $this->project->listPlatforms($platformQueries)->total;
             } catch (\Throwable $e) {
-                $this->rethrowUnlessUnsupported($e);
+                $this->rethrowIfForbidden($e);
                 $report[Resource::TYPE_PLATFORM] = 0;
             }
         }
@@ -2898,7 +2897,7 @@ class Appwrite extends Source
             try {
                 $report[Resource::TYPE_API_KEY] = $this->project->listKeys($keyQueries)->total;
             } catch (\Throwable $e) {
-                $this->rethrowUnlessUnsupported($e);
+                $this->rethrowIfForbidden($e);
                 $report[Resource::TYPE_API_KEY] = 0;
             }
         }
@@ -2912,7 +2911,7 @@ class Appwrite extends Source
             try {
                 $report[Resource::TYPE_WEBHOOK] = $this->webhooks->list($webhookQueries)->total;
             } catch (\Throwable $e) {
-                $this->rethrowUnlessUnsupported($e);
+                $this->rethrowIfForbidden($e);
                 $report[Resource::TYPE_WEBHOOK] = 0;
             }
         }
