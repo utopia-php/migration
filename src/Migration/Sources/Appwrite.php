@@ -317,8 +317,7 @@ class Appwrite extends Source
             } catch (\Throwable $e) {
                 $code = $e->getCode();
 
-                // 403 → collect to surface together; 401 → clear credential error; anything else → fail fast.
-                if ($code === Exception::CODE_FORBIDDEN) {
+                if ($this->isMissingScopeError($e)) {
                     $missingScopes[] = $group;
                     continue;
                 }
@@ -340,12 +339,17 @@ class Appwrite extends Source
         return $report;
     }
 
-    /** Re-throw credential (401) and scope (403) failures; the caller swallows other errors to zero. */
-    private function rethrowAuthErrors(\Throwable $e): void
+    private function isMissingScopeError(\Throwable $e): bool
     {
-        if (\in_array($e->getCode(), [Exception::CODE_UNAUTHORIZED, Exception::CODE_FORBIDDEN], true)) {
-            throw $e;
+        if (!\in_array($e->getCode(), [Exception::CODE_UNAUTHORIZED, Exception::CODE_FORBIDDEN], true)) {
+            return false;
         }
+
+        $message = $e->getMessage();
+
+        return \str_contains($message, 'general_unauthorized_scope')
+            || \str_contains($message, 'missing scopes')
+            || \str_contains($message, 'required scopes');
     }
 
     /**
@@ -1684,12 +1688,7 @@ class Appwrite extends Source
     private function reportDomains(array $resources, array &$report, array $resourceIds = []): void
     {
         if (\in_array(Resource::TYPE_RULE, $resources)) {
-            try {
-                $report[Resource::TYPE_RULE] = $this->proxy->listRules([Query::limit(1)])->total;
-            } catch (\Throwable $e) {
-                $this->rethrowAuthErrors($e);
-                $report[Resource::TYPE_RULE] = 0;
-            }
+            $report[Resource::TYPE_RULE] = $this->proxy->listRules([Query::limit(1)])->total;
         }
     }
 
@@ -1701,12 +1700,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            try {
-                $report[Resource::TYPE_PROJECT_VARIABLE] = $this->project->listVariables($variableQueries)->total;
-            } catch (\Throwable $e) {
-                $this->rethrowAuthErrors($e);
-                $report[Resource::TYPE_PROJECT_VARIABLE] = 0;
-            }
+            $report[Resource::TYPE_PROJECT_VARIABLE] = $this->project->listVariables($variableQueries)->total;
         }
 
         if (\in_array(Resource::TYPE_PROJECT_PROTOCOLS, $resources)) {
@@ -1725,13 +1719,8 @@ class Appwrite extends Source
         }
 
         if (\in_array(Resource::TYPE_PROJECT_EMAIL_TEMPLATE, $resources)) {
-            try {
-                // total:true returns the real count without fetching every row.
-                $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = $this->project->listEmailTemplates([Query::limit(1)], total: true)->total;
-            } catch (\Throwable $e) {
-                $this->rethrowAuthErrors($e);
-                $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = 0;
-            }
+            // total:true returns the real count without fetching every row.
+            $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = $this->project->listEmailTemplates([Query::limit(1)], total: true)->total;
         }
     }
 
@@ -2883,12 +2872,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            try {
-                $report[Resource::TYPE_PLATFORM] = $this->project->listPlatforms($platformQueries)->total;
-            } catch (\Throwable $e) {
-                $this->rethrowAuthErrors($e);
-                $report[Resource::TYPE_PLATFORM] = 0;
-            }
+            $report[Resource::TYPE_PLATFORM] = $this->project->listPlatforms($platformQueries)->total;
         }
 
         if (\in_array(Resource::TYPE_API_KEY, $resources)) {
@@ -2897,12 +2881,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            try {
-                $report[Resource::TYPE_API_KEY] = $this->project->listKeys($keyQueries)->total;
-            } catch (\Throwable $e) {
-                $this->rethrowAuthErrors($e);
-                $report[Resource::TYPE_API_KEY] = 0;
-            }
+            $report[Resource::TYPE_API_KEY] = $this->project->listKeys($keyQueries)->total;
         }
 
         if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
@@ -2911,12 +2890,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            try {
-                $report[Resource::TYPE_WEBHOOK] = $this->webhooks->list($webhookQueries)->total;
-            } catch (\Throwable $e) {
-                $this->rethrowAuthErrors($e);
-                $report[Resource::TYPE_WEBHOOK] = 0;
-            }
+            $report[Resource::TYPE_WEBHOOK] = $this->webhooks->list($webhookQueries)->total;
         }
 
         if (\in_array(Resource::TYPE_SMTP, $resources)) {
