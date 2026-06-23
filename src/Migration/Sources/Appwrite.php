@@ -313,12 +313,19 @@ class Appwrite extends Source
             try {
                 $reporter();
             } catch (\Throwable $e) {
-                // Collect missing-scope (403) failures to surface together; any other error fails the report.
-                if ($e->getCode() !== Exception::CODE_FORBIDDEN) {
-                    throw $e;
+                $code = $e->getCode();
+
+                // 403 → collect to surface together; 401 → clear credential error; anything else → fail fast.
+                if ($code === Exception::CODE_FORBIDDEN) {
+                    $missingScopes[] = $group;
+                    continue;
                 }
 
-                $missingScopes[] = $group;
+                if ($code === Exception::CODE_UNAUTHORIZED) {
+                    throw new \Exception('Invalid credentials for the migration source.', $code, $e);
+                }
+
+                throw $e;
             }
         }
 
