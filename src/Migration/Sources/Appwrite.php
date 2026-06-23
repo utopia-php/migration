@@ -280,18 +280,8 @@ class Appwrite extends Source
             $resources = $this->getSupportedResources();
         }
 
+        // Reachability gate: unauthenticated, so a failure is a wrong/unreachable endpoint.
         try {
-            $this->reportAuth($resources, $report, $resourceIds);
-            $this->reportDatabases($resources, $report, $resourceIds);
-            $this->reportStorage($resources, $report, $resourceIds);
-            $this->reportFunctions($resources, $report, $resourceIds);
-            $this->reportMessaging($resources, $report, $resourceIds);
-            $this->reportSites($resources, $report, $resourceIds);
-            $this->reportIntegrations($resources, $report, $resourceIds);
-            $this->reportBackups($resources, $report, $resourceIds);
-            $this->reportProjects($resources, $report, $resourceIds);
-            $this->reportDomains($resources, $report, $resourceIds);
-
             $report['version'] = $this->call(
                 'GET',
                 '/health/version',
@@ -301,11 +291,52 @@ class Appwrite extends Source
                 ]
             )['version'];
         } catch (\Throwable $e) {
-            if ($e->getCode() === 403) {
-                throw new \Exception('Missing required scopes.', $e->getCode(), $e);
-            } else {
-                throw new \Exception($e->getMessage(), $e->getCode(), $e);
+            throw new \Exception('Unable to reach the migration source endpoint.', $e->getCode(), $e);
+        }
+
+        // Report groups independently: 404/unsupported is recorded and skipped; 401 and 403 surface.
+        $groups = [
+            Transfer::GROUP_AUTH => fn () => $this->reportAuth($resources, $report, $resourceIds),
+            Transfer::GROUP_DATABASES => fn () => $this->reportDatabases($resources, $report, $resourceIds),
+            Transfer::GROUP_STORAGE => fn () => $this->reportStorage($resources, $report, $resourceIds),
+            Transfer::GROUP_FUNCTIONS => fn () => $this->reportFunctions($resources, $report, $resourceIds),
+            Transfer::GROUP_MESSAGING => fn () => $this->reportMessaging($resources, $report, $resourceIds),
+            Transfer::GROUP_SITES => fn () => $this->reportSites($resources, $report, $resourceIds),
+            Transfer::GROUP_INTEGRATIONS => fn () => $this->reportIntegrations($resources, $report, $resourceIds),
+            Transfer::GROUP_BACKUPS => fn () => $this->reportBackups($resources, $report, $resourceIds),
+            Transfer::GROUP_PROJECTS => fn () => $this->reportProjects($resources, $report, $resourceIds),
+            Transfer::GROUP_DOMAINS => fn () => $this->reportDomains($resources, $report, $resourceIds),
+        ];
+
+        $missingScopes = [];
+
+        foreach ($groups as $group => $reporter) {
+            try {
+                $reporter();
+            } catch (\Throwable $e) {
+                $code = $e->getCode();
+
+                if ($code === Exception::CODE_UNAUTHORIZED) {
+                    throw new \Exception('Invalid credentials for the migration source.', $code, $e);
+                }
+
+                if ($code === Exception::CODE_FORBIDDEN) {
+                    $missingScopes[] = $group;
+                    continue;
+                }
+
+                $this->addError(new Exception(
+                    resourceName: $group,
+                    resourceGroup: $group,
+                    message: $e->getMessage(),
+                    code: $code ?: Exception::CODE_INTERNAL,
+                    previous: $e,
+                ));
             }
+        }
+
+        if (!empty($missingScopes)) {
+            throw new \Exception('Missing required scopes for: ' . \implode(', ', $missingScopes) . '.', Exception::CODE_FORBIDDEN);
         }
 
         $this->previousReport = $report;
