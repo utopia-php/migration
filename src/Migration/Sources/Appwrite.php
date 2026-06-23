@@ -280,18 +280,8 @@ class Appwrite extends Source
             $resources = $this->getSupportedResources();
         }
 
+        // Reachability gate: unauthenticated, so a failure is a wrong/unreachable endpoint.
         try {
-            $this->reportAuth($resources, $report, $resourceIds);
-            $this->reportDatabases($resources, $report, $resourceIds);
-            $this->reportStorage($resources, $report, $resourceIds);
-            $this->reportFunctions($resources, $report, $resourceIds);
-            $this->reportMessaging($resources, $report, $resourceIds);
-            $this->reportSites($resources, $report, $resourceIds);
-            $this->reportIntegrations($resources, $report, $resourceIds);
-            $this->reportBackups($resources, $report, $resourceIds);
-            $this->reportProjects($resources, $report, $resourceIds);
-            $this->reportDomains($resources, $report, $resourceIds);
-
             $report['version'] = $this->call(
                 'GET',
                 '/health/version',
@@ -301,16 +291,65 @@ class Appwrite extends Source
                 ]
             )['version'];
         } catch (\Throwable $e) {
-            if ($e->getCode() === 403) {
-                throw new \Exception('Missing required scopes.', $e->getCode(), $e);
-            } else {
-                throw new \Exception($e->getMessage(), $e->getCode(), $e);
+            throw new \Exception('Unable to reach the migration source endpoint.', $e->getCode(), $e);
+        }
+
+        // First-class callables (not fn()) so $report is passed by reference at call time;
+        // arrow functions would capture a copy and discard each reporter's writes.
+        $reporters = [
+            Transfer::GROUP_AUTH => $this->reportAuth(...),
+            Transfer::GROUP_DATABASES => $this->reportDatabases(...),
+            Transfer::GROUP_STORAGE => $this->reportStorage(...),
+            Transfer::GROUP_FUNCTIONS => $this->reportFunctions(...),
+            Transfer::GROUP_MESSAGING => $this->reportMessaging(...),
+            Transfer::GROUP_SITES => $this->reportSites(...),
+            Transfer::GROUP_INTEGRATIONS => $this->reportIntegrations(...),
+            Transfer::GROUP_BACKUPS => $this->reportBackups(...),
+            Transfer::GROUP_PROJECTS => $this->reportProjects(...),
+            Transfer::GROUP_DOMAINS => $this->reportDomains(...),
+        ];
+
+        $missingScopes = [];
+
+        foreach ($reporters as $group => $reporter) {
+            try {
+                $reporter($resources, $report, $resourceIds);
+            } catch (\Throwable $e) {
+                $code = $e->getCode();
+
+                if ($this->isMissingScopeError($e)) {
+                    $missingScopes[] = $group;
+                    continue;
+                }
+
+                if ($code === Exception::CODE_UNAUTHORIZED) {
+                    throw new \Exception('Invalid credentials for the migration source.', $code, $e);
+                }
+
+                throw $e;
             }
+        }
+
+        if (!empty($missingScopes)) {
+            throw new \Exception('Missing required scopes for: ' . \implode(', ', $missingScopes) . '.', Exception::CODE_FORBIDDEN);
         }
 
         $this->previousReport = $report;
 
         return $report;
+    }
+
+    private function isMissingScopeError(\Throwable $e): bool
+    {
+        if (!\in_array($e->getCode(), [Exception::CODE_UNAUTHORIZED, Exception::CODE_FORBIDDEN], true)) {
+            return false;
+        }
+
+        $message = $e->getMessage();
+
+        return \str_contains($message, 'general_unauthorized_scope')
+            || \str_contains($message, 'missing scopes')
+            || \str_contains($message, 'required scopes');
     }
 
     /**
@@ -1649,11 +1688,7 @@ class Appwrite extends Source
     private function reportDomains(array $resources, array &$report, array $resourceIds = []): void
     {
         if (\in_array(Resource::TYPE_RULE, $resources)) {
-            try {
-                $report[Resource::TYPE_RULE] = $this->proxy->listRules([Query::limit(1)])->total;
-            } catch (\Throwable) {
-                $report[Resource::TYPE_RULE] = 0;
-            }
+            $report[Resource::TYPE_RULE] = $this->proxy->listRules([Query::limit(1)])->total;
         }
     }
 
@@ -1665,11 +1700,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            try {
-                $report[Resource::TYPE_PROJECT_VARIABLE] = $this->project->listVariables($variableQueries)->total;
-            } catch (\Throwable) {
-                $report[Resource::TYPE_PROJECT_VARIABLE] = 0;
-            }
+            $report[Resource::TYPE_PROJECT_VARIABLE] = $this->project->listVariables($variableQueries)->total;
         }
 
         if (\in_array(Resource::TYPE_PROJECT_PROTOCOLS, $resources)) {
@@ -1688,12 +1719,8 @@ class Appwrite extends Source
         }
 
         if (\in_array(Resource::TYPE_PROJECT_EMAIL_TEMPLATE, $resources)) {
-            try {
-                // total:true returns the real count without fetching every row.
-                $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = $this->project->listEmailTemplates([Query::limit(1)], total: true)->total;
-            } catch (\Throwable) {
-                $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = 0;
-            }
+            // total:true returns the real count without fetching every row.
+            $report[Resource::TYPE_PROJECT_EMAIL_TEMPLATE] = $this->project->listEmailTemplates([Query::limit(1)], total: true)->total;
         }
     }
 
@@ -2845,11 +2872,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            try {
-                $report[Resource::TYPE_PLATFORM] = $this->project->listPlatforms($platformQueries)->total;
-            } catch (\Throwable) {
-                $report[Resource::TYPE_PLATFORM] = 0;
-            }
+            $report[Resource::TYPE_PLATFORM] = $this->project->listPlatforms($platformQueries)->total;
         }
 
         if (\in_array(Resource::TYPE_API_KEY, $resources)) {
@@ -2858,11 +2881,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            try {
-                $report[Resource::TYPE_API_KEY] = $this->project->listKeys($keyQueries)->total;
-            } catch (\Throwable) {
-                $report[Resource::TYPE_API_KEY] = 0;
-            }
+            $report[Resource::TYPE_API_KEY] = $this->project->listKeys($keyQueries)->total;
         }
 
         if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
@@ -2871,11 +2890,7 @@ class Appwrite extends Source
                 resourceIds: $resourceIds,
                 limit: 1
             );
-            try {
-                $report[Resource::TYPE_WEBHOOK] = $this->webhooks->list($webhookQueries)->total;
-            } catch (\Throwable) {
-                $report[Resource::TYPE_WEBHOOK] = 0;
-            }
+            $report[Resource::TYPE_WEBHOOK] = $this->webhooks->list($webhookQueries)->total;
         }
 
         if (\in_array(Resource::TYPE_SMTP, $resources)) {
