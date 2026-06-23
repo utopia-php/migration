@@ -294,24 +294,26 @@ class Appwrite extends Source
             throw new \Exception('Unable to reach the migration source endpoint.', $e->getCode(), $e);
         }
 
-        $groups = [
-            Transfer::GROUP_AUTH => fn () => $this->reportAuth($resources, $report, $resourceIds),
-            Transfer::GROUP_DATABASES => fn () => $this->reportDatabases($resources, $report, $resourceIds),
-            Transfer::GROUP_STORAGE => fn () => $this->reportStorage($resources, $report, $resourceIds),
-            Transfer::GROUP_FUNCTIONS => fn () => $this->reportFunctions($resources, $report, $resourceIds),
-            Transfer::GROUP_MESSAGING => fn () => $this->reportMessaging($resources, $report, $resourceIds),
-            Transfer::GROUP_SITES => fn () => $this->reportSites($resources, $report, $resourceIds),
-            Transfer::GROUP_INTEGRATIONS => fn () => $this->reportIntegrations($resources, $report, $resourceIds),
-            Transfer::GROUP_BACKUPS => fn () => $this->reportBackups($resources, $report, $resourceIds),
-            Transfer::GROUP_PROJECTS => fn () => $this->reportProjects($resources, $report, $resourceIds),
-            Transfer::GROUP_DOMAINS => fn () => $this->reportDomains($resources, $report, $resourceIds),
+        // First-class callables (not fn()) so $report is passed by reference at call time;
+        // arrow functions would capture a copy and discard each reporter's writes.
+        $reporters = [
+            Transfer::GROUP_AUTH => $this->reportAuth(...),
+            Transfer::GROUP_DATABASES => $this->reportDatabases(...),
+            Transfer::GROUP_STORAGE => $this->reportStorage(...),
+            Transfer::GROUP_FUNCTIONS => $this->reportFunctions(...),
+            Transfer::GROUP_MESSAGING => $this->reportMessaging(...),
+            Transfer::GROUP_SITES => $this->reportSites(...),
+            Transfer::GROUP_INTEGRATIONS => $this->reportIntegrations(...),
+            Transfer::GROUP_BACKUPS => $this->reportBackups(...),
+            Transfer::GROUP_PROJECTS => $this->reportProjects(...),
+            Transfer::GROUP_DOMAINS => $this->reportDomains(...),
         ];
 
         $missingScopes = [];
 
-        foreach ($groups as $group => $reporter) {
+        foreach ($reporters as $group => $reporter) {
             try {
-                $reporter();
+                $reporter($resources, $report, $resourceIds);
             } catch (\Throwable $e) {
                 $code = $e->getCode();
 
