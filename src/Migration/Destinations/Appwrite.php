@@ -1405,9 +1405,13 @@ class Appwrite extends Destination
                 );
                 // Strip row payload fields the table doesn't declare — guards against orphans surviving in source archives.
                 if ($dbForDatabases->getAdapter()->getSupportForAttributes()) {
+                    $knownInternal = ['$id', '$permissions', '$collection', '$tenant', '$createdAt', '$updatedAt'];
                     foreach ($this->rowBuffer as $row) {
                         foreach ($row as $key => $value) {
                             if (\str_starts_with($key, '$')) {
+                                if (!\in_array($key, $knownInternal, true)) {
+                                    $row->removeAttribute($key);
+                                }
                                 continue;
                             }
 
