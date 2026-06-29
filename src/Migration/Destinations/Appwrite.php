@@ -2028,26 +2028,21 @@ class Appwrite extends Destination
     }
 
     /**
+     * Resolve a source value to an SDK enum, rewrapping the SDK's validation
+     * error as a migration exception.
+     *
+     * @template T
+     * @param callable(string): T $from SDK enum `from()` resolver
+     * @param non-empty-string $label
+     * @return T
      * @throws \Exception
      */
-    private function parseRuntime(string $runtime): Runtime
+    private function parseEnum(callable $from, string $value, string $label): mixed
     {
         try {
-            return Runtime::from($runtime);
-        } catch (\InvalidArgumentException|\ValueError $e) {
-            throw new \Exception('Invalid Runtime: ' . $runtime, Exception::CODE_VALIDATION, $e);
-        }
-    }
-
-    /**
-     * @throws \Exception
-     */
-    private function parseBuildRuntime(string $runtime): BuildRuntime
-    {
-        try {
-            return BuildRuntime::from($runtime);
-        } catch (\InvalidArgumentException|\ValueError $e) {
-            throw new \Exception('Invalid Build Runtime: ' . $runtime, Exception::CODE_VALIDATION, $e);
+            return $from($value);
+        } catch (\InvalidArgumentException $e) {
+            throw new \Exception('Invalid ' . $label . ': ' . $value, Exception::CODE_VALIDATION, $e);
         }
     }
 
@@ -2067,13 +2062,7 @@ class Appwrite extends Destination
             case Resource::TYPE_BUCKET:
                 /** @var Bucket $resource */
 
-                $compression = match ($resource->getCompression()) {
-                    'none' => Compression::NONE(),
-                    'gzip' => Compression::GZIP(),
-                    'zstd' => Compression::ZSTD(),
-                    // no break
-                    default => throw new \Exception('Invalid Compression: ' . $resource->getCompression(), Exception::CODE_VALIDATION),
-                };
+                $compression = $this->parseEnum(Compression::from(...), $resource->getCompression(), 'Compression');
 
                 $response = $this->storage->createBucket(
                     $resource->getId(),
@@ -2349,7 +2338,7 @@ class Appwrite extends Destination
             case Resource::TYPE_FUNCTION:
                 /** @var Func $resource */
 
-                $runtime = $this->parseRuntime($resource->getRuntime());
+                $runtime = $this->parseEnum(Runtime::from(...), $resource->getRuntime(), 'Runtime');
 
                 $this->functions->create(
                     functionId: $resource->getId(),
@@ -2512,7 +2501,7 @@ class Appwrite extends Destination
             case Resource::TYPE_SITE:
                 /** @var Site $resource */
 
-                $buildRuntime = $this->parseBuildRuntime($resource->getBuildRuntime());
+                $buildRuntime = $this->parseEnum(BuildRuntime::from(...), $resource->getBuildRuntime(), 'Build Runtime');
 
                 $framework = match ($resource->getFramework()) {
                     'analog' => Framework::ANALOG(),
