@@ -44,6 +44,7 @@ final class OAuth2Provider extends Resource
         'etsy' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'facebook' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'figma' => ['clientId' => ['target' => self::TARGET_APP_ID]],
+        'appwrite' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'fusionauth' => ['clientId' => ['target' => self::TARGET_APP_ID], 'endpoint' => ['target' => self::TARGET_SECRET]],
         'github' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'gitlab' => ['clientId' => ['target' => self::TARGET_APP_ID], 'endpoint' => ['target' => self::TARGET_SECRET]],
