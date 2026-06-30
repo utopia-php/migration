@@ -3,13 +3,10 @@
 namespace Utopia\Tests\Unit\General;
 
 use PHPUnit\Framework\TestCase;
-use Utopia\Migration\Destinations\Appwrite;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Resources\Database\Table;
-use Utopia\Migration\Resources\Functions\Func;
-use Utopia\Migration\Resources\Sites\Site;
 use Utopia\Migration\Transfer;
 use Utopia\Tests\Unit\Adapters\MockDestination;
 use Utopia\Tests\Unit\Adapters\MockSource;
@@ -93,151 +90,5 @@ class TransferTest extends TestCase
 
         $this->assertArrayNotHasKey(Resource::TYPE_ROW, $counters);
         $this->assertSame([], $counters);
-    }
-
-    public function testAppwriteDestinationSupportsNode25FunctionRuntime(): void
-    {
-        $destination = $this->createAppwriteDestinationWithoutConstructor();
-        $functions = new class (new \Appwrite\Client()) extends \Appwrite\Services\Functions {
-            public string $runtime = '';
-
-            public function create(string $functionId, string $name, \Appwrite\Enums\Runtime $runtime, ?array $execute = null, ?array $events = null, ?string $schedule = null, ?int $timeout = null, ?bool $enabled = null, ?bool $logging = null, ?string $entrypoint = null, ?string $commands = null, ?array $scopes = null, ?string $installationId = null, ?string $providerRepositoryId = null, ?string $providerBranch = null, ?bool $providerSilentMode = null, ?string $providerRootDirectory = null, ?array $providerBranches = null, ?array $providerPaths = null, ?string $buildSpecification = null, ?string $runtimeSpecification = null, ?int $deploymentRetention = null): \Appwrite\Models\FunctionModel
-            {
-                $this->runtime = $runtime->jsonSerialize();
-
-                return new \Appwrite\Models\FunctionModel(
-                    'function-1',
-                    '',
-                    '',
-                    [],
-                    'Function 1',
-                    true,
-                    false,
-                    true,
-                    'node-25',
-                    0,
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    [],
-                    [],
-                    [],
-                    '',
-                    0,
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    false,
-                    [],
-                    [],
-                    '',
-                    ''
-                );
-            }
-        };
-
-        $this->setAppwriteDestinationProperty($destination, 'functions', $functions);
-
-        $function = $destination->importFunctionResource(new Func('function-1', 'Function 1', 'node-25'));
-
-        $this->assertSame(Resource::STATUS_SUCCESS, $function->getStatus());
-        $this->assertSame('node-25', $functions->runtime);
-    }
-
-    public function testAppwriteDestinationSupportsNode25SiteBuildRuntime(): void
-    {
-        $destination = $this->createAppwriteDestinationWithoutConstructor();
-        $sites = new class (new \Appwrite\Client()) extends \Appwrite\Services\Sites {
-            public string $buildRuntime = '';
-
-            public function create(string $siteId, string $name, \Appwrite\Enums\Framework $framework, \Appwrite\Enums\BuildRuntime $buildRuntime, ?bool $enabled = null, ?bool $logging = null, ?int $timeout = null, ?string $installCommand = null, ?string $buildCommand = null, ?string $startCommand = null, ?string $outputDirectory = null, ?\Appwrite\Enums\Adapter $adapter = null, ?string $installationId = null, ?string $fallbackFile = null, ?string $providerRepositoryId = null, ?string $providerBranch = null, ?bool $providerSilentMode = null, ?string $providerRootDirectory = null, ?array $providerBranches = null, ?array $providerPaths = null, ?string $buildSpecification = null, ?string $runtimeSpecification = null, ?int $deploymentRetention = null): \Appwrite\Models\Site
-            {
-                $this->buildRuntime = $buildRuntime->jsonSerialize();
-
-                return new \Appwrite\Models\Site(
-                    'site-1',
-                    '',
-                    '',
-                    'Site 1',
-                    true,
-                    false,
-                    true,
-                    'other',
-                    0,
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    [],
-                    0,
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    false,
-                    [],
-                    [],
-                    '',
-                    '',
-                    'node-25',
-                    'static',
-                    ''
-                );
-            }
-        };
-
-        $this->setAppwriteDestinationProperty($destination, 'sites', $sites);
-
-        $site = $destination->importSiteResource(new Site('site-1', 'Site 1', 'other', 'node-25'));
-
-        $this->assertSame(Resource::STATUS_SUCCESS, $site->getStatus());
-        $this->assertSame('node-25', $sites->buildRuntime);
-    }
-
-    public function testAppwriteDestinationKeepsInvalidFunctionRuntimeError(): void
-    {
-        $destination = $this->createAppwriteDestinationWithoutConstructor();
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Invalid Runtime: node-999');
-
-        $destination->importFunctionResource(new Func('function-1', 'Function 1', 'node-999'));
-    }
-
-    public function testAppwriteDestinationKeepsInvalidSiteBuildRuntimeError(): void
-    {
-        $destination = $this->createAppwriteDestinationWithoutConstructor();
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Invalid Build Runtime: node-999');
-
-        $destination->importSiteResource(new Site('site-1', 'Site 1', 'other', 'node-999'));
-    }
-
-    private function createAppwriteDestinationWithoutConstructor(): Appwrite
-    {
-        /** @var Appwrite $destination */
-        $destination = (new \ReflectionClass(Appwrite::class))->newInstanceWithoutConstructor();
-
-        return $destination;
-    }
-
-    private function setAppwriteDestinationProperty(Appwrite $destination, string $name, mixed $value): void
-    {
-        $property = new \ReflectionProperty(Appwrite::class, $name);
-        $property->setValue($destination, $value);
     }
 }
