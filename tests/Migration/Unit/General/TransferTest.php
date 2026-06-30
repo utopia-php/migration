@@ -8,14 +8,8 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Resources\Database\Table;
-use Utopia\Migration\Resources\Functions\Deployment;
-use Utopia\Migration\Resources\Functions\EnvVar;
 use Utopia\Migration\Resources\Functions\Func;
-use Utopia\Migration\Resources\Sites\Deployment as SiteDeployment;
-use Utopia\Migration\Resources\Sites\EnvVar as SiteEnvVar;
 use Utopia\Migration\Resources\Sites\Site;
-use Utopia\Migration\Resources\Storage\Bucket;
-use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Transfer;
 use Utopia\Tests\Unit\Adapters\MockDestination;
 use Utopia\Tests\Unit\Adapters\MockSource;
@@ -99,104 +93,6 @@ class TransferTest extends TestCase
 
         $this->assertArrayNotHasKey(Resource::TYPE_ROW, $counters);
         $this->assertSame([], $counters);
-    }
-
-    public function testAppwriteDestinationSkipsFunctionChildrenWhenParentFailed(): void
-    {
-        $destination = $this->createAppwriteDestinationWithoutConstructor();
-        $function = new Func('function-1', 'Function 1', 'node-25');
-        $function->setStatus(Resource::STATUS_ERROR, 'Invalid Runtime: node-25');
-
-        $variable = new EnvVar('variable-1', $function, 'KEY', 'value');
-        $deployment = new Deployment('deployment-1', $function, 1, 'index.js');
-
-        $variable = $destination->importFunctionResource($variable);
-        $deployment = $destination->importFunctionResource($deployment);
-
-        $this->assertSame(Resource::STATUS_SKIPPED, $variable->getStatus());
-        $this->assertSame('Parent function "function-1" failed to import', $variable->getMessage());
-        $this->assertSame(Resource::STATUS_SKIPPED, $deployment->getStatus());
-        $this->assertSame('Parent function "function-1" failed to import', $deployment->getMessage());
-    }
-
-    public function testAppwriteDestinationSkipsSiteChildrenWhenParentFailed(): void
-    {
-        $destination = $this->createAppwriteDestinationWithoutConstructor();
-        $site = new Site('site-1', 'Site 1', 'other', 'node-25');
-        $site->setStatus(Resource::STATUS_ERROR, 'Invalid Build Runtime: node-25');
-
-        $variable = new SiteEnvVar('variable-1', $site, 'KEY', 'value');
-        $deployment = new SiteDeployment('deployment-1', $site, 1);
-
-        $variable = $destination->importSiteResource($variable);
-        $deployment = $destination->importSiteResource($deployment);
-
-        $this->assertSame(Resource::STATUS_SKIPPED, $variable->getStatus());
-        $this->assertSame('Parent site "site-1" failed to import', $variable->getMessage());
-        $this->assertSame(Resource::STATUS_SKIPPED, $deployment->getStatus());
-        $this->assertSame('Parent site "site-1" failed to import', $deployment->getMessage());
-    }
-
-    public function testAppwriteDestinationSkipsFilesWhenBucketFailed(): void
-    {
-        $destination = $this->createAppwriteDestinationWithoutConstructor();
-        $bucket = new Bucket('bucket-1', 'Bucket 1');
-        $bucket->setStatus(Resource::STATUS_ERROR, 'Bucket already exists');
-
-        $file = $destination->importFileResource(new File('file-1', $bucket, 'file.txt'));
-
-        $this->assertSame(Resource::STATUS_SKIPPED, $file->getStatus());
-        $this->assertSame('Parent bucket "bucket-1" failed to import', $file->getMessage());
-    }
-
-    public function testAppwriteDestinationImportsFunctionVariablesWhenParentWasSkipped(): void
-    {
-        $destination = $this->createAppwriteDestinationWithoutConstructor();
-        $functions = new class (new \Appwrite\Client()) extends \Appwrite\Services\Functions {
-            public string $functionId = '';
-
-            public function createVariable(string $functionId, string $variableId, string $key, string $value, ?bool $secret = null): \Appwrite\Models\Variable
-            {
-                $this->functionId = $functionId;
-
-                return new \Appwrite\Models\Variable($variableId, '', '', $key, $value, false, 'function', $functionId);
-            }
-        };
-
-        $this->setAppwriteDestinationProperty($destination, 'functions', $functions);
-
-        $function = new Func('function-1', 'Function 1', 'node-25');
-        $function->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-
-        $variable = $destination->importFunctionResource(new EnvVar('variable-1', $function, 'KEY', 'value'));
-
-        $this->assertSame(Resource::STATUS_SUCCESS, $variable->getStatus());
-        $this->assertSame('function-1', $functions->functionId);
-    }
-
-    public function testAppwriteDestinationImportsSiteVariablesWhenParentWasSkipped(): void
-    {
-        $destination = $this->createAppwriteDestinationWithoutConstructor();
-        $sites = new class (new \Appwrite\Client()) extends \Appwrite\Services\Sites {
-            public string $siteId = '';
-
-            public function createVariable(string $siteId, string $variableId, string $key, string $value, ?bool $secret = null): \Appwrite\Models\Variable
-            {
-                $this->siteId = $siteId;
-
-                return new \Appwrite\Models\Variable($variableId, '', '', $key, $value, false, 'site', $siteId);
-            }
-        };
-
-        $this->setAppwriteDestinationProperty($destination, 'sites', $sites);
-
-        $site = new Site('site-1', 'Site 1', 'other', 'node-25');
-        $site->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-
-        $variable = $destination->importSiteResource(new SiteEnvVar('variable-1', $site, 'KEY', 'value'));
-
-        $this->assertSame(Resource::STATUS_SUCCESS, $variable->getStatus());
-        $this->assertSame('site-1', $sites->siteId);
     }
 
     public function testAppwriteDestinationSupportsNode25FunctionRuntime(): void

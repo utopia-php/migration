@@ -2013,39 +2013,6 @@ class Appwrite extends Destination
         return null;
     }
 
-    private function skipWhenParentFailed(Resource $resource, Resource $parent, string $parentName): bool
-    {
-        if ($parent->getStatus() !== Resource::STATUS_ERROR) {
-            return false;
-        }
-
-        $resource->setStatus(
-            Resource::STATUS_SKIPPED,
-            'Parent ' . $parentName . ' "' . $parent->getId() . '" failed to import'
-        );
-
-        return true;
-    }
-
-    /**
-     * Resolve a source value to an SDK enum, rewrapping the SDK's validation
-     * error as a migration exception.
-     *
-     * @template T
-     * @param callable(string): T $from SDK enum `from()` resolver
-     * @param non-empty-string $label
-     * @return T
-     * @throws \Exception
-     */
-    private function parseEnum(callable $from, string $value, string $label): mixed
-    {
-        try {
-            return $from($value);
-        } catch (\InvalidArgumentException $e) {
-            throw new \Exception('Invalid ' . $label . ': ' . $value, Exception::CODE_VALIDATION, $e);
-        }
-    }
-
     /**
      * @throws AppwriteException
      */
@@ -2054,15 +2021,17 @@ class Appwrite extends Destination
         switch ($resource->getName()) {
             case Resource::TYPE_FILE:
                 /** @var File $resource */
-                if ($this->skipWhenParentFailed($resource, $resource->getBucket(), 'bucket')) {
-                    return $resource;
-                }
-
                 return $this->importFile($resource);
             case Resource::TYPE_BUCKET:
                 /** @var Bucket $resource */
 
-                $compression = $this->parseEnum(Compression::from(...), $resource->getCompression(), 'Compression');
+                $compression = match ($resource->getCompression()) {
+                    'none' => Compression::NONE(),
+                    'gzip' => Compression::GZIP(),
+                    'zstd' => Compression::ZSTD(),
+                    // no break
+                    default => throw new \Exception('Invalid Compression: ' . $resource->getCompression(), Exception::CODE_VALIDATION),
+                };
 
                 $response = $this->storage->createBucket(
                     $resource->getId(),
@@ -2338,7 +2307,11 @@ class Appwrite extends Destination
             case Resource::TYPE_FUNCTION:
                 /** @var Func $resource */
 
-                $runtime = $this->parseEnum(Runtime::from(...), $resource->getRuntime(), 'Runtime');
+                try {
+                    $runtime = Runtime::from($resource->getRuntime());
+                } catch (\InvalidArgumentException|\ValueError $e) {
+                    throw new \Exception('Invalid Runtime: ' . $resource->getRuntime(), Exception::CODE_VALIDATION, $e);
+                }
 
                 $this->functions->create(
                     functionId: $resource->getId(),
@@ -2359,10 +2332,6 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
                 /** @var EnvVar $resource */
-                if ($this->skipWhenParentFailed($resource, $resource->getFunc(), 'function')) {
-                    return $resource;
-                }
-
                 $this->functions->createVariable(
                     functionId: $resource->getFunc()->getId(),
                     variableId: $resource->getId(),
@@ -2397,7 +2366,9 @@ class Appwrite extends Destination
 
         // Deployment API always creates a new deployment, so unlike other resources
         // there's no duplicate detection. Skip if the parent function wasn't imported successfully.
-        if ($this->skipWhenParentFailed($deployment, $function, 'function')) {
+        if ($function->getStatus() !== Resource::STATUS_SUCCESS) {
+            $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent function "' . $function->getId() . '" failed to import');
+
             return $deployment;
         }
 
@@ -2501,7 +2472,11 @@ class Appwrite extends Destination
             case Resource::TYPE_SITE:
                 /** @var Site $resource */
 
-                $buildRuntime = $this->parseEnum(BuildRuntime::from(...), $resource->getBuildRuntime(), 'Build Runtime');
+                try {
+                    $buildRuntime = BuildRuntime::from($resource->getBuildRuntime());
+                } catch (\InvalidArgumentException|\ValueError $e) {
+                    throw new \Exception('Invalid Build Runtime: ' . $resource->getBuildRuntime(), Exception::CODE_VALIDATION, $e);
+                }
 
                 $framework = match ($resource->getFramework()) {
                     'analog' => Framework::ANALOG(),
@@ -2546,10 +2521,6 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_SITE_VARIABLE:
                 /** @var SiteEnvVar $resource */
-                if ($this->skipWhenParentFailed($resource, $resource->getSite(), 'site')) {
-                    return $resource;
-                }
-
                 $this->sites->createVariable(
                     siteId: $resource->getSite()->getId(),
                     variableId: $resource->getId(),
@@ -2967,7 +2938,9 @@ class Appwrite extends Destination
 
         // Deployment API always creates a new deployment, so unlike other resources
         // there's no duplicate detection. Skip if the parent site wasn't imported successfully.
-        if ($this->skipWhenParentFailed($deployment, $site, 'site')) {
+        if ($site->getStatus() !== Resource::STATUS_SUCCESS) {
+            $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent site "' . $site->getId() . '" failed to import');
+
             return $deployment;
         }
 
