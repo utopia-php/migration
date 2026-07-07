@@ -649,6 +649,14 @@ class Appwrite extends Destination
                 SchemaAction::Skip => (function () use ($resource, $existing): bool {
                     $resource->setSequence($existing->getSequence());
                     $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    // Recover a database left in `provisioning` by a prior failed run: the spec matches so
+                    // we skip re-import, but the end-of-run sweep should still flip it to `ready`.
+                    if (
+                        $this->getSupportForDatabaseStatus()
+                        && $existing->getAttribute('status') === self::DATABASE_STATUS_PROVISIONING
+                    ) {
+                        $this->provisioningDatabases[$resource->getId()] = true;
+                    }
                     return false;
                 })(),
                 SchemaAction::Overwrite => (function () use ($resource, $existing, $updatedAt): bool {
