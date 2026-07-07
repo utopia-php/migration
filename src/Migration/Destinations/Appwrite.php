@@ -652,7 +652,7 @@ class Appwrite extends Destination
                     return false;
                 })(),
                 SchemaAction::Overwrite => (function () use ($resource, $existing, $updatedAt): bool {
-                    $this->dbForProject->updateDocument(self::META_DATABASES, $existing->getId(), new UtopiaDocument([
+                    $document = [
                         'name' => $resource->getDatabaseName(),
                         'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
                         'enabled' => $resource->getEnabled(),
@@ -660,8 +660,19 @@ class Appwrite extends Destination
                         'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
                         'database' => $this->resolveDestinationDsn($resource),
                         '$updatedAt' => $updatedAt,
-                    ]));
+                    ];
+
+                    if ($this->getSupportForDatabaseStatus()) {
+                        $document['status'] = self::DATABASE_STATUS_PROVISIONING;
+                    }
+
+                    $this->dbForProject->updateDocument(self::META_DATABASES, $existing->getId(), new UtopiaDocument($document));
                     $resource->setSequence($existing->getSequence());
+
+                    if ($this->getSupportForDatabaseStatus()) {
+                        $this->provisioningDatabases[$resource->getId()] = true;
+                    }
+
                     return true;
                 })(),
                 SchemaAction::Create => null,
