@@ -653,6 +653,7 @@ class Appwrite extends Destination
             );
 
             $isFailed = ! $existing->isEmpty()
+                && $this->getSupportForDatabaseStatus()
                 && $existing->getAttribute('status') === self::DATABASE_STATUS_FAILED;
 
             if ($isFailed) {
