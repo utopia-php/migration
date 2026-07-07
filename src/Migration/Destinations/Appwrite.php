@@ -512,9 +512,17 @@ class Appwrite extends Destination
             case Resource::TYPE_DATABASE:
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
             case Resource::TYPE_DATABASE_VECTORSDB:
-                /** @var Database $resource */
-                $success = $this->createDatabase($resource);
-                break;
+                try {
+                    $this->dbForProject->setPreserveDates(false);
+                    /** @var Database $resource */
+                    $success = $this->createDatabase($resource);
+                    break;
+                } catch (\Throwable $th) {
+                    throw $th;
+                } finally {
+                    $this->dbForProject->setPreserveDates(true);
+                }
+
             case Resource::TYPE_TABLE:
             case Resource::TYPE_COLLECTION:
                 /** @var Table $resource */
@@ -622,6 +630,8 @@ class Appwrite extends Destination
             'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
             // Resolved by the destination's resolver (or left blank); never copy the source's DSN by default.
             'database' => $this->resolveDestinationDsn($resource),
+            // A transferred database is fully provisioned on the destination; never copy the source's provisioning state.
+            // 'status' => 'ready',
         ]));
 
         $resource->setSequence($database->getSequence());
@@ -3271,6 +3281,7 @@ class Appwrite extends Destination
                         302 => StatusCode::FOUND(),
                         307 => StatusCode::TEMPORARYREDIRECT(),
                         308 => StatusCode::PERMANENTREDIRECT(),
+                        // no break
                         default => StatusCode::MOVEDPERMANENTLY(),
                     };
 
