@@ -34,7 +34,7 @@ class DocumentsDB extends Database
             originalId: $array['originalId'] ?? '',
             type: $array['type'] ?? Resource::TYPE_DATABASE_DOCUMENTSDB,
             database: $array['database'],
-            status: $array['status'] ?? null
+            databaseStatus: $array['status'] ?? null
         );
     }
 }

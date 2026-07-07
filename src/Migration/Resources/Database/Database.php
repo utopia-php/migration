@@ -27,7 +27,7 @@ class Database extends Resource
         protected string $originalId = '',
         protected string $type = '',
         protected ?string $database = '',
-        protected ?string $status = null
+        protected ?string $databaseStatus = null
     ) {
         $this->id = $id;
     }
@@ -55,7 +55,7 @@ class Database extends Resource
             originalId: $array['originalId'] ?? '',
             type: $array['type'] ?? 'legacy',
             database: $array['database'] ?? null,
-            status: $array['status'] ?? null
+            databaseStatus: $array['status'] ?? null
         );
     }
 
@@ -72,7 +72,7 @@ class Database extends Resource
             'enabled' => $this->enabled,
             'type' => $this->type,
             'database' => $this->database,
-            'status' => $this->status
+            'status' => $this->databaseStatus
         ];
     }
 
@@ -108,6 +108,6 @@ class Database extends Resource
 
     public function getDatabaseStatus(): ?string
     {
-        return $this->status;
+        return $this->databaseStatus;
     }
 }

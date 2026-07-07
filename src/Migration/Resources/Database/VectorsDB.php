@@ -35,7 +35,7 @@ class VectorsDB extends Database
             originalId: $array['originalId'] ?? '',
             type: $array['type'] ?? Resource::TYPE_DATABASE_VECTORSDB,
             database: $array['database'],
-            status: $array['status'] ?? null
+            databaseStatus: $array['status'] ?? null
         );
     }
 }
