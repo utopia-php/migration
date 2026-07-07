@@ -651,14 +651,17 @@ class Appwrite extends Destination
                 $updatedAt,
                 $existing->getUpdatedAt(),
             );
-            // Spec match → skip work. Create excluded; nothing on dest to match against.
-            // A `failed` database (metadata exists but its backing collection may be missing) must not be
-            // skipped even when the spec matches, so the resolved action (e.g. Overwrite) can recover it.
-            if (
-                $action !== SchemaAction::Create
-                && $existing->getAttribute('status') !== self::DATABASE_STATUS_FAILED
-                && $this->databaseSpecMatches($existing, $resource)
-            ) {
+
+            $isFailed = ! $existing->isEmpty()
+                && $existing->getAttribute('status') === self::DATABASE_STATUS_FAILED;
+
+            if ($isFailed) {
+                // A prior run created the metadata document but left the database unusable (its backing
+                // collection may be missing). Force Overwrite — regardless of timestamps or spec match —
+                // so the recovery path recreates the collection instead of skipping it forever.
+                $action = SchemaAction::Overwrite;
+            } elseif ($action !== SchemaAction::Create && $this->databaseSpecMatches($existing, $resource)) {
+                // Spec match → skip work. Create excluded; nothing on dest to match against.
                 $action = SchemaAction::Skip;
             }
 
