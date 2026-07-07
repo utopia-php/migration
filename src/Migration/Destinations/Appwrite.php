@@ -508,6 +508,8 @@ class Appwrite extends Destination
      */
     public function importDatabaseResource(Resource $resource, bool $isLast): Resource
     {
+        $success = false;
+
         switch ($resource->getName()) {
             case Resource::TYPE_DATABASE:
             case Resource::TYPE_DATABASE_DOCUMENTSDB:
