@@ -20,7 +20,8 @@ class VectorsDB extends Database
      *     enabled: bool,
      *     originalId: string|null,
      *     database: string,
-     *     type: string
+     *     type: string,
+     *     status: string|null
      * } $array
      */
     public static function fromArray(array $array): self
@@ -33,7 +34,8 @@ class VectorsDB extends Database
             enabled: $array['enabled'] ?? true,
             originalId: $array['originalId'] ?? '',
             type: $array['type'] ?? Resource::TYPE_DATABASE_VECTORSDB,
-            database: $array['database']
+            database: $array['database'],
+            status: $array['status'] ?? null
         );
     }
 }

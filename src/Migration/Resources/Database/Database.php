@@ -26,7 +26,8 @@ class Database extends Resource
         protected bool $enabled = true,
         protected string $originalId = '',
         protected string $type = '',
-        protected ?string $database = ''
+        protected ?string $database = '',
+        protected ?string $status = null
     ) {
         $this->id = $id;
     }
@@ -39,7 +40,8 @@ class Database extends Resource
      *     updatedAt: string,
      *     enabled: bool,
      *     originalId: string|null,
-     *     database: string
+     *     database: string,
+     *     status: string|null
      * } $array
      */
     public static function fromArray(array $array): self
@@ -52,7 +54,8 @@ class Database extends Resource
             enabled: $array['enabled'] ?? true,
             originalId: $array['originalId'] ?? '',
             type: $array['type'] ?? 'legacy',
-            database: $array['database'] ?? null
+            database: $array['database'] ?? null,
+            status: $array['status'] ?? null
         );
     }
 
@@ -68,7 +71,8 @@ class Database extends Resource
             'updatedAt' => $this->updatedAt,
             'enabled' => $this->enabled,
             'type' => $this->type,
-            'database' => $this->database
+            'database' => $this->database,
+            'status' => $this->status
         ];
     }
 
@@ -100,5 +104,10 @@ class Database extends Resource
     public function getDatabase(): ?string
     {
         return $this->database;
+    }
+
+    public function getDatabaseStatus(): ?string
+    {
+        return $this->status;
     }
 }

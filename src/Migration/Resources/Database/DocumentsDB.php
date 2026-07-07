@@ -19,7 +19,8 @@ class DocumentsDB extends Database
      *     updatedAt: string,
      *     enabled: bool,
      *     originalId: string|null,
-     *     database: string
+     *     database: string,
+     *     status: string|null
      * } $array
      */
     public static function fromArray(array $array): self
@@ -32,7 +33,8 @@ class DocumentsDB extends Database
             enabled: $array['enabled'] ?? true,
             originalId: $array['originalId'] ?? '',
             type: $array['type'] ?? Resource::TYPE_DATABASE_DOCUMENTSDB,
-            database: $array['database']
+            database: $array['database'],
+            status: $array['status'] ?? null
         );
     }
 }

@@ -633,7 +633,7 @@ class Appwrite extends Destination
             // Resolved by the destination's resolver (or left blank); never copy the source's DSN by default.
             'database' => $this->resolveDestinationDsn($resource),
             // A transferred database is fully provisioned on the destination; never copy the source's provisioning state.
-            // 'status' => 'ready',
+            'status' => 'ready',
         ]));
 
         $resource->setSequence($database->getSequence());
