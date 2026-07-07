@@ -2079,11 +2079,19 @@ class Appwrite extends Destination
         try {
             return $get();
         } catch (AppwriteException $e) {
-            if ($e->getCode() === 404) {
+            if ($e->getCode() === Exception::CODE_NOT_FOUND) {
                 return null;
             }
             throw $e;
         }
+    }
+
+    private function skipReplaceOnlyOverwrite(Resource $resource, string $type): void
+    {
+        $resource->setStatus(
+            Resource::STATUS_SKIPPED,
+            "Already exists on destination; {$type} overwrite requires delete-before-upload"
+        );
     }
 
     /**
@@ -2180,7 +2188,7 @@ class Appwrite extends Destination
                     $file,
                     $existingFile !== null,
                     $existingFile?->updatedAt,
-                    overwrite: fn () => $this->storage->deleteFile($bucketId, $fileId),
+                    overwrite: fn () => $this->skipReplaceOnlyOverwrite($file, 'file'),
                 );
 
                 if ($handled && $file->getStatus() === Resource::STATUS_SKIPPED) {
@@ -2266,7 +2274,15 @@ class Appwrite extends Destination
                         $resource,
                         $existingUser !== null,
                         $existingUser?->updatedAt,
-                        overwrite: fn () => $this->applyUserState($resource),
+                        overwrite: function () use ($resource, $existingUser): void {
+                            if (!empty($resource->getEmail()) && $existingUser?->email !== $resource->getEmail()) {
+                                $this->users->updateEmail($resource->getId(), $resource->getEmail());
+                            }
+
+                            // Imported password hashes are only accepted by
+                            // Appwrite's hash-specific create endpoints.
+                            $this->applyUserState($resource);
+                        },
                     )) {
                         break;
                     }
@@ -2719,7 +2735,7 @@ class Appwrite extends Destination
                 $deployment,
                 $existingDeployment !== null,
                 $existingDeployment?->updatedAt,
-                overwrite: fn () => $this->functions->deleteDeployment($functionId, $deploymentId),
+                overwrite: fn () => $this->skipReplaceOnlyOverwrite($deployment, 'deployment'),
             );
 
             if ($handled && $deployment->getStatus() === Resource::STATUS_SKIPPED) {
@@ -3637,7 +3653,7 @@ class Appwrite extends Destination
                 $deployment,
                 $existingDeployment !== null,
                 $existingDeployment?->updatedAt,
-                overwrite: fn () => $this->sites->deleteDeployment($siteId, $deploymentId),
+                overwrite: fn () => $this->skipReplaceOnlyOverwrite($deployment, 'deployment'),
             );
 
             if ($handled && $deployment->getStatus() === Resource::STATUS_SKIPPED) {
