@@ -185,6 +185,11 @@ class Appwrite extends Source
         return $this->source;
     }
 
+    public function supportsDatabaseStatus(): bool
+    {
+        return $this->getSourceType() === self::SOURCE_DATABASE;
+    }
+
     /**
      * @return array<string>
      */

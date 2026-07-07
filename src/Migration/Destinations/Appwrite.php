@@ -77,7 +77,6 @@ use Utopia\Migration\Resources\Sites\Site;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Resources\Templates\EmailTemplate;
-use Utopia\Migration\Sources\Appwrite as AppwriteSource;
 use Utopia\Migration\Transfer;
 
 class Appwrite extends Destination
@@ -246,10 +245,7 @@ class Appwrite extends Destination
             return false;
         }
 
-        $source = $this->getSource();
-
-        return $source instanceof AppwriteSource
-            && $source->getSourceType() === AppwriteSource::SOURCE_DATABASE;
+        return $this->getSource()->supportsDatabaseStatus();
     }
 
     /** Orphan cleanup runs only after a successful migration — a mid-run throw preserves the destination as-is. */
