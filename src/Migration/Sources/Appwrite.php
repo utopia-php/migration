@@ -180,6 +180,11 @@ class Appwrite extends Source
         return 'Appwrite';
     }
 
+    public function getSourceType(): string
+    {
+        return $this->source;
+    }
+
     /**
      * @return array<string>
      */

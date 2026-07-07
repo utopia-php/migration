@@ -77,6 +77,7 @@ use Utopia\Migration\Resources\Sites\Site;
 use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Resources\Templates\EmailTemplate;
+use Utopia\Migration\Sources\Appwrite as AppwriteSource;
 use Utopia\Migration\Transfer;
 
 class Appwrite extends Destination
@@ -85,6 +86,11 @@ class Appwrite extends Destination
     private const META_DATABASES = 'databases';
     private const META_ATTRIBUTES = 'attributes';
     private const META_INDEXES = 'indexes';
+
+    /** A database is provisioning while its resources transfer, ready once the run completes, or failed if creation errored. */
+    private const DATABASE_STATUS_PROVISIONING = 'provisioning';
+    private const DATABASE_STATUS_READY = 'ready';
+    private const DATABASE_STATUS_FAILED = 'failed';
 
     /** Attribute fields the SDK can't update in place (no per-type updateX endpoint exposes them); a change here forces drop+recreate. */
     private const ATTRIBUTE_IMMUTABLE_FIELDS = [
@@ -165,6 +171,14 @@ class Appwrite extends Destination
     private array $processedTwoWayPairs = [];
 
     /**
+     * Databases created this run, held in `provisioning` until the run finishes
+     * successfully. The end-of-run sweep flips each to `ready`. Keyed by database id.
+     *
+     * @var array<string, true>
+     */
+    private array $provisioningDatabases = [];
+
+    /**
      * @param string $project
      * @param string $endpoint
      * @param string $key
@@ -223,6 +237,14 @@ class Appwrite extends Destination
         return ($this->getDatabaseDSN)($resource);
     }
 
+    private function getSupportForDatabaseStatus(): bool
+    {
+        $source = $this->getSource();
+
+        return $source instanceof AppwriteSource
+            && $source->getSourceType() === AppwriteSource::SOURCE_DATABASE;
+    }
+
     /** Orphan cleanup runs only after a successful migration — a mid-run throw preserves the destination as-is. */
     #[Override]
     public function run(
@@ -234,6 +256,8 @@ class Appwrite extends Destination
         $this->resetRunState();
         parent::run($resources, $callback, $rootResourceId, $rootResourceType);
         $this->cleanupOverwriteOrphans();
+        // all resources are ready -> db is ready to use
+        $this->markProvisionedDatabasesReady();
     }
 
     /** Per-run state must not leak across run() invocations on a reused instance. */
@@ -242,6 +266,33 @@ class Appwrite extends Destination
         $this->rowBuffer = [];
         $this->orphansByTable = [];
         $this->processedTwoWayPairs = [];
+        $this->provisioningDatabases = [];
+    }
+
+    private function markProvisionedDatabasesReady(): void
+    {
+        foreach (\array_keys($this->provisioningDatabases) as $databaseId) {
+            $this->setDatabaseStatus($databaseId, self::DATABASE_STATUS_READY);
+        }
+    }
+
+    /**
+     * Update a database's status on the destination metadata document. No-op when the
+     * current source doesn't manage status, or when the document no longer exists.
+     */
+    private function setDatabaseStatus(string $databaseId, string $status): void
+    {
+        if (! $this->getSupportForDatabaseStatus()) {
+            return;
+        }
+
+        $database = $this->dbForProject->getDocument(self::META_DATABASES, $databaseId);
+        if ($database->isEmpty()) {
+            return;
+        }
+
+        $database->setAttribute('status', $status);
+        $this->dbForProject->updateDocument(self::META_DATABASES, $databaseId, $database);
     }
 
     public static function getName(): string
@@ -519,8 +570,6 @@ class Appwrite extends Destination
                     /** @var Database $resource */
                     $success = $this->createDatabase($resource);
                     break;
-                } catch (\Throwable $th) {
-                    throw $th;
                 } finally {
                     $this->dbForProject->setPreserveDates(true);
                 }
@@ -621,7 +670,7 @@ class Appwrite extends Destination
             }
         }
 
-        $database = $this->dbForProject->createDocument(self::META_DATABASES, new UtopiaDocument([
+        $document = [
             '$id' => $resource->getId(),
             'name' => $resource->getDatabaseName(),
             'enabled' => $resource->getEnabled(),
@@ -632,27 +681,45 @@ class Appwrite extends Destination
             'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
             // Resolved by the destination's resolver (or left blank); never copy the source's DSN by default.
             'database' => $this->resolveDestinationDsn($resource),
-            // A transferred database is fully provisioned on the destination; never copy the source's provisioning state.
-            'status' => 'ready',
-        ]));
+        ];
+
+        // Only SOURCE_DATABASE Appwrite migrations manage the status field: create in `provisioning`,
+        // then markProvisionedDatabasesReady() flips it to `ready` once the run finishes. Every other
+        // source leaves status untouched so the collection default applies. Never copy the source's state.
+        if ($this->getSupportForDatabaseStatus()) {
+            $document['status'] = self::DATABASE_STATUS_PROVISIONING;
+        }
+
+        $database = $this->dbForProject->createDocument(self::META_DATABASES, new UtopiaDocument($document));
 
         $resource->setSequence($database->getSequence());
 
-        $columns = \array_map(
-            fn ($attr) => new UtopiaDocument($attr),
-            $this->collectionStructure['attributes']
-        );
+        try {
+            $columns = \array_map(
+                fn ($attr) => new UtopiaDocument($attr),
+                $this->collectionStructure['attributes']
+            );
 
-        $indexes = \array_map(
-            fn ($index) => new UtopiaDocument($index),
-            $this->collectionStructure['indexes']
-        );
+            $indexes = \array_map(
+                fn ($index) => new UtopiaDocument($index),
+                $this->collectionStructure['indexes']
+            );
 
-        $this->dbForProject->createCollection(
-            $this->databaseCollectionId($database),
-            $columns,
-            $indexes
-        );
+            $this->dbForProject->createCollection(
+                $this->databaseCollectionId($database),
+                $columns,
+                $indexes
+            );
+        } catch (\Throwable $e) {
+            // The metadata document exists but the database isn't usable; mark it failed before propagating.
+            $this->setDatabaseStatus($resource->getId(), self::DATABASE_STATUS_FAILED);
+            throw $e;
+        }
+
+        // Fully created; when we manage status it stays provisioning until the end-of-run sweep flips it to ready.
+        if ($this->getSupportForDatabaseStatus()) {
+            $this->provisioningDatabases[$resource->getId()] = true;
+        }
 
         return true;
     }
