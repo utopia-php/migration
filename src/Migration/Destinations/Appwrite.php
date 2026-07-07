@@ -284,23 +284,17 @@ class Appwrite extends Destination
         }
     }
 
-    /**
-     * Update a database's status on the destination metadata document. No-op when the
-     * current source doesn't manage status, or when the document no longer exists.
-     */
     private function setDatabaseStatus(string $databaseId, string $status): void
     {
         if (! $this->getSupportForDatabaseStatus()) {
             return;
         }
 
-        $database = $this->dbForProject->getDocument(self::META_DATABASES, $databaseId);
-        if ($database->isEmpty()) {
-            return;
-        }
-
-        $database->setAttribute('status', $status);
-        $this->dbForProject->updateDocument(self::META_DATABASES, $databaseId, $database);
+        $this->dbForProject->updateDocument(
+            self::META_DATABASES,
+            $databaseId,
+            new UtopiaDocument(['status' => $status]),
+        );
     }
 
     public static function getName(): string
