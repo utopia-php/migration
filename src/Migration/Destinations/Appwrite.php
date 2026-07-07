@@ -255,9 +255,10 @@ class Appwrite extends Destination
     ): void {
         $this->resetRunState();
         parent::run($resources, $callback, $rootResourceId, $rootResourceType);
-        $this->cleanupOverwriteOrphans();
-        // all resources are ready -> db is ready to use
+        // parent::run() returning means every resource transferred, so the databases are usable.
+        // Flip status before the orphan sweep so a cleanup failure can't strand them in `provisioning`.
         $this->markProvisionedDatabasesReady();
+        $this->cleanupOverwriteOrphans();
     }
 
     /** Per-run state must not leak across run() invocations on a reused instance. */
