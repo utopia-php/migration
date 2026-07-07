@@ -26,8 +26,12 @@ class Policy extends Resource
         private readonly bool $enabled = true,
         private readonly string $resourceId = '',
         private readonly string $resourceType = '',
+        string $createdAt = '',
+        string $updatedAt = '',
     ) {
         $this->id = $id;
+        $this->createdAt = $createdAt;
+        $this->updatedAt = $updatedAt;
     }
 
     /**
@@ -45,6 +49,8 @@ class Policy extends Resource
             $array['enabled'] ?? true,
             $array['resourceId'] ?? '',
             $array['resourceType'] ?? '',
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
@@ -62,6 +68,8 @@ class Policy extends Resource
             'enabled' => $this->enabled,
             'resourceId' => $this->resourceId,
             'resourceType' => $this->resourceType,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

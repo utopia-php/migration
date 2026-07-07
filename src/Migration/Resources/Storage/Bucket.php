@@ -34,9 +34,13 @@ class Bucket extends Resource
         private readonly bool $antiVirus = false,
         private readonly bool $updateLimits = false,
         private readonly bool $transformations = false,
+        string $createdAt = '',
+        string $updatedAt = '',
     ) {
         $this->id = $id;
         $this->permissions = $permissions;
+        $this->createdAt = $createdAt;
+        $this->updatedAt = $updatedAt;
     }
 
     /**
@@ -57,7 +61,9 @@ class Bucket extends Resource
             $array['encryption'] ?? false,
             $array['antiVirus'] ?? false,
             $array['updateLimits'] ?? false,
-            $array['transformations'] ?? false
+            $array['transformations'] ?? false,
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
@@ -78,6 +84,8 @@ class Bucket extends Resource
             'antiVirus' => $this->antiVirus,
             'updateLimits' => $this->updateLimits,
             'transformations' => $this->transformations,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

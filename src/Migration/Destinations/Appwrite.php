@@ -15,6 +15,7 @@ use Appwrite\Enums\Runtime;
 use Appwrite\Enums\SmtpEncryption;
 use Appwrite\Enums\StatusCode;
 use Appwrite\InputFile;
+use Appwrite\Query as SdkQuery;
 use Appwrite\Services\Functions;
 use Appwrite\Services\Messaging;
 use Appwrite\Services\Project;
@@ -165,6 +166,16 @@ class Appwrite extends Destination
     private array $processedTwoWayPairs = [];
 
     /**
+     * Chunked uploads (currently: files) call their import method once per
+     * chunk on the same resource object — the skip/overwrite decision is only
+     * evaluated on the first chunk, and this records a "skip" verdict so later
+     * chunks of the same upload don't re-upload. Keyed by "{type}:{id}".
+     *
+     * @var array<string, true>
+     */
+    private array $skippedChunkedUploads = [];
+
+    /**
      * @param string $project
      * @param string $endpoint
      * @param string $key
@@ -242,6 +253,7 @@ class Appwrite extends Destination
         $this->rowBuffer = [];
         $this->orphansByTable = [];
         $this->processedTwoWayPairs = [];
+        $this->skippedChunkedUploads = [];
     }
 
     public static function getName(): string
@@ -2014,6 +2026,67 @@ class Appwrite extends Destination
     }
 
     /**
+     * Skip/overwrite gate for re-migration — a Template Method around the
+     * existing `OnDuplicate::resolveSchemaAction` decision.
+     *
+     * `fail` (the default) always returns false immediately, without even
+     * looking at $exists. That means every caller's normal create path
+     * — whatever it does today — runs completely untouched. This function
+     * only ever changes behavior when the mode is `skip` or `overwrite`.
+     *
+     * @param callable(): void $overwrite update-in-place, or delete + recreate
+     * @return bool true when this call fully handled the resource (it was
+     *              skipped, or $overwrite ran) — the caller must not run its
+     *              own create logic. False — the caller should proceed with
+     *              its existing create path (covers both "fail" and
+     *              "doesn't exist on destination yet").
+     */
+    protected function resolveDuplicate(
+        Resource $resource,
+        bool $exists,
+        ?string $destUpdatedAt,
+        callable $overwrite,
+    ): bool {
+        if ($this->onDuplicate === OnDuplicate::Fail) {
+            return false;
+        }
+
+        switch ($this->onDuplicate->resolveSchemaAction($exists, $resource->getUpdatedAt(), $destUpdatedAt)) {
+            case SchemaAction::Skip:
+                $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                return true;
+            case SchemaAction::Overwrite:
+                $overwrite();
+                return true;
+            case SchemaAction::Create:
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Existence check for SDK-backed resources. Returns the fetched model, or
+     * null when the SDK reports 404 ("not found"); any other AppwriteException
+     * re-throws — a scope/network/server error must surface as a failure, not
+     * be silently treated as "doesn't exist yet".
+     *
+     * @template T
+     * @param callable(): T $get
+     * @return T|null
+     */
+    protected function sdkGetOrNull(callable $get): mixed
+    {
+        try {
+            return $get();
+        } catch (AppwriteException $e) {
+            if ($e->getCode() === 404) {
+                return null;
+            }
+            throw $e;
+        }
+    }
+
+    /**
      * @throws AppwriteException
      */
     public function importFileResource(Resource $resource): Resource
@@ -2033,6 +2106,31 @@ class Appwrite extends Destination
                     default => throw new \Exception('Invalid Compression: ' . $resource->getCompression(), Exception::CODE_VALIDATION),
                 };
 
+                if ($this->onDuplicate !== OnDuplicate::Fail) {
+                    $existingBucket = $this->sdkGetOrNull(fn () => $this->storage->getBucket($resource->getId()));
+
+                    if ($this->resolveDuplicate(
+                        $resource,
+                        $existingBucket !== null,
+                        $existingBucket?->updatedAt,
+                        overwrite: fn () => $this->storage->updateBucket(
+                            $resource->getId(),
+                            $resource->getBucketName(),
+                            $resource->getPermissions(),
+                            $resource->getFileSecurity(),
+                            $resource->getEnabled(),
+                            $resource->getMaxFileSize(),
+                            $resource->getAllowedFileExtensions(),
+                            $compression,
+                            $resource->getEncryption(),
+                            $resource->getAntiVirus(),
+                            $resource->getTransformations()
+                        ),
+                    )) {
+                        break;
+                    }
+                }
+
                 $response = $this->storage->createBucket(
                     $resource->getId(),
                     $resource->getBucketName(),
@@ -2050,7 +2148,9 @@ class Appwrite extends Destination
                 $resource->setId($response->id);
         }
 
-        $resource->setStatus(Resource::STATUS_SUCCESS);
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        }
 
         return $resource;
     }
@@ -2064,6 +2164,36 @@ class Appwrite extends Destination
     public function importFile(File $file): File
     {
         $bucketId = $file->getBucket()->getId();
+        $fileId = $file->getId();
+
+        // Chunked uploads call importFile() once per chunk (same File object,
+        // start/end advancing each time) — the duplicate decision only makes
+        // sense once, on the first chunk. Later chunks of a file skipped on
+        // chunk 0 must also be skipped, since the framework resets status to
+        // PROCESSING before every call. `fail` never reaches this block, so
+        // its upload path (and the 5xx/small-file split below) is untouched.
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            if ($file->getStart() === 0) {
+                $existingFile = $this->sdkGetOrNull(fn () => $this->storage->getFile($bucketId, $fileId));
+
+                $handled = $this->resolveDuplicate(
+                    $file,
+                    $existingFile !== null,
+                    $existingFile?->updatedAt,
+                    overwrite: fn () => $this->storage->deleteFile($bucketId, $fileId),
+                );
+
+                if ($handled && $file->getStatus() === Resource::STATUS_SKIPPED) {
+                    $this->skippedChunkedUploads['file:' . $fileId] = true;
+                    $file->setData('');
+                    return $file;
+                }
+            } elseif (isset($this->skippedChunkedUploads['file:' . $fileId])) {
+                $file->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                $file->setData('');
+                return $file;
+            }
+        }
 
         $response = null;
 
@@ -2129,6 +2259,19 @@ class Appwrite extends Destination
         switch ($resource->getName()) {
             case Resource::TYPE_USER:
                 /** @var User $resource */
+                if ($this->onDuplicate !== OnDuplicate::Fail) {
+                    $existingUser = $this->sdkGetOrNull(fn () => $this->users->get($resource->getId()));
+
+                    if ($this->resolveDuplicate(
+                        $resource,
+                        $existingUser !== null,
+                        $existingUser?->updatedAt,
+                        overwrite: fn () => $this->applyUserState($resource),
+                    )) {
+                        break;
+                    }
+                }
+
                 if (!empty($resource->getPasswordHash())) {
                     $this->importPasswordUser($resource);
                 } else {
@@ -2141,53 +2284,61 @@ class Appwrite extends Destination
                     );
                 }
 
-                if (!empty($resource->getUsername())) {
-                    $this->users->updateName($resource->getId(), $resource->getUsername());
-                }
-
-                if (!empty($resource->getPhone())) {
-                    $this->users->updatePhone($resource->getId(), $resource->getPhone());
-                }
-
-                if ($resource->getEmailVerified()) {
-                    $this->users->updateEmailVerification($resource->getId(), true);
-                }
-
-                if ($resource->getPhoneVerified()) {
-                    $this->users->updatePhoneVerification($resource->getId(), true);
-                }
-
-                if ($resource->getDisabled()) {
-                    $this->users->updateStatus($resource->getId(), false);
-                }
-
-                if (!empty($resource->getPreferences())) {
-                    $this->users->updatePrefs($resource->getId(), $resource->getPreferences());
-                }
-
-                if (!empty($resource->getLabels())) {
-                    $this->users->updateLabels($resource->getId(), $resource->getLabels());
-                }
-
-                if (!empty($resource->getTargets())) {
-                    $this->importUserTargets($resource->getId(), $resource->getTargets());
-                }
+                $this->applyUserState($resource);
 
                 break;
             case Resource::TYPE_TEAM:
                 /** @var Team $resource */
-                $this->teams->create($resource->getId(), $resource->getTeamName());
+                if ($this->onDuplicate !== OnDuplicate::Fail) {
+                    $existingTeam = $this->sdkGetOrNull(fn () => $this->teams->get($resource->getId()));
 
-                if (!empty($resource->getPreferences())) {
-                    $this->teams->updatePrefs($resource->getId(), $resource->getPreferences());
+                    if ($this->resolveDuplicate(
+                        $resource,
+                        $existingTeam !== null,
+                        $existingTeam?->updatedAt,
+                        overwrite: function () use ($resource): void {
+                            $this->teams->updateName($resource->getId(), $resource->getTeamName());
+                            $this->applyTeamState($resource);
+                        },
+                    )) {
+                        break;
+                    }
                 }
+
+                $this->teams->create($resource->getId(), $resource->getTeamName());
+                $this->applyTeamState($resource);
                 break;
             case Resource::TYPE_MEMBERSHIP:
                 /** @var Membership $resource */
+                $teamId = $resource->getTeam()->getId();
                 $user = $resource->getUser();
 
+                if ($this->onDuplicate !== OnDuplicate::Fail) {
+                    // createMembership() doesn't accept a caller-supplied ID —
+                    // the destination always mints its own, so it never
+                    // matches the source membership ID. Look up the existing
+                    // membership by (team, user) instead.
+                    $existingMemberships = $this->teams->listMemberships($teamId, [
+                        SdkQuery::equal('userId', [$user->getId()]),
+                    ]);
+                    $existingMembership = $existingMemberships->memberships[0] ?? null;
+
+                    if ($this->resolveDuplicate(
+                        $resource,
+                        $existingMembership !== null,
+                        $existingMembership?->updatedAt,
+                        overwrite: fn () => $this->teams->updateMembership(
+                            $teamId,
+                            $existingMembership->id,
+                            $resource->getRoles(),
+                        ),
+                    )) {
+                        break;
+                    }
+                }
+
                 $this->teams->createMembership(
-                    $resource->getTeam()->getId(),
+                    $teamId,
                     $resource->getRoles(),
                     userId: $user->getId(),
                 );
@@ -2206,9 +2357,59 @@ class Appwrite extends Destination
                 break;
         }
 
-        $resource->setStatus(Resource::STATUS_SUCCESS);
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        }
 
         return $resource;
+    }
+
+    /**
+     * Applies every User field that isn't set at creation time. Shared by the
+     * create path (runs right after `users->create`/`importPasswordUser`,
+     * same as before this method existed) and the overwrite path.
+     */
+    private function applyUserState(User $resource): void
+    {
+        if (!empty($resource->getUsername())) {
+            $this->users->updateName($resource->getId(), $resource->getUsername());
+        }
+
+        if (!empty($resource->getPhone())) {
+            $this->users->updatePhone($resource->getId(), $resource->getPhone());
+        }
+
+        if ($resource->getEmailVerified()) {
+            $this->users->updateEmailVerification($resource->getId(), true);
+        }
+
+        if ($resource->getPhoneVerified()) {
+            $this->users->updatePhoneVerification($resource->getId(), true);
+        }
+
+        if ($resource->getDisabled()) {
+            $this->users->updateStatus($resource->getId(), false);
+        }
+
+        if (!empty($resource->getPreferences())) {
+            $this->users->updatePrefs($resource->getId(), $resource->getPreferences());
+        }
+
+        if (!empty($resource->getLabels())) {
+            $this->users->updateLabels($resource->getId(), $resource->getLabels());
+        }
+
+        if (!empty($resource->getTargets())) {
+            $this->importUserTargets($resource->getId(), $resource->getTargets());
+        }
+    }
+
+    /** Shared by the create and overwrite paths, same reasoning as applyUserState(). */
+    private function applyTeamState(Team $resource): void
+    {
+        if (!empty($resource->getPreferences())) {
+            $this->teams->updatePrefs($resource->getId(), $resource->getPreferences());
+        }
     }
 
     /**
@@ -2313,6 +2514,34 @@ class Appwrite extends Destination
                     throw new \Exception('Invalid Runtime: ' . $resource->getRuntime(), Exception::CODE_VALIDATION, $e);
                 }
 
+                if ($this->onDuplicate !== OnDuplicate::Fail) {
+                    $existingFunction = $this->sdkGetOrNull(fn () => $this->functions->get($resource->getId()));
+
+                    if ($this->resolveDuplicate(
+                        $resource,
+                        $existingFunction !== null,
+                        $existingFunction?->updatedAt,
+                        overwrite: fn () => $this->functions->update(
+                            functionId: $resource->getId(),
+                            name: $resource->getFunctionName(),
+                            runtime: $runtime,
+                            execute: $resource->getExecute(),
+                            events: $resource->getEvents(),
+                            schedule: $resource->getSchedule(),
+                            timeout: $resource->getTimeout(),
+                            enabled: $resource->getEnabled(),
+                            logging: $resource->getLogging(),
+                            entrypoint: $resource->getEntrypoint(),
+                            commands: $resource->getCommands(),
+                            scopes: $resource->getScopes(),
+                            buildSpecification: $resource->getSpecification() ?: null,
+                            runtimeSpecification: $resource->getSpecification() ?: null,
+                        ),
+                    )) {
+                        break;
+                    }
+                }
+
                 $this->functions->create(
                     functionId: $resource->getId(),
                     name: $resource->getFunctionName(),
@@ -2332,8 +2561,30 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
                 /** @var EnvVar $resource */
+                $functionId = $resource->getFunc()->getId();
+
+                if ($this->onDuplicate !== OnDuplicate::Fail) {
+                    $existingVariable = $this->sdkGetOrNull(
+                        fn () => $this->functions->getVariable($functionId, $resource->getId())
+                    );
+
+                    if ($this->resolveDuplicate(
+                        $resource,
+                        $existingVariable !== null,
+                        $existingVariable?->updatedAt,
+                        overwrite: fn () => $this->functions->updateVariable(
+                            functionId: $functionId,
+                            variableId: $resource->getId(),
+                            key: $resource->getKey(),
+                            value: $resource->getValue(),
+                        ),
+                    )) {
+                        break;
+                    }
+                }
+
                 $this->functions->createVariable(
-                    functionId: $resource->getFunc()->getId(),
+                    functionId: $functionId,
                     variableId: $resource->getId(),
                     key: $resource->getKey(),
                     value: $resource->getValue(),
@@ -2344,7 +2595,9 @@ class Appwrite extends Destination
                 return $this->importDeployment($resource);
         }
 
-        $resource->setStatus(Resource::STATUS_SUCCESS);
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        }
 
         return $resource;
     }
@@ -2364,15 +2617,23 @@ class Appwrite extends Destination
     {
         $function = $deployment->getFunction();
 
-        // Deployment API always creates a new deployment, so unlike other resources
-        // there's no duplicate detection. Skip if the parent function wasn't imported successfully.
-        if ($function->getStatus() !== Resource::STATUS_SUCCESS) {
+        // The parent function must exist on the destination for its deployments
+        // to attach. SUCCESS = just created/overwritten; SKIPPED = already
+        // existed (Skip mode, or Overwrite with nothing newer) — in both cases
+        // it's present, so proceed and let the per-deployment duplicate check
+        // create whatever is missing. Any other status means it genuinely
+        // isn't there.
+        if (!\in_array($function->getStatus(), [Resource::STATUS_SUCCESS, Resource::STATUS_SKIPPED], true)) {
             $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent function "' . $function->getId() . '" failed to import');
 
             return $deployment;
         }
 
         $functionId = $function->getId();
+
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            return $this->importDeploymentWithDuplicateCheck($deployment, $functionId);
+        }
 
         $response = null;
 
@@ -2432,6 +2693,77 @@ class Appwrite extends Destination
     }
 
     /**
+     * Skip/overwrite path for deployments — a deliberately separate path from
+     * importDeployment()'s `fail` upload logic above, not a shared one.
+     *
+     * The deployment endpoint only honors a caller-supplied ID (`x-appwrite-id`)
+     * on the chunked/content-range request shape, which importDeployment()'s
+     * small-file branch never sends — so under `fail` the destination ID is
+     * always random and no existence check is possible. Forcing that header
+     * unconditionally here (even for a single-chunk upload covering the whole
+     * file) makes the destination ID deterministic, which is what lets the
+     * existence check below work at all.
+     */
+    private function importDeploymentWithDuplicateCheck(Deployment $deployment, string $functionId): Resource
+    {
+        $deploymentId = $deployment->getId();
+
+        // The duplicate decision only runs once, on the first chunk — see
+        // importFile() for why chunked uploads need this guard.
+        if ($deployment->getStart() === 0) {
+            $existingDeployment = $this->sdkGetOrNull(
+                fn () => $this->functions->getDeployment($functionId, $deploymentId)
+            );
+
+            $handled = $this->resolveDuplicate(
+                $deployment,
+                $existingDeployment !== null,
+                $existingDeployment?->updatedAt,
+                overwrite: fn () => $this->functions->deleteDeployment($functionId, $deploymentId),
+            );
+
+            if ($handled && $deployment->getStatus() === Resource::STATUS_SKIPPED) {
+                $this->skippedChunkedUploads['deployment:' . $deploymentId] = true;
+                $deployment->setData('');
+                return $deployment;
+            }
+        } elseif (isset($this->skippedChunkedUploads['deployment:' . $deploymentId])) {
+            $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+            $deployment->setData('');
+            return $deployment;
+        }
+
+        $response = $this->client->call(
+            'POST',
+            "/functions/{$functionId}/deployments",
+            [
+                'content-type' => 'multipart/form-data',
+                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . ($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()) . '/' . $deployment->getSize(),
+                'x-appwrite-id' => $deploymentId,
+                'X-Appwrite-Project' => $this->projectId,
+            ],
+            [
+                'functionId' => $functionId,
+                'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
+                'activate' => $deployment->getActivated() ? 'true' : 'false',
+                'entrypoint' => $deployment->getEntrypoint(),
+            ]
+        );
+
+        if (!\is_array($response) || !isset($response['$id'])) {
+            throw new \Exception('Deployment creation failed', Exception::CODE_INTERNAL);
+        }
+
+        if ($deployment->getEnd() == ($deployment->getSize() - 1)) {
+            $deployment->setStatus(Resource::STATUS_SUCCESS);
+        } else {
+            $deployment->setStatus(Resource::STATUS_PENDING);
+        }
+
+        return $deployment;
+    }
+
+    /**
      * @throws AppwriteException
      * @throws \Exception
      */
@@ -2458,7 +2790,9 @@ class Appwrite extends Destination
                 throw new \Exception('Unknown messaging resource type: ' . $resource->getName());
         }
 
-        $resource->setStatus(Resource::STATUS_SUCCESS);
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        }
 
         return $resource;
     }
@@ -2502,6 +2836,34 @@ class Appwrite extends Destination
                     default => null,
                 };
 
+                if ($this->onDuplicate !== OnDuplicate::Fail) {
+                    $existingSite = $this->sdkGetOrNull(fn () => $this->sites->get($resource->getId()));
+
+                    if ($this->resolveDuplicate(
+                        $resource,
+                        $existingSite !== null,
+                        $existingSite?->updatedAt,
+                        overwrite: fn () => $this->sites->update(
+                            siteId: $resource->getId(),
+                            name: $resource->getSiteName(),
+                            framework: $framework,
+                            buildRuntime: $buildRuntime,
+                            enabled: $resource->getEnabled(),
+                            logging: $resource->getLogging(),
+                            timeout: $resource->getTimeout(),
+                            installCommand: $resource->getInstallCommand(),
+                            buildCommand: $resource->getBuildCommand(),
+                            outputDirectory: $resource->getOutputDirectory(),
+                            adapter: $adapter,
+                            fallbackFile: $resource->getFallbackFile(),
+                            buildSpecification: $resource->getSpecification() ?: null,
+                            runtimeSpecification: $resource->getSpecification() ?: null,
+                        ),
+                    )) {
+                        break;
+                    }
+                }
+
                 $this->sites->create(
                     siteId: $resource->getId(),
                     name: $resource->getSiteName(),
@@ -2521,8 +2883,30 @@ class Appwrite extends Destination
                 break;
             case Resource::TYPE_SITE_VARIABLE:
                 /** @var SiteEnvVar $resource */
+                $siteId = $resource->getSite()->getId();
+
+                if ($this->onDuplicate !== OnDuplicate::Fail) {
+                    $existingSiteVariable = $this->sdkGetOrNull(
+                        fn () => $this->sites->getVariable($siteId, $resource->getId())
+                    );
+
+                    if ($this->resolveDuplicate(
+                        $resource,
+                        $existingSiteVariable !== null,
+                        $existingSiteVariable?->updatedAt,
+                        overwrite: fn () => $this->sites->updateVariable(
+                            siteId: $siteId,
+                            variableId: $resource->getId(),
+                            key: $resource->getKey(),
+                            value: $resource->getValue(),
+                        ),
+                    )) {
+                        break;
+                    }
+                }
+
                 $this->sites->createVariable(
-                    siteId: $resource->getSite()->getId(),
+                    siteId: $siteId,
                     variableId: $resource->getId(),
                     key: $resource->getKey(),
                     value: $resource->getValue(),
@@ -2533,7 +2917,9 @@ class Appwrite extends Destination
                 return $this->importSiteDeployment($resource);
         }
 
-        $resource->setStatus(Resource::STATUS_SUCCESS);
+        if ($resource->getStatus() !== Resource::STATUS_SKIPPED) {
+            $resource->setStatus(Resource::STATUS_SUCCESS);
+        }
 
         return $resource;
     }
@@ -2555,6 +2941,13 @@ class Appwrite extends Destination
                     // Auto-created by the server when a user is created with an email/phone
                     break;
                 case 'push':
+                    // Overwriting a User already carrying this target: target IDs
+                    // aren't otherwise reconciled, so treat an existing one as
+                    // already up to date rather than erroring on re-migration.
+                    if (!$this->dbForProject->getDocument('targets', $target['$id'])->isEmpty()) {
+                        break;
+                    }
+
                     $userDoc ??= $this->dbForProject->getDocument('users', $userId);
 
                     $createdAt = $this->normalizeDateTime($target['$createdAt'] ?? null);
@@ -2591,6 +2984,28 @@ class Appwrite extends Destination
      * @throws \Exception
      */
     protected function createProvider(Provider $resource): void
+    {
+        $id = $resource->getId();
+
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            $existingProvider = $this->sdkGetOrNull(fn () => $this->messaging->getProvider($id));
+
+            if ($this->resolveDuplicate(
+                $resource,
+                $existingProvider !== null,
+                $existingProvider?->updatedAt,
+                overwrite: fn () => $this->updateProviderOnDestination($resource),
+            )) {
+                $this->reconcileProviderTargets($id);
+                return;
+            }
+        }
+
+        $this->createProviderOnDestination($resource);
+        $this->reconcileProviderTargets($id);
+    }
+
+    private function createProviderOnDestination(Provider $resource): void
     {
         $credentials = $resource->getCredentials();
         $options = $resource->getOptions();
@@ -2709,9 +3124,135 @@ class Appwrite extends Destination
             ),
             default => throw new \Exception('Unknown provider: ' . $resource->getProvider()),
         };
+    }
 
-        // Resolve providerInternalId for push targets that were written during GROUP_AUTH
-        // before the provider existed on the destination.
+    private function updateProviderOnDestination(Provider $resource): void
+    {
+        $credentials = $resource->getCredentials();
+        $options = $resource->getOptions();
+        $id = $resource->getId();
+        $name = $resource->getProviderName();
+        $enabled = $resource->getEnabled();
+
+        match ($resource->getProvider()) {
+            'mailgun' => $this->messaging->updateMailgunProvider(
+                $id,
+                $name,
+                $credentials['apiKey'] ?? null,
+                $credentials['domain'] ?? null,
+                $enabled,
+                $credentials['isEuRegion'] ?? null,
+                ($options['fromName'] ?? '') ?: null,
+                ($options['fromEmail'] ?? '') ?: null,
+                ($options['replyToName'] ?? '') ?: null,
+                ($options['replyToEmail'] ?? '') ?: null,
+            ),
+            'sendgrid' => $this->messaging->updateSendgridProvider(
+                $id,
+                $name,
+                $enabled,
+                $credentials['apiKey'] ?? null,
+                ($options['fromName'] ?? '') ?: null,
+                ($options['fromEmail'] ?? '') ?: null,
+                ($options['replyToName'] ?? '') ?: null,
+                ($options['replyToEmail'] ?? '') ?: null,
+            ),
+            'resend' => $this->messaging->updateResendProvider(
+                $id,
+                $name,
+                $enabled,
+                $credentials['apiKey'] ?? null,
+                ($options['fromName'] ?? '') ?: null,
+                ($options['fromEmail'] ?? '') ?: null,
+                ($options['replyToName'] ?? '') ?: null,
+                ($options['replyToEmail'] ?? '') ?: null,
+            ),
+            'smtp' => $this->messaging->updateSmtpProvider(
+                $id,
+                $name,
+                $credentials['host'] ?? '',
+                $credentials['port'] ?? null,
+                ($credentials['username'] ?? '') ?: null,
+                ($credentials['password'] ?? '') ?: null,
+                match ($options['encryption'] ?? '') {
+                    'ssl' => SmtpEncryption::SSL(),
+                    'tls' => SmtpEncryption::TLS(),
+                    default => SmtpEncryption::NONE(),
+                },
+                $options['autoTLS'] ?? null,
+                ($options['mailer'] ?? '') ?: null,
+                ($options['fromName'] ?? '') ?: null,
+                ($options['fromEmail'] ?? '') ?: null,
+                ($options['replyToName'] ?? '') ?: null,
+                ($options['replyToEmail'] ?? '') ?: null,
+                $enabled,
+            ),
+            'msg91' => $this->messaging->updateMsg91Provider(
+                $id,
+                $name,
+                $credentials['templateId'] ?? null,
+                $credentials['senderId'] ?? null,
+                $credentials['authKey'] ?? null,
+                $enabled,
+            ),
+            'telesign' => $this->messaging->updateTelesignProvider(
+                $id,
+                $name,
+                ($options['from'] ?? '') ?: null,
+                $credentials['customerId'] ?? null,
+                $credentials['apiKey'] ?? null,
+                $enabled,
+            ),
+            'textmagic' => $this->messaging->updateTextmagicProvider(
+                $id,
+                $name,
+                ($options['from'] ?? '') ?: null,
+                $credentials['username'] ?? null,
+                $credentials['apiKey'] ?? null,
+                $enabled,
+            ),
+            'twilio' => $this->messaging->updateTwilioProvider(
+                $id,
+                $name,
+                ($options['from'] ?? '') ?: null,
+                $credentials['accountSid'] ?? null,
+                $credentials['authToken'] ?? null,
+                $enabled,
+            ),
+            'vonage' => $this->messaging->updateVonageProvider(
+                $id,
+                $name,
+                ($options['from'] ?? '') ?: null,
+                $credentials['apiKey'] ?? null,
+                $credentials['apiSecret'] ?? null,
+                $enabled,
+            ),
+            'fcm' => $this->messaging->updateFcmProvider(
+                $id,
+                $name,
+                $credentials['serviceAccountJSON'] ?? null,
+                $enabled,
+            ),
+            'apns' => $this->messaging->updateApnsProvider(
+                $id,
+                $name,
+                $credentials['authKey'] ?? null,
+                $credentials['authKeyId'] ?? null,
+                $credentials['teamId'] ?? null,
+                $credentials['bundleId'] ?? null,
+                $enabled,
+                $options['sandbox'] ?? null,
+            ),
+            default => throw new \Exception('Unknown provider: ' . $resource->getProvider()),
+        };
+    }
+
+    /**
+     * Resolve providerInternalId for push targets that were written during
+     * GROUP_AUTH before the provider existed on the destination.
+     */
+    private function reconcileProviderTargets(string $id): void
+    {
         $provider = $this->dbForProject->getDocument('providers', $id);
         $targets = $this->dbForProject->find('targets', [
             Query::equal('providerId', [$id]),
@@ -2736,8 +3277,27 @@ class Appwrite extends Destination
      */
     protected function createTopic(Topic $resource): void
     {
+        $id = $resource->getId();
+
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            $existingTopic = $this->sdkGetOrNull(fn () => $this->messaging->getTopic($id));
+
+            if ($this->resolveDuplicate(
+                $resource,
+                $existingTopic !== null,
+                $existingTopic?->updatedAt,
+                overwrite: fn () => $this->messaging->updateTopic(
+                    $id,
+                    $resource->getTopicName(),
+                    $resource->getSubscribe(),
+                ),
+            )) {
+                return;
+            }
+        }
+
         $this->messaging->createTopic(
-            $resource->getId(),
+            $id,
             $resource->getTopicName(),
             $resource->getSubscribe(),
         );
@@ -2749,6 +3309,30 @@ class Appwrite extends Destination
      * @throws DatabaseException|\Exception
      */
     protected function createSubscriber(Subscriber $resource): void
+    {
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            $existing = $this->dbForProject->getDocument('subscribers', $resource->getId());
+
+            // No SDK update exists for a subscriber — overwrite deletes (via
+            // the SDK, so the topic's total is decremented for us) and
+            // recreates through the same logic as create.
+            if ($this->resolveDuplicate(
+                $resource,
+                !$existing->isEmpty(),
+                $existing->getUpdatedAt(),
+                overwrite: function () use ($resource): void {
+                    $this->messaging->deleteSubscriber($resource->getTopicId(), $resource->getId());
+                    $this->createSubscriberOnDestination($resource);
+                },
+            )) {
+                return;
+            }
+        }
+
+        $this->createSubscriberOnDestination($resource);
+    }
+
+    private function createSubscriberOnDestination(Subscriber $resource): void
     {
         $target = match ($resource->getProviderType()) {
             'push' => $this->dbForProject->getDocument('targets', $resource->getTargetId()),
@@ -2814,6 +3398,35 @@ class Appwrite extends Destination
      * @throws \Exception
      */
     protected function createMessage(Message $resource): void
+    {
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            $existing = $this->dbForProject->getDocument('messages', $resource->getId());
+
+            // The SDK's update* methods only work while a message is still a
+            // draft — a sent/scheduled message can't be updated, so overwrite
+            // deletes (cancelling any scheduled send) and recreates through
+            // the same logic as create.
+            if ($this->resolveDuplicate(
+                $resource,
+                !$existing->isEmpty(),
+                $existing->getUpdatedAt(),
+                overwrite: function () use ($resource): void {
+                    $this->messaging->delete($resource->getId());
+                    $this->createMessageOnDestination($resource);
+                },
+            )) {
+                return;
+            }
+        }
+
+        $this->createMessageOnDestination($resource);
+    }
+
+    /**
+     * @throws AppwriteException
+     * @throws \Exception
+     */
+    private function createMessageOnDestination(Message $resource): void
     {
         $resolvedTargets = $resource->getTargets();
         $status = $resource->getMessageStatus();
@@ -2936,15 +3549,22 @@ class Appwrite extends Destination
     {
         $site = $deployment->getSite();
 
-        // Deployment API always creates a new deployment, so unlike other resources
-        // there's no duplicate detection. Skip if the parent site wasn't imported successfully.
-        if ($site->getStatus() !== Resource::STATUS_SUCCESS) {
+        // The parent site must exist on the destination for its deployments to
+        // attach. SUCCESS = just created/overwritten; SKIPPED = already existed
+        // (Skip mode, or Overwrite with nothing newer) — in both cases it's
+        // present, so proceed and let the per-deployment duplicate check create
+        // whatever is missing. Any other status means it genuinely isn't there.
+        if (!\in_array($site->getStatus(), [Resource::STATUS_SUCCESS, Resource::STATUS_SKIPPED], true)) {
             $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent site "' . $site->getId() . '" failed to import');
 
             return $deployment;
         }
 
         $siteId = $site->getId();
+
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            return $this->importSiteDeploymentWithDuplicateCheck($deployment, $siteId);
+        }
 
         if ($deployment->getSize() <= Transfer::STORAGE_MAX_CHUNK_SIZE) {
             $response = $this->client->call(
@@ -2992,6 +3612,63 @@ class Appwrite extends Destination
 
         if ($deployment->getStart() === 0) {
             $deployment->setId($response['$id']);
+        }
+
+        if ($deployment->getEnd() == ($deployment->getSize() - 1)) {
+            $deployment->setStatus(Resource::STATUS_SUCCESS);
+        } else {
+            $deployment->setStatus(Resource::STATUS_PENDING);
+        }
+
+        return $deployment;
+    }
+
+    /** Skip/overwrite path for site deployments — mirrors importDeploymentWithDuplicateCheck(), see that docblock. */
+    private function importSiteDeploymentWithDuplicateCheck(SiteDeployment $deployment, string $siteId): Resource
+    {
+        $deploymentId = $deployment->getId();
+
+        if ($deployment->getStart() === 0) {
+            $existingDeployment = $this->sdkGetOrNull(
+                fn () => $this->sites->getDeployment($siteId, $deploymentId)
+            );
+
+            $handled = $this->resolveDuplicate(
+                $deployment,
+                $existingDeployment !== null,
+                $existingDeployment?->updatedAt,
+                overwrite: fn () => $this->sites->deleteDeployment($siteId, $deploymentId),
+            );
+
+            if ($handled && $deployment->getStatus() === Resource::STATUS_SKIPPED) {
+                $this->skippedChunkedUploads['site-deployment:' . $deploymentId] = true;
+                $deployment->setData('');
+                return $deployment;
+            }
+        } elseif (isset($this->skippedChunkedUploads['site-deployment:' . $deploymentId])) {
+            $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+            $deployment->setData('');
+            return $deployment;
+        }
+
+        $response = $this->client->call(
+            'POST',
+            "/sites/{$siteId}/deployments",
+            [
+                'content-type' => 'multipart/form-data',
+                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . ($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()) . '/' . $deployment->getSize(),
+                'x-appwrite-id' => $deploymentId,
+                'X-Appwrite-Project' => $this->projectId,
+            ],
+            [
+                'siteId' => $siteId,
+                'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
+                'activate' => $deployment->getActivated() ? 'true' : 'false',
+            ]
+        );
+
+        if (!\is_array($response) || !isset($response['$id'])) {
+            throw new \Exception('Site deployment creation failed', Exception::CODE_INTERNAL);
         }
 
         if ($deployment->getEnd() == ($deployment->getSize() - 1)) {
@@ -3091,8 +3768,23 @@ class Appwrite extends Destination
             Query::equal('resourceType', ['project']),
             Query::equal('key', [$resource->getKey()]),
         ]);
+        $existingDoc = ($existing !== false && !$existing->isEmpty()) ? $existing : null;
 
-        if ($existing !== false && !$existing->isEmpty()) {
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            if ($this->resolveDuplicate(
+                $resource,
+                $existingDoc !== null,
+                $existingDoc?->getUpdatedAt(),
+                overwrite: fn () => $this->dbForProject->updateDocument('variables', $existingDoc->getId(), new UtopiaDocument([
+                    'value' => $resource->getValue(),
+                    'secret' => $resource->isSecret(),
+                ])),
+            )) {
+                return true;
+            }
+        }
+
+        if ($existingDoc !== null) {
             $resource->setStatus(Resource::STATUS_SKIPPED, 'Project variable already exists');
             return false;
         }
@@ -3255,6 +3947,38 @@ class Appwrite extends Destination
             return false;
         }
 
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            // The create endpoints don't accept a caller-supplied rule ID —
+            // the destination always assigns its own, so it never matches the
+            // source rule ID. Look up the existing rule by domain instead.
+            $existingRules = $this->proxy->listRules([
+                SdkQuery::equal('domain', [$resource->getDomain()]),
+            ]);
+            $existingRule = $existingRules->rules[0] ?? null;
+
+            $overwriteSucceeded = false;
+
+            $handled = $this->resolveDuplicate(
+                $resource,
+                $existingRule !== null,
+                $existingRule?->updatedAt,
+                // Rules have no update endpoint — overwrite deletes and recreates.
+                overwrite: function () use ($resource, $existingRule, &$overwriteSucceeded): void {
+                    $this->proxy->deleteRule($existingRule->id);
+                    $overwriteSucceeded = $this->createRuleOnDestination($resource);
+                },
+            );
+
+            if ($handled) {
+                return $overwriteSucceeded;
+            }
+        }
+
+        return $this->createRuleOnDestination($resource);
+    }
+
+    private function createRuleOnDestination(Rule $resource): bool
+    {
         $type = $resource->getType();
         $deploymentResourceType = $resource->getDeploymentResourceType();
         $branch = $resource->getDeploymentVcsProviderBranch();
@@ -3331,8 +4055,30 @@ class Appwrite extends Destination
             Query::equal('projectInternalId', [$this->projectInternalId]),
             Query::equal('name', [$resource->getWebhookName()]),
         ]);
+        $existingDoc = ($existing !== false && !$existing->isEmpty()) ? $existing : null;
 
-        if ($existing !== false && !$existing->isEmpty()) {
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            if ($this->resolveDuplicate(
+                $resource,
+                $existingDoc !== null,
+                $existingDoc?->getUpdatedAt(),
+                overwrite: function () use ($resource, $existingDoc): void {
+                    $this->dbForPlatform->updateDocument('webhooks', $existingDoc->getId(), new UtopiaDocument([
+                        'events' => $resource->getEvents(),
+                        'url' => $resource->getUrl(),
+                        'security' => $resource->getSecurity(),
+                        'httpUser' => $resource->getHttpUser(),
+                        'httpPass' => $resource->getHttpPass(),
+                        'enabled' => $resource->isEnabled(),
+                    ]));
+                    $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+                },
+            )) {
+                return true;
+            }
+        }
+
+        if ($existingDoc !== null) {
             $resource->setStatus(Resource::STATUS_SKIPPED, 'Webhook already exists');
             return false;
         }
@@ -3379,8 +4125,27 @@ class Appwrite extends Destination
             Query::equal('type', [$resource->getType()]),
             Query::equal('name', [$resource->getPlatformName()]),
         ]);
+        $existingDoc = ($existing !== false && !$existing->isEmpty()) ? $existing : null;
 
-        if ($existing !== false && !$existing->isEmpty()) {
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            if ($this->resolveDuplicate(
+                $resource,
+                $existingDoc !== null,
+                $existingDoc?->getUpdatedAt(),
+                overwrite: function () use ($resource, $existingDoc): void {
+                    $this->dbForPlatform->updateDocument('platforms', $existingDoc->getId(), new UtopiaDocument([
+                        'key' => $resource->getKey(),
+                        'store' => $resource->getStore(),
+                        'hostname' => $resource->getHostname(),
+                    ]));
+                    $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+                },
+            )) {
+                return true;
+            }
+        }
+
+        if ($existingDoc !== null) {
             $resource->setStatus(Resource::STATUS_SKIPPED, 'Platform already exists');
             return false;
         }
@@ -3536,8 +4301,32 @@ class Appwrite extends Destination
             Query::equal('resourceInternalId', [$this->projectInternalId]),
             Query::equal('name', [$resource->getApiKeyName()]),
         ]);
+        $existingDoc = ($existing !== false && !$existing->isEmpty()) ? $existing : null;
 
-        if ($existing !== false && !$existing->isEmpty()) {
+        if ($this->onDuplicate !== OnDuplicate::Fail) {
+            // Secret is intentionally not regenerated on overwrite — it's only
+            // ever set at creation, since rotating it would break whatever
+            // already uses it.
+            if ($this->resolveDuplicate(
+                $resource,
+                $existingDoc !== null,
+                $existingDoc?->getUpdatedAt(),
+                overwrite: function () use ($resource, $existingDoc): void {
+                    $expire = $resource->getExpire();
+
+                    $this->dbForPlatform->updateDocument('keys', $existingDoc->getId(), new UtopiaDocument([
+                        'scopes' => $resource->getScopes(),
+                        'expire' => empty($expire) ? null : $expire,
+                        'sdks' => $resource->getSdks(),
+                    ]));
+                    $this->dbForPlatform->purgeCachedDocument('projects', $this->projectId);
+                },
+            )) {
+                return true;
+            }
+        }
+
+        if ($existingDoc !== null) {
             $resource->setStatus(Resource::STATUS_SKIPPED, 'API key already exists');
             return false;
         }

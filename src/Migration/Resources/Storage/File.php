@@ -29,10 +29,14 @@ class File extends Resource
         private readonly int $size = 0,
         private string $data = '',
         private int $start = 0,
-        private int $end = 0
+        private int $end = 0,
+        string $createdAt = '',
+        string $updatedAt = '',
     ) {
         $this->id = $id;
         $this->permissions = $permissions;
+        $this->createdAt = $createdAt;
+        $this->updatedAt = $updatedAt;
     }
 
     /**
@@ -51,7 +55,9 @@ class File extends Resource
             $array['size'] ?? 0,
             $array['data'] ?? '',
             $array['start'] ?? 0,
-            $array['end'] ?? 0
+            $array['end'] ?? 0,
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
@@ -70,6 +76,8 @@ class File extends Resource
             'size' => $this->size,
             'start' => $this->start,
             'end' => $this->end,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

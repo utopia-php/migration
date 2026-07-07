@@ -17,9 +17,13 @@ class Team extends Resource
         string $id,
         private readonly string $name,
         private readonly array $preferences = [],
-        private readonly array $members = []
+        private readonly array $members = [],
+        string $createdAt = '',
+        string $updatedAt = '',
     ) {
         $this->id = $id;
+        $this->createdAt = $createdAt;
+        $this->updatedAt = $updatedAt;
     }
 
     /**
@@ -32,7 +36,9 @@ class Team extends Resource
             $array['id'],
             $array['name'],
             $array['preferences'] ?? [],
-            $array['members'] ?? []
+            $array['members'] ?? [],
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
@@ -46,6 +52,8 @@ class Team extends Resource
             'name' => $this->name,
             'preferences' => $this->preferences,
             'members' => $this->members,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

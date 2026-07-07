@@ -34,8 +34,12 @@ class User extends Resource
         private readonly bool $disabled = false,
         private readonly array $preferences = [],
         private readonly array $targets = [],
+        string $createdAt = '',
+        string $updatedAt = '',
     ) {
         $this->id = $id;
+        $this->createdAt = $createdAt;
+        $this->updatedAt = $updatedAt;
     }
 
     /**
@@ -57,6 +61,8 @@ class User extends Resource
             $array['disabled'] ?? false,
             $array['preferences'] ?? [],
             $array['targets'] ?? [],
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
@@ -78,6 +84,8 @@ class User extends Resource
             'disabled' => $this->disabled,
             'preferences' => $this->preferences,
             'targets' => $this->targets,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

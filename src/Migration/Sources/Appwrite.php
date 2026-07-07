@@ -829,6 +829,8 @@ class Appwrite extends Source
                     !$user->status,
                     $user->prefs->data ?? [],
                     \array_map(fn ($target) => $target->toArray(), $user->targets ?? []),
+                    createdAt: $user->createdAt,
+                    updatedAt: $user->updatedAt,
                 );
 
                 $lastDocument = $user->id;
@@ -874,6 +876,8 @@ class Appwrite extends Source
                     $team->id,
                     $team->name,
                     $team->prefs->data,
+                    createdAt: $team->createdAt,
+                    updatedAt: $team->updatedAt,
                 );
 
                 $lastDocument = $team->id;
@@ -932,7 +936,9 @@ class Appwrite extends Source
                         $team,
                         $user,
                         $membership->roles,
-                        $membership->confirm
+                        $membership->confirm,
+                        createdAt: $membership->createdAt ?? '',
+                        updatedAt: $membership->updatedAt ?? '',
                     );
 
                     $lastDocument = $membership->id;
@@ -1467,6 +1473,8 @@ class Appwrite extends Source
                 $bucket->antivirus,
                 false,
                 $bucket->transformations ?? false,
+                createdAt: $bucket->createdAt,
+                updatedAt: $bucket->updatedAt,
             );
             $convertedBuckets[] = $bucket;
         }
@@ -1511,6 +1519,8 @@ class Appwrite extends Source
                             $file->mimeType,
                             $file->permissions,
                             $file->sizeOriginal,
+                            createdAt: $file->createdAt,
+                            updatedAt: $file->updatedAt,
                         ));
                     } catch (\Throwable $e) {
                         $this->addError(new Exception(
@@ -2107,6 +2117,8 @@ class Appwrite extends Source
                     $function->logging ?? true,
                     $function->scopes ?? [],
                     $function->runtimeSpecification ?: $function->buildSpecification ?: '',
+                    createdAt: $function->createdAt,
+                    updatedAt: $function->updatedAt,
                 );
                 $functions[] = $convertedFunc;
 
@@ -2118,6 +2130,8 @@ class Appwrite extends Source
                         $convertedFunc,
                         $var->key,
                         $var->value,
+                        createdAt: $var->createdAt,
+                        updatedAt: $var->updatedAt,
                     );
                 }
             }
@@ -2233,7 +2247,9 @@ class Appwrite extends Source
                 $start,
                 $end,
                 $file,
-                $deployment->activate
+                $deployment->activate,
+                createdAt: $deployment->createdAt,
+                updatedAt: $deployment->updatedAt,
             );
             $deployment->setSequence($deployment->getId());
 
@@ -2256,7 +2272,9 @@ class Appwrite extends Source
             $start,
             $end,
             '',
-            $deployment->activate
+            $deployment->activate,
+            createdAt: $deployment->createdAt,
+            updatedAt: $deployment->updatedAt,
         );
 
         $deployment->setSequence($deployment->getId());
@@ -2658,7 +2676,9 @@ class Appwrite extends Source
                     $site->adapter ?? 'static',
                     $site->fallbackFile ?? '',
                     $site->runtimeSpecification ?: $site->buildSpecification ?: '',
-                    $site->deploymentId ?? ''
+                    $site->deploymentId ?? '',
+                    createdAt: $site->createdAt,
+                    updatedAt: $site->updatedAt,
                 );
                 $sites[] = $convertedSite;
                 $convertedResources[] = $convertedSite;
@@ -2669,7 +2689,9 @@ class Appwrite extends Source
                         $var->id,
                         $convertedSite,
                         $var->key,
-                        $var->value
+                        $var->value,
+                        createdAt: $var->createdAt,
+                        updatedAt: $var->updatedAt,
                     );
                 }
             }
@@ -2782,7 +2804,9 @@ class Appwrite extends Source
                 $start,
                 $end,
                 $file,
-                $deployment->id === $site->getActiveDeployment()
+                $deployment->id === $site->getActiveDeployment(),
+                createdAt: $deployment->createdAt,
+                updatedAt: $deployment->updatedAt,
             );
             $siteDeployment->setSequence($siteDeployment->getId());
 
@@ -2804,7 +2828,9 @@ class Appwrite extends Source
             $start,
             $end,
             '',
-            $deployment->id === $site->getActiveDeployment()
+            $deployment->id === $site->getActiveDeployment(),
+            createdAt: $deployment->createdAt,
+            updatedAt: $deployment->updatedAt,
         );
 
         $siteDeployment->setSequence($siteDeployment->getId());
