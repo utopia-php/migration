@@ -652,7 +652,13 @@ class Appwrite extends Destination
                 $existing->getUpdatedAt(),
             );
             // Spec match → skip work. Create excluded; nothing on dest to match against.
-            if ($action !== SchemaAction::Create && $this->databaseSpecMatches($existing, $resource)) {
+            // A `failed` database (metadata exists but its backing collection may be missing) must not be
+            // skipped even when the spec matches, so the resolved action (e.g. Overwrite) can recover it.
+            if (
+                $action !== SchemaAction::Create
+                && $existing->getAttribute('status') !== self::DATABASE_STATUS_FAILED
+                && $this->databaseSpecMatches($existing, $resource)
+            ) {
                 $action = SchemaAction::Skip;
             }
 
