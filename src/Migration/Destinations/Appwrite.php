@@ -239,6 +239,13 @@ class Appwrite extends Destination
 
     private function getSupportForDatabaseStatus(): bool
     {
+        // $source is a non-nullable typed property with no default; it is only set when the
+        // destination runs through Transfer. Guard so direct createDatabase() calls (e.g. tests)
+        // don't hit "must not be accessed before initialization".
+        if (! isset($this->source)) {
+            return false;
+        }
+
         $source = $this->getSource();
 
         return $source instanceof AppwriteSource
@@ -731,8 +738,10 @@ class Appwrite extends Destination
                 $indexes
             );
         } catch (\Throwable $e) {
-            // The metadata document exists but the database isn't usable; mark it failed before propagating.
-            $this->setDatabaseStatus($resource->getId(), self::DATABASE_STATUS_FAILED);
+            try {
+                $this->setDatabaseStatus($resource->getId(), self::DATABASE_STATUS_FAILED);
+            } catch (\Throwable) {
+            }
             throw $e;
         }
 
