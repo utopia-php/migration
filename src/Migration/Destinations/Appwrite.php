@@ -680,7 +680,7 @@ class Appwrite extends Destination
                     }
                     return false;
                 })(),
-                SchemaAction::Overwrite => (function () use ($resource, $existing, $updatedAt): bool {
+                SchemaAction::Overwrite => (function () use ($resource, $existing, $updatedAt, $isFailed): bool {
                     $document = [
                         'name' => $resource->getDatabaseName(),
                         'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
@@ -698,10 +698,11 @@ class Appwrite extends Destination
                     $this->dbForProject->updateDocument(self::META_DATABASES, $existing->getId(), new UtopiaDocument($document));
                     $resource->setSequence($existing->getSequence());
 
-                    // A prior run may have written the metadata document but failed before its backing
-                    // collection existed (status=failed). Recreate it here so we never flip a database to
-                    // ready that has no collection behind it.
-                    if ($this->dbForProject->getCollection($this->databaseCollectionId($existing))->isEmpty()) {
+                    // Only a `failed` database can be missing its backing collection (a prior run wrote the
+                    // metadata document but threw before createCollection). Recreate it so we never flip a
+                    // database to ready with no collection behind it. A healthy overwrite already has its
+                    // collection, so we skip the lookup entirely.
+                    if ($isFailed && $this->dbForProject->getCollection($this->databaseCollectionId($existing))->isEmpty()) {
                         try {
                             $columns = \array_map(
                                 fn ($attr) => new UtopiaDocument($attr),
