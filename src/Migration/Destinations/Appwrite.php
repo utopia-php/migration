@@ -280,7 +280,12 @@ class Appwrite extends Destination
     private function markProvisionedDatabasesReady(): void
     {
         foreach (\array_keys($this->provisioningDatabases) as $databaseId) {
-            $this->setDatabaseStatus($databaseId, self::DATABASE_STATUS_READY);
+            try {
+                $this->setDatabaseStatus($databaseId, self::DATABASE_STATUS_READY);
+            } catch (\Throwable) {
+                // Best-effort: a transient error on one database must not strand the rest
+                // in provisioning or block the orphan-cleanup sweep that follows.
+            }
         }
     }
 
@@ -295,6 +300,15 @@ class Appwrite extends Destination
             $databaseId,
             new UtopiaDocument(['status' => $status]),
         );
+    }
+
+    /** Best-effort transition to `failed`; a secondary error here must not mask the caller's original throw. */
+    private function markDatabaseFailed(string $databaseId): void
+    {
+        try {
+            $this->setDatabaseStatus($databaseId, self::DATABASE_STATUS_FAILED);
+        } catch (\Throwable) {
+        }
     }
 
     public static function getName(): string
@@ -678,6 +692,32 @@ class Appwrite extends Destination
                     $this->dbForProject->updateDocument(self::META_DATABASES, $existing->getId(), new UtopiaDocument($document));
                     $resource->setSequence($existing->getSequence());
 
+                    // A prior run may have written the metadata document but failed before its backing
+                    // collection existed (status=failed). Recreate it here so we never flip a database to
+                    // ready that has no collection behind it.
+                    if ($this->dbForProject->getCollection($this->databaseCollectionId($existing))->isEmpty()) {
+                        try {
+                            $columns = \array_map(
+                                fn ($attr) => new UtopiaDocument($attr),
+                                $this->collectionStructure['attributes']
+                            );
+
+                            $indexes = \array_map(
+                                fn ($index) => new UtopiaDocument($index),
+                                $this->collectionStructure['indexes']
+                            );
+
+                            $this->dbForProject->createCollection(
+                                $this->databaseCollectionId($existing),
+                                $columns,
+                                $indexes
+                            );
+                        } catch (\Throwable $e) {
+                            $this->markDatabaseFailed($resource->getId());
+                            throw $e;
+                        }
+                    }
+
                     if ($this->getSupportForDatabaseStatus()) {
                         $this->provisioningDatabases[$resource->getId()] = true;
                     }
@@ -732,10 +772,8 @@ class Appwrite extends Destination
                 $indexes
             );
         } catch (\Throwable $e) {
-            try {
-                $this->setDatabaseStatus($resource->getId(), self::DATABASE_STATUS_FAILED);
-            } catch (\Throwable) {
-            }
+            // The metadata document exists but the database isn't usable; mark it failed before propagating.
+            $this->markDatabaseFailed($resource->getId());
             throw $e;
         }
 
