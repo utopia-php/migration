@@ -600,7 +600,7 @@ class Appwrite extends Source
                     $report[Resource::TYPE_SITE_VARIABLE] += $variables->total ?? 0;
                 }
             } catch (\Throwable) {
-                // Leave partially-accumulated count; source lacks Sites support or scope.
+                $report[Resource::TYPE_SITE_VARIABLE] = 0;
             }
         }
     }
@@ -2304,7 +2304,6 @@ class Appwrite extends Source
      * @param array<string> $resources
      * @param array<string, int> $report
      * @param array<string, array<string>> $resourceIds
-     * @throws AppwriteException
      */
     private function reportMessaging(array $resources, array &$report, array $resourceIds = []): void
     {
