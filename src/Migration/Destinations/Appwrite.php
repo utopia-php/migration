@@ -2141,7 +2141,10 @@ class Appwrite extends Destination
                     $file,
                     $existingFile !== null,
                     $existingFile?->updatedAt,
-                    overwrite: fn () => $this->storage->deleteFile($bucketId, $fileId),
+                    overwrite: fn () => $file->setStatus(
+                        Resource::STATUS_SKIPPED,
+                        'Already exists on destination; file overwrite requires delete-before-upload'
+                    ),
                 );
 
                 if ($handled && $file->getStatus() === Resource::STATUS_SKIPPED) {
