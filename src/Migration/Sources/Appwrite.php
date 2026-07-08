@@ -539,34 +539,43 @@ class Appwrite extends Source
         $totalSites = 0;
 
         if (!$needVarsOrDeployments && \in_array(Resource::TYPE_SITE, $resources)) {
-            $siteQueries = $this->buildQueries(
-                resourceType: Resource::TYPE_SITE,
-                resourceIds: $resourceIds,
-                limit: 1
-            );
-            $report[Resource::TYPE_SITE] = $this->sites->list($siteQueries)->total;
+            try {
+                $siteQueries = $this->buildQueries(
+                    resourceType: Resource::TYPE_SITE,
+                    resourceIds: $resourceIds,
+                    limit: 1
+                );
+                $report[Resource::TYPE_SITE] = $this->sites->list($siteQueries)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_SITE] = 0;
+            }
             return;
         }
 
         if ($needVarsOrDeployments) {
-            $lastSite = null;
-            while (true) {
-                $params = $this->buildQueries(
-                    resourceType: Resource::TYPE_SITE,
-                    resourceIds: $resourceIds,
-                    cursor: $lastSite,
-                );
-                $siteList = $this->sites->list($params);
+            try {
+                $lastSite = null;
+                while (true) {
+                    $params = $this->buildQueries(
+                        resourceType: Resource::TYPE_SITE,
+                        resourceIds: $resourceIds,
+                        cursor: $lastSite,
+                    );
+                    $siteList = $this->sites->list($params);
 
-                $totalSites = $siteList->total;
-                $currentSites = $siteList->sites;
-                $sites = array_merge($sites, $currentSites);
+                    $totalSites = $siteList->total;
+                    $currentSites = $siteList->sites;
+                    $sites = array_merge($sites, $currentSites);
 
-                if (count($currentSites) === 0 || count($currentSites) < self::DEFAULT_PAGE_LIMIT) {
-                    break;
+                    if (count($currentSites) === 0 || count($currentSites) < self::DEFAULT_PAGE_LIMIT) {
+                        break;
+                    }
+
+                    $lastSite = $currentSites[count($currentSites) - 1]->id;
                 }
-
-                $lastSite = $currentSites[count($currentSites) - 1]->id;
+            } catch (\Throwable) {
+                $sites = [];
+                $totalSites = 0;
             }
         }
 
@@ -585,9 +594,13 @@ class Appwrite extends Source
 
         if (\in_array(Resource::TYPE_SITE_VARIABLE, $resources)) {
             $report[Resource::TYPE_SITE_VARIABLE] = 0;
-            foreach ($sites as $site) {
-                $variables = $this->sites->listVariables($site->id);
-                $report[Resource::TYPE_SITE_VARIABLE] += $variables->total ?? 0;
+            try {
+                foreach ($sites as $site) {
+                    $variables = $this->sites->listVariables($site->id);
+                    $report[Resource::TYPE_SITE_VARIABLE] += $variables->total ?? 0;
+                }
+            } catch (\Throwable) {
+                // Leave partially-accumulated count; source lacks Sites support or scope.
             }
         }
     }
@@ -2296,58 +2309,75 @@ class Appwrite extends Source
     private function reportMessaging(array $resources, array &$report, array $resourceIds = []): void
     {
         if (\in_array(Resource::TYPE_PROVIDER, $resources)) {
-            $providerQueries = $this->buildQueries(
-                resourceType: Resource::TYPE_PROVIDER,
-                resourceIds: $resourceIds,
-                limit: 1
-            );
-            $report[Resource::TYPE_PROVIDER] = $this->messaging->listProviders($providerQueries)->total;
+            try {
+                $providerQueries = $this->buildQueries(
+                    resourceType: Resource::TYPE_PROVIDER,
+                    resourceIds: $resourceIds,
+                    limit: 1
+                );
+                $report[Resource::TYPE_PROVIDER] = $this->messaging->listProviders($providerQueries)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_PROVIDER] = 0;
+            }
         }
 
         if (\in_array(Resource::TYPE_TOPIC, $resources)) {
-            $topicQueries = $this->buildQueries(
-                resourceType: Resource::TYPE_TOPIC,
-                resourceIds: $resourceIds,
-                limit: 1
-            );
-            $report[Resource::TYPE_TOPIC] = $this->messaging->listTopics($topicQueries)->total;
+            try {
+                $topicQueries = $this->buildQueries(
+                    resourceType: Resource::TYPE_TOPIC,
+                    resourceIds: $resourceIds,
+                    limit: 1
+                );
+                $report[Resource::TYPE_TOPIC] = $this->messaging->listTopics($topicQueries)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_TOPIC] = 0;
+            }
         }
 
         if (\in_array(Resource::TYPE_SUBSCRIBER, $resources)) {
             $subscriberTotal = 0;
-            $lastTopic = null;
 
-            while (true) {
-                $topicQueries = [Query::limit(self::DEFAULT_PAGE_LIMIT)];
-                if ($lastTopic) {
-                    $topicQueries[] = Query::cursorAfter($lastTopic);
-                }
+            try {
+                $lastTopic = null;
 
-                $topicResponse = $this->messaging->listTopics($topicQueries);
-                if ($topicResponse->total == 0 || empty($topicResponse->topics)) {
-                    break;
-                }
+                while (true) {
+                    $topicQueries = [Query::limit(self::DEFAULT_PAGE_LIMIT)];
+                    if ($lastTopic) {
+                        $topicQueries[] = Query::cursorAfter($lastTopic);
+                    }
 
-                foreach ($topicResponse->topics as $topic) {
-                    $subscriberTotal += $this->messaging->listSubscribers($topic->id, [Query::limit(1)])->total;
-                    $lastTopic = $topic->id;
-                }
+                    $topicResponse = $this->messaging->listTopics($topicQueries);
+                    if ($topicResponse->total == 0 || empty($topicResponse->topics)) {
+                        break;
+                    }
 
-                if (\count($topicResponse->topics) < self::DEFAULT_PAGE_LIMIT) {
-                    break;
+                    foreach ($topicResponse->topics as $topic) {
+                        $subscriberTotal += $this->messaging->listSubscribers($topic->id, [Query::limit(1)])->total;
+                        $lastTopic = $topic->id;
+                    }
+
+                    if (\count($topicResponse->topics) < self::DEFAULT_PAGE_LIMIT) {
+                        break;
+                    }
                 }
+            } catch (\Throwable) {
+                $subscriberTotal = 0;
             }
 
             $report[Resource::TYPE_SUBSCRIBER] = $subscriberTotal;
         }
 
         if (\in_array(Resource::TYPE_MESSAGE, $resources)) {
-            $messageQueries = $this->buildQueries(
-                resourceType: Resource::TYPE_MESSAGE,
-                resourceIds: $resourceIds,
-                limit: 1
-            );
-            $report[Resource::TYPE_MESSAGE] = $this->messaging->listMessages($messageQueries)->total;
+            try {
+                $messageQueries = $this->buildQueries(
+                    resourceType: Resource::TYPE_MESSAGE,
+                    resourceIds: $resourceIds,
+                    limit: 1
+                );
+                $report[Resource::TYPE_MESSAGE] = $this->messaging->listMessages($messageQueries)->total;
+            } catch (\Throwable) {
+                $report[Resource::TYPE_MESSAGE] = 0;
+            }
         }
     }
 
