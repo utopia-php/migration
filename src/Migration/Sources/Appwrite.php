@@ -263,6 +263,13 @@ class Appwrite extends Source
         };
     }
 
+    private function isAppwriteServerError(\Throwable $e): bool
+    {
+        return $e instanceof AppwriteException
+            && $e->getCode() >= 500
+            && $e->getCode() < 600;
+    }
+
     /**
      * @param array<string> $resources
      * @param array<string, array<string>> $resourceIds
@@ -546,7 +553,11 @@ class Appwrite extends Source
                     limit: 1
                 );
                 $report[Resource::TYPE_SITE] = $this->sites->list($siteQueries)->total;
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                if (!$this->isAppwriteServerError($e)) {
+                    throw $e;
+                }
+
                 $report[Resource::TYPE_SITE] = 0;
             }
             return;
@@ -573,7 +584,11 @@ class Appwrite extends Source
 
                     $lastSite = $currentSites[count($currentSites) - 1]->id;
                 }
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                if (!$this->isAppwriteServerError($e)) {
+                    throw $e;
+                }
+
                 $sites = [];
                 $totalSites = 0;
             }
@@ -599,7 +614,11 @@ class Appwrite extends Source
                     $variables = $this->sites->listVariables($site->id);
                     $report[Resource::TYPE_SITE_VARIABLE] += $variables->total ?? 0;
                 }
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                if (!$this->isAppwriteServerError($e)) {
+                    throw $e;
+                }
+
                 $report[Resource::TYPE_SITE_VARIABLE] = 0;
             }
         }
@@ -1664,7 +1683,11 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_RULE, $resources)) {
             try {
                 $report[Resource::TYPE_RULE] = $this->proxy->listRules([Query::limit(1)])->total;
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                if (!$this->isAppwriteServerError($e)) {
+                    throw $e;
+                }
+
                 $report[Resource::TYPE_RULE] = 0;
             }
         }
@@ -1680,7 +1703,11 @@ class Appwrite extends Source
             );
             try {
                 $report[Resource::TYPE_PROJECT_VARIABLE] = $this->project->listVariables($variableQueries)->total;
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                if (!$this->isAppwriteServerError($e)) {
+                    throw $e;
+                }
+
                 $report[Resource::TYPE_PROJECT_VARIABLE] = 0;
             }
         }
@@ -2315,7 +2342,11 @@ class Appwrite extends Source
                     limit: 1
                 );
                 $report[Resource::TYPE_PROVIDER] = $this->messaging->listProviders($providerQueries)->total;
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                if (!$this->isAppwriteServerError($e)) {
+                    throw $e;
+                }
+
                 $report[Resource::TYPE_PROVIDER] = 0;
             }
         }
@@ -2328,7 +2359,11 @@ class Appwrite extends Source
                     limit: 1
                 );
                 $report[Resource::TYPE_TOPIC] = $this->messaging->listTopics($topicQueries)->total;
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                if (!$this->isAppwriteServerError($e)) {
+                    throw $e;
+                }
+
                 $report[Resource::TYPE_TOPIC] = 0;
             }
         }
@@ -2359,7 +2394,11 @@ class Appwrite extends Source
                         break;
                     }
                 }
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                if (!$this->isAppwriteServerError($e)) {
+                    throw $e;
+                }
+
                 $subscriberTotal = 0;
             }
 
@@ -2374,7 +2413,11 @@ class Appwrite extends Source
                     limit: 1
                 );
                 $report[Resource::TYPE_MESSAGE] = $this->messaging->listMessages($messageQueries)->total;
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                if (!$this->isAppwriteServerError($e)) {
+                    throw $e;
+                }
+
                 $report[Resource::TYPE_MESSAGE] = 0;
             }
         }
