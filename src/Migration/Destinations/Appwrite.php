@@ -165,14 +165,7 @@ class Appwrite extends Destination
      */
     private array $processedTwoWayPairs = [];
 
-    /**
-     * Chunked uploads (currently: files) call their import method once per
-     * chunk on the same resource object — the skip/overwrite decision is only
-     * evaluated on the first chunk, and this records a "skip" verdict so later
-     * chunks of the same upload don't re-upload. Keyed by "{type}:{id}".
-     *
-     * @var array<string, true>
-     */
+    /** @var array<string, true> Skip verdicts for later chunks of the same upload. */
     private array $skippedChunkedUploads = [];
 
     /**
@@ -2025,22 +2018,6 @@ class Appwrite extends Destination
         return null;
     }
 
-    /**
-     * Skip/overwrite gate for re-migration — a Template Method around the
-     * existing `OnDuplicate::resolveSchemaAction` decision.
-     *
-     * `fail` (the default) always returns false immediately, without even
-     * looking at $exists. That means every caller's normal create path
-     * — whatever it does today — runs completely untouched. This function
-     * only ever changes behavior when the mode is `skip` or `overwrite`.
-     *
-     * @param callable(): void $overwrite update-in-place, or delete + recreate
-     * @return bool true when this call fully handled the resource (it was
-     *              skipped, or $overwrite ran) — the caller must not run its
-     *              own create logic. False — the caller should proceed with
-     *              its existing create path (covers both "fail" and
-     *              "doesn't exist on destination yet").
-     */
     protected function resolveDuplicate(
         Resource $resource,
         bool $exists,
@@ -2064,16 +2041,6 @@ class Appwrite extends Destination
         }
     }
 
-    /**
-     * Existence check for SDK-backed resources. Returns the fetched model, or
-     * null when the SDK reports 404 ("not found"); any other AppwriteException
-     * re-throws — a scope/network/server error must surface as a failure, not
-     * be silently treated as "doesn't exist yet".
-     *
-     * @template T
-     * @param callable(): T $get
-     * @return T|null
-     */
     protected function sdkGetOrNull(callable $get): mixed
     {
         try {
@@ -2174,12 +2141,6 @@ class Appwrite extends Destination
         $bucketId = $file->getBucket()->getId();
         $fileId = $file->getId();
 
-        // Chunked uploads call importFile() once per chunk (same File object,
-        // start/end advancing each time) — the duplicate decision only makes
-        // sense once, on the first chunk. Later chunks of a file skipped on
-        // chunk 0 must also be skipped, since the framework resets status to
-        // PROCESSING before every call. `fail` never reaches this block, so
-        // its upload path (and the 5xx/small-file split below) is untouched.
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             if ($file->getStart() === 0) {
                 $existingFile = $this->sdkGetOrNull(fn () => $this->storage->getFile($bucketId, $fileId));
@@ -2330,10 +2291,7 @@ class Appwrite extends Destination
                 $user = $resource->getUser();
 
                 if ($this->onDuplicate !== OnDuplicate::Fail) {
-                    // createMembership() doesn't accept a caller-supplied ID —
-                    // the destination always mints its own, so it never
-                    // matches the source membership ID. Look up the existing
-                    // membership by (team, user) instead.
+                    // Membership IDs are destination-generated; match by team/user.
                     $existingMemberships = $this->teams->listMemberships($teamId, [
                         SdkQuery::equal('userId', [$user->getId()]),
                     ]);
@@ -2380,11 +2338,6 @@ class Appwrite extends Destination
         return $resource;
     }
 
-    /**
-     * Applies every User field that isn't set at creation time. Shared by the
-     * create path (runs right after `users->create`/`importPasswordUser`,
-     * same as before this method existed) and the overwrite path.
-     */
     private function applyUserState(User $resource): void
     {
         if (!empty($resource->getUsername())) {
@@ -2420,7 +2373,6 @@ class Appwrite extends Destination
         }
     }
 
-    /** Shared by the create and overwrite paths, same reasoning as applyUserState(). */
     private function applyTeamState(Team $resource): void
     {
         if (!empty($resource->getPreferences())) {
@@ -2633,12 +2585,6 @@ class Appwrite extends Destination
     {
         $function = $deployment->getFunction();
 
-        // The parent function must exist on the destination for its deployments
-        // to attach. SUCCESS = just created/overwritten; SKIPPED = already
-        // existed (Skip mode, or Overwrite with nothing newer) — in both cases
-        // it's present, so proceed and let the per-deployment duplicate check
-        // create whatever is missing. Any other status means it genuinely
-        // isn't there.
         if (!\in_array($function->getStatus(), [Resource::STATUS_SUCCESS, Resource::STATUS_SKIPPED], true)) {
             $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent function "' . $function->getId() . '" failed to import');
 
@@ -2708,24 +2654,10 @@ class Appwrite extends Destination
         return $deployment;
     }
 
-    /**
-     * Skip/overwrite path for deployments — a deliberately separate path from
-     * importDeployment()'s `fail` upload logic above, not a shared one.
-     *
-     * The deployment endpoint only honors a caller-supplied ID (`x-appwrite-id`)
-     * on the chunked/content-range request shape, which importDeployment()'s
-     * small-file branch never sends — so under `fail` the destination ID is
-     * always random and no existence check is possible. Forcing that header
-     * unconditionally here (even for a single-chunk upload covering the whole
-     * file) makes the destination ID deterministic, which is what lets the
-     * existence check below work at all.
-     */
     private function importDeploymentWithDuplicateCheck(Deployment $deployment, string $functionId): Resource
     {
         $deploymentId = $deployment->getId();
 
-        // The duplicate decision only runs once, on the first chunk — see
-        // importFile() for why chunked uploads need this guard.
         if ($deployment->getStart() === 0) {
             $existingDeployment = $this->sdkGetOrNull(
                 fn () => $this->functions->getDeployment($functionId, $deploymentId)
@@ -2957,9 +2889,6 @@ class Appwrite extends Destination
                     // Auto-created by the server when a user is created with an email/phone
                     break;
                 case 'push':
-                    // Overwriting a User already carrying this target: target IDs
-                    // aren't otherwise reconciled, so treat an existing one as
-                    // already up to date rather than erroring on re-migration.
                     if (!$this->dbForProject->getDocument('targets', $target['$id'])->isEmpty()) {
                         break;
                     }
@@ -3263,10 +3192,6 @@ class Appwrite extends Destination
         };
     }
 
-    /**
-     * Resolve providerInternalId for push targets that were written during
-     * GROUP_AUTH before the provider existed on the destination.
-     */
     private function reconcileProviderTargets(string $id): void
     {
         $provider = $this->dbForProject->getDocument('providers', $id);
@@ -3329,9 +3254,6 @@ class Appwrite extends Destination
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existing = $this->dbForProject->getDocument('subscribers', $resource->getId());
 
-            // No SDK update exists for a subscriber — overwrite deletes (via
-            // the SDK, so the topic's total is decremented for us) and
-            // recreates through the same logic as create.
             if ($this->resolveDuplicate(
                 $resource,
                 !$existing->isEmpty(),
@@ -3418,10 +3340,6 @@ class Appwrite extends Destination
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existing = $this->dbForProject->getDocument('messages', $resource->getId());
 
-            // The SDK's update* methods only work while a message is still a
-            // draft — a sent/scheduled message can't be updated, so overwrite
-            // deletes (cancelling any scheduled send) and recreates through
-            // the same logic as create.
             if ($this->resolveDuplicate(
                 $resource,
                 !$existing->isEmpty(),
@@ -3438,10 +3356,6 @@ class Appwrite extends Destination
         $this->createMessageOnDestination($resource);
     }
 
-    /**
-     * @throws AppwriteException
-     * @throws \Exception
-     */
     private function createMessageOnDestination(Message $resource): void
     {
         $resolvedTargets = $resource->getTargets();
@@ -3565,11 +3479,6 @@ class Appwrite extends Destination
     {
         $site = $deployment->getSite();
 
-        // The parent site must exist on the destination for its deployments to
-        // attach. SUCCESS = just created/overwritten; SKIPPED = already existed
-        // (Skip mode, or Overwrite with nothing newer) — in both cases it's
-        // present, so proceed and let the per-deployment duplicate check create
-        // whatever is missing. Any other status means it genuinely isn't there.
         if (!\in_array($site->getStatus(), [Resource::STATUS_SUCCESS, Resource::STATUS_SKIPPED], true)) {
             $deployment->setStatus(Resource::STATUS_SKIPPED, 'Parent site "' . $site->getId() . '" failed to import');
 
@@ -3639,7 +3548,6 @@ class Appwrite extends Destination
         return $deployment;
     }
 
-    /** Skip/overwrite path for site deployments — mirrors importDeploymentWithDuplicateCheck(), see that docblock. */
     private function importSiteDeploymentWithDuplicateCheck(SiteDeployment $deployment, string $siteId): Resource
     {
         $deploymentId = $deployment->getId();
@@ -3964,9 +3872,7 @@ class Appwrite extends Destination
         }
 
         if ($this->onDuplicate !== OnDuplicate::Fail) {
-            // The create endpoints don't accept a caller-supplied rule ID —
-            // the destination always assigns its own, so it never matches the
-            // source rule ID. Look up the existing rule by domain instead.
+            // Rule IDs are destination-generated; match manual rules by domain.
             $existingRules = $this->proxy->listRules([
                 SdkQuery::equal('domain', [$resource->getDomain()]),
             ]);
@@ -3978,7 +3884,6 @@ class Appwrite extends Destination
                 $resource,
                 $existingRule !== null,
                 $existingRule?->updatedAt,
-                // Rules have no update endpoint — overwrite deletes and recreates.
                 overwrite: function () use ($resource, $existingRule, &$overwriteSucceeded): void {
                     $this->proxy->deleteRule($existingRule->id);
                     $overwriteSucceeded = $this->createRuleOnDestination($resource);
