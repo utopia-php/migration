@@ -2018,7 +2018,7 @@ class Appwrite extends Destination
         return null;
     }
 
-    protected function resolveDuplicate(
+    protected function handleDuplicate(
         Resource $resource,
         bool $exists,
         ?string $destUpdatedAt,
@@ -2041,7 +2041,7 @@ class Appwrite extends Destination
         }
     }
 
-    protected function sdkGetOrNull(callable $get): mixed
+    protected function getSdkResourceOrNull(callable $get): mixed
     {
         try {
             return $get();
@@ -2051,14 +2051,6 @@ class Appwrite extends Destination
             }
             throw $e;
         }
-    }
-
-    private function skipReplaceOnlyOverwrite(Resource $resource, string $type): void
-    {
-        $resource->setStatus(
-            Resource::STATUS_SKIPPED,
-            "Already exists on destination; {$type} overwrite requires delete-before-upload"
-        );
     }
 
     /**
@@ -2082,9 +2074,9 @@ class Appwrite extends Destination
                 };
 
                 if ($this->onDuplicate !== OnDuplicate::Fail) {
-                    $existingBucket = $this->sdkGetOrNull(fn () => $this->storage->getBucket($resource->getId()));
+                    $existingBucket = $this->getSdkResourceOrNull(fn () => $this->storage->getBucket($resource->getId()));
 
-                    if ($this->resolveDuplicate(
+                    if ($this->handleDuplicate(
                         $resource,
                         $existingBucket !== null,
                         $existingBucket?->updatedAt,
@@ -2143,13 +2135,13 @@ class Appwrite extends Destination
 
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             if ($file->getStart() === 0) {
-                $existingFile = $this->sdkGetOrNull(fn () => $this->storage->getFile($bucketId, $fileId));
+                $existingFile = $this->getSdkResourceOrNull(fn () => $this->storage->getFile($bucketId, $fileId));
 
-                $handled = $this->resolveDuplicate(
+                $handled = $this->handleDuplicate(
                     $file,
                     $existingFile !== null,
                     $existingFile?->updatedAt,
-                    overwrite: fn () => $this->skipReplaceOnlyOverwrite($file, 'file'),
+                    overwrite: fn () => $this->storage->deleteFile($bucketId, $fileId),
                 );
 
                 if ($handled && $file->getStatus() === Resource::STATUS_SKIPPED) {
@@ -2229,9 +2221,9 @@ class Appwrite extends Destination
             case Resource::TYPE_USER:
                 /** @var User $resource */
                 if ($this->onDuplicate !== OnDuplicate::Fail) {
-                    $existingUser = $this->sdkGetOrNull(fn () => $this->users->get($resource->getId()));
+                    $existingUser = $this->getSdkResourceOrNull(fn () => $this->users->get($resource->getId()));
 
-                    if ($this->resolveDuplicate(
+                    if ($this->handleDuplicate(
                         $resource,
                         $existingUser !== null,
                         $existingUser?->updatedAt,
@@ -2267,9 +2259,9 @@ class Appwrite extends Destination
             case Resource::TYPE_TEAM:
                 /** @var Team $resource */
                 if ($this->onDuplicate !== OnDuplicate::Fail) {
-                    $existingTeam = $this->sdkGetOrNull(fn () => $this->teams->get($resource->getId()));
+                    $existingTeam = $this->getSdkResourceOrNull(fn () => $this->teams->get($resource->getId()));
 
-                    if ($this->resolveDuplicate(
+                    if ($this->handleDuplicate(
                         $resource,
                         $existingTeam !== null,
                         $existingTeam?->updatedAt,
@@ -2297,7 +2289,7 @@ class Appwrite extends Destination
                     ]);
                     $existingMembership = $existingMemberships->memberships[0] ?? null;
 
-                    if ($this->resolveDuplicate(
+                    if ($this->handleDuplicate(
                         $resource,
                         $existingMembership !== null,
                         $existingMembership?->updatedAt,
@@ -2483,9 +2475,9 @@ class Appwrite extends Destination
                 }
 
                 if ($this->onDuplicate !== OnDuplicate::Fail) {
-                    $existingFunction = $this->sdkGetOrNull(fn () => $this->functions->get($resource->getId()));
+                    $existingFunction = $this->getSdkResourceOrNull(fn () => $this->functions->get($resource->getId()));
 
-                    if ($this->resolveDuplicate(
+                    if ($this->handleDuplicate(
                         $resource,
                         $existingFunction !== null,
                         $existingFunction?->updatedAt,
@@ -2532,11 +2524,11 @@ class Appwrite extends Destination
                 $functionId = $resource->getFunc()->getId();
 
                 if ($this->onDuplicate !== OnDuplicate::Fail) {
-                    $existingVariable = $this->sdkGetOrNull(
+                    $existingVariable = $this->getSdkResourceOrNull(
                         fn () => $this->functions->getVariable($functionId, $resource->getId())
                     );
 
-                    if ($this->resolveDuplicate(
+                    if ($this->handleDuplicate(
                         $resource,
                         $existingVariable !== null,
                         $existingVariable?->updatedAt,
@@ -2659,15 +2651,18 @@ class Appwrite extends Destination
         $deploymentId = $deployment->getId();
 
         if ($deployment->getStart() === 0) {
-            $existingDeployment = $this->sdkGetOrNull(
+            $existingDeployment = $this->getSdkResourceOrNull(
                 fn () => $this->functions->getDeployment($functionId, $deploymentId)
             );
 
-            $handled = $this->resolveDuplicate(
+            $handled = $this->handleDuplicate(
                 $deployment,
                 $existingDeployment !== null,
                 $existingDeployment?->updatedAt,
-                overwrite: fn () => $this->skipReplaceOnlyOverwrite($deployment, 'deployment'),
+                overwrite: fn () => $deployment->setStatus(
+                    Resource::STATUS_SKIPPED,
+                    'Already exists on destination; deployment overwrite requires delete-before-upload'
+                ),
             );
 
             if ($handled && $deployment->getStatus() === Resource::STATUS_SKIPPED) {
@@ -2785,9 +2780,9 @@ class Appwrite extends Destination
                 };
 
                 if ($this->onDuplicate !== OnDuplicate::Fail) {
-                    $existingSite = $this->sdkGetOrNull(fn () => $this->sites->get($resource->getId()));
+                    $existingSite = $this->getSdkResourceOrNull(fn () => $this->sites->get($resource->getId()));
 
-                    if ($this->resolveDuplicate(
+                    if ($this->handleDuplicate(
                         $resource,
                         $existingSite !== null,
                         $existingSite?->updatedAt,
@@ -2834,11 +2829,11 @@ class Appwrite extends Destination
                 $siteId = $resource->getSite()->getId();
 
                 if ($this->onDuplicate !== OnDuplicate::Fail) {
-                    $existingSiteVariable = $this->sdkGetOrNull(
+                    $existingSiteVariable = $this->getSdkResourceOrNull(
                         fn () => $this->sites->getVariable($siteId, $resource->getId())
                     );
 
-                    if ($this->resolveDuplicate(
+                    if ($this->handleDuplicate(
                         $resource,
                         $existingSiteVariable !== null,
                         $existingSiteVariable?->updatedAt,
@@ -2933,9 +2928,9 @@ class Appwrite extends Destination
         $id = $resource->getId();
 
         if ($this->onDuplicate !== OnDuplicate::Fail) {
-            $existingProvider = $this->sdkGetOrNull(fn () => $this->messaging->getProvider($id));
+            $existingProvider = $this->getSdkResourceOrNull(fn () => $this->messaging->getProvider($id));
 
-            if ($this->resolveDuplicate(
+            if ($this->handleDuplicate(
                 $resource,
                 $existingProvider !== null,
                 $existingProvider?->updatedAt,
@@ -3221,9 +3216,9 @@ class Appwrite extends Destination
         $id = $resource->getId();
 
         if ($this->onDuplicate !== OnDuplicate::Fail) {
-            $existingTopic = $this->sdkGetOrNull(fn () => $this->messaging->getTopic($id));
+            $existingTopic = $this->getSdkResourceOrNull(fn () => $this->messaging->getTopic($id));
 
-            if ($this->resolveDuplicate(
+            if ($this->handleDuplicate(
                 $resource,
                 $existingTopic !== null,
                 $existingTopic?->updatedAt,
@@ -3254,7 +3249,7 @@ class Appwrite extends Destination
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existing = $this->dbForProject->getDocument('subscribers', $resource->getId());
 
-            if ($this->resolveDuplicate(
+            if ($this->handleDuplicate(
                 $resource,
                 !$existing->isEmpty(),
                 $existing->getUpdatedAt(),
@@ -3340,7 +3335,7 @@ class Appwrite extends Destination
         if ($this->onDuplicate !== OnDuplicate::Fail) {
             $existing = $this->dbForProject->getDocument('messages', $resource->getId());
 
-            if ($this->resolveDuplicate(
+            if ($this->handleDuplicate(
                 $resource,
                 !$existing->isEmpty(),
                 $existing->getUpdatedAt(),
@@ -3553,15 +3548,18 @@ class Appwrite extends Destination
         $deploymentId = $deployment->getId();
 
         if ($deployment->getStart() === 0) {
-            $existingDeployment = $this->sdkGetOrNull(
+            $existingDeployment = $this->getSdkResourceOrNull(
                 fn () => $this->sites->getDeployment($siteId, $deploymentId)
             );
 
-            $handled = $this->resolveDuplicate(
+            $handled = $this->handleDuplicate(
                 $deployment,
                 $existingDeployment !== null,
                 $existingDeployment?->updatedAt,
-                overwrite: fn () => $this->skipReplaceOnlyOverwrite($deployment, 'deployment'),
+                overwrite: fn () => $deployment->setStatus(
+                    Resource::STATUS_SKIPPED,
+                    'Already exists on destination; deployment overwrite requires delete-before-upload'
+                ),
             );
 
             if ($handled && $deployment->getStatus() === Resource::STATUS_SKIPPED) {
@@ -3695,7 +3693,7 @@ class Appwrite extends Destination
         $existingDoc = ($existing !== false && !$existing->isEmpty()) ? $existing : null;
 
         if ($this->onDuplicate !== OnDuplicate::Fail) {
-            if ($this->resolveDuplicate(
+            if ($this->handleDuplicate(
                 $resource,
                 $existingDoc !== null,
                 $existingDoc?->getUpdatedAt(),
@@ -3880,7 +3878,7 @@ class Appwrite extends Destination
 
             $overwriteSucceeded = false;
 
-            $handled = $this->resolveDuplicate(
+            $handled = $this->handleDuplicate(
                 $resource,
                 $existingRule !== null,
                 $existingRule?->updatedAt,
@@ -3979,7 +3977,7 @@ class Appwrite extends Destination
         $existingDoc = ($existing !== false && !$existing->isEmpty()) ? $existing : null;
 
         if ($this->onDuplicate !== OnDuplicate::Fail) {
-            if ($this->resolveDuplicate(
+            if ($this->handleDuplicate(
                 $resource,
                 $existingDoc !== null,
                 $existingDoc?->getUpdatedAt(),
@@ -4049,7 +4047,7 @@ class Appwrite extends Destination
         $existingDoc = ($existing !== false && !$existing->isEmpty()) ? $existing : null;
 
         if ($this->onDuplicate !== OnDuplicate::Fail) {
-            if ($this->resolveDuplicate(
+            if ($this->handleDuplicate(
                 $resource,
                 $existingDoc !== null,
                 $existingDoc?->getUpdatedAt(),
@@ -4228,7 +4226,7 @@ class Appwrite extends Destination
             // Secret is intentionally not regenerated on overwrite — it's only
             // ever set at creation, since rotating it would break whatever
             // already uses it.
-            if ($this->resolveDuplicate(
+            if ($this->handleDuplicate(
                 $resource,
                 $existingDoc !== null,
                 $existingDoc?->getUpdatedAt(),
