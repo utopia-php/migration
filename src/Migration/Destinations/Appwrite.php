@@ -2137,20 +2137,15 @@ class Appwrite extends Destination
             if ($file->getStart() === 0) {
                 $existingFile = $this->getSdkResourceOrNull(fn () => $this->storage->getFile($bucketId, $fileId));
 
-                $handled = $this->handleDuplicate(
-                    $file,
-                    $existingFile !== null,
-                    $existingFile?->updatedAt,
-                    overwrite: fn () => $file->setStatus(
-                        Resource::STATUS_SKIPPED,
-                        'Already exists on destination; file overwrite requires delete-before-upload'
-                    ),
-                );
-
-                if ($handled && $file->getStatus() === Resource::STATUS_SKIPPED) {
+                if ($existingFile !== null && $this->onDuplicate === OnDuplicate::Skip) {
                     $this->skippedChunkedUploads['file:' . $fileId] = true;
+                    $file->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
                     $file->setData('');
                     return $file;
+                }
+
+                if ($existingFile !== null && $this->onDuplicate === OnDuplicate::Overwrite) {
+                    $this->storage->deleteFile($bucketId, $fileId);
                 }
             } elseif (isset($this->skippedChunkedUploads['file:' . $fileId])) {
                 $file->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
@@ -2658,20 +2653,15 @@ class Appwrite extends Destination
                 fn () => $this->functions->getDeployment($functionId, $deploymentId)
             );
 
-            $handled = $this->handleDuplicate(
-                $deployment,
-                $existingDeployment !== null,
-                $existingDeployment?->updatedAt,
-                overwrite: fn () => $deployment->setStatus(
-                    Resource::STATUS_SKIPPED,
-                    'Already exists on destination; deployment overwrite requires delete-before-upload'
-                ),
-            );
-
-            if ($handled && $deployment->getStatus() === Resource::STATUS_SKIPPED) {
+            if ($existingDeployment !== null && $this->onDuplicate === OnDuplicate::Skip) {
                 $this->skippedChunkedUploads['deployment:' . $deploymentId] = true;
+                $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
                 $deployment->setData('');
                 return $deployment;
+            }
+
+            if ($existingDeployment !== null && $this->onDuplicate === OnDuplicate::Overwrite) {
+                $this->functions->deleteDeployment($functionId, $deploymentId);
             }
         } elseif (isset($this->skippedChunkedUploads['deployment:' . $deploymentId])) {
             $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
@@ -3555,20 +3545,15 @@ class Appwrite extends Destination
                 fn () => $this->sites->getDeployment($siteId, $deploymentId)
             );
 
-            $handled = $this->handleDuplicate(
-                $deployment,
-                $existingDeployment !== null,
-                $existingDeployment?->updatedAt,
-                overwrite: fn () => $deployment->setStatus(
-                    Resource::STATUS_SKIPPED,
-                    'Already exists on destination; deployment overwrite requires delete-before-upload'
-                ),
-            );
-
-            if ($handled && $deployment->getStatus() === Resource::STATUS_SKIPPED) {
+            if ($existingDeployment !== null && $this->onDuplicate === OnDuplicate::Skip) {
                 $this->skippedChunkedUploads['site-deployment:' . $deploymentId] = true;
+                $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
                 $deployment->setData('');
                 return $deployment;
+            }
+
+            if ($existingDeployment !== null && $this->onDuplicate === OnDuplicate::Overwrite) {
+                $this->sites->deleteDeployment($siteId, $deploymentId);
             }
         } elseif (isset($this->skippedChunkedUploads['site-deployment:' . $deploymentId])) {
             $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
