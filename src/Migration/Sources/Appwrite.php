@@ -263,13 +263,6 @@ class Appwrite extends Source
         };
     }
 
-    private function isAppwriteServerError(\Throwable $e): bool
-    {
-        return $e instanceof AppwriteException
-            && $e->getCode() >= 500
-            && $e->getCode() < 600;
-    }
-
     /**
      * @param array<string> $resources
      * @param array<string, array<string>> $resourceIds
@@ -554,11 +547,11 @@ class Appwrite extends Source
                 );
                 $report[Resource::TYPE_SITE] = $this->sites->list($siteQueries)->total;
             } catch (\Throwable $e) {
-                if (!$this->isAppwriteServerError($e)) {
+                if ($e->getCode() >= 500 && $e->getCode() < 600) {
+                    $report[Resource::TYPE_SITE] = 0;
+                } else {
                     throw $e;
                 }
-
-                $report[Resource::TYPE_SITE] = 0;
             }
             return;
         }
@@ -585,12 +578,12 @@ class Appwrite extends Source
                     $lastSite = $currentSites[count($currentSites) - 1]->id;
                 }
             } catch (\Throwable $e) {
-                if (!$this->isAppwriteServerError($e)) {
+                if ($e->getCode() >= 500 && $e->getCode() < 600) {
+                    $sites = [];
+                    $totalSites = 0;
+                } else {
                     throw $e;
                 }
-
-                $sites = [];
-                $totalSites = 0;
             }
         }
 
@@ -615,11 +608,11 @@ class Appwrite extends Source
                     $report[Resource::TYPE_SITE_VARIABLE] += $variables->total ?? 0;
                 }
             } catch (\Throwable $e) {
-                if (!$this->isAppwriteServerError($e)) {
+                if ($e->getCode() >= 500 && $e->getCode() < 600) {
+                    $report[Resource::TYPE_SITE_VARIABLE] = 0;
+                } else {
                     throw $e;
                 }
-
-                $report[Resource::TYPE_SITE_VARIABLE] = 0;
             }
         }
     }
@@ -1684,11 +1677,11 @@ class Appwrite extends Source
             try {
                 $report[Resource::TYPE_RULE] = $this->proxy->listRules([Query::limit(1)])->total;
             } catch (\Throwable $e) {
-                if (!$this->isAppwriteServerError($e)) {
+                if ($e->getCode() >= 500 && $e->getCode() < 600) {
+                    $report[Resource::TYPE_RULE] = 0;
+                } else {
                     throw $e;
                 }
-
-                $report[Resource::TYPE_RULE] = 0;
             }
         }
     }
@@ -1704,11 +1697,11 @@ class Appwrite extends Source
             try {
                 $report[Resource::TYPE_PROJECT_VARIABLE] = $this->project->listVariables($variableQueries)->total;
             } catch (\Throwable $e) {
-                if (!$this->isAppwriteServerError($e)) {
+                if ($e->getCode() >= 500 && $e->getCode() < 600) {
+                    $report[Resource::TYPE_PROJECT_VARIABLE] = 0;
+                } else {
                     throw $e;
                 }
-
-                $report[Resource::TYPE_PROJECT_VARIABLE] = 0;
             }
         }
 
@@ -2343,11 +2336,11 @@ class Appwrite extends Source
                 );
                 $report[Resource::TYPE_PROVIDER] = $this->messaging->listProviders($providerQueries)->total;
             } catch (\Throwable $e) {
-                if (!$this->isAppwriteServerError($e)) {
+                if ($e->getCode() >= 500 && $e->getCode() < 600) {
+                    $report[Resource::TYPE_PROVIDER] = 0;
+                } else {
                     throw $e;
                 }
-
-                $report[Resource::TYPE_PROVIDER] = 0;
             }
         }
 
@@ -2360,11 +2353,11 @@ class Appwrite extends Source
                 );
                 $report[Resource::TYPE_TOPIC] = $this->messaging->listTopics($topicQueries)->total;
             } catch (\Throwable $e) {
-                if (!$this->isAppwriteServerError($e)) {
+                if ($e->getCode() >= 500 && $e->getCode() < 600) {
+                    $report[Resource::TYPE_TOPIC] = 0;
+                } else {
                     throw $e;
                 }
-
-                $report[Resource::TYPE_TOPIC] = 0;
             }
         }
 
@@ -2395,11 +2388,11 @@ class Appwrite extends Source
                     }
                 }
             } catch (\Throwable $e) {
-                if (!$this->isAppwriteServerError($e)) {
+                if ($e->getCode() >= 500 && $e->getCode() < 600) {
+                    $subscriberTotal = 0;
+                } else {
                     throw $e;
                 }
-
-                $subscriberTotal = 0;
             }
 
             $report[Resource::TYPE_SUBSCRIBER] = $subscriberTotal;
@@ -2414,11 +2407,11 @@ class Appwrite extends Source
                 );
                 $report[Resource::TYPE_MESSAGE] = $this->messaging->listMessages($messageQueries)->total;
             } catch (\Throwable $e) {
-                if (!$this->isAppwriteServerError($e)) {
+                if ($e->getCode() >= 500 && $e->getCode() < 600) {
+                    $report[Resource::TYPE_MESSAGE] = 0;
+                } else {
                     throw $e;
                 }
-
-                $report[Resource::TYPE_MESSAGE] = 0;
             }
         }
     }
