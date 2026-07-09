@@ -16,6 +16,11 @@ abstract class Source extends Target
      */
     public array $previousReport = [];
 
+    public function supportsDatabaseStatus(): bool
+    {
+        return false;
+    }
+
     public function getAuthBatchSize(): int
     {
         return static::$defaultBatchSize;
