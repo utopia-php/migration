@@ -416,6 +416,62 @@ class CSVTest extends TestCase
         }
     }
 
+    /**
+     * @throws \ReflectionException
+     */
+    public function testValidateCSVHeadersMissingRequiredColumnIsWarning(): void
+    {
+        $reflection = new \ReflectionClass(CSV::class);
+        $instance = $reflection->newInstanceWithoutConstructor();
+
+        // Set resourceId to avoid uninitialized property error
+        $resourceIdProp = $reflection->getProperty('resourceId');
+        $resourceIdProp->setAccessible(true);
+        $resourceIdProp->setValue($instance, 'testdb:testtable');
+
+        $refMethod = $reflection->getMethod('validateCSVHeaders');
+        $refMethod->setAccessible(true);
+
+        $headers = ['name', 'age'];
+        $columnTypes = ['name' => 'string', 'age' => 'integer', 'texte' => 'string'];
+        $requiredColumns = ['texte' => true];
+
+        // Should NOT throw an exception — missing required columns should be a warning
+        $refMethod->invoke($instance, $headers, $columnTypes, $requiredColumns);
+
+        // Verify a warning was added
+        $this->assertNotEmpty($instance->warnings, 'A warning should be added for missing required columns');
+        $this->assertStringContainsString('texte', $instance->warnings[0]->getMessage());
+    }
+
+    /**
+     * @throws \ReflectionException
+     */
+    public function testValidateCSVHeadersAllRequiredPresent(): void
+    {
+        $reflection = new \ReflectionClass(CSV::class);
+        $instance = $reflection->newInstanceWithoutConstructor();
+
+        $refMethod = $reflection->getMethod('validateCSVHeaders');
+        $refMethod->setAccessible(true);
+
+        $headers = ['name', 'age', 'texte'];
+        $columnTypes = ['name' => 'string', 'age' => 'integer', 'texte' => 'string'];
+        $requiredColumns = ['texte' => true];
+
+        // Should not throw and not add warnings for required columns
+        $refMethod->invoke($instance, $headers, $columnTypes, $requiredColumns);
+
+        // No warnings about missing required columns (may have unknown column warnings)
+        $hasRequiredWarning = false;
+        foreach ($instance->warnings as $warning) {
+            if (str_contains($warning->getMessage(), 'Missing required')) {
+                $hasRequiredWarning = true;
+            }
+        }
+        $this->assertFalse($hasRequiredWarning, 'No warning should be added when all required columns are present');
+    }
+
     private function recursiveDelete(string $dir): void
     {
         if (is_dir($dir)) {
