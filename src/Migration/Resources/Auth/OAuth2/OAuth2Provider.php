@@ -31,6 +31,7 @@ final class OAuth2Provider extends Resource
             'keyId' => ['target' => self::TARGET_SECRET, 'key' => 'keyID'],
             'teamId' => ['target' => self::TARGET_SECRET, 'key' => 'teamID'],
         ],
+        'appwrite' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'auth0' => ['clientId' => ['target' => self::TARGET_APP_ID], 'endpoint' => ['target' => self::TARGET_SECRET]],
         'authentik' => ['clientId' => ['target' => self::TARGET_APP_ID], 'endpoint' => ['target' => self::TARGET_SECRET]],
         'autodesk' => ['clientId' => ['target' => self::TARGET_APP_ID]],
