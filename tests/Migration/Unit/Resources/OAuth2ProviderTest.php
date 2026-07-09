@@ -1,0 +1,53 @@
+<?php
+
+namespace Utopia\Tests\Unit\Resources;
+
+use PHPUnit\Framework\TestCase;
+use Utopia\Migration\Resources\Auth\OAuth2\OAuth2Provider;
+
+class OAuth2ProviderTest extends TestCase
+{
+    public function testFromArrayAppwrite(): void
+    {
+        $provider = OAuth2Provider::fromArray('appwrite', [
+            'id' => 'appwrite',
+            'enabled' => true,
+            'clientId' => 'client-123',
+            'clientSecret' => 'super-secret',
+        ]);
+
+        $this->assertNotNull($provider);
+        $this->assertEquals('appwrite', $provider->getProviderKey());
+        $this->assertTrue($provider->getEnabled());
+        $this->assertEquals(['clientId' => 'client-123'], $provider->getSettings());
+        $this->assertEquals('client-123', $provider->getDestinationAppId());
+        $this->assertEquals([], $provider->getDestinationSecretFields());
+        $this->assertTrue($provider->isConfigured());
+    }
+
+    public function testFromArrayNeverCopiesSecrets(): void
+    {
+        foreach (\array_keys(OAuth2Provider::PROVIDERS) as $providerKey) {
+            $provider = OAuth2Provider::fromArray($providerKey, [
+                'id' => $providerKey,
+                'enabled' => false,
+                'clientId' => 'client-123',
+                'clientSecret' => 'super-secret',
+                'p8File' => 'p8-contents',
+            ]);
+
+            $this->assertNotNull($provider);
+            $this->assertArrayNotHasKey('clientSecret', $provider->getSettings(), $providerKey);
+            $this->assertArrayNotHasKey('p8File', $provider->getSettings(), $providerKey);
+        }
+    }
+
+    public function testFromArrayUnknownProvider(): void
+    {
+        $this->assertNull(OAuth2Provider::fromArray('unknown', [
+            'id' => 'unknown',
+            'enabled' => true,
+            'clientId' => 'client-123',
+        ]));
+    }
+}
