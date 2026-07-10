@@ -2330,7 +2330,7 @@ class Appwrite extends Destination
             "/storage/buckets/{$bucketId}/files",
             [
                 'content-type' => 'multipart/form-data',
-                'content-range' => 'bytes ' . ($file->getStart()) . '-' . ($file->getEnd() == ($file->getSize() - 1) ? $file->getSize() : $file->getEnd()) . '/' . $file->getSize(),
+                'content-range' => 'bytes ' . ($file->getStart()) . '-' . $file->getEnd() . '/' . $file->getSize(),
                 'X-Appwrite-Project' => $this->projectId,
             ],
             [
@@ -2762,7 +2762,7 @@ class Appwrite extends Destination
             "/v1/functions/{$functionId}/deployments",
             [
                 'content-type' => 'multipart/form-data',
-                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . ($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()) . '/' . $deployment->getSize(),
+                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . $deployment->getEnd() . '/' . $deployment->getSize(),
                 'x-appwrite-id' => $deployment->getId(),
                 'X-Appwrite-Project' => $this->projectId,
             ],
@@ -2808,7 +2808,13 @@ class Appwrite extends Destination
             }
 
             if ($existingDeployment !== null && $this->onDuplicate === OnDuplicate::Overwrite) {
-                $this->functions->deleteDeployment($functionId, $deploymentId);
+                try {
+                    $this->functions->deleteDeployment($functionId, $deploymentId);
+                } catch (AppwriteException $e) {
+                    if ($this->getSdkResourceOrNull(fn () => $this->functions->getDeployment($functionId, $deploymentId)) !== null) {
+                        throw $e;
+                    }
+                }
             }
         } elseif (isset($this->skippedChunkedUploads['deployment:' . $deploymentId])) {
             $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
@@ -2821,7 +2827,7 @@ class Appwrite extends Destination
             "/functions/{$functionId}/deployments",
             [
                 'content-type' => 'multipart/form-data',
-                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . ($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()) . '/' . $deployment->getSize(),
+                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . $deployment->getEnd() . '/' . $deployment->getSize(),
                 'x-appwrite-id' => $deploymentId,
                 'X-Appwrite-Project' => $this->projectId,
             ],
@@ -3655,7 +3661,7 @@ class Appwrite extends Destination
             "/sites/{$siteId}/deployments",
             [
                 'content-type' => 'multipart/form-data',
-                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . ($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()) . '/' . $deployment->getSize(),
+                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . $deployment->getEnd() . '/' . $deployment->getSize(),
                 'x-appwrite-id' => $deployment->getId(),
                 'X-Appwrite-Project' => $this->projectId,
             ],
@@ -3700,7 +3706,13 @@ class Appwrite extends Destination
             }
 
             if ($existingDeployment !== null && $this->onDuplicate === OnDuplicate::Overwrite) {
-                $this->sites->deleteDeployment($siteId, $deploymentId);
+                try {
+                    $this->sites->deleteDeployment($siteId, $deploymentId);
+                } catch (AppwriteException $e) {
+                    if ($this->getSdkResourceOrNull(fn () => $this->sites->getDeployment($siteId, $deploymentId)) !== null) {
+                        throw $e;
+                    }
+                }
             }
         } elseif (isset($this->skippedChunkedUploads['site-deployment:' . $deploymentId])) {
             $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
@@ -3713,7 +3725,7 @@ class Appwrite extends Destination
             "/sites/{$siteId}/deployments",
             [
                 'content-type' => 'multipart/form-data',
-                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . ($deployment->getEnd() == ($deployment->getSize() - 1) ? $deployment->getSize() : $deployment->getEnd()) . '/' . $deployment->getSize(),
+                'content-range' => 'bytes ' . ($deployment->getStart()) . '-' . $deployment->getEnd() . '/' . $deployment->getSize(),
                 'x-appwrite-id' => $deploymentId,
                 'X-Appwrite-Project' => $this->projectId,
             ],

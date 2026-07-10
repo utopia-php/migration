@@ -1598,7 +1598,7 @@ class Appwrite extends Source
             $chunkData = $this->call(
                 'GET',
                 "/storage/buckets/{$file->getBucket()->getId()}/files/{$file->getId()}/download",
-                ['range' => "bytes=$start-$end"]
+                ['Range' => "bytes=$start-$end"]
             );
 
             // Send the chunk to the callback function
@@ -2268,6 +2268,25 @@ class Appwrite extends Source
             $responseHeaders
         );
 
+        $firstChunkData = null;
+        if (!\array_key_exists('content-length', $responseHeaders)) {
+            $probeHeaders = [];
+            $firstChunkData = $this->call(
+                'GET',
+                "/functions/{$func->getId()}/deployments/{$deployment->id}/download",
+                ['Range' => "bytes=$start-"],
+                [],
+                $probeHeaders
+            );
+
+            if (
+                isset($probeHeaders['content-range'])
+                && \preg_match('/\/(\d+)$/', $probeHeaders['content-range'], $matches) === 1
+            ) {
+                $responseHeaders['content-length'] = $matches[1];
+            }
+        }
+
         // content-length header missing, file is less than max buffer size
         if (!array_key_exists('content-length', $responseHeaders)) {
             $file = $this->call(
@@ -2326,11 +2345,12 @@ class Appwrite extends Source
 
         // Loop until the entire file is downloaded
         while ($start < $fileSize) {
-            $chunkData = $this->call(
+            $chunkData = $firstChunkData ?? $this->call(
                 'GET',
                 "/functions/{$func->getId()}/deployments/{$deployment->getSequence()}/download",
-                ['range' => "bytes=$start-$end"]
+                ['Range' => "bytes=$start-$end"]
             );
+            $firstChunkData = null;
 
             // Send the chunk to the callback function
             $deployment
@@ -2861,6 +2881,25 @@ class Appwrite extends Source
             $responseHeaders
         );
 
+        $firstChunkData = null;
+        if (!\array_key_exists('content-length', $responseHeaders)) {
+            $probeHeaders = [];
+            $firstChunkData = $this->call(
+                'GET',
+                "/sites/{$site->getId()}/deployments/{$deployment->id}/download",
+                ['Range' => "bytes=$start-"],
+                [],
+                $probeHeaders
+            );
+
+            if (
+                isset($probeHeaders['content-range'])
+                && \preg_match('/\/(\d+)$/', $probeHeaders['content-range'], $matches) === 1
+            ) {
+                $responseHeaders['content-length'] = $matches[1];
+            }
+        }
+
         if (!\array_key_exists('content-length', $responseHeaders)) {
             $file = $this->call(
                 'GET',
@@ -2915,11 +2954,12 @@ class Appwrite extends Source
         $siteDeployment->setSequence($siteDeployment->getId());
 
         while ($start < $fileSize) {
-            $chunkData = $this->call(
+            $chunkData = $firstChunkData ?? $this->call(
                 'GET',
                 "/sites/{$site->getId()}/deployments/{$siteDeployment->getSequence()}/download",
-                ['range' => "bytes=$start-$end"]
+                ['Range' => "bytes=$start-$end"]
             );
+            $firstChunkData = null;
 
             $siteDeployment
                 ->setData($chunkData)
