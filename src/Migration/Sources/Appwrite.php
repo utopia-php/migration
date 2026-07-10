@@ -2145,6 +2145,8 @@ class Appwrite extends Source
             $convertedResources = [];
 
             foreach ($response->functions as $function) {
+                $activeDeployment = $function->deploymentId ?? $function->deployment ?? '';
+
                 $convertedFunc = new Func(
                     $function->id,
                     $function->name,
@@ -2154,7 +2156,7 @@ class Appwrite extends Source
                     $function->events,
                     $function->schedule,
                     $function->timeout,
-                    $function->deploymentId ?? '',
+                    $activeDeployment,
                     $function->entrypoint,
                     $function->commands ?? '',
                     $function->logging ?? true,
@@ -2737,6 +2739,8 @@ class Appwrite extends Source
             $convertedResources = [];
 
             foreach ($response->sites as $site) {
+                $activeDeployment = $site->deploymentId ?? $site->deployment ?? '';
+
                 $convertedSite = new Site(
                     $site->id,
                     $site->name,
@@ -2751,7 +2755,7 @@ class Appwrite extends Source
                     $site->adapter ?? 'static',
                     $site->fallbackFile ?? '',
                     $site->runtimeSpecification ?: $site->buildSpecification ?: '',
-                    $site->deploymentId ?? '',
+                    $activeDeployment,
                     createdAt: $site->createdAt,
                     updatedAt: $site->updatedAt,
                 );
