@@ -15,9 +15,13 @@ class Deployment extends Resource
         private int $start = 0,
         private int $end = 0,
         private string $data = '',
-        private readonly bool $activated = false
+        private readonly bool $activated = false,
+        string $createdAt = '',
+        string $updatedAt = '',
     ) {
         $this->id = $id;
+        $this->createdAt = $createdAt;
+        $this->updatedAt = $updatedAt;
     }
 
     /**
@@ -34,7 +38,9 @@ class Deployment extends Resource
             $array['start'] ?? 0,
             $array['end'] ?? 0,
             $array['data'] ?? '',
-            $array['activated'] ?? false
+            $array['activated'] ?? false,
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
@@ -52,6 +58,8 @@ class Deployment extends Resource
             'end' => $this->end,
             'data' => $this->data,
             'activated' => $this->activated,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

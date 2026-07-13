@@ -22,9 +22,13 @@ class Membership extends Resource
         private readonly Team  $team,
         private readonly User  $user,
         private readonly array $roles = [],
-        private readonly bool  $active = true
+        private readonly bool  $active = true,
+        string $createdAt = '',
+        string $updatedAt = '',
     ) {
         $this->id = $id;
+        $this->createdAt = $createdAt;
+        $this->updatedAt = $updatedAt;
     }
 
     /**
@@ -38,7 +42,9 @@ class Membership extends Resource
             Team::fromArray($array['team'] ?? []),
             User::fromArray($array['user'] ?? []),
             $array['roles'] ?? [],
-            $array['active'] ?? true
+            $array['active'] ?? true,
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
@@ -53,6 +59,8 @@ class Membership extends Resource
             'user' => $this->user,
             'roles' => $this->roles,
             'active' => $this->active,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

@@ -37,9 +37,13 @@ class Func extends Resource
         private readonly string $commands = '',
         private readonly bool $logging = true,
         private readonly array $scopes = [],
-        private readonly string $specification = ''
+        private readonly string $specification = '',
+        string $createdAt = '',
+        string $updatedAt = '',
     ) {
         $this->id = $id;
+        $this->createdAt = $createdAt;
+        $this->updatedAt = $updatedAt;
     }
 
     /**
@@ -62,7 +66,9 @@ class Func extends Resource
             $array['commands'] ?? '',
             $array['logging'] ?? true,
             $array['scopes'] ?? [],
-            $array['specification'] ?? ''
+            $array['specification'] ?? '',
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
@@ -86,6 +92,8 @@ class Func extends Resource
             'logging' => $this->logging,
             'scopes' => $this->scopes,
             'specification' => $this->specification,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

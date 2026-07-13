@@ -37,9 +37,13 @@ class Site extends Resource
         private readonly string $adapter = 'static',
         private readonly string $fallbackFile = '',
         private readonly string $specification = '',
-        private readonly string $activeDeployment = ''
+        private readonly string $activeDeployment = '',
+        string $createdAt = '',
+        string $updatedAt = '',
     ) {
         $this->id = $id;
+        $this->createdAt = $createdAt;
+        $this->updatedAt = $updatedAt;
     }
 
     /**
@@ -62,7 +66,9 @@ class Site extends Resource
             $array['adapter'] ?? 'static',
             $array['fallbackFile'] ?? '',
             $array['specification'] ?? '',
-            $array['activeDeployment'] ?? ''
+            $array['activeDeployment'] ?? '',
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
@@ -86,6 +92,8 @@ class Site extends Resource
             'fallbackFile' => $this->fallbackFile,
             'specification' => $this->specification,
             'activeDeployment' => $this->activeDeployment,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 

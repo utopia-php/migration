@@ -11,9 +11,13 @@ class EnvVar extends Resource
         string $id,
         private readonly Site $site,
         private readonly string $key,
-        private readonly string $value
+        private readonly string $value,
+        string $createdAt = '',
+        string $updatedAt = '',
     ) {
         $this->id = $id;
+        $this->createdAt = $createdAt;
+        $this->updatedAt = $updatedAt;
     }
 
     /**
@@ -26,7 +30,9 @@ class EnvVar extends Resource
             $array['id'],
             Site::fromArray($array['site']),
             $array['key'],
-            $array['value']
+            $array['value'],
+            createdAt: $array['createdAt'] ?? '',
+            updatedAt: $array['updatedAt'] ?? '',
         );
     }
 
@@ -40,6 +46,8 @@ class EnvVar extends Resource
             'site' => $this->site,
             'key' => $this->key,
             'value' => $this->value,
+            'createdAt' => $this->createdAt,
+            'updatedAt' => $this->updatedAt,
         ];
     }
 
