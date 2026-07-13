@@ -2284,15 +2284,23 @@ class Appwrite extends Destination
             if ($file->getStart() === 0) {
                 $existingFile = $this->getSdkResourceOrNull(fn () => $this->storage->getFile($bucketId, $fileId));
 
-                if ($existingFile !== null && $this->onDuplicate === OnDuplicate::Skip) {
-                    $this->skippedChunkedUploads['file:' . $fileId] = true;
-                    $file->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-                    $file->setData('');
-                    return $file;
-                }
+                if ($existingFile !== null) {
+                    $action = $this->onDuplicate->resolveSchemaAction(
+                        true,
+                        $file->getUpdatedAt(),
+                        $existingFile->updatedAt,
+                    );
 
-                if ($existingFile !== null && $this->onDuplicate === OnDuplicate::Overwrite) {
-                    $this->storage->deleteFile($bucketId, $fileId);
+                    if ($action === SchemaAction::Skip) {
+                        $this->skippedChunkedUploads['file:' . $fileId] = true;
+                        $file->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                        $file->setData('');
+                        return $file;
+                    }
+
+                    if ($action === SchemaAction::Overwrite) {
+                        $this->storage->deleteFile($bucketId, $fileId);
+                    }
                 }
             } elseif (isset($this->skippedChunkedUploads['file:' . $fileId])) {
                 $file->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
@@ -2800,19 +2808,27 @@ class Appwrite extends Destination
                 fn () => $this->functions->getDeployment($functionId, $deploymentId)
             );
 
-            if ($existingDeployment !== null && $this->onDuplicate === OnDuplicate::Skip) {
-                $this->skippedChunkedUploads['deployment:' . $deploymentId] = true;
-                $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-                $deployment->setData('');
-                return $deployment;
-            }
+            if ($existingDeployment !== null) {
+                $action = $this->onDuplicate->resolveSchemaAction(
+                    true,
+                    $deployment->getUpdatedAt(),
+                    $existingDeployment->updatedAt,
+                );
 
-            if ($existingDeployment !== null && $this->onDuplicate === OnDuplicate::Overwrite) {
-                try {
-                    $this->functions->deleteDeployment($functionId, $deploymentId);
-                } catch (AppwriteException $e) {
-                    if ($this->getSdkResourceOrNull(fn () => $this->functions->getDeployment($functionId, $deploymentId)) !== null) {
-                        throw $e;
+                if ($action === SchemaAction::Skip) {
+                    $this->skippedChunkedUploads['deployment:' . $deploymentId] = true;
+                    $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    $deployment->setData('');
+                    return $deployment;
+                }
+
+                if ($action === SchemaAction::Overwrite) {
+                    try {
+                        $this->functions->deleteDeployment($functionId, $deploymentId);
+                    } catch (AppwriteException $e) {
+                        if ($this->getSdkResourceOrNull(fn () => $this->functions->getDeployment($functionId, $deploymentId)) !== null) {
+                            throw $e;
+                        }
                     }
                 }
             }
@@ -3698,19 +3714,27 @@ class Appwrite extends Destination
                 fn () => $this->sites->getDeployment($siteId, $deploymentId)
             );
 
-            if ($existingDeployment !== null && $this->onDuplicate === OnDuplicate::Skip) {
-                $this->skippedChunkedUploads['site-deployment:' . $deploymentId] = true;
-                $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-                $deployment->setData('');
-                return $deployment;
-            }
+            if ($existingDeployment !== null) {
+                $action = $this->onDuplicate->resolveSchemaAction(
+                    true,
+                    $deployment->getUpdatedAt(),
+                    $existingDeployment->updatedAt,
+                );
 
-            if ($existingDeployment !== null && $this->onDuplicate === OnDuplicate::Overwrite) {
-                try {
-                    $this->sites->deleteDeployment($siteId, $deploymentId);
-                } catch (AppwriteException $e) {
-                    if ($this->getSdkResourceOrNull(fn () => $this->sites->getDeployment($siteId, $deploymentId)) !== null) {
-                        throw $e;
+                if ($action === SchemaAction::Skip) {
+                    $this->skippedChunkedUploads['site-deployment:' . $deploymentId] = true;
+                    $deployment->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                    $deployment->setData('');
+                    return $deployment;
+                }
+
+                if ($action === SchemaAction::Overwrite) {
+                    try {
+                        $this->sites->deleteDeployment($siteId, $deploymentId);
+                    } catch (AppwriteException $e) {
+                        if ($this->getSdkResourceOrNull(fn () => $this->sites->getDeployment($siteId, $deploymentId)) !== null) {
+                            throw $e;
+                        }
                     }
                 }
             }
