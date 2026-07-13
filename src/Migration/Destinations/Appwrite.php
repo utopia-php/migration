@@ -2747,7 +2747,7 @@ class Appwrite extends Destination
                 [
                     'functionId' => $functionId,
                     'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
-                    'activate' => 'false',
+                    'activate' => $deployment->getActivated() ? 'true' : 'false',
                     'entrypoint' => $deployment->getEntrypoint(),
                 ]
             );
@@ -2769,7 +2769,7 @@ class Appwrite extends Destination
             [
                 'functionId' => $functionId,
                 'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
-                'activate' => 'false',
+                'activate' => $deployment->getActivated() ? 'true' : 'false',
                 'entrypoint' => $deployment->getEntrypoint(),
             ]
         );
@@ -2834,7 +2834,7 @@ class Appwrite extends Destination
             [
                 'functionId' => $functionId,
                 'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
-                'activate' => 'false',
+                'activate' => $deployment->getActivated() ? 'true' : 'false',
                 'entrypoint' => $deployment->getEntrypoint(),
             ]
         );
@@ -3643,7 +3643,7 @@ class Appwrite extends Destination
                 [
                     'siteId' => $siteId,
                     'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
-                    'activate' => 'false',
+                    'activate' => $deployment->getActivated() ? 'true' : 'false',
                 ]
             );
 
@@ -3668,7 +3668,7 @@ class Appwrite extends Destination
             [
                 'siteId' => $siteId,
                 'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
-                'activate' => 'false',
+                'activate' => $deployment->getActivated() ? 'true' : 'false',
             ]
         );
 
@@ -3732,7 +3732,7 @@ class Appwrite extends Destination
             [
                 'siteId' => $siteId,
                 'code' => new \CURLFile('data://application/gzip;base64,' . base64_encode($deployment->getData()), 'application/gzip', 'deployment.tar.gz'),
-                'activate' => 'false',
+                'activate' => $deployment->getActivated() ? 'true' : 'false',
             ]
         );
 
