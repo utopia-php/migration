@@ -2473,8 +2473,8 @@ class Appwrite extends Destination
                     entrypoint: $resource->getEntrypoint(),
                     commands: $resource->getCommands(),
                     scopes: $resource->getScopes(),
-                    buildSpecification: $resource->getSpecification() ?: null,
-                    runtimeSpecification: $resource->getSpecification() ?: null,
+                    buildSpecification: $resource->getBuildSpecification() ?: null,
+                    runtimeSpecification: $resource->getRuntimeSpecification() ?: null,
                 );
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
@@ -2662,8 +2662,8 @@ class Appwrite extends Destination
                     outputDirectory: $resource->getOutputDirectory(),
                     adapter: $adapter,
                     fallbackFile: $resource->getFallbackFile(),
-                    buildSpecification: $resource->getSpecification() ?: null,
-                    runtimeSpecification: $resource->getSpecification() ?: null,
+                    buildSpecification: $resource->getBuildSpecification() ?: null,
+                    runtimeSpecification: $resource->getRuntimeSpecification() ?: null,
                 );
                 break;
             case Resource::TYPE_SITE_VARIABLE:
