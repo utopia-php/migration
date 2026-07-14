@@ -2473,7 +2473,7 @@ class Appwrite extends Destination
                     entrypoint: $resource->getEntrypoint(),
                     commands: $resource->getCommands(),
                     scopes: $resource->getScopes(),
-                    buildSpecification: $resource->getSpecification() ?: null,
+                    buildSpecification: 's-2vcpu-2gb',
                     runtimeSpecification: $resource->getSpecification() ?: null,
                 );
                 break;
@@ -2662,7 +2662,7 @@ class Appwrite extends Destination
                     outputDirectory: $resource->getOutputDirectory(),
                     adapter: $adapter,
                     fallbackFile: $resource->getFallbackFile(),
-                    buildSpecification: $resource->getSpecification() ?: null,
+                    buildSpecification: 's-2vcpu-2gb',
                     runtimeSpecification: $resource->getSpecification() ?: null,
                 );
                 break;
