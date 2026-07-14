@@ -2149,7 +2149,8 @@ class Appwrite extends Source
                     $function->commands ?? '',
                     $function->logging ?? true,
                     $function->scopes ?? [],
-                    $function->runtimeSpecification ?: $function->buildSpecification ?: '',
+                    $function->runtimeSpecification ?: '',
+                    $function->buildSpecification ?: '',
                 );
                 $functions[] = $convertedFunc;
 
@@ -2732,8 +2733,9 @@ class Appwrite extends Source
                     $site->outputDirectory ?? '',
                     $site->adapter ?? 'static',
                     $site->fallbackFile ?? '',
-                    $site->runtimeSpecification ?: $site->buildSpecification ?: '',
-                    $site->deploymentId ?? ''
+                    $site->runtimeSpecification ?: '',
+                    $site->deploymentId ?? '',
+                    $site->buildSpecification ?: ''
                 );
                 $sites[] = $convertedSite;
                 $convertedResources[] = $convertedSite;

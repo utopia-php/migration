@@ -22,6 +22,7 @@ class Site extends Resource
      * @param string $fallbackFile
      * @param string $specification
      * @param string $activeDeployment
+     * @param string $buildSpecification
      */
     public function __construct(
         string $id,
@@ -37,7 +38,8 @@ class Site extends Resource
         private readonly string $adapter = 'static',
         private readonly string $fallbackFile = '',
         private readonly string $specification = '',
-        private readonly string $activeDeployment = ''
+        private readonly string $activeDeployment = '',
+        private readonly string $buildSpecification = ''
     ) {
         $this->id = $id;
     }
@@ -61,8 +63,9 @@ class Site extends Resource
             $array['outputDirectory'] ?? '',
             $array['adapter'] ?? 'static',
             $array['fallbackFile'] ?? '',
-            $array['specification'] ?? '',
-            $array['activeDeployment'] ?? ''
+            $array['runtimeSpecification'] ?? $array['specification'] ?? '',
+            $array['activeDeployment'] ?? '',
+            $array['buildSpecification'] ?? $array['specification'] ?? ''
         );
     }
 
@@ -85,7 +88,9 @@ class Site extends Resource
             'adapter' => $this->adapter,
             'fallbackFile' => $this->fallbackFile,
             'specification' => $this->specification,
+            'runtimeSpecification' => $this->specification,
             'activeDeployment' => $this->activeDeployment,
+            'buildSpecification' => $this->buildSpecification,
         ];
     }
 
@@ -157,6 +162,16 @@ class Site extends Resource
     public function getSpecification(): string
     {
         return $this->specification;
+    }
+
+    public function getRuntimeSpecification(): string
+    {
+        return $this->specification;
+    }
+
+    public function getBuildSpecification(): string
+    {
+        return $this->buildSpecification ?: $this->specification;
     }
 
     public function getActiveDeployment(): string

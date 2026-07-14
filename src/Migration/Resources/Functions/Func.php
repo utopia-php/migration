@@ -22,6 +22,7 @@ class Func extends Resource
      * @param bool $logging
      * @param array<string> $scopes
      * @param string $specification
+     * @param string $buildSpecification
      */
     public function __construct(
         string $id,
@@ -37,7 +38,8 @@ class Func extends Resource
         private readonly string $commands = '',
         private readonly bool $logging = true,
         private readonly array $scopes = [],
-        private readonly string $specification = ''
+        private readonly string $specification = '',
+        private readonly string $buildSpecification = ''
     ) {
         $this->id = $id;
     }
@@ -62,7 +64,8 @@ class Func extends Resource
             $array['commands'] ?? '',
             $array['logging'] ?? true,
             $array['scopes'] ?? [],
-            $array['specification'] ?? ''
+            $array['runtimeSpecification'] ?? $array['specification'] ?? '',
+            $array['buildSpecification'] ?? $array['specification'] ?? ''
         );
     }
 
@@ -86,6 +89,8 @@ class Func extends Resource
             'logging' => $this->logging,
             'scopes' => $this->scopes,
             'specification' => $this->specification,
+            'runtimeSpecification' => $this->specification,
+            'buildSpecification' => $this->buildSpecification,
         ];
     }
 
@@ -171,5 +176,15 @@ class Func extends Resource
     public function getSpecification(): string
     {
         return $this->specification;
+    }
+
+    public function getRuntimeSpecification(): string
+    {
+        return $this->specification;
+    }
+
+    public function getBuildSpecification(): string
+    {
+        return $this->buildSpecification ?: $this->specification;
     }
 }
