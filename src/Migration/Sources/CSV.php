@@ -27,9 +27,12 @@ class CSV extends Source
 
     private string $filePath;
 
-    private string $databaseId;
+    /**
+     * Legacy format: `{databaseId}:{tableId}`.
+     */
+    private string $resourceId;
 
-    private string $tableId;
+    private ?string $resourceChildId;
 
     private Device $device;
 
@@ -38,18 +41,36 @@ class CSV extends Source
     private bool $downloaded = false;
 
     public function __construct(
+        string $resourceId,
+        string $filePath,
+        Device $device,
+        ?UtopiaDatabase $dbForProject,
+        ?callable $getDatabasesDB = null,
+        ?string $resourceChildId = null,
+    ) {
+        $this->device = $device;
+        $this->filePath = $filePath;
+        $this->resourceId = $resourceId;
+        $this->resourceChildId = $resourceChildId;
+        $this->database = new DatabaseReader($dbForProject, $getDatabasesDB);
+    }
+
+    public static function fromResourceIds(
         string $databaseId,
         string $tableId,
         string $filePath,
         Device $device,
         ?UtopiaDatabase $dbForProject,
         ?callable $getDatabasesDB = null,
-    ) {
-        $this->device = $device;
-        $this->filePath = $filePath;
-        $this->databaseId = $databaseId;
-        $this->tableId = $tableId;
-        $this->database = new DatabaseReader($dbForProject, $getDatabasesDB);
+    ): self {
+        return new self(
+            resourceId: $databaseId,
+            filePath: $filePath,
+            device: $device,
+            dbForProject: $dbForProject,
+            getDatabasesDB: $getDatabasesDB,
+            resourceChildId: $tableId,
+        );
     }
 
     public static function getName(): string
@@ -131,9 +152,10 @@ class CSV extends Source
     {
         $columns = [];
         $lastColumn = null;
+        [$databaseId, $tableId] = $this->getResourceIds();
 
         $databases = $this->database->listDatabases([
-            $this->database->queryEqual('$id', [$this->databaseId]),
+            $this->database->queryEqual('$id', [$databaseId]),
             $this->database->queryLimit(1),
         ]);
 
@@ -156,8 +178,8 @@ class CSV extends Source
         ];
 
         $tablePayload = [
-            'id' => $this->tableId,
-            'name' => $this->tableId,
+            'id' => $tableId,
+            'name' => $tableId,
             'documentSecurity' => false,
             'rowSecurity' => false,
             'permissions' => [],
@@ -519,9 +541,23 @@ class CSV extends Source
                 UtopiaResource::TYPE_ROW,
                 Transfer::GROUP_DATABASES,
                 \implode(', ', $messages),
-                $this->tableId
+                $this->resourceChildId ?? $this->resourceId
             ));
         }
+    }
+
+    /**
+     * @return array{string, string}
+     */
+    private function getResourceIds(): array
+    {
+        if ($this->resourceChildId !== null) {
+            return [$this->resourceId, $this->resourceChildId];
+        }
+
+        $resourceIds = \explode(':', $this->resourceId, 2);
+
+        return [$resourceIds[0], $resourceIds[1] ?? ''];
     }
 
     /**

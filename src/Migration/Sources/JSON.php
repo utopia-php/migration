@@ -22,9 +22,12 @@ class JSON extends Source
 {
     private string $filePath;
 
-    private string $databaseId;
+    /**
+     * Legacy format: `{databaseId}:{tableId}`.
+     */
+    private string $resourceId;
 
-    private string $tableId;
+    private ?string $resourceChildId;
 
     private Device $device;
 
@@ -34,19 +37,35 @@ class JSON extends Source
     private bool $downloaded = false;
 
     public function __construct(
+        string $resourceId,
+        string $filePath,
+        Device $device,
+        ?UtopiaDatabase $dbForProject,
+        ?string $resourceChildId = null,
+    ) {
+        $this->device = $device;
+        $this->filePath = $filePath;
+        $this->resourceId = $resourceId;
+        $this->resourceChildId = $resourceChildId;
+
+        /* kept for composer check */
+        $this->dbForProject = $dbForProject;
+    }
+
+    public static function fromResourceIds(
         string $databaseId,
         string $tableId,
         string $filePath,
         Device $device,
-        ?UtopiaDatabase $dbForProject
-    ) {
-        $this->device = $device;
-        $this->filePath = $filePath;
-        $this->databaseId = $databaseId;
-        $this->tableId = $tableId;
-
-        /* kept for composer check */
-        $this->dbForProject = $dbForProject;
+        ?UtopiaDatabase $dbForProject,
+    ): self {
+        return new self(
+            resourceId: $databaseId,
+            filePath: $filePath,
+            device: $device,
+            dbForProject: $dbForProject,
+            resourceChildId: $tableId,
+        );
     }
 
     public static function getName(): string
@@ -121,8 +140,9 @@ class JSON extends Source
      */
     private function exportRows(int $batchSize): void
     {
-        $database = new Database($this->databaseId, '');
-        $table = new Table($database, '', $this->tableId);
+        [$databaseId, $tableId] = $this->getResourceIds();
+        $database = new Database($databaseId, '');
+        $table = new Table($database, '', $tableId);
 
         $this->withJsonItems(function ($items) use ($table, $batchSize) {
             $buffer = [];
@@ -159,6 +179,20 @@ class JSON extends Source
                 $this->callback($buffer);
             }
         });
+    }
+
+    /**
+     * @return array{string, string}
+     */
+    private function getResourceIds(): array
+    {
+        if ($this->resourceChildId !== null) {
+            return [$this->resourceId, $this->resourceChildId];
+        }
+
+        $resourceIds = \explode(':', $this->resourceId, 2);
+
+        return [$resourceIds[0], $resourceIds[1] ?? ''];
     }
 
     /**

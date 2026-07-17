@@ -16,30 +16,52 @@ use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Transfer;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
+class CountingAppwriteDestination extends AppwriteDestination
+{
+    public int $runCount = 0;
+
+    #[Override]
+    public function run(
+        array $resources,
+        callable $callback,
+        string $rootResourceId = '',
+        string $rootResourceType = '',
+    ): void {
+        $this->runCount++;
+        parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+    }
+}
+
 final class AppwriteDatabaseStatusTest extends TestCase
 {
-    public function testDatabaseCreationOmitsStatusWhenDestinationSchemaDoesNotSupportIt(): void
+    public function testDatabaseCreationOmitsStatusThroughLegacyAndExplicitEntrypoints(): void
     {
-        $database = $this->createProjectDatabase(withStatus: false);
+        foreach ([false, true] as $explicit) {
+            $database = $this->createProjectDatabase(withStatus: false);
 
-        $destination = $this->runDatabaseTransfer($database);
+            $destination = $this->runDatabaseTransfer($database, $explicit);
 
-        $created = $this->getDatabaseDocument($database);
-        $this->assertSame([], $this->errorMessages($destination));
-        $this->assertFalse($created->isEmpty());
-        $this->assertArrayNotHasKey('status', $created->getArrayCopy());
+            $created = $this->getDatabaseDocument($database);
+            $this->assertSame([], $this->errorMessages($destination));
+            $this->assertSame(1, $destination->runCount);
+            $this->assertFalse($created->isEmpty());
+            $this->assertArrayNotHasKey('status', $created->getArrayCopy());
+        }
     }
 
-    public function testDatabaseCreationPreservesLifecycleWhenDestinationSchemaSupportsStatus(): void
+    public function testDatabaseCreationPreservesLifecycleThroughLegacyAndExplicitEntrypoints(): void
     {
-        $database = $this->createProjectDatabase(withStatus: true);
+        foreach ([false, true] as $explicit) {
+            $database = $this->createProjectDatabase(withStatus: true);
 
-        $destination = $this->runDatabaseTransfer($database);
+            $destination = $this->runDatabaseTransfer($database, $explicit);
 
-        $created = $this->getDatabaseDocument($database);
-        $this->assertSame([], $this->errorMessages($destination));
-        $this->assertFalse($created->isEmpty());
-        $this->assertSame('ready', $created->getAttribute('status'));
+            $created = $this->getDatabaseDocument($database);
+            $this->assertSame([], $this->errorMessages($destination));
+            $this->assertSame(1, $destination->runCount);
+            $this->assertFalse($created->isEmpty());
+            $this->assertSame('ready', $created->getAttribute('status'));
+        }
     }
 
     private function createProjectDatabase(bool $withStatus): UtopiaDatabase
@@ -90,7 +112,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         ]);
     }
 
-    private function runDatabaseTransfer(UtopiaDatabase $database): AppwriteDestination
+    private function runDatabaseTransfer(UtopiaDatabase $database, bool $explicit): CountingAppwriteDestination
     {
         $source = new class () extends MockSource {
             #[Override]
@@ -107,7 +129,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
             databaseStatus: 'ready',
         ));
 
-        $destination = new AppwriteDestination(
+        $destination = new CountingAppwriteDestination(
             project: 'destination-project',
             endpoint: 'http://example.test/v1',
             key: 'test-key',
@@ -121,11 +143,26 @@ final class AppwriteDatabaseStatusTest extends TestCase
 
         $transfer = new Transfer($source, $destination);
         $database->getAuthorization()->skip(
-            static fn () => $transfer->run(
-                [Resource::TYPE_DATABASE],
-                static function (): void {
-                },
-            ),
+            static function () use ($explicit, $transfer): void {
+                if ($explicit) {
+                    $transfer->runWithResourceSelector(
+                        [Resource::TYPE_DATABASE],
+                        static function (): void {
+                        },
+                        'database',
+                        Resource::TYPE_DATABASE,
+                        'table',
+                    );
+
+                    return;
+                }
+
+                $transfer->run(
+                    [Resource::TYPE_DATABASE],
+                    static function (): void {
+                    },
+                );
+            },
         );
 
         return $destination;

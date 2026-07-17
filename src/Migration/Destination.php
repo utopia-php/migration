@@ -5,6 +5,11 @@ namespace Utopia\Migration;
 abstract class Destination extends Target
 {
     /**
+     * @var array{rootResourceId: string, rootResourceType: string, rootResourceChildId: string}|null
+     */
+    private ?array $resourceSelector = null;
+
+    /**
      * Source
      */
     protected Source $source;
@@ -26,26 +31,58 @@ abstract class Destination extends Target
      *
      * @param array<string> $resources Resources to transfer
      * @param callable(array<Resource>): void $callback to run after transfer
-     * @param string $rootResourceId Root resource ID. If set, only this root resource is transferred.
-     * @param string $rootResourceType Resource type for $rootResourceId.
-     * @param string $rootResourceChildId Optional child filter under the root resource. For database roots, this is the collection/table ID.
+     * @param string $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
      */
     public function run(
         array $resources,
         callable $callback,
         string $rootResourceId = '',
         string $rootResourceType = '',
-        string $rootResourceChildId = '',
     ): void {
-        $this->source->run(
-            $resources,
-            function (array $resources) use ($callback) {
-                $this->import($resources, $callback);
-            },
-            $rootResourceId,
-            $rootResourceType,
-            $rootResourceChildId,
-        );
+        $import = function (array $resources) use ($callback) {
+            $this->import($resources, $callback);
+        };
+
+        if ($this->resourceSelector !== null) {
+            $this->source->runWithResourceSelector(
+                $resources,
+                $import,
+                $this->resourceSelector['rootResourceId'],
+                $this->resourceSelector['rootResourceType'],
+                $this->resourceSelector['rootResourceChildId'],
+            );
+
+            return;
+        }
+
+        $this->source->run($resources, $import, $rootResourceId, $rootResourceType);
+    }
+
+    /**
+     * Transfer resources using separate, opaque root and child IDs.
+     *
+     * @param array<string> $resources Resources to transfer
+     * @param callable(array<Resource>): void $callback to run after transfer
+     */
+    public function runWithResourceSelector(
+        array $resources,
+        callable $callback,
+        string $rootResourceId,
+        string $rootResourceType,
+        string $rootResourceChildId,
+    ): void {
+        $previousResourceSelector = $this->resourceSelector;
+        $this->resourceSelector = [
+            'rootResourceId' => $rootResourceId,
+            'rootResourceType' => $rootResourceType,
+            'rootResourceChildId' => $rootResourceChildId,
+        ];
+
+        try {
+            $this->run($resources, $callback, $rootResourceId, $rootResourceType);
+        } finally {
+            $this->resourceSelector = $previousResourceSelector;
+        }
     }
 
     /**

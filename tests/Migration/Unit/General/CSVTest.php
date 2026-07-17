@@ -2,7 +2,12 @@
 
 namespace Utopia\Tests\Unit\General;
 
+use Override;
 use PHPUnit\Framework\TestCase;
+use Utopia\Cache\Adapter\Memory as MemoryCache;
+use Utopia\Cache\Cache;
+use Utopia\Database\Adapter\Memory as MemoryAdapter;
+use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Destinations\CSV as DestinationCSV;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Row;
@@ -26,6 +31,7 @@ class TestCSV extends DestinationCSV
     }
 
     // Override shutdown to avoid transfer for testing
+    #[Override]
     public function shutdown(): void
     {
         // Do nothing for testing - don't transfer files
@@ -35,6 +41,59 @@ class TestCSV extends DestinationCSV
 class CSVTest extends TestCase
 {
     private const RESOURCES_DIR = __DIR__ . '/../../resources/csv/';
+
+    public function testLegacyConstructorsAcceptPositionalAndNamedArguments(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/csv_constructor_' . uniqid();
+        $device = new Local($tempDir);
+        $database = $this->createDatabase();
+
+        $positionalSource = new CSV('database:table', 'input.csv', $device, $database);
+        $namedSource = new CSV(
+            resourceId: 'database:table',
+            filePath: 'input.csv',
+            device: $device,
+            dbForProject: $database,
+        );
+        $positionalDestination = new TestCSV($device, 'database:table', '', 'output');
+        $namedDestination = new TestCSV(
+            deviceForFiles: $device,
+            resourceId: 'database:table',
+            directory: '',
+            filename: 'output',
+        );
+
+        $this->assertInstanceOf(CSV::class, $positionalSource);
+        $this->assertInstanceOf(CSV::class, $namedSource);
+        $this->assertInstanceOf(DestinationCSV::class, $positionalDestination);
+        $this->assertInstanceOf(DestinationCSV::class, $namedDestination);
+
+        $this->recursiveDelete($positionalDestination->getLocalRoot());
+        $this->recursiveDelete($namedDestination->getLocalRoot());
+        $this->recursiveDelete($tempDir);
+    }
+
+    public function testFactoriesKeepColonContainingResourceIdsSeparate(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/csv_factory_' . uniqid();
+        $device = new Local($tempDir);
+        $database = $this->createDatabase();
+        $databaseId = 'database:with:colon';
+        $tableId = 'table:with:colon';
+
+        $source = CSV::fromResourceIds($databaseId, $tableId, 'input.csv', $device, $database);
+        $destination = DestinationCSV::fromResourceIds($device, $databaseId, $tableId, '', 'output');
+
+        $this->assertSame($databaseId, $this->property($source, 'resourceId'));
+        $this->assertSame($tableId, $this->property($source, 'resourceChildId'));
+        $this->assertSame($databaseId, $this->property($destination, 'resourceId'));
+        $this->assertSame($tableId, $this->property($destination, 'resourceChildId'));
+
+        $local = $this->property($destination, 'local');
+        $this->assertInstanceOf(Local::class, $local);
+        $this->recursiveDelete($local->getRoot());
+        $this->recursiveDelete($tempDir);
+    }
 
     /**
      * @throws \ReflectionException
@@ -78,7 +137,7 @@ class CSVTest extends TestCase
         $exportDevice = new Local($tempDir);
 
         // Create CSV destination
-        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
 
         // Create test data
         $database = new Database('test_db');
@@ -153,7 +212,7 @@ class CSVTest extends TestCase
         $tempDir = sys_get_temp_dir() . '/csv_test_special_' . uniqid();
         $exportDevice = new Local($tempDir);
 
-        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -201,7 +260,7 @@ class CSVTest extends TestCase
         $tempDir = sys_get_temp_dir() . '/csv_test_arrays_' . uniqid();
         $exportDevice = new Local($tempDir);
 
-        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -248,7 +307,7 @@ class CSVTest extends TestCase
         $tempDir = sys_get_temp_dir() . '/csv_test_nulls_' . uniqid();
         $exportDevice = new Local($tempDir);
 
-        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -297,7 +356,7 @@ class CSVTest extends TestCase
         $exportDevice = new Local($tempDir);
 
         // Only allow specific attributes
-        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id', ['name', 'email']);
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id', ['name', 'email']);
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -348,7 +407,7 @@ class CSVTest extends TestCase
         $exportDevice = new Local($tempDir);
 
         // Export data
-        $csvDestination = new TestCSV($exportDevice, 'test_db', 'test_table_id', '', 'test_db_test_table_id');
+        $csvDestination = new TestCSV($exportDevice, 'test_db:test_table_id', '', 'test_db_test_table_id');
 
         $database = new Database('test_db');
         $table = new Table($database, 'test_table', 'test_table_id');
@@ -430,5 +489,20 @@ class CSVTest extends TestCase
             }
             rmdir($dir);
         }
+    }
+
+    private function property(object $object, string $name): mixed
+    {
+        $property = new \ReflectionProperty($object, $name);
+
+        return $property->getValue($object);
+    }
+
+    private function createDatabase(): UtopiaDatabase
+    {
+        return new UtopiaDatabase(
+            new MemoryAdapter(),
+            new Cache(new MemoryCache()),
+        );
     }
 }

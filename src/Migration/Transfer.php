@@ -216,6 +216,11 @@ class Transfer
      */
     protected array $resources = [];
 
+    /**
+     * @var array{rootResourceId: string, rootResourceType: string, rootResourceChildId: string}|null
+     */
+    private ?array $resourceSelector = null;
+
     public function __construct(Source $source, Destination $destination)
     {
         $this->source = $source;
@@ -320,9 +325,7 @@ class Transfer
      *
      * @param array<string> $resources Resources to transfer
      * @param callable $callback Callback to run after transfer
-     * @param string|null $rootResourceId Root resource ID. If set, only this root resource is transferred.
-     * @param string|null $rootResourceType Resource type for $rootResourceId. Required when $rootResourceId is set.
-     * @param string|null $rootResourceChildId Optional child filter under the root resource. For database roots, this is the collection/table ID.
+     * @param string|null $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
      * @throws \Exception
      */
     public function run(
@@ -330,13 +333,11 @@ class Transfer
         callable $callback,
         ?string $rootResourceId = null,
         ?string $rootResourceType = null,
-        ?string $rootResourceChildId = null,
     ): void {
         // Allows you to push entire groups if you want.
         $computedResources = [];
         $rootResourceId = $rootResourceId ?? '';
         $rootResourceType = $rootResourceType ?? '';
-        $rootResourceChildId = $rootResourceChildId ?? '';
 
         foreach ($resources as $resource) {
             if (is_array($resource)) {
@@ -372,13 +373,47 @@ class Transfer
 
         $this->resources = $computedResources;
 
-        $this->destination->run(
-            $computedResources,
-            $callback,
-            $rootResourceId,
-            $rootResourceType,
-            $rootResourceChildId,
-        );
+        if ($this->resourceSelector !== null) {
+            $this->destination->runWithResourceSelector(
+                $computedResources,
+                $callback,
+                $this->resourceSelector['rootResourceId'],
+                $this->resourceSelector['rootResourceType'],
+                $this->resourceSelector['rootResourceChildId'],
+            );
+
+            return;
+        }
+
+        $this->destination->run($computedResources, $callback, $rootResourceId, $rootResourceType);
+    }
+
+    /**
+     * Transfer resources using separate, opaque root and child IDs.
+     *
+     * @param array<string|array<string>> $resources Resources to transfer
+     * @param callable $callback Callback to run after transfer
+     * @throws \Exception
+     */
+    public function runWithResourceSelector(
+        array $resources,
+        callable $callback,
+        string $rootResourceId,
+        string $rootResourceType,
+        string $rootResourceChildId,
+    ): void {
+        $previousResourceSelector = $this->resourceSelector;
+        $this->resourceSelector = [
+            'rootResourceId' => $rootResourceId,
+            'rootResourceType' => $rootResourceType,
+            'rootResourceChildId' => $rootResourceChildId,
+        ];
+
+        try {
+            $this->run($resources, $callback, $rootResourceId, $rootResourceType);
+        } finally {
+            $this->resourceSelector = $previousResourceSelector;
+        }
     }
 
     /**

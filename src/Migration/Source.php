@@ -7,6 +7,11 @@ abstract class Source extends Target
     protected static int $defaultBatchSize = 100;
 
     /**
+     * @var array{rootResourceId: string, rootResourceType: string, rootResourceChildId: string}|null
+     */
+    private ?array $resourceSelector = null;
+
+    /**
      * @var callable(array<Resource>): void $transferCallback
      */
     protected $transferCallback;
@@ -85,15 +90,31 @@ abstract class Source extends Target
      *
      * @param array<string> $resources Resources to transfer
      * @param callable $callback Callback to run after transfer
-     * @param string $rootResourceId Root resource ID. If set, only this root resource is transferred.
-     * @param string $rootResourceType Resource type for $rootResourceId. Required when $rootResourceId is set.
-     * @param string $rootResourceChildId Optional child filter under the root resource. For database roots, this is the collection/table ID.
+     * @param string $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
      */
-    public function run(array $resources, callable $callback, string $rootResourceId = '', string $rootResourceType = '', string $rootResourceChildId = ''): void
+    public function run(array $resources, callable $callback, string $rootResourceId = '', string $rootResourceType = ''): void
     {
-        $this->rootResourceId = $rootResourceId;
-        $this->rootResourceType = $rootResourceType;
-        $this->rootResourceChildId = $rootResourceChildId;
+        $previousRootResourceId = $this->rootResourceId;
+        $previousRootResourceType = $this->rootResourceType;
+        $previousRootResourceChildId = $this->rootResourceChildId;
+
+        if ($this->resourceSelector !== null) {
+            $this->rootResourceId = $this->resourceSelector['rootResourceId'];
+            $this->rootResourceType = $this->resourceSelector['rootResourceType'];
+            $this->rootResourceChildId = $this->resourceSelector['rootResourceChildId'];
+        } else {
+            $this->rootResourceId = $rootResourceId;
+            $this->rootResourceType = $rootResourceType;
+            $this->rootResourceChildId = '';
+
+            if (
+                $this->rootResourceId !== ''
+                && \array_key_exists($this->rootResourceType, Resource::DATABASE_TYPE_RESOURCE_MAP)
+                && \str_contains($this->rootResourceId, ':')
+            ) {
+                [$this->rootResourceId, $this->rootResourceChildId] = \explode(':', $this->rootResourceId, 2);
+            }
+        }
 
         $this->transferCallback = function (array $returnedResources) use ($callback, $resources) {
             $prunedResources = [];
@@ -118,7 +139,40 @@ abstract class Source extends Target
             $this->cache->addAll($prunedResources);
         };
 
-        $this->exportResources($resources);
+        try {
+            $this->exportResources($resources);
+        } finally {
+            $this->rootResourceId = $previousRootResourceId;
+            $this->rootResourceType = $previousRootResourceType;
+            $this->rootResourceChildId = $previousRootResourceChildId;
+        }
+    }
+
+    /**
+     * Transfer resources using separate, opaque root and child IDs.
+     *
+     * @param array<string> $resources Resources to transfer
+     * @param callable $callback Callback to run after transfer
+     */
+    public function runWithResourceSelector(
+        array $resources,
+        callable $callback,
+        string $rootResourceId,
+        string $rootResourceType,
+        string $rootResourceChildId,
+    ): void {
+        $previousResourceSelector = $this->resourceSelector;
+        $this->resourceSelector = [
+            'rootResourceId' => $rootResourceId,
+            'rootResourceType' => $rootResourceType,
+            'rootResourceChildId' => $rootResourceChildId,
+        ];
+
+        try {
+            $this->run($resources, $callback, $rootResourceId, $rootResourceType);
+        } finally {
+            $this->resourceSelector = $previousResourceSelector;
+        }
     }
 
     /**
