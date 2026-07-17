@@ -2,6 +2,7 @@
 
 namespace Utopia\Tests\Unit\Adapters;
 
+use Override;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
@@ -9,6 +10,60 @@ use Utopia\Migration\Transfer;
 class MockSource extends Source
 {
     private array $mockResources = [];
+
+    private ?string $resourceChildId = null;
+
+    #[Override]
+    public function run(
+        array $resources,
+        callable $callback,
+        string $rootResourceId = '',
+        string $rootResourceType = '',
+    ): void {
+        $previousResourceChildId = $this->resourceChildId;
+
+        if ($this->resourceChildId === null) {
+            $this->resourceChildId = '';
+
+            if (
+                $rootResourceId !== ''
+                && \array_key_exists($rootResourceType, Resource::DATABASE_TYPE_RESOURCE_MAP)
+                && \str_contains($rootResourceId, ':')
+            ) {
+                [$rootResourceId, $this->resourceChildId] = \explode(':', $rootResourceId, 2);
+            }
+        }
+
+        try {
+            parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+        } finally {
+            $this->resourceChildId = $previousResourceChildId;
+        }
+    }
+
+    #[Override]
+    public function runWithResourceSelector(
+        array $resources,
+        callable $callback,
+        string $rootResourceId,
+        string $rootResourceType,
+        string $rootResourceChildId,
+    ): void {
+        $previousResourceChildId = $this->resourceChildId;
+        $this->resourceChildId = $rootResourceChildId;
+
+        try {
+            parent::runWithResourceSelector(
+                $resources,
+                $callback,
+                $rootResourceId,
+                $rootResourceType,
+                $rootResourceChildId,
+            );
+        } finally {
+            $this->resourceChildId = $previousResourceChildId;
+        }
+    }
 
     public function pushMockResource(Resource $resource): void
     {
@@ -51,8 +106,8 @@ class MockSource extends Source
         }
 
         $entityType = Resource::DATABASE_TYPE_RESOURCE_MAP[$this->rootResourceType]['entity'] ?? null;
-        if ($type === $entityType && $this->rootResourceId !== '' && $this->rootResourceChildId !== '') {
-            $this->callback([$this->getMockResourceById($group, $type, $this->rootResourceChildId)]);
+        if ($type === $entityType && $this->rootResourceId !== '' && $this->resourceChildId !== '') {
+            $this->callback([$this->getMockResourceById($group, $type, $this->resourceChildId)]);
             return;
         }
 

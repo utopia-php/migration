@@ -19,7 +19,7 @@ class JSON extends Destination
 {
     protected Device $deviceForFiles;
     protected string $resourceId;
-    protected ?string $resourceChildId;
+    private ?string $resourceChildId;
     protected string $directory;
     protected string $outputFile;
     protected Local $local;

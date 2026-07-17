@@ -65,6 +65,30 @@ class JSONTest extends TestCase
         $this->recursiveDelete($tempDir);
     }
 
+    public function testDestinationSubclassChildSelectorPropertyRemainsCompatible(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/json_subclass_' . uniqid();
+        $device = new Local($tempDir);
+        $destination = new class ($device, 'database:table', '', 'output') extends DestinationJSON {
+            protected $resourceChildId = ['external'];
+
+            public function getExternalResourceChildId(): mixed
+            {
+                return $this->resourceChildId;
+            }
+
+            public function getLocalRoot(): string
+            {
+                return $this->local->getRoot();
+            }
+        };
+
+        $this->assertSame(['external'], $destination->getExternalResourceChildId());
+
+        $this->recursiveDelete($destination->getLocalRoot());
+        $this->recursiveDelete($tempDir);
+    }
+
     public function testSourceFactoryEmitsRowsWithSeparateColonContainingDatabaseAndTableIds(): void
     {
         $tempDir = sys_get_temp_dir() . '/json_source_factory_' . uniqid();

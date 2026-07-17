@@ -93,6 +93,35 @@ class TransferTest extends TestCase
         $this->assertSame($second, $this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE, 'second'));
     }
 
+    public function testLegacySourceSubclassChildSelectorPropertyRemainsCompatible(): void
+    {
+        $source = new class () extends MockSource {
+            protected $rootResourceChildId = ['external'];
+        };
+        $destination = new MockDestination();
+        $transfer = new Transfer($source, $destination);
+        $database = new Database('database', 'Database');
+        $first = new Table($database, 'First table', 'first');
+        $second = new Table($database, 'Second table', 'second');
+
+        $source->pushMockResource($database);
+        $source->pushMockResource($first);
+        $source->pushMockResource($second);
+
+        $transfer->run(
+            [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
+            static function (): void {
+            },
+            'database:second',
+            Resource::TYPE_DATABASE,
+        );
+
+        $this->assertSame(
+            ['second'],
+            $destination->getResourceTypeData(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE),
+        );
+    }
+
     public function testExplicitSelectorKeepsColonContainingIdsOpaque(): void
     {
         $database = new Database('database:with:colon', 'Database');

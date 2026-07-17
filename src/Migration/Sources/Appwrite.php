@@ -18,6 +18,7 @@ use Appwrite\Services\TablesDB;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Appwrite\Services\Webhooks;
+use Override;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Database\Document as UtopiaDocument;
@@ -117,6 +118,8 @@ class Appwrite extends Source
 
     private Proxy $proxy;
 
+    private ?string $resourceChildId = null;
+
     /**
      * @var callable(UtopiaDocument $database|null): UtopiaDatabase
      */
@@ -178,6 +181,58 @@ class Appwrite extends Source
     public static function getName(): string
     {
         return 'Appwrite';
+    }
+
+    #[Override]
+    public function run(
+        array $resources,
+        callable $callback,
+        string $rootResourceId = '',
+        string $rootResourceType = '',
+    ): void {
+        $previousResourceChildId = $this->resourceChildId;
+
+        if ($this->resourceChildId === null) {
+            $this->resourceChildId = '';
+
+            if (
+                $rootResourceId !== ''
+                && \array_key_exists($rootResourceType, Resource::DATABASE_TYPE_RESOURCE_MAP)
+                && \str_contains($rootResourceId, ':')
+            ) {
+                [$rootResourceId, $this->resourceChildId] = \explode(':', $rootResourceId, 2);
+            }
+        }
+
+        try {
+            parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+        } finally {
+            $this->resourceChildId = $previousResourceChildId;
+        }
+    }
+
+    #[Override]
+    public function runWithResourceSelector(
+        array $resources,
+        callable $callback,
+        string $rootResourceId,
+        string $rootResourceType,
+        string $rootResourceChildId,
+    ): void {
+        $previousResourceChildId = $this->resourceChildId;
+        $this->resourceChildId = $rootResourceChildId;
+
+        try {
+            parent::runWithResourceSelector(
+                $resources,
+                $callback,
+                $rootResourceId,
+                $rootResourceType,
+                $rootResourceChildId,
+            );
+        } finally {
+            $this->resourceChildId = $previousResourceChildId;
+        }
     }
 
     public function getSourceType(): string
@@ -1142,10 +1197,10 @@ class Appwrite extends Source
                 // or when the root itself is a table.
                 if (
                     $this->rootResourceId !== '' &&
-                    $this->rootResourceChildId !== '' &&
+                    $this->resourceChildId !== '' &&
                     $this->rootResourceType === $databaseName
                 ) {
-                    $queries[] = $this->reader->queryEqual('$id', [$this->rootResourceChildId]);
+                    $queries[] = $this->reader->queryEqual('$id', [$this->resourceChildId]);
                     $queries[] = $this->reader->queryLimit(1);
                 } elseif (
                     $this->rootResourceId !== '' &&
