@@ -255,9 +255,10 @@ class Appwrite extends Destination
         callable $callback,
         string $rootResourceId = '',
         string $rootResourceType = '',
+        string $rootResourceChildId = '',
     ): void {
         $this->resetRunState();
-        parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+        parent::run($resources, $callback, $rootResourceId, $rootResourceType, $rootResourceChildId);
         // parent::run() returning means every resource transferred, so the databases are usable.
         // Flip status before the orphan sweep so a cleanup failure can't strand them in `provisioning`.
         $this->markProvisionedDatabasesReady();

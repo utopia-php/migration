@@ -1073,7 +1073,7 @@ class Appwrite extends Source
         while (true) {
             $queries = [$this->reader->queryLimit($batchSize)];
 
-            if ($this->rootResourceId !== '' && ($this->rootResourceType === Resource::TYPE_DATABASE || $this->rootResourceType === Resource::TYPE_DATABASE_DOCUMENTSDB)) {
+            if ($this->rootResourceId !== '' && \array_key_exists($this->rootResourceType, Resource::DATABASE_TYPE_RESOURCE_MAP)) {
                 $queries[] = $this->reader->queryEqual('$id', [$this->rootResourceId]);
                 $queries[] = $this->reader->queryLimit(1);
             }
@@ -1138,11 +1138,12 @@ class Appwrite extends Source
                 $queries = [$this->reader->queryLimit($batchSize)];
                 $tables = [];
 
-                // Filter to a specific table when the root is a database with a child set, or
-                // when the root itself is a table.
+                // Filter to a specific table or collection when its database root has a child set,
+                // or when the root itself is a table.
                 if (
+                    $this->rootResourceId !== '' &&
                     $this->rootResourceChildId !== '' &&
-                    $this->rootResourceType === Resource::TYPE_DATABASE
+                    $this->rootResourceType === $databaseName
                 ) {
                     $queries[] = $this->reader->queryEqual('$id', [$this->rootResourceChildId]);
                     $queries[] = $this->reader->queryLimit(1);

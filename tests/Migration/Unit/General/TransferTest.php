@@ -67,6 +67,32 @@ class TransferTest extends TestCase
         $this->assertSame('test', $database->getId());
     }
 
+    public function testRootResourceChildIdScopesDatabaseEntity(): void
+    {
+        $database = new Database('database', 'Database');
+        $first = new Table($database, 'First table', 'first');
+        $second = new Table($database, 'Second table', 'second');
+
+        $this->source->pushMockResource($database);
+        $this->source->pushMockResource($first);
+        $this->source->pushMockResource($second);
+
+        $this->transfer->run(
+            [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
+            static function (): void {
+            },
+            $database->getId(),
+            Resource::TYPE_DATABASE,
+            $second->getId(),
+        );
+
+        $tables = $this->destination->getResourceTypeData(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE);
+
+        $this->assertSame(['second'], $tables);
+        $this->assertNull($this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE, 'first'));
+        $this->assertSame($second, $this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE, 'second'));
+    }
+
     /**
      * Row and document counts are aggregated into the cache by status. When such
      * a count exists for a resource type that was not part of the migration

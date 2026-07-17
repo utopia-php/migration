@@ -46,9 +46,6 @@ class CSVTest extends TestCase
 
         $refMethod = $reflection->getMethod('delimiter');
 
-        /** @noinspection PhpExpressionResultUnusedInspection */
-        $refMethod->setAccessible(true);
-
         return $refMethod->invoke($instance, $stream);
     }
 

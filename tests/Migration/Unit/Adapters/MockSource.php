@@ -50,6 +50,12 @@ class MockSource extends Source
             return;
         }
 
+        $entityType = Resource::DATABASE_TYPE_RESOURCE_MAP[$this->rootResourceType]['entity'] ?? null;
+        if ($type === $entityType && $this->rootResourceId !== '' && $this->rootResourceChildId !== '') {
+            $this->callback([$this->getMockResourceById($group, $type, $this->rootResourceChildId)]);
+            return;
+        }
+
         $resources = $this->getMockResourcesByType($group, $type) ?? [];
         $this->callback($resources);
         return;

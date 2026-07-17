@@ -33,9 +33,9 @@ abstract class Target
 
     protected string $rootResourceId = '';
 
-    protected string $rootResourceChildId = '';
-
     protected string $rootResourceType = '';
+
+    protected string $rootResourceChildId = '';
 
     abstract public static function getName(): string;
 
