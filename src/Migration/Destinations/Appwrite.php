@@ -177,6 +177,9 @@ class Appwrite extends Destination
      */
     private array $provisioningDatabases = [];
 
+    /** Whether the destination project's database metadata supports lifecycle status. */
+    private ?bool $databaseStatusSupported = null;
+
     /**
      * @param string $project
      * @param string $endpoint
@@ -241,11 +244,22 @@ class Appwrite extends Destination
         // $source is a non-nullable typed property with no default; it is only set when the
         // destination runs through Transfer. Guard so direct createDatabase() calls (e.g. tests)
         // don't hit "must not be accessed before initialization".
-        if (! isset($this->source)) {
+        if (! isset($this->source) || ! $this->getSource()->supportsDatabaseStatus()) {
             return false;
         }
 
-        return $this->getSource()->supportsDatabaseStatus();
+        if ($this->databaseStatusSupported !== null) {
+            return $this->databaseStatusSupported;
+        }
+
+        $collection = $this->dbForProject->getCollection(self::META_DATABASES);
+        foreach ($collection->getAttribute('attributes', []) as $attribute) {
+            if ($attribute->getId() === 'status') {
+                return $this->databaseStatusSupported = true;
+            }
+        }
+
+        return $this->databaseStatusSupported = false;
     }
 
     /** Orphan cleanup runs only after a successful migration — a mid-run throw preserves the destination as-is. */
