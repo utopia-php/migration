@@ -18,7 +18,7 @@ class CSV extends Destination
 {
     protected Device $deviceForFiles;
     protected string $resourceId;
-    private ?string $resourceChildId;
+    private ?string $resourceChildId = null;
     protected string $directory;
     protected string $outputFile;
     protected Local $local;
@@ -41,11 +41,9 @@ class CSV extends Destination
         private readonly string $enclosure = '"',
         private readonly string $escape = '"',
         private readonly bool $includeHeaders = true,
-        ?string $resourceChildId = null,
     ) {
         $this->deviceForFiles = $deviceForFiles;
         $this->resourceId = $resourceId;
-        $this->resourceChildId = $resourceChildId;
         $this->directory = $directory;
         $this->outputFile = $this->sanitizeFilename($filename);
         $this->local = new Local(\sys_get_temp_dir() . '/csv_export_' . uniqid());
@@ -69,7 +67,7 @@ class CSV extends Destination
         string $escape = '"',
         bool $includeHeaders = true,
     ): self {
-        return new self(
+        $destination = new self(
             deviceForFiles: $deviceForFiles,
             resourceId: $databaseId,
             directory: $directory,
@@ -79,8 +77,10 @@ class CSV extends Destination
             enclosure: $enclosure,
             escape: $escape,
             includeHeaders: $includeHeaders,
-            resourceChildId: $tableId,
         );
+        $destination->resourceChildId = $tableId;
+
+        return $destination;
     }
 
     public static function getName(): string

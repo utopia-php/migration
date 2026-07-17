@@ -73,6 +73,28 @@ class CSVTest extends TestCase
         $this->recursiveDelete($tempDir);
     }
 
+    public function testConstructorsMatchOriginMainSignatures(): void
+    {
+        $this->assertSame([
+            ['resourceId', 'string', false, null],
+            ['filePath', 'string', false, null],
+            ['device', 'Utopia\\Storage\\Device', false, null],
+            ['dbForProject', '?Utopia\\Database\\Database', false, null],
+            ['getDatabasesDB', '?callable', true, null],
+        ], $this->constructorSignature(CSV::class));
+        $this->assertSame([
+            ['deviceForFiles', 'Utopia\\Storage\\Device', false, null],
+            ['resourceId', 'string', false, null],
+            ['directory', 'string', false, null],
+            ['filename', 'string', false, null],
+            ['allowedColumns', 'array', true, []],
+            ['delimiter', 'string', true, ','],
+            ['enclosure', 'string', true, '"'],
+            ['escape', 'string', true, '"'],
+            ['includeHeaders', 'bool', true, true],
+        ], $this->constructorSignature(DestinationCSV::class));
+    }
+
     public function testFactoriesKeepColonContainingResourceIdsSeparate(): void
     {
         $tempDir = sys_get_temp_dir() . '/csv_factory_' . uniqid();
@@ -520,6 +542,27 @@ class CSVTest extends TestCase
         $property = new \ReflectionProperty($object, $name);
 
         return $property->getValue($object);
+    }
+
+    /**
+     * @param class-string $class
+     * @return list<array{string, string, bool, mixed}>
+     */
+    private function constructorSignature(string $class): array
+    {
+        $constructor = (new \ReflectionClass($class))->getConstructor();
+        $this->assertNotNull($constructor);
+
+        return \array_map(static function (\ReflectionParameter $parameter): array {
+            $hasDefault = $parameter->isDefaultValueAvailable();
+
+            return [
+                $parameter->getName(),
+                (string) $parameter->getType(),
+                $hasDefault,
+                $hasDefault ? $parameter->getDefaultValue() : null,
+            ];
+        }, $constructor->getParameters());
     }
 
     private function createDatabase(): UtopiaDatabase

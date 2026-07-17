@@ -19,7 +19,7 @@ class JSON extends Destination
 {
     protected Device $deviceForFiles;
     protected string $resourceId;
-    private ?string $resourceChildId;
+    private ?string $resourceChildId = null;
     protected string $directory;
     protected string $outputFile;
     protected Local $local;
@@ -41,11 +41,9 @@ class JSON extends Destination
         string $directory,
         string $filename,
         array $allowedColumns = [],
-        ?string $resourceChildId = null,
     ) {
         $this->deviceForFiles = $deviceForFiles;
         $this->resourceId = $resourceId;
-        $this->resourceChildId = $resourceChildId;
         $this->directory = $directory;
         $this->outputFile = $this->sanitizeFilename($filename);
 
@@ -67,14 +65,16 @@ class JSON extends Destination
         string $filename,
         array $allowedColumns = [],
     ): self {
-        return new self(
+        $destination = new self(
             deviceForFiles: $deviceForFiles,
             resourceId: $databaseId,
             directory: $directory,
             filename: $filename,
             allowedColumns: $allowedColumns,
-            resourceChildId: $tableId,
         );
+        $destination->resourceChildId = $tableId;
+
+        return $destination;
     }
 
     public static function getName(): string

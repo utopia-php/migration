@@ -27,7 +27,7 @@ class JSON extends Source
      */
     private string $resourceId;
 
-    private ?string $resourceChildId;
+    private ?string $resourceChildId = null;
 
     private Device $device;
 
@@ -41,12 +41,10 @@ class JSON extends Source
         string $filePath,
         Device $device,
         ?UtopiaDatabase $dbForProject,
-        ?string $resourceChildId = null,
     ) {
         $this->device = $device;
         $this->filePath = $filePath;
         $this->resourceId = $resourceId;
-        $this->resourceChildId = $resourceChildId;
 
         /* kept for composer check */
         $this->dbForProject = $dbForProject;
@@ -59,13 +57,15 @@ class JSON extends Source
         Device $device,
         ?UtopiaDatabase $dbForProject,
     ): self {
-        return new self(
+        $source = new self(
             resourceId: $databaseId,
             filePath: $filePath,
             device: $device,
             dbForProject: $dbForProject,
-            resourceChildId: $tableId,
         );
+        $source->resourceChildId = $tableId;
+
+        return $source;
     }
 
     public static function getName(): string

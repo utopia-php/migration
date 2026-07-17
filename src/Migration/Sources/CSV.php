@@ -32,7 +32,7 @@ class CSV extends Source
      */
     private string $resourceId;
 
-    private ?string $resourceChildId;
+    private ?string $resourceChildId = null;
 
     private Device $device;
 
@@ -46,12 +46,10 @@ class CSV extends Source
         Device $device,
         ?UtopiaDatabase $dbForProject,
         ?callable $getDatabasesDB = null,
-        ?string $resourceChildId = null,
     ) {
         $this->device = $device;
         $this->filePath = $filePath;
         $this->resourceId = $resourceId;
-        $this->resourceChildId = $resourceChildId;
         $this->database = new DatabaseReader($dbForProject, $getDatabasesDB);
     }
 
@@ -63,14 +61,16 @@ class CSV extends Source
         ?UtopiaDatabase $dbForProject,
         ?callable $getDatabasesDB = null,
     ): self {
-        return new self(
+        $source = new self(
             resourceId: $databaseId,
             filePath: $filePath,
             device: $device,
             dbForProject: $dbForProject,
             getDatabasesDB: $getDatabasesDB,
-            resourceChildId: $tableId,
         );
+        $source->resourceChildId = $tableId;
+
+        return $source;
     }
 
     public static function getName(): string
