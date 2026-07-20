@@ -49,7 +49,6 @@ class JSON extends Destination
 
         /* local settings */
         $this->local = new Local(\sys_get_temp_dir() . '/json_export_' . uniqid());
-        $this->local->setTransferChunkSize(Transfer::STORAGE_MAX_CHUNK_SIZE);
         $this->createDirectory($this->local->getRoot());
 
         foreach ($allowedColumns as $attribute) {
@@ -223,7 +222,8 @@ class JSON extends Destination
             $result = $this->local->transfer(
                 $sourcePath,
                 $destPath,
-                $this->deviceForFiles
+                $this->deviceForFiles,
+                Transfer::STORAGE_MAX_CHUNK_SIZE
             );
             if ($result === false) {
                 throw new Exception('Error transferring to ' . $this->deviceForFiles->getRoot() . '/' . $filename);

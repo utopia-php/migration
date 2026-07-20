@@ -16,7 +16,7 @@ use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
 use Utopia\Storage\Device;
-use Utopia\Storage\Storage;
+use Utopia\Storage\DeviceType;
 
 class JSON extends Source
 {
@@ -303,7 +303,7 @@ class JSON extends Source
         string $filePath
     ): void {
         if ($this->downloaded
-            || $device->getType() === Storage::DEVICE_LOCAL
+            || $device->getType() === DeviceType::Local
         ) {
             return;
         }

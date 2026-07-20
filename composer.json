@@ -2,7 +2,13 @@
     "name": "utopia-php/migration",
     "description": "A simple library to migrate resources between services.",
     "type": "library",
-    "keywords": ["php", "framework", "upf", "utopia", "migration"],
+    "keywords": [
+        "php",
+        "framework",
+        "upf",
+        "utopia",
+        "migration"
+    ],
     "license": "MIT",
     "minimum-stability": "stable",
     "autoload": {
@@ -22,13 +28,12 @@
         "check": "./vendor/bin/phpstan analyse --level 3 src tests --memory-limit 2G"
     },
     "require": {
-        "php": ">=8.2",
+        "php": ">=8.5",
         "ext-curl": "*",
         "ext-openssl": "*",
-
         "appwrite/appwrite": "^26.0",
         "utopia-php/database": "^6.0.0",
-        "utopia-php/storage": "2.*",
+        "utopia-php/storage": "3.*",
         "utopia-php/dsn": "0.2.*",
         "halaxa/json-machine": "^1.2"
     },
