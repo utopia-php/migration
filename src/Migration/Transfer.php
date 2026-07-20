@@ -216,10 +216,7 @@ class Transfer
      */
     protected array $resources = [];
 
-    /**
-     * @var array{rootResourceId: string, rootResourceType: string, rootResourceChildId: string}|null
-     */
-    private ?array $resourceSelector = null;
+    private ?ResourceSelector $resourceSelector = null;
 
     public function __construct(Source $source, Destination $destination)
     {
@@ -377,9 +374,12 @@ class Transfer
             $this->destination->runWithResourceSelector(
                 $computedResources,
                 $callback,
-                $this->resourceSelector['rootResourceId'],
-                $this->resourceSelector['rootResourceType'],
-                $this->resourceSelector['rootResourceChildId'],
+                $this->resourceSelector->resourceId,
+                $this->resourceSelector->resourceInternalId,
+                $this->resourceSelector->resourceType,
+                $this->resourceSelector->parentResourceId,
+                $this->resourceSelector->parentResourceInternalId,
+                $this->resourceSelector->parentResourceType,
             );
 
             return;
@@ -389,7 +389,7 @@ class Transfer
     }
 
     /**
-     * Transfer resources using separate, opaque root and child IDs.
+     * Transfer resources using Appwrite's canonical resource relation fields.
      *
      * @param array<string|array<string>> $resources Resources to transfer
      * @param callable $callback Callback to run after transfer
@@ -398,19 +398,30 @@ class Transfer
     public function runWithResourceSelector(
         array $resources,
         callable $callback,
-        string $rootResourceId,
-        string $rootResourceType,
-        string $rootResourceChildId,
+        string $resourceId,
+        string $resourceInternalId,
+        string $resourceType,
+        string $parentResourceId,
+        string $parentResourceInternalId,
+        string $parentResourceType,
     ): void {
         $previousResourceSelector = $this->resourceSelector;
-        $this->resourceSelector = [
-            'rootResourceId' => $rootResourceId,
-            'rootResourceType' => $rootResourceType,
-            'rootResourceChildId' => $rootResourceChildId,
-        ];
+        $this->resourceSelector = new ResourceSelector(
+            $resourceId,
+            $resourceInternalId,
+            $resourceType,
+            $parentResourceId,
+            $parentResourceInternalId,
+            $parentResourceType,
+        );
 
         try {
-            $this->run($resources, $callback, $rootResourceId, $rootResourceType);
+            $this->run(
+                $resources,
+                $callback,
+                $this->resourceSelector->getScopeId(),
+                $this->resourceSelector->getScopeType(),
+            );
         } finally {
             $this->resourceSelector = $previousResourceSelector;
         }

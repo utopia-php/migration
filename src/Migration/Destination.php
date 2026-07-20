@@ -4,10 +4,7 @@ namespace Utopia\Migration;
 
 abstract class Destination extends Target
 {
-    /**
-     * @var array{rootResourceId: string, rootResourceType: string, rootResourceChildId: string}|null
-     */
-    private ?array $resourceSelector = null;
+    private ?ResourceSelector $resourceSelector = null;
 
     /**
      * Source
@@ -47,9 +44,12 @@ abstract class Destination extends Target
             $this->source->runWithResourceSelector(
                 $resources,
                 $import,
-                $this->resourceSelector['rootResourceId'],
-                $this->resourceSelector['rootResourceType'],
-                $this->resourceSelector['rootResourceChildId'],
+                $this->resourceSelector->resourceId,
+                $this->resourceSelector->resourceInternalId,
+                $this->resourceSelector->resourceType,
+                $this->resourceSelector->parentResourceId,
+                $this->resourceSelector->parentResourceInternalId,
+                $this->resourceSelector->parentResourceType,
             );
 
             return;
@@ -59,7 +59,7 @@ abstract class Destination extends Target
     }
 
     /**
-     * Transfer resources using separate, opaque root and child IDs.
+     * Transfer resources using Appwrite's canonical resource relation fields.
      *
      * @param array<string> $resources Resources to transfer
      * @param callable(array<Resource>): void $callback to run after transfer
@@ -67,19 +67,30 @@ abstract class Destination extends Target
     public function runWithResourceSelector(
         array $resources,
         callable $callback,
-        string $rootResourceId,
-        string $rootResourceType,
-        string $rootResourceChildId,
+        string $resourceId,
+        string $resourceInternalId,
+        string $resourceType,
+        string $parentResourceId,
+        string $parentResourceInternalId,
+        string $parentResourceType,
     ): void {
         $previousResourceSelector = $this->resourceSelector;
-        $this->resourceSelector = [
-            'rootResourceId' => $rootResourceId,
-            'rootResourceType' => $rootResourceType,
-            'rootResourceChildId' => $rootResourceChildId,
-        ];
+        $this->resourceSelector = new ResourceSelector(
+            $resourceId,
+            $resourceInternalId,
+            $resourceType,
+            $parentResourceId,
+            $parentResourceInternalId,
+            $parentResourceType,
+        );
 
         try {
-            $this->run($resources, $callback, $rootResourceId, $rootResourceType);
+            $this->run(
+                $resources,
+                $callback,
+                $this->resourceSelector->getScopeId(),
+                $this->resourceSelector->getScopeType(),
+            );
         } finally {
             $this->resourceSelector = $previousResourceSelector;
         }

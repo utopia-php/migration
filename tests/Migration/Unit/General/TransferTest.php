@@ -136,9 +136,12 @@ class TransferTest extends TestCase
             [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
             static function (): void {
             },
-            $database->getId(),
-            Resource::TYPE_DATABASE,
-            $second->getId(),
+            resourceId: $second->getId(),
+            resourceInternalId: '2',
+            resourceType: Resource::TYPE_TABLE,
+            parentResourceId: $database->getId(),
+            parentResourceInternalId: '1',
+            parentResourceType: Resource::TYPE_DATABASE,
         );
 
         $this->assertSame(
@@ -160,11 +163,45 @@ class TransferTest extends TestCase
         $source = new class () extends MockSource {
             public int $runCount = 0;
 
+            /** @var array{resourceId: string, resourceInternalId: string, resourceType: string, parentResourceId: string, parentResourceInternalId: string, parentResourceType: string}|null */
+            public ?array $selector = null;
+
             #[Override]
             public function run(array $resources, callable $callback, string $rootResourceId = '', string $rootResourceType = ''): void
             {
                 $this->runCount++;
                 parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+            }
+
+            #[Override]
+            public function runWithResourceSelector(
+                array $resources,
+                callable $callback,
+                string $resourceId,
+                string $resourceInternalId,
+                string $resourceType,
+                string $parentResourceId,
+                string $parentResourceInternalId,
+                string $parentResourceType,
+            ): void {
+                $this->selector = [
+                    'resourceId' => $resourceId,
+                    'resourceInternalId' => $resourceInternalId,
+                    'resourceType' => $resourceType,
+                    'parentResourceId' => $parentResourceId,
+                    'parentResourceInternalId' => $parentResourceInternalId,
+                    'parentResourceType' => $parentResourceType,
+                ];
+                parent::runWithResourceSelector(
+                    $resources,
+                    $callback,
+                    $resourceId,
+                    $resourceInternalId,
+                    $resourceType,
+                    $parentResourceId,
+                    $parentResourceInternalId,
+                    $parentResourceType,
+                );
             }
         };
         $destination = new class () extends MockDestination {
@@ -201,14 +238,25 @@ class TransferTest extends TestCase
             [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
             static function (): void {
             },
-            $database->getId(),
-            Resource::TYPE_DATABASE,
-            $table->getId(),
+            resourceId: $table->getId(),
+            resourceInternalId: '2',
+            resourceType: Resource::TYPE_TABLE,
+            parentResourceId: $database->getId(),
+            parentResourceInternalId: '1',
+            parentResourceType: Resource::TYPE_DATABASE,
         );
 
         $this->assertSame(1, $transfer->runCount);
         $this->assertSame(1, $destination->runCount);
         $this->assertSame(1, $source->runCount);
+        $this->assertSame([
+            'resourceId' => 'table',
+            'resourceInternalId' => '2',
+            'resourceType' => Resource::TYPE_TABLE,
+            'parentResourceId' => 'database',
+            'parentResourceInternalId' => '1',
+            'parentResourceType' => Resource::TYPE_DATABASE,
+        ], $source->selector);
     }
 
     public function testExplicitSelectorStateIsRestoredAfterSuccess(): void
@@ -226,9 +274,12 @@ class TransferTest extends TestCase
             [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
             static function (): void {
             },
-            $selectedDatabase->getId(),
-            Resource::TYPE_DATABASE,
-            $selectedTable->getId(),
+            resourceId: $selectedTable->getId(),
+            resourceInternalId: '2',
+            resourceType: Resource::TYPE_TABLE,
+            parentResourceId: $selectedDatabase->getId(),
+            parentResourceInternalId: '1',
+            parentResourceType: Resource::TYPE_DATABASE,
         );
         $this->transfer->run(
             [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
@@ -261,9 +312,12 @@ class TransferTest extends TestCase
                 static function (): void {
                     throw new \RuntimeException('stop');
                 },
-                $selectedDatabase->getId(),
-                Resource::TYPE_DATABASE,
-                $selectedTable->getId(),
+                resourceId: $selectedTable->getId(),
+                resourceInternalId: '2',
+                resourceType: Resource::TYPE_TABLE,
+                parentResourceId: $selectedDatabase->getId(),
+                parentResourceInternalId: '1',
+                parentResourceType: Resource::TYPE_DATABASE,
             );
             $this->fail('The callback exception should escape the transfer.');
         } catch (\RuntimeException $error) {

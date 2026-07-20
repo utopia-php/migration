@@ -126,7 +126,7 @@ abstract class Source extends Target
     }
 
     /**
-     * Transfer resources using separate, opaque root and child IDs.
+     * Transfer resources using Appwrite's canonical resource relation fields.
      *
      * @param array<string> $resources Resources to transfer
      * @param callable $callback Callback to run after transfer
@@ -134,11 +134,23 @@ abstract class Source extends Target
     public function runWithResourceSelector(
         array $resources,
         callable $callback,
-        string $rootResourceId,
-        string $rootResourceType,
-        string $rootResourceChildId,
+        string $resourceId,
+        string $resourceInternalId,
+        string $resourceType,
+        string $parentResourceId,
+        string $parentResourceInternalId,
+        string $parentResourceType,
     ): void {
-        $this->run($resources, $callback, $rootResourceId, $rootResourceType);
+        $selector = new ResourceSelector(
+            $resourceId,
+            $resourceInternalId,
+            $resourceType,
+            $parentResourceId,
+            $parentResourceInternalId,
+            $parentResourceType,
+        );
+
+        $this->run($resources, $callback, $selector->getScopeId(), $selector->getScopeType());
     }
 
     /**

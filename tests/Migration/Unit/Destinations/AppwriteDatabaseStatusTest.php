@@ -149,9 +149,12 @@ final class AppwriteDatabaseStatusTest extends TestCase
                         [Resource::TYPE_DATABASE],
                         static function (): void {
                         },
-                        'database',
-                        Resource::TYPE_DATABASE,
-                        'table',
+                        resourceId: 'database',
+                        resourceInternalId: '1',
+                        resourceType: Resource::TYPE_DATABASE,
+                        parentResourceId: '',
+                        parentResourceInternalId: '',
+                        parentResourceType: '',
                     );
 
                     return;

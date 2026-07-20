@@ -215,20 +215,26 @@ class Appwrite extends Source
     public function runWithResourceSelector(
         array $resources,
         callable $callback,
-        string $rootResourceId,
-        string $rootResourceType,
-        string $rootResourceChildId,
+        string $resourceId,
+        string $resourceInternalId,
+        string $resourceType,
+        string $parentResourceId,
+        string $parentResourceInternalId,
+        string $parentResourceType,
     ): void {
         $previousResourceChildId = $this->resourceChildId;
-        $this->resourceChildId = $rootResourceChildId;
+        $this->resourceChildId = $parentResourceId !== '' ? $resourceId : '';
 
         try {
             parent::runWithResourceSelector(
                 $resources,
                 $callback,
-                $rootResourceId,
-                $rootResourceType,
-                $rootResourceChildId,
+                $resourceId,
+                $resourceInternalId,
+                $resourceType,
+                $parentResourceId,
+                $parentResourceInternalId,
+                $parentResourceType,
             );
         } finally {
             $this->resourceChildId = $previousResourceChildId;
