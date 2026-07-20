@@ -14,7 +14,7 @@ use Utopia\Migration\Sources\Appwrite\Reader\Database as DatabaseReader;
 use Utopia\Migration\Transfer;
 use Utopia\Migration\Warning;
 use Utopia\Storage\Device;
-use Utopia\Storage\Storage;
+use Utopia\Storage\DeviceType;
 
 class CSV extends Source
 {
@@ -568,7 +568,7 @@ class CSV extends Source
         string $filePath
     ): void {
         if ($this->downloaded
-            || $device->getType() === Storage::DEVICE_LOCAL
+            || $device->getType() === DeviceType::Local
         ) {
             return;
         }

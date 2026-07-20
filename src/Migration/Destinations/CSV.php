@@ -47,7 +47,6 @@ class CSV extends Destination
         $this->directory = $directory;
         $this->outputFile = $this->sanitizeFilename($filename);
         $this->local = new Local(\sys_get_temp_dir() . '/csv_export_' . uniqid());
-        $this->local->setTransferChunkSize(Transfer::STORAGE_MAX_CHUNK_SIZE);
         $this->createDirectory($this->local->getRoot());
 
         foreach ($allowedColumns as $attribute) {
@@ -204,7 +203,8 @@ class CSV extends Destination
             $result = $this->local->transfer(
                 $sourcePath,
                 $destPath,
-                $this->deviceForFiles
+                $this->deviceForFiles,
+                Transfer::STORAGE_MAX_CHUNK_SIZE
             );
             if ($result === false) {
                 throw new \Exception(
