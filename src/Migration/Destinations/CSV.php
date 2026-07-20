@@ -18,6 +18,7 @@ class CSV extends Destination
 {
     protected Device $deviceForFiles;
     protected string $resourceId;
+    private ?string $resourceChildId = null;
     protected string $directory;
     protected string $outputFile;
     protected Local $local;
@@ -52,6 +53,34 @@ class CSV extends Destination
         foreach ($allowedColumns as $attribute) {
             $this->allowedColumns[$attribute] = true;
         }
+    }
+
+    public static function fromResourceIds(
+        Device $deviceForFiles,
+        string $databaseId,
+        string $tableId,
+        string $directory,
+        string $filename,
+        array $allowedColumns = [],
+        string $delimiter = ',',
+        string $enclosure = '"',
+        string $escape = '"',
+        bool $includeHeaders = true,
+    ): self {
+        $destination = new self(
+            deviceForFiles: $deviceForFiles,
+            resourceId: $databaseId,
+            directory: $directory,
+            filename: $filename,
+            allowedColumns: $allowedColumns,
+            delimiter: $delimiter,
+            enclosure: $enclosure,
+            escape: $escape,
+            includeHeaders: $includeHeaders,
+        );
+        $destination->resourceChildId = $tableId;
+
+        return $destination;
     }
 
     public static function getName(): string
@@ -193,7 +222,7 @@ class CSV extends Destination
                     UtopiaResource::TYPE_ROW,
                     Transfer::GROUP_DATABASES,
                     'Error cleaning up: ' . $this->local->getRoot(),
-                    $this->resourceId
+                    $this->resourceChildId ?? $this->resourceId
                 ));
             }
         }

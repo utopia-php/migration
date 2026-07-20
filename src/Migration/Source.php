@@ -89,6 +89,8 @@ abstract class Source extends Target
      */
     public function run(array $resources, callable $callback, string $rootResourceId = '', string $rootResourceType = ''): void
     {
+        $previousRootResourceId = $this->rootResourceId;
+        $previousRootResourceType = $this->rootResourceType;
         $this->rootResourceId = $rootResourceId;
         $this->rootResourceType = $rootResourceType;
 
@@ -115,7 +117,40 @@ abstract class Source extends Target
             $this->cache->addAll($prunedResources);
         };
 
-        $this->exportResources($resources);
+        try {
+            $this->exportResources($resources);
+        } finally {
+            $this->rootResourceId = $previousRootResourceId;
+            $this->rootResourceType = $previousRootResourceType;
+        }
+    }
+
+    /**
+     * Transfer resources using Appwrite's canonical resource relation fields.
+     *
+     * @param array<string> $resources Resources to transfer
+     * @param callable $callback Callback to run after transfer
+     */
+    public function runWithResourceSelector(
+        array $resources,
+        callable $callback,
+        string $resourceId,
+        string $resourceInternalId,
+        string $resourceType,
+        string $parentResourceId,
+        string $parentResourceInternalId,
+        string $parentResourceType,
+    ): void {
+        $selector = new ResourceSelector(
+            $resourceId,
+            $resourceInternalId,
+            $resourceType,
+            $parentResourceId,
+            $parentResourceInternalId,
+            $parentResourceType,
+        );
+
+        $this->run($resources, $callback, $selector->getScopeId(), $selector->getScopeType());
     }
 
     /**

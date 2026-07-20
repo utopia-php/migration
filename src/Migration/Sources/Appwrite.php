@@ -18,6 +18,7 @@ use Appwrite\Services\TablesDB;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Appwrite\Services\Webhooks;
+use Override;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Database\Document as UtopiaDocument;
@@ -117,6 +118,8 @@ class Appwrite extends Source
 
     private Proxy $proxy;
 
+    private ?string $resourceChildId = null;
+
     /**
      * @var callable(UtopiaDocument $database|null): UtopiaDatabase
      */
@@ -178,6 +181,64 @@ class Appwrite extends Source
     public static function getName(): string
     {
         return 'Appwrite';
+    }
+
+    #[Override]
+    public function run(
+        array $resources,
+        callable $callback,
+        string $rootResourceId = '',
+        string $rootResourceType = '',
+    ): void {
+        $previousResourceChildId = $this->resourceChildId;
+
+        if ($this->resourceChildId === null) {
+            $this->resourceChildId = '';
+
+            if (
+                $rootResourceId !== ''
+                && \array_key_exists($rootResourceType, Resource::DATABASE_TYPE_RESOURCE_MAP)
+                && \str_contains($rootResourceId, ':')
+            ) {
+                [$rootResourceId, $this->resourceChildId] = \explode(':', $rootResourceId, 2);
+            }
+        }
+
+        try {
+            parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+        } finally {
+            $this->resourceChildId = $previousResourceChildId;
+        }
+    }
+
+    #[Override]
+    public function runWithResourceSelector(
+        array $resources,
+        callable $callback,
+        string $resourceId,
+        string $resourceInternalId,
+        string $resourceType,
+        string $parentResourceId,
+        string $parentResourceInternalId,
+        string $parentResourceType,
+    ): void {
+        $previousResourceChildId = $this->resourceChildId;
+        $this->resourceChildId = $parentResourceId !== '' ? $resourceId : '';
+
+        try {
+            parent::runWithResourceSelector(
+                $resources,
+                $callback,
+                $resourceId,
+                $resourceInternalId,
+                $resourceType,
+                $parentResourceId,
+                $parentResourceInternalId,
+                $parentResourceType,
+            );
+        } finally {
+            $this->resourceChildId = $previousResourceChildId;
+        }
     }
 
     public function getSourceType(): string
@@ -1073,18 +1134,8 @@ class Appwrite extends Source
         while (true) {
             $queries = [$this->reader->queryLimit($batchSize)];
 
-            if ($this->rootResourceId !== '' && ($this->rootResourceType === Resource::TYPE_DATABASE || $this->rootResourceType === Resource::TYPE_DATABASE_DOCUMENTSDB)) {
-                $targetDatabaseId = $this->rootResourceId;
-
-                // Handle database:collection format - extract database ID
-                if (\str_contains($this->rootResourceId, ':')) {
-                    $parts = \explode(':', $this->rootResourceId, 2);
-                    if (\count($parts) === 2) {
-                        $targetDatabaseId = $parts[0];
-                    }
-                }
-
-                $queries[] = $this->reader->queryEqual('$id', [$targetDatabaseId]);
+            if ($this->rootResourceId !== '' && \array_key_exists($this->rootResourceType, Resource::DATABASE_TYPE_RESOURCE_MAP)) {
+                $queries[] = $this->reader->queryEqual('$id', [$this->rootResourceId]);
                 $queries[] = $this->reader->queryLimit(1);
             }
 
@@ -1148,24 +1199,20 @@ class Appwrite extends Source
                 $queries = [$this->reader->queryLimit($batchSize)];
                 $tables = [];
 
-                // Filter to specific table if rootResourceType is database with database:collection format
+                // Filter to a specific table or collection when its database root has a child set,
+                // or when the root itself is a table.
                 if (
                     $this->rootResourceId !== '' &&
-                    $this->rootResourceType === Resource::TYPE_DATABASE &&
-                    \str_contains($this->rootResourceId, ':')
+                    $this->resourceChildId !== '' &&
+                    $this->rootResourceType === $databaseName
                 ) {
-                    $parts = \explode(':', $this->rootResourceId, 2);
-                    if (\count($parts) === 2) {
-                        $targetTableId = $parts[1]; // table ID
-                        $queries[] = $this->reader->queryEqual('$id', [$targetTableId]);
-                        $queries[] = $this->reader->queryLimit(1);
-                    }
+                    $queries[] = $this->reader->queryEqual('$id', [$this->resourceChildId]);
+                    $queries[] = $this->reader->queryLimit(1);
                 } elseif (
                     $this->rootResourceId !== '' &&
                     $this->rootResourceType === Resource::TYPE_TABLE
                 ) {
-                    $targetTableId = $this->rootResourceId;
-                    $queries[] = $this->reader->queryEqual('$id', [$targetTableId]);
+                    $queries[] = $this->reader->queryEqual('$id', [$this->rootResourceId]);
                     $queries[] = $this->reader->queryLimit(1);
                 } elseif ($lastTable) {
                     $queries[] = $this->reader->queryCursorAfter($lastTable);

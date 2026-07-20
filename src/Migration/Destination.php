@@ -4,6 +4,8 @@ namespace Utopia\Migration;
 
 abstract class Destination extends Target
 {
+    private ?ResourceSelector $resourceSelector = null;
+
     /**
      * Source
      */
@@ -34,14 +36,64 @@ abstract class Destination extends Target
         string $rootResourceId = '',
         string $rootResourceType = '',
     ): void {
-        $this->source->run(
-            $resources,
-            function (array $resources) use ($callback) {
-                $this->import($resources, $callback);
-            },
-            $rootResourceId,
-            $rootResourceType,
+        $import = function (array $resources) use ($callback) {
+            $this->import($resources, $callback);
+        };
+
+        if ($this->resourceSelector !== null) {
+            $this->source->runWithResourceSelector(
+                $resources,
+                $import,
+                $this->resourceSelector->resourceId,
+                $this->resourceSelector->resourceInternalId,
+                $this->resourceSelector->resourceType,
+                $this->resourceSelector->parentResourceId,
+                $this->resourceSelector->parentResourceInternalId,
+                $this->resourceSelector->parentResourceType,
+            );
+
+            return;
+        }
+
+        $this->source->run($resources, $import, $rootResourceId, $rootResourceType);
+    }
+
+    /**
+     * Transfer resources using Appwrite's canonical resource relation fields.
+     *
+     * @param array<string> $resources Resources to transfer
+     * @param callable(array<Resource>): void $callback to run after transfer
+     */
+    public function runWithResourceSelector(
+        array $resources,
+        callable $callback,
+        string $resourceId,
+        string $resourceInternalId,
+        string $resourceType,
+        string $parentResourceId,
+        string $parentResourceInternalId,
+        string $parentResourceType,
+    ): void {
+        $previousResourceSelector = $this->resourceSelector;
+        $this->resourceSelector = new ResourceSelector(
+            $resourceId,
+            $resourceInternalId,
+            $resourceType,
+            $parentResourceId,
+            $parentResourceInternalId,
+            $parentResourceType,
         );
+
+        try {
+            $this->run(
+                $resources,
+                $callback,
+                $this->resourceSelector->getScopeId(),
+                $this->resourceSelector->getScopeType(),
+            );
+        } finally {
+            $this->resourceSelector = $previousResourceSelector;
+        }
     }
 
     /**

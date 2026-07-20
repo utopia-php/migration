@@ -2,6 +2,7 @@
 
 namespace Utopia\Tests\Unit\General;
 
+use Override;
 use PHPUnit\Framework\TestCase;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database;
@@ -65,6 +66,276 @@ class TransferTest extends TestCase
         $this->assertNotNull($database);
         $this->assertSame('test', $database->getDatabaseName());
         $this->assertSame('test', $database->getId());
+    }
+
+    public function testLegacyCompoundRootResourceIdScopesDatabaseEntity(): void
+    {
+        $database = new Database('database', 'Database');
+        $first = new Table($database, 'First table', 'first');
+        $second = new Table($database, 'Second table', 'second');
+
+        $this->source->pushMockResource($database);
+        $this->source->pushMockResource($first);
+        $this->source->pushMockResource($second);
+
+        $this->transfer->run(
+            [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
+            static function (): void {
+            },
+            $database->getId() . ':' . $second->getId(),
+            Resource::TYPE_DATABASE,
+        );
+
+        $tables = $this->destination->getResourceTypeData(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE);
+
+        $this->assertSame(['second'], $tables);
+        $this->assertNull($this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE, 'first'));
+        $this->assertSame($second, $this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE, 'second'));
+    }
+
+    public function testLegacySourceSubclassChildSelectorPropertyRemainsCompatible(): void
+    {
+        $source = new class () extends MockSource {
+            protected $rootResourceChildId = ['external'];
+        };
+        $destination = new MockDestination();
+        $transfer = new Transfer($source, $destination);
+        $database = new Database('database', 'Database');
+        $first = new Table($database, 'First table', 'first');
+        $second = new Table($database, 'Second table', 'second');
+
+        $source->pushMockResource($database);
+        $source->pushMockResource($first);
+        $source->pushMockResource($second);
+
+        $transfer->run(
+            [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
+            static function (): void {
+            },
+            'database:second',
+            Resource::TYPE_DATABASE,
+        );
+
+        $this->assertSame(
+            ['second'],
+            $destination->getResourceTypeData(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE),
+        );
+    }
+
+    public function testExplicitSelectorKeepsColonContainingIdsOpaque(): void
+    {
+        $database = new Database('database:with:colon', 'Database');
+        $first = new Table($database, 'First table', 'first');
+        $second = new Table($database, 'Second table', 'table:with:colon');
+
+        $this->source->pushMockResource($database);
+        $this->source->pushMockResource($first);
+        $this->source->pushMockResource($second);
+
+        $this->transfer->runWithResourceSelector(
+            [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
+            static function (): void {
+            },
+            resourceId: $second->getId(),
+            resourceInternalId: '2',
+            resourceType: Resource::TYPE_TABLE,
+            parentResourceId: $database->getId(),
+            parentResourceInternalId: '1',
+            parentResourceType: Resource::TYPE_DATABASE,
+        );
+
+        $this->assertSame(
+            ['table:with:colon'],
+            $this->destination->getResourceTypeData(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE),
+        );
+        $this->assertSame(
+            $database,
+            $this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_DATABASE, 'database:with:colon'),
+        );
+        $this->assertSame(
+            $second,
+            $this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE, 'table:with:colon'),
+        );
+    }
+
+    public function testExplicitSelectorDispatchesLegacyOverridesExactlyOnce(): void
+    {
+        $source = new class () extends MockSource {
+            public int $runCount = 0;
+
+            /** @var array{resourceId: string, resourceInternalId: string, resourceType: string, parentResourceId: string, parentResourceInternalId: string, parentResourceType: string}|null */
+            public ?array $selector = null;
+
+            #[Override]
+            public function run(array $resources, callable $callback, string $rootResourceId = '', string $rootResourceType = ''): void
+            {
+                $this->runCount++;
+                parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+            }
+
+            #[Override]
+            public function runWithResourceSelector(
+                array $resources,
+                callable $callback,
+                string $resourceId,
+                string $resourceInternalId,
+                string $resourceType,
+                string $parentResourceId,
+                string $parentResourceInternalId,
+                string $parentResourceType,
+            ): void {
+                $this->selector = [
+                    'resourceId' => $resourceId,
+                    'resourceInternalId' => $resourceInternalId,
+                    'resourceType' => $resourceType,
+                    'parentResourceId' => $parentResourceId,
+                    'parentResourceInternalId' => $parentResourceInternalId,
+                    'parentResourceType' => $parentResourceType,
+                ];
+                parent::runWithResourceSelector(
+                    $resources,
+                    $callback,
+                    $resourceId,
+                    $resourceInternalId,
+                    $resourceType,
+                    $parentResourceId,
+                    $parentResourceInternalId,
+                    $parentResourceType,
+                );
+            }
+        };
+        $destination = new class () extends MockDestination {
+            public int $runCount = 0;
+
+            #[Override]
+            public function run(array $resources, callable $callback, string $rootResourceId = '', string $rootResourceType = ''): void
+            {
+                $this->runCount++;
+                parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+            }
+        };
+        $transfer = new class ($source, $destination) extends Transfer {
+            public int $runCount = 0;
+
+            #[Override]
+            public function run(
+                array $resources,
+                callable $callback,
+                ?string $rootResourceId = null,
+                ?string $rootResourceType = null,
+            ): void {
+                $this->runCount++;
+                parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+            }
+        };
+
+        $database = new Database('database', 'Database');
+        $table = new Table($database, 'Table', 'table');
+        $source->pushMockResource($database);
+        $source->pushMockResource($table);
+
+        $transfer->runWithResourceSelector(
+            [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
+            static function (): void {
+            },
+            resourceId: $table->getId(),
+            resourceInternalId: '2',
+            resourceType: Resource::TYPE_TABLE,
+            parentResourceId: $database->getId(),
+            parentResourceInternalId: '1',
+            parentResourceType: Resource::TYPE_DATABASE,
+        );
+
+        $this->assertSame(1, $transfer->runCount);
+        $this->assertSame(1, $destination->runCount);
+        $this->assertSame(1, $source->runCount);
+        $this->assertSame([
+            'resourceId' => 'table',
+            'resourceInternalId' => '2',
+            'resourceType' => Resource::TYPE_TABLE,
+            'parentResourceId' => 'database',
+            'parentResourceInternalId' => '1',
+            'parentResourceType' => Resource::TYPE_DATABASE,
+        ], $source->selector);
+    }
+
+    public function testExplicitSelectorStateIsRestoredAfterSuccess(): void
+    {
+        $selectedDatabase = new Database('selected', 'Selected');
+        $selectedTable = new Table($selectedDatabase, 'Selected table', 'selected-table');
+        $legacyDatabase = new Database('legacy', 'Legacy');
+        $legacyTable = new Table($legacyDatabase, 'Legacy table', 'legacy-table');
+
+        foreach ([$selectedDatabase, $selectedTable, $legacyDatabase, $legacyTable] as $resource) {
+            $this->source->pushMockResource($resource);
+        }
+
+        $this->transfer->runWithResourceSelector(
+            [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
+            static function (): void {
+            },
+            resourceId: $selectedTable->getId(),
+            resourceInternalId: '2',
+            resourceType: Resource::TYPE_TABLE,
+            parentResourceId: $selectedDatabase->getId(),
+            parentResourceInternalId: '1',
+            parentResourceType: Resource::TYPE_DATABASE,
+        );
+        $this->transfer->run(
+            [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
+            static function (): void {
+            },
+            'legacy:legacy-table',
+            Resource::TYPE_DATABASE,
+        );
+
+        $this->assertSame(
+            $legacyTable,
+            $this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE, 'legacy-table'),
+        );
+    }
+
+    public function testExplicitSelectorStateIsRestoredAfterFailure(): void
+    {
+        $selectedDatabase = new Database('selected', 'Selected');
+        $selectedTable = new Table($selectedDatabase, 'Selected table', 'selected-table');
+        $legacyDatabase = new Database('legacy', 'Legacy');
+        $legacyTable = new Table($legacyDatabase, 'Legacy table', 'legacy-table');
+
+        foreach ([$selectedDatabase, $selectedTable, $legacyDatabase, $legacyTable] as $resource) {
+            $this->source->pushMockResource($resource);
+        }
+
+        try {
+            $this->transfer->runWithResourceSelector(
+                [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
+                static function (): void {
+                    throw new \RuntimeException('stop');
+                },
+                resourceId: $selectedTable->getId(),
+                resourceInternalId: '2',
+                resourceType: Resource::TYPE_TABLE,
+                parentResourceId: $selectedDatabase->getId(),
+                parentResourceInternalId: '1',
+                parentResourceType: Resource::TYPE_DATABASE,
+            );
+            $this->fail('The callback exception should escape the transfer.');
+        } catch (\RuntimeException $error) {
+            $this->assertSame('stop', $error->getMessage());
+        }
+
+        $this->transfer->run(
+            [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
+            static function (): void {
+            },
+            'legacy:legacy-table',
+            Resource::TYPE_DATABASE,
+        );
+
+        $this->assertSame(
+            $legacyTable,
+            $this->destination->getResourceById(Transfer::GROUP_DATABASES, Resource::TYPE_TABLE, 'legacy-table'),
+        );
     }
 
     /**

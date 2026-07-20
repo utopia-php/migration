@@ -28,9 +28,11 @@ class CSV extends Source
     private string $filePath;
 
     /**
-     * format: `{databaseId:tableId}`
+     * Legacy format: `{databaseId}:{tableId}`.
      */
     private string $resourceId;
+
+    private ?string $resourceChildId = null;
 
     private Device $device;
 
@@ -49,6 +51,26 @@ class CSV extends Source
         $this->filePath = $filePath;
         $this->resourceId = $resourceId;
         $this->database = new DatabaseReader($dbForProject, $getDatabasesDB);
+    }
+
+    public static function fromResourceIds(
+        string $databaseId,
+        string $tableId,
+        string $filePath,
+        Device $device,
+        ?UtopiaDatabase $dbForProject,
+        ?callable $getDatabasesDB = null,
+    ): self {
+        $source = new self(
+            resourceId: $databaseId,
+            filePath: $filePath,
+            device: $device,
+            dbForProject: $dbForProject,
+            getDatabasesDB: $getDatabasesDB,
+        );
+        $source->resourceChildId = $tableId;
+
+        return $source;
     }
 
     public static function getName(): string
@@ -130,8 +152,7 @@ class CSV extends Source
     {
         $columns = [];
         $lastColumn = null;
-
-        [$databaseId, $tableId] = \explode(':', $this->resourceId);
+        [$databaseId, $tableId] = $this->getResourceIds();
 
         $databases = $this->database->listDatabases([
             $this->database->queryEqual('$id', [$databaseId]),
@@ -520,9 +541,23 @@ class CSV extends Source
                 UtopiaResource::TYPE_ROW,
                 Transfer::GROUP_DATABASES,
                 \implode(', ', $messages),
-                $this->resourceId
+                $this->resourceChildId ?? $this->resourceId
             ));
         }
+    }
+
+    /**
+     * @return array{string, string}
+     */
+    private function getResourceIds(): array
+    {
+        if ($this->resourceChildId !== null) {
+            return [$this->resourceId, $this->resourceChildId];
+        }
+
+        $resourceIds = \explode(':', $this->resourceId, 2);
+
+        return [$resourceIds[0], $resourceIds[1] ?? ''];
     }
 
     /**

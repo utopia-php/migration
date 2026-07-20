@@ -8,12 +8,133 @@ use Utopia\Migration\Resource as UtopiaResource;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Row;
 use Utopia\Migration\Resources\Database\Table;
+use Utopia\Migration\Sources\JSON as SourceJSON;
 use Utopia\Migration\Transfer;
 use Utopia\Storage\Device\Local;
+use Utopia\Tests\Unit\Adapters\MockDestination;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
 class JSONTest extends TestCase
 {
+    public function testLegacyConstructorsAcceptPositionalAndNamedArguments(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/json_constructor_' . uniqid();
+        $device = new Local($tempDir);
+
+        $positionalSource = new SourceJSON('database:table', 'input.json', $device, null);
+        $namedSource = new SourceJSON(
+            resourceId: 'database:table',
+            filePath: 'input.json',
+            device: $device,
+            dbForProject: null,
+        );
+        $positionalDestination = new DestinationJSON($device, 'database:table', '', 'output');
+        $namedDestination = new DestinationJSON(
+            deviceForFiles: $device,
+            resourceId: 'database:table',
+            directory: '',
+            filename: 'output',
+        );
+
+        $this->assertInstanceOf(SourceJSON::class, $positionalSource);
+        $this->assertInstanceOf(SourceJSON::class, $namedSource);
+        $this->assertInstanceOf(DestinationJSON::class, $positionalDestination);
+        $this->assertInstanceOf(DestinationJSON::class, $namedDestination);
+
+        $this->recursiveDelete($this->localRoot($positionalDestination));
+        $this->recursiveDelete($this->localRoot($namedDestination));
+        $this->recursiveDelete($tempDir);
+    }
+
+    public function testConstructorsMatchOriginMainSignatures(): void
+    {
+        $this->assertSame([
+            ['resourceId', 'string', false, null],
+            ['filePath', 'string', false, null],
+            ['device', 'Utopia\\Storage\\Device', false, null],
+            ['dbForProject', '?Utopia\\Database\\Database', false, null],
+        ], $this->constructorSignature(SourceJSON::class));
+        $this->assertSame([
+            ['deviceForFiles', 'Utopia\\Storage\\Device', false, null],
+            ['resourceId', 'string', false, null],
+            ['directory', 'string', false, null],
+            ['filename', 'string', false, null],
+            ['allowedColumns', 'array', true, []],
+        ], $this->constructorSignature(DestinationJSON::class));
+    }
+
+    public function testFactoriesKeepColonContainingResourceIdsSeparate(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/json_factory_' . uniqid();
+        $device = new Local($tempDir);
+        $databaseId = 'database:with:colon';
+        $tableId = 'table:with:colon';
+
+        $source = SourceJSON::fromResourceIds($databaseId, $tableId, 'input.json', $device, null);
+        $destination = DestinationJSON::fromResourceIds($device, $databaseId, $tableId, '', 'output');
+
+        $this->assertSame($databaseId, $this->property($source, 'resourceId'));
+        $this->assertSame($tableId, $this->property($source, 'resourceChildId'));
+        $this->assertSame($databaseId, $this->property($destination, 'resourceId'));
+        $this->assertSame($tableId, $this->property($destination, 'resourceChildId'));
+
+        $this->recursiveDelete($this->localRoot($destination));
+        $this->recursiveDelete($tempDir);
+    }
+
+    public function testDestinationSubclassChildSelectorPropertyRemainsCompatible(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/json_subclass_' . uniqid();
+        $device = new Local($tempDir);
+        $destination = new class ($device, 'database:table', '', 'output') extends DestinationJSON {
+            protected $resourceChildId = ['external'];
+
+            public function getExternalResourceChildId(): mixed
+            {
+                return $this->resourceChildId;
+            }
+
+            public function getLocalRoot(): string
+            {
+                return $this->local->getRoot();
+            }
+        };
+
+        $this->assertSame(['external'], $destination->getExternalResourceChildId());
+
+        $this->recursiveDelete($destination->getLocalRoot());
+        $this->recursiveDelete($tempDir);
+    }
+
+    public function testSourceFactoryEmitsRowsWithSeparateColonContainingDatabaseAndTableIds(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/json_source_factory_' . uniqid();
+        \mkdir($tempDir, 0755, true);
+        $device = new Local($tempDir);
+        $filePath = $device->getPath('input.json');
+        $databaseId = 'database:with:colon';
+        $tableId = 'table:with:colon';
+
+        \file_put_contents($filePath, \json_encode([['$id' => 'row']]) ?: '[]');
+
+        $source = SourceJSON::fromResourceIds($databaseId, $tableId, $filePath, $device, null);
+        $destination = new MockDestination();
+        $transfer = new Transfer($source, $destination);
+        $transfer->run(
+            [UtopiaResource::TYPE_ROW],
+            static function (): void {
+            },
+        );
+
+        $row = $destination->getResourceById(Transfer::GROUP_DATABASES, UtopiaResource::TYPE_ROW, 'row');
+        $this->assertInstanceOf(Row::class, $row);
+        $this->assertSame($tableId, $row->getTable()->getId());
+        $this->assertSame($databaseId, $row->getTable()->getDatabase()->getId());
+        $this->assertSame([], $source->getErrors());
+
+        $this->recursiveDelete($tempDir);
+    }
+
     public function testJSONExportBasic()
     {
         $tempDir = sys_get_temp_dir() . '/json_test_' . uniqid();
@@ -287,5 +408,41 @@ class JSONTest extends TestCase
             }
             rmdir($dir);
         }
+    }
+
+    private function localRoot(DestinationJSON $destination): string
+    {
+        $local = $this->property($destination, 'local');
+        $this->assertInstanceOf(Local::class, $local);
+
+        return $local->getRoot();
+    }
+
+    private function property(object $object, string $name): mixed
+    {
+        $property = new \ReflectionProperty($object, $name);
+
+        return $property->getValue($object);
+    }
+
+    /**
+     * @param class-string $class
+     * @return list<array{string, string, bool, mixed}>
+     */
+    private function constructorSignature(string $class): array
+    {
+        $constructor = (new \ReflectionClass($class))->getConstructor();
+        $this->assertNotNull($constructor);
+
+        return \array_map(static function (\ReflectionParameter $parameter): array {
+            $hasDefault = $parameter->isDefaultValueAvailable();
+
+            return [
+                $parameter->getName(),
+                (string) $parameter->getType(),
+                $hasDefault,
+                $hasDefault ? $parameter->getDefaultValue() : null,
+            ];
+        }, $constructor->getParameters());
     }
 }

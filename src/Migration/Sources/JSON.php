@@ -23,9 +23,11 @@ class JSON extends Source
     private string $filePath;
 
     /**
-     * format: `{databaseId:tableId}`
+     * Legacy format: `{databaseId}:{tableId}`.
      */
     private string $resourceId;
+
+    private ?string $resourceChildId = null;
 
     private Device $device;
 
@@ -38,7 +40,7 @@ class JSON extends Source
         string $resourceId,
         string $filePath,
         Device $device,
-        ?UtopiaDatabase $dbForProject
+        ?UtopiaDatabase $dbForProject,
     ) {
         $this->device = $device;
         $this->filePath = $filePath;
@@ -46,6 +48,24 @@ class JSON extends Source
 
         /* kept for composer check */
         $this->dbForProject = $dbForProject;
+    }
+
+    public static function fromResourceIds(
+        string $databaseId,
+        string $tableId,
+        string $filePath,
+        Device $device,
+        ?UtopiaDatabase $dbForProject,
+    ): self {
+        $source = new self(
+            resourceId: $databaseId,
+            filePath: $filePath,
+            device: $device,
+            dbForProject: $dbForProject,
+        );
+        $source->resourceChildId = $tableId;
+
+        return $source;
     }
 
     public static function getName(): string
@@ -120,7 +140,7 @@ class JSON extends Source
      */
     private function exportRows(int $batchSize): void
     {
-        [$databaseId, $tableId] = \explode(':', $this->resourceId);
+        [$databaseId, $tableId] = $this->getResourceIds();
         $database = new Database($databaseId, '');
         $table = new Table($database, '', $tableId);
 
@@ -159,6 +179,20 @@ class JSON extends Source
                 $this->callback($buffer);
             }
         });
+    }
+
+    /**
+     * @return array{string, string}
+     */
+    private function getResourceIds(): array
+    {
+        if ($this->resourceChildId !== null) {
+            return [$this->resourceId, $this->resourceChildId];
+        }
+
+        $resourceIds = \explode(':', $this->resourceId, 2);
+
+        return [$resourceIds[0], $resourceIds[1] ?? ''];
     }
 
     /**

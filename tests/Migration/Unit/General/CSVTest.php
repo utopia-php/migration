@@ -2,7 +2,12 @@
 
 namespace Utopia\Tests\Unit\General;
 
+use Override;
 use PHPUnit\Framework\TestCase;
+use Utopia\Cache\Adapter\Memory as MemoryCache;
+use Utopia\Cache\Cache;
+use Utopia\Database\Adapter\Memory as MemoryAdapter;
+use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Destinations\CSV as DestinationCSV;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Row;
@@ -26,6 +31,7 @@ class TestCSV extends DestinationCSV
     }
 
     // Override shutdown to avoid transfer for testing
+    #[Override]
     public function shutdown(): void
     {
         // Do nothing for testing - don't transfer files
@@ -36,6 +42,105 @@ class CSVTest extends TestCase
 {
     private const RESOURCES_DIR = __DIR__ . '/../../resources/csv/';
 
+    public function testLegacyConstructorsAcceptPositionalAndNamedArguments(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/csv_constructor_' . uniqid();
+        $device = new Local($tempDir);
+        $database = $this->createDatabase();
+
+        $positionalSource = new CSV('database:table', 'input.csv', $device, $database);
+        $namedSource = new CSV(
+            resourceId: 'database:table',
+            filePath: 'input.csv',
+            device: $device,
+            dbForProject: $database,
+        );
+        $positionalDestination = new TestCSV($device, 'database:table', '', 'output');
+        $namedDestination = new TestCSV(
+            deviceForFiles: $device,
+            resourceId: 'database:table',
+            directory: '',
+            filename: 'output',
+        );
+
+        $this->assertInstanceOf(CSV::class, $positionalSource);
+        $this->assertInstanceOf(CSV::class, $namedSource);
+        $this->assertInstanceOf(DestinationCSV::class, $positionalDestination);
+        $this->assertInstanceOf(DestinationCSV::class, $namedDestination);
+
+        $this->recursiveDelete($positionalDestination->getLocalRoot());
+        $this->recursiveDelete($namedDestination->getLocalRoot());
+        $this->recursiveDelete($tempDir);
+    }
+
+    public function testConstructorsMatchOriginMainSignatures(): void
+    {
+        $this->assertSame([
+            ['resourceId', 'string', false, null],
+            ['filePath', 'string', false, null],
+            ['device', 'Utopia\\Storage\\Device', false, null],
+            ['dbForProject', '?Utopia\\Database\\Database', false, null],
+            ['getDatabasesDB', '?callable', true, null],
+        ], $this->constructorSignature(CSV::class));
+        $this->assertSame([
+            ['deviceForFiles', 'Utopia\\Storage\\Device', false, null],
+            ['resourceId', 'string', false, null],
+            ['directory', 'string', false, null],
+            ['filename', 'string', false, null],
+            ['allowedColumns', 'array', true, []],
+            ['delimiter', 'string', true, ','],
+            ['enclosure', 'string', true, '"'],
+            ['escape', 'string', true, '"'],
+            ['includeHeaders', 'bool', true, true],
+        ], $this->constructorSignature(DestinationCSV::class));
+    }
+
+    public function testFactoriesKeepColonContainingResourceIdsSeparate(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/csv_factory_' . uniqid();
+        $device = new Local($tempDir);
+        $database = $this->createDatabase();
+        $databaseId = 'database:with:colon';
+        $tableId = 'table:with:colon';
+
+        $source = CSV::fromResourceIds($databaseId, $tableId, 'input.csv', $device, $database);
+        $destination = DestinationCSV::fromResourceIds($device, $databaseId, $tableId, '', 'output');
+
+        $this->assertSame($databaseId, $this->property($source, 'resourceId'));
+        $this->assertSame($tableId, $this->property($source, 'resourceChildId'));
+        $this->assertSame($databaseId, $this->property($destination, 'resourceId'));
+        $this->assertSame($tableId, $this->property($destination, 'resourceChildId'));
+
+        $local = $this->property($destination, 'local');
+        $this->assertInstanceOf(Local::class, $local);
+        $this->recursiveDelete($local->getRoot());
+        $this->recursiveDelete($tempDir);
+    }
+
+    public function testDestinationSubclassChildSelectorPropertyRemainsCompatible(): void
+    {
+        $tempDir = sys_get_temp_dir() . '/csv_subclass_' . uniqid();
+        $device = new Local($tempDir);
+        $destination = new class ($device, 'database:table', '', 'output') extends DestinationCSV {
+            protected $resourceChildId = ['external'];
+
+            public function getExternalResourceChildId(): mixed
+            {
+                return $this->resourceChildId;
+            }
+
+            public function getLocalRoot(): string
+            {
+                return $this->local->getRoot();
+            }
+        };
+
+        $this->assertSame(['external'], $destination->getExternalResourceChildId());
+
+        $this->recursiveDelete($destination->getLocalRoot());
+        $this->recursiveDelete($tempDir);
+    }
+
     /**
      * @throws \ReflectionException
      */
@@ -45,9 +150,6 @@ class CSVTest extends TestCase
         $instance = $reflection->newInstanceWithoutConstructor();
 
         $refMethod = $reflection->getMethod('delimiter');
-
-        /** @noinspection PhpExpressionResultUnusedInspection */
-        $refMethod->setAccessible(true);
 
         return $refMethod->invoke($instance, $stream);
     }
@@ -433,5 +535,41 @@ class CSVTest extends TestCase
             }
             rmdir($dir);
         }
+    }
+
+    private function property(object $object, string $name): mixed
+    {
+        $property = new \ReflectionProperty($object, $name);
+
+        return $property->getValue($object);
+    }
+
+    /**
+     * @param class-string $class
+     * @return list<array{string, string, bool, mixed}>
+     */
+    private function constructorSignature(string $class): array
+    {
+        $constructor = (new \ReflectionClass($class))->getConstructor();
+        $this->assertNotNull($constructor);
+
+        return \array_map(static function (\ReflectionParameter $parameter): array {
+            $hasDefault = $parameter->isDefaultValueAvailable();
+
+            return [
+                $parameter->getName(),
+                (string) $parameter->getType(),
+                $hasDefault,
+                $hasDefault ? $parameter->getDefaultValue() : null,
+            ];
+        }, $constructor->getParameters());
+    }
+
+    private function createDatabase(): UtopiaDatabase
+    {
+        return new UtopiaDatabase(
+            new MemoryAdapter(),
+            new Cache(new MemoryCache()),
+        );
     }
 }

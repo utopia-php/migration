@@ -2,6 +2,7 @@
 
 namespace Utopia\Tests\Unit\Adapters;
 
+use Override;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
@@ -9,6 +10,66 @@ use Utopia\Migration\Transfer;
 class MockSource extends Source
 {
     private array $mockResources = [];
+
+    private ?string $resourceChildId = null;
+
+    #[Override]
+    public function run(
+        array $resources,
+        callable $callback,
+        string $rootResourceId = '',
+        string $rootResourceType = '',
+    ): void {
+        $previousResourceChildId = $this->resourceChildId;
+
+        if ($this->resourceChildId === null) {
+            $this->resourceChildId = '';
+
+            if (
+                $rootResourceId !== ''
+                && \array_key_exists($rootResourceType, Resource::DATABASE_TYPE_RESOURCE_MAP)
+                && \str_contains($rootResourceId, ':')
+            ) {
+                [$rootResourceId, $this->resourceChildId] = \explode(':', $rootResourceId, 2);
+            }
+        }
+
+        try {
+            parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+        } finally {
+            $this->resourceChildId = $previousResourceChildId;
+        }
+    }
+
+    #[Override]
+    public function runWithResourceSelector(
+        array $resources,
+        callable $callback,
+        string $resourceId,
+        string $resourceInternalId,
+        string $resourceType,
+        string $parentResourceId,
+        string $parentResourceInternalId,
+        string $parentResourceType,
+    ): void {
+        $previousResourceChildId = $this->resourceChildId;
+        $this->resourceChildId = $parentResourceId !== '' ? $resourceId : '';
+
+        try {
+            parent::runWithResourceSelector(
+                $resources,
+                $callback,
+                $resourceId,
+                $resourceInternalId,
+                $resourceType,
+                $parentResourceId,
+                $parentResourceInternalId,
+                $parentResourceType,
+            );
+        } finally {
+            $this->resourceChildId = $previousResourceChildId;
+        }
+    }
 
     public function pushMockResource(Resource $resource): void
     {
@@ -47,6 +108,12 @@ class MockSource extends Source
     {
         if (in_array($type, Transfer::ROOT_RESOURCES) && !empty($this->rootResourceId)) {
             $this->callback([$this->getMockResourceById($group, $type, $this->rootResourceId)]);
+            return;
+        }
+
+        $entityType = Resource::DATABASE_TYPE_RESOURCE_MAP[$this->rootResourceType]['entity'] ?? null;
+        if ($type === $entityType && $this->rootResourceId !== '' && $this->resourceChildId !== '') {
+            $this->callback([$this->getMockResourceById($group, $type, $this->resourceChildId)]);
             return;
         }
 
