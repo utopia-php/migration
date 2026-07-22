@@ -1230,6 +1230,7 @@ class Appwrite extends Source
                         'createdAt' => $table['$createdAt'],
                         'updatedAt' => $table['$updatedAt'],
                         'enabled' => $table['enabled'] ?? true,
+                        'dimension' => $table['dimension'] ?? null,
                         'database' => [
                             'id' => $database->getId(),
                             'name' => $database->getDatabaseName(),
