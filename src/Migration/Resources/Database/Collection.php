@@ -6,6 +6,8 @@ use Utopia\Migration\Resource;
 
 class Collection extends Table
 {
+    protected ?int $dimension = null;
+
     public static function getName(): string
     {
         return Resource::TYPE_COLLECTION;
@@ -25,7 +27,8 @@ class Collection extends Table
      *     permissions: ?array<string>,
      *     createdAt: string,
      *     updatedAt: string,
-     *     enabled: bool
+     *     enabled: bool,
+     *     dimension?: ?int
      * } $array
     */
     public static function fromArray(array $array): self
@@ -36,7 +39,7 @@ class Collection extends Table
             default => Database::fromArray($array['database'])
         };
 
-        return new self(
+        $collection = new self(
             $database,
             name: $array['name'],
             id: $array['id'],
@@ -46,5 +49,31 @@ class Collection extends Table
             updatedAt: $array['updatedAt'] ?? '',
             enabled: $array['enabled'] ?? true,
         );
+
+        $collection->setDimension($array['dimension'] ?? null);
+
+        return $collection;
+    }
+
+    public function getDimension(): ?int
+    {
+        return $this->dimension;
+    }
+
+    public function setDimension(?int $dimension): self
+    {
+        $this->dimension = $dimension;
+
+        return $this;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return array_merge(parent::jsonSerialize(), [
+            'dimension' => $this->dimension,
+        ]);
     }
 }

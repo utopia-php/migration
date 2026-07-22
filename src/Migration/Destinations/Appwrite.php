@@ -50,6 +50,7 @@ use Utopia\Migration\Resources\Auth\Policies;
 use Utopia\Migration\Resources\Auth\Team;
 use Utopia\Migration\Resources\Auth\User;
 use Utopia\Migration\Resources\Database\Attribute;
+use Utopia\Migration\Resources\Database\Collection as CollectionResource;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Index;
@@ -189,6 +190,7 @@ class Appwrite extends Destination
      * @param array<array<string, mixed>> $collectionStructure
      * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
      * @param (callable(Database $resource): string)|null $getDatabaseDSN Resolver for the destination's `_databases.database` value. Pass when the destination project's DSN differs from the source's, so the destination row carries its own DSN instead of inheriting the source's.
+     * @param array<string, array<array<string, mixed>>> $collectionStructures Per-database-type metadata collection structures (e.g. `['vectorsdb' => ...]`), used instead of $collectionStructure when the imported database's type has an entry. Types with an entry also get type-specific metadata written (e.g. vectorsdb collection `dimension`).
      */
     public function __construct(
         string $project,
@@ -201,6 +203,7 @@ class Appwrite extends Destination
         protected string $projectInternalId,
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
         ?callable $getDatabaseDSN = null,
+        protected array $collectionStructures = [],
     ) {
         $this->projectId = $project;
         $this->endpoint = $endpoint;
@@ -718,14 +721,16 @@ class Appwrite extends Destination
                     // collection, so we skip the lookup entirely.
                     if ($isFailed && $this->dbForProject->getCollection($this->databaseCollectionId($existing))->isEmpty()) {
                         try {
+                            $structure = $this->collectionStructureFor($resource);
+
                             $columns = \array_map(
                                 fn ($attr) => new UtopiaDocument($attr),
-                                $this->collectionStructure['attributes']
+                                $structure['attributes']
                             );
 
                             $indexes = \array_map(
                                 fn ($index) => new UtopiaDocument($index),
-                                $this->collectionStructure['indexes']
+                                $structure['indexes']
                             );
 
                             $this->dbForProject->createCollection(
@@ -777,14 +782,16 @@ class Appwrite extends Destination
         $resource->setSequence($database->getSequence());
 
         try {
+            $structure = $this->collectionStructureFor($resource);
+
             $columns = \array_map(
                 fn ($attr) => new UtopiaDocument($attr),
-                $this->collectionStructure['attributes']
+                $structure['attributes']
             );
 
             $indexes = \array_map(
                 fn ($index) => new UtopiaDocument($index),
-                $this->collectionStructure['indexes']
+                $structure['indexes']
             );
 
             $this->dbForProject->createCollection(
@@ -889,7 +896,7 @@ class Appwrite extends Destination
                             '$permissions' => Permission::aggregate($resource->getPermissions()),
                             'documentSecurity' => $resource->getRowSecurity(),
                             '$updatedAt' => $updatedAt,
-                        ])
+                        ] + $this->entityTypeMetadata($resource))
                     );
                     $resource->setSequence($existing->getSequence());
                     return true;
@@ -912,7 +919,7 @@ class Appwrite extends Destination
             'search' => implode(' ', [$resource->getId(), $resource->getTableName()]),
             '$createdAt' => $createdAt,
             '$updatedAt' => $updatedAt,
-        ]));
+        ] + $this->entityTypeMetadata($resource)));
 
         $resource->setSequence($table->getSequence());
 
@@ -1281,7 +1288,62 @@ class Appwrite extends Destination
             $this->processedTwoWayPairs[$twoWayPairKey] = true;
         }
 
+        $this->syncVectorDimension($resource, $type, $database, $table);
+
         return true;
+    }
+
+    /**
+     * @return array<array<string, mixed>>
+     */
+    private function collectionStructureFor(Database $resource): array
+    {
+        return $this->collectionStructures[$resource->getType()] ?? $this->collectionStructure;
+    }
+
+    /**
+     * Type-specific metadata for an imported entity's collection document. VectorsDB collections
+     * carry a required `dimension`; archives written before it was serialized have none, so a
+     * placeholder satisfies the schema until {@see self::syncVectorDimension()} corrects it from
+     * the vector column's size.
+     *
+     * @return array<string, mixed>
+     */
+    private function entityTypeMetadata(Table $resource): array
+    {
+        if (
+            $resource instanceof CollectionResource
+            && $resource->getDatabase()->getType() === Resource::TYPE_DATABASE_VECTORSDB
+            && isset($this->collectionStructures[Resource::TYPE_DATABASE_VECTORSDB])
+        ) {
+            return ['dimension' => $resource->getDimension() ?? 0];
+        }
+
+        return [];
+    }
+
+    /**
+     * @throws \Throwable
+     */
+    private function syncVectorDimension(Column|Attribute $resource, string $type, UtopiaDocument $database, UtopiaDocument $table): void
+    {
+        if (
+            $type !== UtopiaDatabase::VAR_VECTOR
+            || $resource->getTable()->getDatabase()->getType() !== Resource::TYPE_DATABASE_VECTORSDB
+            || !isset($this->collectionStructures[Resource::TYPE_DATABASE_VECTORSDB])
+        ) {
+            return;
+        }
+
+        if ((int) $table->getAttribute('dimension', 0) === $resource->getSize()) {
+            return;
+        }
+
+        $this->dbForProject->updateDocument(
+            $this->databaseCollectionId($database),
+            $table->getId(),
+            new UtopiaDocument(['dimension' => $resource->getSize()])
+        );
     }
 
     /**
