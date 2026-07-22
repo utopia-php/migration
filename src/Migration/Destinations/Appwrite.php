@@ -87,6 +87,8 @@ class Appwrite extends Destination
     private const META_ATTRIBUTES = 'attributes';
     private const META_INDEXES = 'indexes';
 
+    private const VECTORSDB_EMBEDDINGS_KEY = 'embeddings';
+
     /** A database is provisioning while its resources transfer, ready once the run completes, or failed if creation errored. */
     private const DATABASE_STATUS_PROVISIONING = 'provisioning';
     private const DATABASE_STATUS_READY = 'ready';
@@ -1323,19 +1325,24 @@ class Appwrite extends Destination
     }
 
     /**
+     * The `embeddings` column is the schema-defining vector of a vectorsdb collection, so it alone
+     * drives the collection's `dimension` — correcting both the pre-dimension-archive placeholder
+     * and any stale archived value, while other vector columns never touch it.
+     *
      * @throws \Throwable
      */
     private function syncVectorDimension(Column|Attribute $resource, string $type, UtopiaDocument $database, UtopiaDocument $table): void
     {
         if (
             $type !== UtopiaDatabase::VAR_VECTOR
+            || $resource->getKey() !== self::VECTORSDB_EMBEDDINGS_KEY
             || $resource->getTable()->getDatabase()->getType() !== Resource::TYPE_DATABASE_VECTORSDB
             || !isset($this->collectionStructures[Resource::TYPE_DATABASE_VECTORSDB])
         ) {
             return;
         }
 
-        if ((int) $table->getAttribute('dimension', 0) !== 0) {
+        if ((int) $table->getAttribute('dimension', 0) === $resource->getSize()) {
             return;
         }
 
