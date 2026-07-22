@@ -1335,7 +1335,7 @@ class Appwrite extends Destination
             return;
         }
 
-        if ((int) $table->getAttribute('dimension', 0) === $resource->getSize()) {
+        if ((int) $table->getAttribute('dimension', 0) !== 0) {
             return;
         }
 
