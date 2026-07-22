@@ -72,8 +72,12 @@ class Collection extends Table
      */
     public function jsonSerialize(): array
     {
-        return array_merge(parent::jsonSerialize(), [
-            'dimension' => $this->dimension,
-        ]);
+        $data = parent::jsonSerialize();
+
+        if ($this->dimension !== null) {
+            $data['dimension'] = $this->dimension;
+        }
+
+        return $data;
     }
 }
