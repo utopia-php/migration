@@ -53,6 +53,6 @@ class CollectionTest extends TestCase
         ]);
 
         $this->assertNull($collection->getDimension());
-        $this->assertNull($collection->jsonSerialize()['dimension']);
+        $this->assertArrayNotHasKey('dimension', $collection->jsonSerialize());
     }
 }
