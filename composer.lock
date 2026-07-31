@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0f6a3deb25cfff3872ef143871d101b2",
+    "content-hash": "87dc885354b7a0f8d02241973e89186d",
     "packages": [
         {
             "name": "appwrite/appwrite",
@@ -2671,16 +2671,16 @@
         },
         {
             "name": "utopia-php/storage",
-            "version": "3.0.0",
+            "version": "4.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/storage.git",
-                "reference": "171746978543323c2536edacd8ad8e8d3fde401c"
+                "reference": "ad05f341a9a62a4de73c5312f4ab6fe69f7d0051"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/storage/zipball/171746978543323c2536edacd8ad8e8d3fde401c",
-                "reference": "171746978543323c2536edacd8ad8e8d3fde401c",
+                "url": "https://api.github.com/repos/utopia-php/storage/zipball/ad05f341a9a62a4de73c5312f4ab6fe69f7d0051",
+                "reference": "ad05f341a9a62a4de73c5312f4ab6fe69f7d0051",
                 "shasum": ""
             },
             "require": {
@@ -2715,9 +2715,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/storage/issues",
-                "source": "https://github.com/utopia-php/storage/tree/3.0.0"
+                "source": "https://github.com/utopia-php/storage/tree/4.0.0"
             },
-            "time": "2026-07-20T13:15:54+00:00"
+            "time": "2026-07-23T20:37:10+00:00"
         },
         {
             "name": "utopia-php/telemetry",

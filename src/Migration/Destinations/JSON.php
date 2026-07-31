@@ -219,7 +219,7 @@ class JSON extends Destination
         }
 
         try {
-            $result = $this->local->transfer(
+            $result = $this->local->copy(
                 $sourcePath,
                 $destPath,
                 $this->deviceForFiles,

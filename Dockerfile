@@ -18,7 +18,7 @@ COPY composer.lock /app
 RUN composer install --ignore-platform-reqs --optimize-autoloader \
     --no-plugins --no-scripts --prefer-dist;
 
-FROM php:8.3.10-cli-alpine3.20 AS tests
+FROM php:8.5-cli-alpine AS tests
 
 # Postgres
 RUN set -ex \
