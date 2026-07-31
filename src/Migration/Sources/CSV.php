@@ -574,7 +574,7 @@ class CSV extends Source
         }
 
         try {
-            $success = $device->transfer(
+            $success = $device->copy(
                 $filePath,
                 $filePath,
                 new Device\Local('/'),
