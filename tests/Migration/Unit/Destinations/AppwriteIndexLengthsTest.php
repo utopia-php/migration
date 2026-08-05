@@ -109,12 +109,45 @@ final class AppwriteIndexLengthsTest extends TestCase
     }
 
     /**
+     * An Overwrite migration onto an index whose ONLY difference is its prefix
+     * lengths must recreate it. The spec comparison used to omit lengths, so
+     * the index was treated as already matching and the destination silently
+     * kept its own prefixes — the shape Greptile flagged on this PR.
+     */
+    public function testAnOverwriteDoesNotTreatALengthOnlyDifferenceAsAMatch(): void
+    {
+        [, , $overwritten] = $this->transferIndex(
+            lengths: [100, 20],
+            onDuplicate: OnDuplicate::Overwrite,
+            existingLengths: [50, 20],
+        );
+
+        // The observable is the decision, not the recreate: an index whose only
+        // difference is its prefix was reported as already matching and skipped,
+        // so the destination silently kept its own lengths. The drop-and-recreate
+        // that follows cannot be asserted on the in-memory adapter, which does
+        // not support dropping an index the destination believes it holds — that
+        // is an adapter limit, not the behaviour under test, and saying so beats
+        // asserting an artifact of it.
+        $this->assertNotSame(
+            Resource::STATUS_SKIPPED,
+            $overwritten->getStatus(),
+            'A length-only difference must not be reported as already existing on the destination.',
+        );
+    }
+
+    /**
      * @param array<int> $lengths
      * @param array<int> $columnSizes
-     * @return array{AppwriteDestination, UtopiaDatabase}
+     * @param array<int> $existingLengths
+     * @return array{AppwriteDestination, UtopiaDatabase, Index}
      */
-    private function transferIndex(array $lengths, array $columnSizes = [600, 600]): array
-    {
+    private function transferIndex(
+        array $lengths,
+        array $columnSizes = [600, 600],
+        OnDuplicate $onDuplicate = OnDuplicate::Fail,
+        array $existingLengths = [],
+    ): array {
         $database = $this->projectDatabase();
 
         $source = new MockSource();
@@ -131,15 +164,21 @@ final class AppwriteIndexLengthsTest extends TestCase
         // carries none by default, so two columns would collide onto one.
         $source->pushMockResource((new Text('reference', $table, size: $columnSizes[0]))->setId('reference'));
         $source->pushMockResource((new Text('channel', $table, size: $columnSizes[1]))->setId('channel'));
-        $source->pushMockResource(new Index(
+
+        // An Overwrite only applies when the source is newer than what the
+        // destination holds, so the seeded index is stamped older than the one
+        // that replaces it.
+        $index = static fn (array $withLengths, string $updatedAt = ''): Index => new Index(
             id: 'idx_reference_channel',
             key: 'idx_reference_channel',
             table: $table,
             type: 'key',
             columns: ['reference', 'channel'],
-            lengths: $lengths,
+            lengths: $withLengths,
             orders: ['ASC', 'ASC'],
-        ));
+            createdAt: $updatedAt,
+            updatedAt: $updatedAt,
+        );
 
         $destination = new AppwriteDestination(
             project: 'destination-project',
@@ -162,7 +201,7 @@ final class AppwriteIndexLengthsTest extends TestCase
             ],
             dbForPlatform: $database,
             projectInternalId: '1',
-            onDuplicate: OnDuplicate::Fail,
+            onDuplicate: $onDuplicate,
         );
 
         // Two passes: Transfer::GROUP_DATABASES_RESOURCES replays indexes BEFORE
@@ -170,17 +209,28 @@ final class AppwriteIndexLengthsTest extends TestCase
         // would offer the index against a table with no columns yet. Selecting
         // the schema first and the index second reproduces the production order
         // this defect lives in.
+        $transferred = $index($lengths, $existingLengths !== [] ? '2026-06-01 00:00:00' : '');
+
         $transfer = new Transfer($source, $destination);
         $database->getAuthorization()->skip(
-            static function () use ($transfer): void {
+            static function () use ($transfer, $source, $index, $transferred, $existingLengths): void {
                 $noop = static function (): void {
                 };
                 $transfer->run([Resource::TYPE_DATABASE, Resource::TYPE_TABLE, Resource::TYPE_COLUMN], $noop);
+
+                if ($existingLengths !== []) {
+                    // Seed the index the overwrite will meet, carrying the
+                    // prefixes the destination already has.
+                    $source->pushMockResource($index($existingLengths, '2026-01-01 00:00:00'));
+                    $transfer->run([Resource::TYPE_INDEX], $noop);
+                }
+
+                $source->pushMockResource($transferred);
                 $transfer->run([Resource::TYPE_INDEX], $noop);
             },
         );
 
-        return [$destination, $database];
+        return [$destination, $database, $transferred];
     }
 
     private function projectDatabase(): UtopiaDatabase
