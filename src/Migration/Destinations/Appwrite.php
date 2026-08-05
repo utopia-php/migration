@@ -3886,7 +3886,14 @@ class Appwrite extends Destination
                 );
             }
 
-            $lengths[$i] = null;
+            // The source's own prefix length, when it recorded one. An index
+            // that only fits under the adapter's byte limit because of an
+            // explicit prefix (e.g. two large strings capped at 100 and 20)
+            // must be recreated with that prefix, or restoring a healthy
+            // database fails its own indexes with "Index length is longer
+            // than the maximum". Zero means the source recorded no length.
+            $sourceLength = $resource->getLengths()[$i] ?? null;
+            $lengths[$i] = \is_int($sourceLength) && $sourceLength > 0 ? $sourceLength : null;
 
             if ($columnArray === true) {
                 $lengths[$i] = UtopiaDatabase::MAX_ARRAY_INDEX_LENGTH;
