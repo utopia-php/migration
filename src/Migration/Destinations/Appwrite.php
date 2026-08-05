@@ -1936,14 +1936,41 @@ class Appwrite extends Destination
     }
 
     /**
-     * `lengths` is intentionally not compared: it's derived per-column from
-     * the adapter's index validator and not settable on the Index resource.
+     * `lengths` is compared. It used to be excluded on the grounds that it was
+     * derived per-column from the adapter's index validator rather than carried
+     * by the resource — true then, but the source's own prefix lengths now
+     * drive it, so a destination index whose only difference is its prefix is a
+     * genuine mismatch. Skipping it left an Overwrite migration silently
+     * keeping the destination's lengths.
      */
     private function indexSpecMatches(UtopiaDocument $existingIdx, Index $resource): bool
     {
         return $existingIdx->getAttribute('type')       === $resource->getType()
             && $existingIdx->getAttribute('attributes') === $resource->getColumns()
-            && $existingIdx->getAttribute('orders')     === $resource->getOrders();
+            && $existingIdx->getAttribute('orders')     === $resource->getOrders()
+            && $this->indexLengthsMatch($existingIdx, $resource);
+    }
+
+    /**
+     * Compare prefix lengths position by position, treating "no prefix" as one
+     * value however it is spelled: the resource records it as a `0`, and the
+     * metadata collection reads it back as `0` or `null` depending on how it
+     * was written.
+     */
+    private function indexLengthsMatch(UtopiaDocument $existingIdx, Index $resource): bool
+    {
+        $existing = $existingIdx->getAttribute('lengths');
+        $existing = \is_array($existing) ? \array_values($existing) : [];
+        $wanted = \array_values($resource->getLengths());
+
+        $columns = \count($resource->getColumns());
+        for ($position = 0; $position < $columns; $position++) {
+            if ((int) ($existing[$position] ?? 0) !== (int) ($wanted[$position] ?? 0)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function tableIdentity(UtopiaDocument $database, UtopiaDocument $table): string
@@ -3886,7 +3913,14 @@ class Appwrite extends Destination
                 );
             }
 
-            $lengths[$i] = null;
+            // The source's own prefix length, when it recorded one. An index
+            // that only fits under the adapter's byte limit because of an
+            // explicit prefix (e.g. two large strings capped at 100 and 20)
+            // must be recreated with that prefix, or restoring a healthy
+            // database fails its own indexes with "Index length is longer
+            // than the maximum". Zero means the source recorded no length.
+            $sourceLength = $resource->getLengths()[$i] ?? null;
+            $lengths[$i] = \is_int($sourceLength) && $sourceLength > 0 ? $sourceLength : null;
 
             if ($columnArray === true) {
                 $lengths[$i] = UtopiaDatabase::MAX_ARRAY_INDEX_LENGTH;
