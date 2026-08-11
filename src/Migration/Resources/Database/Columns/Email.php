@@ -13,7 +13,7 @@ class Email extends Text
         bool    $required = false,
         ?string $default = null,
         bool    $array = false,
-        int     $size = 254,
+        int     $size = Column::FORMAT_SIZES[Column::TYPE_EMAIL],
         string  $createdAt = '',
         string  $updatedAt = ''
     ) {

@@ -3269,15 +3269,20 @@ class Appwrite extends Source
 
     public static function getColumn(Table $table, mixed $column): Column
     {
-        return match ($column['type']) {
-            Column::TYPE_STRING => match ($column['format'] ?? '') {
+        // Appwrite accepts a format (`email`, `url`, `ip`, `enum`) as a type on
+        // an inline column definition, and reports no size for the types whose
+        // size the type itself implies. Resolve both the way the server does.
+        ['type' => $type, 'format' => $format, 'size' => $size] = Column::resolve($column);
+
+        return match ($type) {
+            Column::TYPE_STRING => match ($format) {
                 Column::TYPE_EMAIL => new Email(
                     $column['key'],
                     $table,
                     required: $column['required'],
                     default: $column['default'],
                     array: $column['array'],
-                    size: $column['size'] ?? 254,
+                    size: $size,
                     createdAt: $column['$createdAt'] ?? '',
                     updatedAt: $column['$updatedAt'] ?? '',
                 ),
@@ -3288,7 +3293,7 @@ class Appwrite extends Source
                     required: $column['required'],
                     default: $column['default'],
                     array: $column['array'],
-                    size: $column['size'] ?? UtopiaDatabase::LENGTH_KEY,
+                    size: $size,
                     createdAt: $column['$createdAt'] ?? '',
                     updatedAt: $column['$updatedAt'] ?? '',
                 ),
@@ -3298,7 +3303,7 @@ class Appwrite extends Source
                     required: $column['required'],
                     default: $column['default'],
                     array: $column['array'],
-                    size: $column['size'] ?? 2000,
+                    size: $size,
                     createdAt: $column['$createdAt'] ?? '',
                     updatedAt: $column['$updatedAt'] ?? '',
                 ),
@@ -3308,7 +3313,7 @@ class Appwrite extends Source
                     required: $column['required'],
                     default: $column['default'],
                     array: $column['array'],
-                    size: $column['size'] ?? 39,
+                    size: $size,
                     createdAt: $column['$createdAt'] ?? '',
                     updatedAt: $column['$updatedAt'] ?? '',
                 ),
@@ -3318,7 +3323,7 @@ class Appwrite extends Source
                     required: $column['required'],
                     default: $column['default'],
                     array: $column['array'],
-                    size: $column['size'] ?? 0,
+                    size: $size,
                     createdAt: $column['$createdAt'] ?? '',
                     updatedAt: $column['$updatedAt'] ?? '',
                 ),
@@ -3446,7 +3451,7 @@ class Appwrite extends Source
                 required: $column['required'],
                 default: $column['default'],
                 array: $column['array'],
-                size: $column['size'] ?? 255,
+                size: $size ?: Column::DEFAULT_VARCHAR_SIZE,
                 createdAt: $column['$createdAt'] ?? '',
                 updatedAt: $column['$updatedAt'] ?? '',
             ),
@@ -3457,7 +3462,7 @@ class Appwrite extends Source
                 required: $column['required'],
                 default: $column['default'],
                 array: $column['array'],
-                size: $column['size'] ?? 65535,
+                size: $size,
                 createdAt: $column['$createdAt'] ?? '',
                 updatedAt: $column['$updatedAt'] ?? '',
             ),
@@ -3468,7 +3473,7 @@ class Appwrite extends Source
                 required: $column['required'],
                 default: $column['default'],
                 array: $column['array'],
-                size: $column['size'] ?? 16777215,
+                size: $size,
                 createdAt: $column['$createdAt'] ?? '',
                 updatedAt: $column['$updatedAt'] ?? '',
             ),
@@ -3479,13 +3484,13 @@ class Appwrite extends Source
                 required: $column['required'],
                 default: $column['default'],
                 array: $column['array'],
-                size: $column['size'] ?? 2147483647,
+                size: $size,
                 createdAt: $column['$createdAt'] ?? '',
                 updatedAt: $column['$updatedAt'] ?? '',
             ),
 
 
-            default => throw new \InvalidArgumentException("Unsupported column type: {$column['type']}"),
+            default => throw new \InvalidArgumentException("Unsupported column type: {$type}"),
         };
     }
 

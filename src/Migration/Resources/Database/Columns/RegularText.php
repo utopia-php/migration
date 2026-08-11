@@ -14,7 +14,7 @@ class RegularText extends Column
         bool    $required = false,
         ?string $default = null,
         bool    $array = false,
-        int     $size = 65535,
+        int     $size = Column::SIZES[Column::TYPE_TEXT],
         string  $format = '',
         string  $createdAt = '',
         string  $updatedAt = ''

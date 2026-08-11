@@ -13,7 +13,7 @@ class URL extends Text
         bool    $required = false,
         ?string $default = null,
         bool    $array = false,
-        int     $size = 2000,
+        int     $size = Column::FORMAT_SIZES[Column::TYPE_URL],
         string  $createdAt = '',
         string  $updatedAt = ''
     ) {

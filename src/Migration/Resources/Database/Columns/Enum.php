@@ -17,7 +17,7 @@ class Enum extends Column
         bool    $required = false,
         ?string $default = null,
         bool    $array = false,
-        int     $size = 256,
+        int     $size = Column::FORMAT_SIZES[Column::TYPE_ENUM],
         string  $createdAt = '',
         string  $updatedAt = ''
     ) {
