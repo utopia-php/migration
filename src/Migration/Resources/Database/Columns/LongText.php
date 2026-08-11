@@ -14,7 +14,7 @@ class LongText extends Column
         bool    $required = false,
         ?string $default = null,
         bool    $array = false,
-        int     $size = 2147483647,
+        int     $size = Column::SIZES[Column::TYPE_LONGTEXT],
         string  $format = '',
         string  $createdAt = '',
         string  $updatedAt = ''

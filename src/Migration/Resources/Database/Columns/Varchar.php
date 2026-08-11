@@ -14,7 +14,7 @@ class Varchar extends Column
         bool    $required = false,
         ?string $default = null,
         bool    $array = false,
-        int     $size = 255,
+        int     $size = Column::DEFAULT_VARCHAR_SIZE,
         string  $format = '',
         string  $createdAt = '',
         string  $updatedAt = ''
