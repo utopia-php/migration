@@ -89,6 +89,14 @@ class Appwrite extends Destination
 
     private const VECTORSDB_EMBEDDINGS_KEY = 'embeddings';
 
+    /**
+     * Variable keys become environment variable names at build and runtime, so
+     * the API only accepts C-style identifiers. Variables are written straight
+     * to the collection here, which skips that check, and a source project can
+     * still hold a key stored before the rule existed.
+     */
+    private const VARIABLE_KEY_PATTERN = '/^[A-Za-z_]\w*$/D';
+
     /** A database is provisioning while its resources transfer, ready once the run completes, or failed if creation errored. */
     private const DATABASE_STATUS_PROVISIONING = 'provisioning';
     private const DATABASE_STATUS_READY = 'ready';
@@ -3344,9 +3352,23 @@ class Appwrite extends Destination
 
     protected function createProjectVariable(ProjectVariable $resource): bool
     {
+        $key = $resource->getKey();
+
+        if (
+            \strlen($key) > UtopiaDatabase::LENGTH_KEY
+            || \preg_match(self::VARIABLE_KEY_PATTERN, $key) !== 1
+        ) {
+            $resource->setStatus(
+                Resource::STATUS_SKIPPED,
+                'Project variable key is not a valid environment variable name'
+            );
+
+            return false;
+        }
+
         $existing = $this->dbForProject->findOne('variables', [
             Query::equal('resourceType', ['project']),
-            Query::equal('key', [$resource->getKey()]),
+            Query::equal('key', [$key]),
         ]);
 
         if ($existing !== false && !$existing->isEmpty()) {
@@ -3357,7 +3379,6 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
         $variableId = ID::unique();
-        $key = $resource->getKey();
 
         try {
             $this->dbForProject->createDocument('variables', new UtopiaDocument([
