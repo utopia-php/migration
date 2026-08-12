@@ -155,14 +155,11 @@ class API implements Reader
      */
     public function listColumns(Table $resource, array $queries = []): array
     {
-        return \array_map(
-            fn ($column) => $column->toArray(),
-            $this->database->listColumns(
-                $resource->getDatabase()->getId(),
-                $resource->getId(),
-                $queries
-            )->columns
-        );
+        return $this->database->listColumns(
+            $resource->getDatabase()->getId(),
+            $resource->getId(),
+            $queries
+        )->toArray()['columns'];
     }
 
     /**
