@@ -14,7 +14,7 @@ class MediumText extends Column
         bool    $required = false,
         ?string $default = null,
         bool    $array = false,
-        int     $size = 16777215,
+        int     $size = Column::SIZES[Column::TYPE_MEDIUMTEXT],
         string  $format = '',
         string  $createdAt = '',
         string  $updatedAt = ''

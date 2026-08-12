@@ -2,6 +2,7 @@
 
 namespace Utopia\Migration\Resources\Database;
 
+use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Transfer;
 
@@ -30,6 +31,82 @@ abstract class Column extends Resource
 
     public const TYPE_OBJECT = 'object';
     public const TYPE_VECTOR = 'vector';
+
+    /**
+     * Types whose size is fixed by the type itself. Appwrite leaves the size
+     * off the API response for these, so it has to be derived from the type.
+     *
+     * Mirrors Appwrite\Utopia\Database\Attribute::SIZES.
+     *
+     * @var array<string, int>
+     */
+    public const SIZES = [
+        self::TYPE_TEXT => 65535,
+        self::TYPE_MEDIUMTEXT => 16777215,
+        self::TYPE_LONGTEXT => 2147483647,
+    ];
+
+    /**
+     * String formats, mapped to the size Appwrite creates them with. Each
+     * format is also accepted as a shorthand type on an inline column
+     * definition, where it means a string of that format.
+     *
+     * Mirrors Appwrite\Utopia\Database\Attribute::FORMAT_SIZES.
+     *
+     * @var array<string, int>
+     */
+    public const FORMAT_SIZES = [
+        self::TYPE_EMAIL => 254,
+        self::TYPE_ENUM => UtopiaDatabase::LENGTH_KEY,
+        self::TYPE_IP => 39,
+        self::TYPE_URL => 2000,
+    ];
+
+    /**
+     * Size to fall back on for a varchar that arrives without one. Appwrite
+     * requires an explicit size for varchar, so this only guards a source
+     * that omits it.
+     */
+    public const DEFAULT_VARCHAR_SIZE = 255;
+
+    /**
+     * Resolve a raw column definition into the type, format and size Appwrite
+     * stores for it. A format shorthand (`email`, `url`, `ip`, `enum`) becomes
+     * a string of that format, and an omitted size is filled in from the type
+     * or the format.
+     *
+     * Mirrors Appwrite\Utopia\Database\Attribute::resolve() so a column read
+     * from a source ends up with the size the destination would have stored.
+     *
+     * @param array<string, mixed> $column
+     * @return array{type: string, format: string, size: int}
+     */
+    public static function resolve(array $column): array
+    {
+        $type = \is_string($column['type'] ?? null) ? $column['type'] : '';
+        $format = \is_string($column['format'] ?? null) ? $column['format'] : '';
+
+        if (isset(self::FORMAT_SIZES[$type])) {
+            $format = $type;
+            $type = self::TYPE_STRING;
+        }
+
+        $size = $column['size'] ?? null;
+        $size = \is_numeric($size) ? (int) $size : 0;
+
+        if (isset(self::SIZES[$type])) {
+            // Fixed width types ignore any size the source reported.
+            $size = self::SIZES[$type];
+        } elseif ($size < 1) {
+            $size = self::FORMAT_SIZES[$format] ?? $size;
+        }
+
+        return [
+            'type' => $type,
+            'format' => $format,
+            'size' => $size,
+        ];
+    }
 
     /**
      * @param string $key

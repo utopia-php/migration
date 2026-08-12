@@ -13,7 +13,7 @@ class IP extends Text
         bool    $required = false,
         ?string $default = null,
         bool    $array = false,
-        int     $size = 39,
+        int     $size = Column::FORMAT_SIZES[Column::TYPE_IP],
         string  $createdAt = '',
         string  $updatedAt = ''
     ) {

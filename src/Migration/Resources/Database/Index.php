@@ -140,6 +140,14 @@ class Index extends Resource
     }
 
     /**
+     * @return array<int>
+     */
+    public function getLengths(): array
+    {
+        return $this->lengths;
+    }
+
+    /**
      * @return array<string>
      */
     public function getOrders(): array
