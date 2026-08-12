@@ -3269,6 +3269,10 @@ class Appwrite extends Source
 
     public static function getColumn(Table $table, mixed $column): Column
     {
+        if ($column instanceof UtopiaDocument) {
+            $column = $column->getArrayCopy();
+        }
+
         // Appwrite accepts a format (`email`, `url`, `ip`, `enum`) as a type on
         // an inline column definition, and reports no size for the types whose
         // size the type itself implies. Resolve both the way the server does.

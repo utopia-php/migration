@@ -4,6 +4,7 @@ namespace Utopia\Tests\Unit\Sources;
 
 use PHPUnit\Framework\TestCase;
 use Utopia\Database\Database as UtopiaDatabase;
+use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Columns\Email;
 use Utopia\Migration\Resources\Database\Columns\Enum;
@@ -106,6 +107,19 @@ class AppwriteColumnTest extends TestCase
         $this->assertInstanceOf(Text::class, $string);
         $this->assertSame(Column::TYPE_STRING, $string->getType());
         $this->assertSame(128, $string->getSize());
+    }
+
+    public function testDatabaseDocumentKeepsStringSize(): void
+    {
+        $column = Appwrite::getColumn($this->table, new UtopiaDocument($this->payload([
+            'key' => 'title',
+            'type' => Column::TYPE_STRING,
+            'size' => 128,
+            'format' => '',
+        ])));
+
+        $this->assertSame(Text::class, $column::class);
+        $this->assertSame(128, $column->getSize());
     }
 
     public function testFormattedStringsWithoutASize(): void
