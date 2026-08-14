@@ -788,6 +788,11 @@ class Appwrite extends Destination
         }
 
         $database = $this->dbForProject->createDocument(self::META_DATABASES, new UtopiaDocument($document));
+        $database = $this->dbForProject->getDocument(self::META_DATABASES, $database->getId());
+
+        if ($database->isEmpty()) {
+            throw new DatabaseException('Failed to reload created database '.$resource->getId());
+        }
 
         $resource->setSequence($database->getSequence());
 

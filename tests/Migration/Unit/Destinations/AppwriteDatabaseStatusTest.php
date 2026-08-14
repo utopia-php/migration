@@ -48,6 +48,10 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $this->assertSame(1, $destination->runCount);
             $this->assertFalse($created->isEmpty());
             $this->assertArrayNotHasKey('status', $created->getArrayCopy());
+            $this->assertFalse(
+                $database->getCollection('database_'.$created->getSequence())->isEmpty(),
+                'Metadata collection must use the persisted database sequence',
+            );
         }
     }
 
@@ -63,6 +67,10 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $this->assertSame(1, $destination->runCount);
             $this->assertFalse($created->isEmpty());
             $this->assertSame('ready', $created->getAttribute('status'));
+            $this->assertFalse(
+                $database->getCollection('database_'.$created->getSequence())->isEmpty(),
+                'Metadata collection must use the persisted database sequence',
+            );
         }
     }
 
