@@ -19,6 +19,8 @@ use Utopia\Migration\Sources\Firebase;
 use Utopia\Migration\Sources\NHost;
 use Utopia\Migration\Sources\Supabase;
 use Utopia\Migration\Transfer;
+use Utopia\Query\Schema\ColumnType;
+use Utopia\Query\Schema\IndexType;
 
 /**
  * Migrations CLI Tool
@@ -38,7 +40,7 @@ class MigrationCLI
         'attributes' => [
             [
                 '$id' => 'databaseInternalId',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'format' => '',
                 'size' => Database::LENGTH_KEY,
                 'signed' => true,
@@ -49,7 +51,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'databaseId',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'signed' => true,
                 'size' => Database::LENGTH_KEY,
                 'format' => '',
@@ -60,7 +62,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'name',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'size' => Database::LENGTH_KEY,
                 'required' => true,
                 'signed' => true,
@@ -69,7 +71,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'enabled',
-                'type' => Database::VAR_BOOLEAN,
+                'type' => ColumnType::Boolean->value,
                 'signed' => true,
                 'size' => 0,
                 'format' => '',
@@ -80,7 +82,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'documentSecurity',
-                'type' => Database::VAR_BOOLEAN,
+                'type' => ColumnType::Boolean->value,
                 'signed' => true,
                 'size' => 0,
                 'format' => '',
@@ -91,7 +93,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'attributes',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'size' => 1000000,
                 'required' => false,
                 'signed' => true,
@@ -100,7 +102,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'indexes',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'size' => 1000000,
                 'required' => false,
                 'signed' => true,
@@ -109,7 +111,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'search',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'format' => '',
                 'size' => 16384,
                 'signed' => true,
@@ -122,31 +124,31 @@ class MigrationCLI
         'indexes' => [
             [
                 '$id' => '_fulltext_search',
-                'type' => Database::INDEX_FULLTEXT,
+                'type' => IndexType::Fulltext->value,
                 'attributes' => ['search'],
                 'lengths' => [],
                 'orders' => [],
             ],
             [
                 '$id' => '_key_name',
-                'type' => Database::INDEX_KEY,
+                'type' => IndexType::Key->value,
                 'attributes' => ['name'],
                 'lengths' => [Database::LENGTH_KEY],
-                'orders' => [Database::ORDER_ASC],
+                'orders' => ['ASC'],
             ],
             [
                 '$id' => '_key_enabled',
-                'type' => Database::INDEX_KEY,
+                'type' => IndexType::Key->value,
                 'attributes' => ['enabled'],
                 'lengths' => [],
-                'orders' => [Database::ORDER_ASC],
+                'orders' => ['ASC'],
             ],
             [
                 '$id' => '_key_documentSecurity',
-                'type' => Database::INDEX_KEY,
+                'type' => IndexType::Key->value,
                 'attributes' => ['documentSecurity'],
                 'lengths' => [],
-                'orders' => [Database::ORDER_ASC],
+                'orders' => ['ASC'],
             ],
         ],
     ];
@@ -280,7 +282,7 @@ class MigrationCLI
                     $attributeType = $attribute->getAttribute('type');
 
                     switch ($attributeType) {
-                        case Database::VAR_RELATIONSHIP:
+                        case ColumnType::Relationship->value:
                             $options = $attribute->getAttribute('options');
                             foreach ($options as $key => $value) {
                                 $attribute->setAttribute($key, $value);
@@ -288,7 +290,7 @@ class MigrationCLI
                             $attribute->removeAttribute('options');
                             break;
 
-                        case Database::VAR_STRING:
+                        case ColumnType::String->value:
                             $filters = $attribute->getAttribute('filters', []);
                             $attribute->setAttribute('encrypt', in_array('encrypt', $filters));
                             break;

@@ -7,6 +7,7 @@ use PHPUnit\Framework\TestCase;
 use Utopia\Cache\Adapter\Memory as MemoryCache;
 use Utopia\Cache\Cache;
 use Utopia\Database\Adapter\Memory as MemoryAdapter;
+use Utopia\Database\Attribute as UtopiaAttribute;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
@@ -14,6 +15,7 @@ use Utopia\Migration\Destinations\OnDuplicate;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Transfer;
+use Utopia\Query\Schema\ColumnType;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
 class CountingAppwriteDestination extends AppwriteDestination
@@ -76,16 +78,16 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $database->create();
 
         $attributes = [
-            $this->attribute('name', UtopiaDatabase::VAR_STRING, required: true, size: 256),
-            $this->attribute('enabled', UtopiaDatabase::VAR_BOOLEAN, default: true),
-            $this->attribute('search', UtopiaDatabase::VAR_STRING, size: 16384),
-            $this->attribute('originalId', UtopiaDatabase::VAR_STRING, size: UtopiaDatabase::LENGTH_KEY),
-            $this->attribute('type', UtopiaDatabase::VAR_STRING, default: 'tablesdb', size: 128),
-            $this->attribute('database', UtopiaDatabase::VAR_STRING, size: 2000),
+            $this->attribute('name', ColumnType::String, required: true, size: 256),
+            $this->attribute('enabled', ColumnType::Boolean, default: true),
+            $this->attribute('search', ColumnType::String, size: 16384),
+            $this->attribute('originalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+            $this->attribute('type', ColumnType::String, default: 'tablesdb', size: 128),
+            $this->attribute('database', ColumnType::String, size: 2000),
         ];
 
         if ($withStatus) {
-            $attributes[] = $this->attribute('status', UtopiaDatabase::VAR_STRING, size: 16);
+            $attributes[] = $this->attribute('status', ColumnType::String, size: 16);
         }
 
         $database->createCollection('databases', $attributes);
@@ -95,21 +97,18 @@ final class AppwriteDatabaseStatusTest extends TestCase
 
     private function attribute(
         string $id,
-        string $type,
+        ColumnType $type,
         bool $required = false,
         mixed $default = null,
         int $size = 0,
-    ): UtopiaDocument {
-        return new UtopiaDocument([
-            '$id' => $id,
-            'type' => $type,
-            'size' => $size,
-            'required' => $required,
-            'default' => $default,
-            'array' => false,
-            'signed' => true,
-            'filters' => [],
-        ]);
+    ): UtopiaAttribute {
+        return new UtopiaAttribute(
+            key: $id,
+            type: $type,
+            size: $size,
+            required: $required,
+            default: $default,
+        );
     }
 
     private function runDatabaseTransfer(UtopiaDatabase $database, bool $explicit): CountingAppwriteDestination
