@@ -788,15 +788,15 @@ class Appwrite extends Destination
         }
 
         $database = $this->dbForProject->createDocument(self::META_DATABASES, new UtopiaDocument($document));
-        $database = $this->dbForProject->getDocument(self::META_DATABASES, $database->getId());
-
-        if ($database->isEmpty()) {
-            throw new DatabaseException('Failed to reload created database '.$resource->getId());
-        }
-
-        $resource->setSequence($database->getSequence());
 
         try {
+            $database = $this->dbForProject->getDocument(self::META_DATABASES, $database->getId());
+
+            if ($database->isEmpty()) {
+                throw new DatabaseException('Failed to reload created database '.$resource->getId());
+            }
+
+            $resource->setSequence($database->getSequence());
             $structure = $this->collectionStructureFor($resource);
 
             $this->dbForProject->createCollection(
@@ -805,7 +805,6 @@ class Appwrite extends Destination
                 $this->schemaIndexes($structure['indexes'] ?? [])
             );
         } catch (\Throwable $e) {
-            // The metadata document exists but the database isn't usable; mark it failed before propagating.
             $this->markDatabaseFailed($resource->getId());
             throw $e;
         }

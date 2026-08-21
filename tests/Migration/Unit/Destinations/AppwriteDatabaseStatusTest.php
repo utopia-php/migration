@@ -34,6 +34,24 @@ class CountingAppwriteDestination extends AppwriteDestination
     }
 }
 
+final class ReloadFailingProjectDatabase extends UtopiaDatabase
+{
+    public bool $failNextDatabasesRead = false;
+
+    #[Override]
+    public function getDocument(string $collection, string $id, array $queries = [], bool $forUpdate = false): UtopiaDocument
+    {
+        $document = parent::getDocument($collection, $id, $queries, $forUpdate);
+        if ($this->failNextDatabasesRead && $collection === 'databases' && !$document->isEmpty()) {
+            $this->failNextDatabasesRead = false;
+
+            return new UtopiaDocument();
+        }
+
+        return $document;
+    }
+}
+
 final class AppwriteDatabaseStatusTest extends TestCase
 {
     public function testDatabaseCreationOmitsStatusThroughLegacyAndExplicitEntrypoints(): void
@@ -74,9 +92,30 @@ final class AppwriteDatabaseStatusTest extends TestCase
         }
     }
 
-    private function createProjectDatabase(bool $withStatus): UtopiaDatabase
+    public function testReloadFailureMarksTheDatabaseFailed(): void
     {
-        $database = new UtopiaDatabase(
+        $database = new ReloadFailingProjectDatabase(
+            new MemoryAdapter(),
+            new Cache(new MemoryCache()),
+        );
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $database->failNextDatabasesRead = true;
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false);
+
+        $created = $this->getDatabaseDocument($database);
+        $this->assertNotSame([], $this->errorMessages($destination));
+        $this->assertStringContainsString('Failed to reload created database', $this->errorMessages($destination)[0]);
+        $this->assertSame('failed', $created->getAttribute('status'));
+        $this->assertTrue(
+            $database->getCollection('database_'.$created->getSequence())->isEmpty(),
+            'A reload failure must not leave a backing collection behind the metadata document',
+        );
+    }
+
+    private function createProjectDatabase(bool $withStatus, ?UtopiaDatabase $database = null): UtopiaDatabase
+    {
+        $database ??= new UtopiaDatabase(
             new MemoryAdapter(),
             new Cache(new MemoryCache()),
         );
