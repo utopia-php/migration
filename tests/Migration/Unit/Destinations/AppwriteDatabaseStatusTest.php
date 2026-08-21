@@ -114,6 +114,35 @@ final class AppwriteDatabaseStatusTest extends TestCase
         );
     }
 
+    public function testFailedDatabaseRetrySucceedsUnderOnDuplicateFail(): void
+    {
+        $database = new ReloadFailingProjectDatabase(
+            new MemoryAdapter(),
+            new Cache(new MemoryCache()),
+        );
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $database->failNextDatabasesRead = true;
+
+        $this->runDatabaseTransfer($database, explicit: false);
+
+        $failed = $this->getDatabaseDocument($database);
+        $this->assertSame('failed', $failed->getAttribute('status'));
+        $this->assertTrue(
+            $database->getCollection('database_'.$failed->getSequence())->isEmpty(),
+        );
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false);
+
+        $recovered = $this->getDatabaseDocument($database);
+        $this->assertSame([], $this->errorMessages($destination));
+        $this->assertSame('ready', $recovered->getAttribute('status'));
+        $this->assertSame($failed->getSequence(), $recovered->getSequence());
+        $this->assertFalse(
+            $database->getCollection('database_'.$recovered->getSequence())->isEmpty(),
+            'A Fail retry must recreate the backing collection for a previously failed database',
+        );
+    }
+
     private function createProjectDatabase(bool $withStatus, ?UtopiaDatabase $database = null): UtopiaDatabase
     {
         $database ??= new UtopiaDatabase(

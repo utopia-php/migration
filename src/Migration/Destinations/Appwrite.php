@@ -682,22 +682,22 @@ class Appwrite extends Destination
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
-        if ($this->onDuplicate !== OnDuplicate::Fail) {
-            $existing = $this->dbForProject->getDocument(self::META_DATABASES, $resource->getId());
+        $existing = $this->dbForProject->getDocument(self::META_DATABASES, $resource->getId());
+        $isFailed = ! $existing->isEmpty()
+            && $this->getSupportForDatabaseStatus()
+            && $existing->getAttribute('status') === self::DATABASE_STATUS_FAILED;
+
+        if ($this->onDuplicate !== OnDuplicate::Fail || $isFailed) {
             $action = $this->onDuplicate->resolveSchemaAction(
                 !$existing->isEmpty(),
                 $updatedAt,
                 $existing->getUpdatedAt(),
             );
 
-            $isFailed = ! $existing->isEmpty()
-                && $this->getSupportForDatabaseStatus()
-                && $existing->getAttribute('status') === self::DATABASE_STATUS_FAILED;
-
             if ($isFailed) {
                 // A prior run created the metadata document but left the database unusable (its backing
-                // collection may be missing). Force Overwrite — regardless of timestamps or spec match —
-                // so the recovery path recreates the collection instead of skipping it forever.
+                // collection may be missing). Force Overwrite — regardless of timestamps, spec match, or
+                // OnDuplicate::Fail — so retries recreate the collection instead of hitting the existing ID.
                 $action = SchemaAction::Overwrite;
             } elseif ($action !== SchemaAction::Create && $this->databaseSpecMatches($existing, $resource)) {
                 // Spec match → skip work. Create excluded; nothing on dest to match against.
