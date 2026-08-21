@@ -22,6 +22,7 @@ use Override;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Database\Document as UtopiaDocument;
+use Utopia\Database\RelationSide;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
@@ -88,6 +89,7 @@ use Utopia\Migration\Sources\Appwrite\Reader;
 use Utopia\Migration\Sources\Appwrite\Reader\API as APIReader;
 use Utopia\Migration\Sources\Appwrite\Reader\Database as DatabaseReader;
 use Utopia\Migration\Transfer;
+use Utopia\Query\Schema\ColumnType;
 
 class Appwrite extends Source
 {
@@ -1283,8 +1285,8 @@ class Appwrite extends Source
 
                 foreach ($response as $column) {
                     if (
-                        $column['type'] === UtopiaDatabase::VAR_RELATIONSHIP
-                        && $column['side'] === UtopiaDatabase::RELATION_SIDE_CHILD
+                        $column['type'] === ColumnType::Relationship->value
+                        && $column['side'] === RelationSide::Child->value
                     ) {
                         continue;
                     }

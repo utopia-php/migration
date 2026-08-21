@@ -7,6 +7,8 @@ use PHPUnit\Framework\TestCase;
 use Utopia\Cache\Adapter\Memory as MemoryCache;
 use Utopia\Cache\Cache;
 use Utopia\Database\Adapter\Memory as MemoryAdapter;
+use Utopia\Database\Attribute as UtopiaAttribute;
+use Utopia\Database\Collection;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
@@ -14,6 +16,7 @@ use Utopia\Migration\Destinations\OnDuplicate;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Transfer;
+use Utopia\Query\Schema\ColumnType;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
 class CountingAppwriteDestination extends AppwriteDestination
@@ -32,6 +35,24 @@ class CountingAppwriteDestination extends AppwriteDestination
     }
 }
 
+final class ReloadFailingProjectDatabase extends UtopiaDatabase
+{
+    public bool $failNextDatabasesRead = false;
+
+    #[Override]
+    public function getDocument(string $collection, string $id, array $queries = [], bool $forUpdate = false): UtopiaDocument
+    {
+        $document = parent::getDocument($collection, $id, $queries, $forUpdate);
+        if ($this->failNextDatabasesRead && $collection === 'databases' && !$document->isEmpty()) {
+            $this->failNextDatabasesRead = false;
+
+            return new UtopiaDocument();
+        }
+
+        return $document;
+    }
+}
+
 final class AppwriteDatabaseStatusTest extends TestCase
 {
     public function testDatabaseCreationOmitsStatusThroughLegacyAndExplicitEntrypoints(): void
@@ -46,6 +67,10 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $this->assertSame(1, $destination->runCount);
             $this->assertFalse($created->isEmpty());
             $this->assertArrayNotHasKey('status', $created->getArrayCopy());
+            $this->assertFalse(
+                $database->getCollection('database_'.$created->getSequence())->isEmpty(),
+                'Metadata collection must use the persisted database sequence',
+            );
         }
     }
 
@@ -61,12 +86,66 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $this->assertSame(1, $destination->runCount);
             $this->assertFalse($created->isEmpty());
             $this->assertSame('ready', $created->getAttribute('status'));
+            $this->assertFalse(
+                $database->getCollection('database_'.$created->getSequence())->isEmpty(),
+                'Metadata collection must use the persisted database sequence',
+            );
         }
     }
 
-    private function createProjectDatabase(bool $withStatus): UtopiaDatabase
+    public function testReloadFailureMarksTheDatabaseFailed(): void
     {
-        $database = new UtopiaDatabase(
+        $database = new ReloadFailingProjectDatabase(
+            new MemoryAdapter(),
+            new Cache(new MemoryCache()),
+        );
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $database->failNextDatabasesRead = true;
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false);
+
+        $created = $this->getDatabaseDocument($database);
+        $this->assertNotSame([], $this->errorMessages($destination));
+        $this->assertStringContainsString('Failed to reload created database', $this->errorMessages($destination)[0]);
+        $this->assertSame('failed', $created->getAttribute('status'));
+        $this->assertTrue(
+            $database->getCollection('database_'.$created->getSequence())->isEmpty(),
+            'A reload failure must not leave a backing collection behind the metadata document',
+        );
+    }
+
+    public function testFailedDatabaseRetrySucceedsUnderOnDuplicateFail(): void
+    {
+        $database = new ReloadFailingProjectDatabase(
+            new MemoryAdapter(),
+            new Cache(new MemoryCache()),
+        );
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $database->failNextDatabasesRead = true;
+
+        $this->runDatabaseTransfer($database, explicit: false);
+
+        $failed = $this->getDatabaseDocument($database);
+        $this->assertSame('failed', $failed->getAttribute('status'));
+        $this->assertTrue(
+            $database->getCollection('database_'.$failed->getSequence())->isEmpty(),
+        );
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false);
+
+        $recovered = $this->getDatabaseDocument($database);
+        $this->assertSame([], $this->errorMessages($destination));
+        $this->assertSame('ready', $recovered->getAttribute('status'));
+        $this->assertSame($failed->getSequence(), $recovered->getSequence());
+        $this->assertFalse(
+            $database->getCollection('database_'.$recovered->getSequence())->isEmpty(),
+            'A Fail retry must recreate the backing collection for a previously failed database',
+        );
+    }
+
+    private function createProjectDatabase(bool $withStatus, ?UtopiaDatabase $database = null): UtopiaDatabase
+    {
+        $database ??= new UtopiaDatabase(
             new MemoryAdapter(),
             new Cache(new MemoryCache()),
         );
@@ -76,40 +155,40 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $database->create();
 
         $attributes = [
-            $this->attribute('name', UtopiaDatabase::VAR_STRING, required: true, size: 256),
-            $this->attribute('enabled', UtopiaDatabase::VAR_BOOLEAN, default: true),
-            $this->attribute('search', UtopiaDatabase::VAR_STRING, size: 16384),
-            $this->attribute('originalId', UtopiaDatabase::VAR_STRING, size: UtopiaDatabase::LENGTH_KEY),
-            $this->attribute('type', UtopiaDatabase::VAR_STRING, default: 'tablesdb', size: 128),
-            $this->attribute('database', UtopiaDatabase::VAR_STRING, size: 2000),
+            $this->attribute('name', ColumnType::String, required: true, size: 256),
+            $this->attribute('enabled', ColumnType::Boolean, default: true),
+            $this->attribute('search', ColumnType::String, size: 16384),
+            $this->attribute('originalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+            $this->attribute('type', ColumnType::String, default: 'tablesdb', size: 128),
+            $this->attribute('database', ColumnType::String, size: 2000),
         ];
 
         if ($withStatus) {
-            $attributes[] = $this->attribute('status', UtopiaDatabase::VAR_STRING, size: 16);
+            $attributes[] = $this->attribute('status', ColumnType::String, size: 16);
         }
 
-        $database->createCollection('databases', $attributes);
+        $database->createCollection(new Collection(
+            id: 'databases',
+            attributes: $attributes,
+        ));
 
         return $database;
     }
 
     private function attribute(
         string $id,
-        string $type,
+        ColumnType $type,
         bool $required = false,
         mixed $default = null,
         int $size = 0,
-    ): UtopiaDocument {
-        return new UtopiaDocument([
-            '$id' => $id,
-            'type' => $type,
-            'size' => $size,
-            'required' => $required,
-            'default' => $default,
-            'array' => false,
-            'signed' => true,
-            'filters' => [],
-        ]);
+    ): UtopiaAttribute {
+        return new UtopiaAttribute(
+            key: $id,
+            type: $type,
+            size: $size,
+            required: $required,
+            default: $default,
+        );
     }
 
     private function runDatabaseTransfer(UtopiaDatabase $database, bool $explicit): CountingAppwriteDestination
