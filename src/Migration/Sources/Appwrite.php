@@ -1453,6 +1453,7 @@ class Appwrite extends Source
                     unset($row['$collection']);
                     unset($row['$tableId']);
                     unset($row['$table']);
+                    unset($row['$internalId']);
 
                     $row = self::getRecord($table->getDatabase()->getType(), [
                         'id' => $id,
