@@ -9,6 +9,7 @@ use Utopia\Cache\Adapter\Memory as MemoryCache;
 use Utopia\Cache\Cache;
 use Utopia\Database\Adapter\Memory as MemoryAdapter;
 use Utopia\Database\Attribute as UtopiaAttribute;
+use Utopia\Database\Collection;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
@@ -246,16 +247,16 @@ final class AppwriteIndexLengthsTest extends TestCase
             ->setNamespace('_project');
         $database->create();
 
-        $database->createCollection('databases', [
+        $database->createCollection(new Collection(id: 'databases', attributes: [
             $this->attribute('name', ColumnType::String, required: true, size: 256),
             $this->attribute('enabled', ColumnType::Boolean, default: true),
             $this->attribute('search', ColumnType::String, size: 16384),
             $this->attribute('originalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
             $this->attribute('type', ColumnType::String, default: 'tablesdb', size: 128),
             $this->attribute('database', ColumnType::String, size: 2000),
-        ]);
+        ]));
 
-        $database->createCollection('attributes', [
+        $database->createCollection(new Collection(id: 'attributes', attributes: [
             $this->attribute('key', ColumnType::String, size: 256),
             $this->attribute('databaseInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
             $this->attribute('databaseId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
@@ -273,9 +274,9 @@ final class AppwriteIndexLengthsTest extends TestCase
             $this->attribute('filters', ColumnType::String, size: 64, array: true),
             $this->attribute('options', ColumnType::String, size: 16384, filters: ['json']),
             $this->attribute('error', ColumnType::String, size: 2048),
-        ]);
+        ]));
 
-        $database->createCollection('indexes', [
+        $database->createCollection(new Collection(id: 'indexes', attributes: [
             $this->attribute('key', ColumnType::String, size: 256),
             $this->attribute('status', ColumnType::String, size: 64),
             $this->attribute('databaseInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
@@ -287,7 +288,7 @@ final class AppwriteIndexLengthsTest extends TestCase
             $this->attribute('lengths', ColumnType::Integer, array: true),
             $this->attribute('orders', ColumnType::String, size: 4, array: true),
             $this->attribute('error', ColumnType::String, size: 2048),
-        ]);
+        ]));
 
         return $database;
     }

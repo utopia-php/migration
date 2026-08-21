@@ -8,6 +8,7 @@ use Utopia\Cache\Adapter\Memory as MemoryCache;
 use Utopia\Cache\Cache;
 use Utopia\Database\Adapter\Memory as MemoryAdapter;
 use Utopia\Database\Attribute as UtopiaAttribute;
+use Utopia\Database\Collection;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
@@ -137,7 +138,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $attributes[] = $this->attribute('status', ColumnType::String, size: 16);
         }
 
-        $database->createCollection('databases', $attributes);
+        $database->createCollection(new Collection(id: 'databases', attributes: $attributes));
 
         return $database;
     }

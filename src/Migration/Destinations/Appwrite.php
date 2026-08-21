@@ -27,6 +27,7 @@ use Override;
 use Utopia\Database\Adapter\Feature\Spatial;
 use Utopia\Database\Attribute as UtopiaAttribute;
 use Utopia\Database\Capability;
+use Utopia\Database\Collection;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime;
 use Utopia\Database\Document as UtopiaDocument;
@@ -743,11 +744,7 @@ class Appwrite extends Destination
                         try {
                             $structure = $this->collectionStructureFor($resource);
 
-                            $this->dbForProject->createCollection(
-                                $this->databaseCollectionId($existing),
-                                $this->schemaAttributes($structure['attributes'] ?? []),
-                                $this->schemaIndexes($structure['indexes'] ?? [])
-                            );
+                            $this->dbForProject->createCollection(new Collection(id: $this->databaseCollectionId($existing), attributes: $this->schemaAttributes($structure['attributes'] ?? []), indexes: $this->schemaIndexes($structure['indexes'] ?? [])));
                         } catch (\Throwable $e) {
                             $this->markDatabaseFailed($resource->getId());
                             throw $e;
@@ -799,11 +796,7 @@ class Appwrite extends Destination
             $resource->setSequence($database->getSequence());
             $structure = $this->collectionStructureFor($resource);
 
-            $this->dbForProject->createCollection(
-                $this->databaseCollectionId($database),
-                $this->schemaAttributes($structure['attributes'] ?? []),
-                $this->schemaIndexes($structure['indexes'] ?? [])
-            );
+            $this->dbForProject->createCollection(new Collection(id: $this->databaseCollectionId($database), attributes: $this->schemaAttributes($structure['attributes'] ?? []), indexes: $this->schemaIndexes($structure['indexes'] ?? [])));
         } catch (\Throwable $e) {
             $this->markDatabaseFailed($resource->getId());
             throw $e;
@@ -927,11 +920,7 @@ class Appwrite extends Destination
 
         $resource->setSequence($table->getSequence());
 
-        $dbForDatabases->createCollection(
-            $this->tableCollectionId($database, $table),
-            permissions: $resource->getPermissions(),
-            documentSecurity: $resource->getRowSecurity()
-        );
+        $dbForDatabases->createCollection(new Collection(id: $this->tableCollectionId($database, $table), permissions: $resource->getPermissions(), documentSecurity: $resource->getRowSecurity()));
 
         return true;
     }
