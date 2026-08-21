@@ -34,8 +34,8 @@
         "ext-openssl": "*",
         "appwrite/appwrite": "^27.0",
         "utopia-php/database": "dev-feat-query-lib as 7.0.0",
-        "utopia-php/storage": "4.*",
-        "utopia-php/dsn": "0.2.*",
+        "utopia-php/storage": "^4.0",
+        "utopia-php/dsn": "^0.2",
         "halaxa/json-machine": "^1.2"
     },
     "require-dev": {
