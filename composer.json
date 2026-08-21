@@ -52,6 +52,10 @@
         },
         {
             "type": "vcs",
+            "url": "https://github.com/utopia-php/query.git"
+        },
+        {
+            "type": "vcs",
             "url": "https://github.com/utopia-php/async.git"
         }
     ],

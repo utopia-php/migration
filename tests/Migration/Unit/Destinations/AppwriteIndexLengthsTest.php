@@ -21,6 +21,7 @@ use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Transfer;
 use Utopia\Query\Schema\ColumnType;
+use Utopia\Query\Schema\Order;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
 /**
@@ -178,7 +179,7 @@ final class AppwriteIndexLengthsTest extends TestCase
             type: 'key',
             columns: ['reference', 'channel'],
             lengths: $withLengths,
-            orders: ['ASC', 'ASC'],
+            orders: [Order::Asc->value, Order::Asc->value],
             createdAt: $updatedAt,
             updatedAt: $updatedAt,
         );
@@ -247,48 +248,57 @@ final class AppwriteIndexLengthsTest extends TestCase
             ->setNamespace('_project');
         $database->create();
 
-        $database->createCollection(new Collection(id: 'databases', attributes: [
-            $this->attribute('name', ColumnType::String, required: true, size: 256),
-            $this->attribute('enabled', ColumnType::Boolean, default: true),
-            $this->attribute('search', ColumnType::String, size: 16384),
-            $this->attribute('originalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
-            $this->attribute('type', ColumnType::String, default: 'tablesdb', size: 128),
-            $this->attribute('database', ColumnType::String, size: 2000),
-        ]));
+        $database->createCollection(new Collection(
+            id: 'databases',
+            attributes: [
+                $this->attribute('name', ColumnType::String, required: true, size: 256),
+                $this->attribute('enabled', ColumnType::Boolean, default: true),
+                $this->attribute('search', ColumnType::String, size: 16384),
+                $this->attribute('originalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('type', ColumnType::String, default: 'tablesdb', size: 128),
+                $this->attribute('database', ColumnType::String, size: 2000),
+            ],
+        ));
 
-        $database->createCollection(new Collection(id: 'attributes', attributes: [
-            $this->attribute('key', ColumnType::String, size: 256),
-            $this->attribute('databaseInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
-            $this->attribute('databaseId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
-            $this->attribute('collectionInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
-            $this->attribute('collectionId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
-            $this->attribute('type', ColumnType::String, size: 256),
-            $this->attribute('status', ColumnType::String, size: 64),
-            $this->attribute('size', ColumnType::Integer),
-            $this->attribute('required', ColumnType::Boolean, default: false),
-            $this->attribute('signed', ColumnType::Boolean, default: true),
-            $this->attribute('default', ColumnType::String, size: 16384),
-            $this->attribute('array', ColumnType::Boolean, default: false),
-            $this->attribute('format', ColumnType::String, size: 64),
-            $this->attribute('formatOptions', ColumnType::String, size: 16384, filters: ['json']),
-            $this->attribute('filters', ColumnType::String, size: 64, array: true),
-            $this->attribute('options', ColumnType::String, size: 16384, filters: ['json']),
-            $this->attribute('error', ColumnType::String, size: 2048),
-        ]));
+        $database->createCollection(new Collection(
+            id: 'attributes',
+            attributes: [
+                $this->attribute('key', ColumnType::String, size: 256),
+                $this->attribute('databaseInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('databaseId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('collectionInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('collectionId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('type', ColumnType::String, size: 256),
+                $this->attribute('status', ColumnType::String, size: 64),
+                $this->attribute('size', ColumnType::Integer),
+                $this->attribute('required', ColumnType::Boolean, default: false),
+                $this->attribute('signed', ColumnType::Boolean, default: true),
+                $this->attribute('default', ColumnType::String, size: 16384),
+                $this->attribute('array', ColumnType::Boolean, default: false),
+                $this->attribute('format', ColumnType::String, size: 64),
+                $this->attribute('formatOptions', ColumnType::String, size: 16384, filters: ['json']),
+                $this->attribute('filters', ColumnType::String, size: 64, array: true),
+                $this->attribute('options', ColumnType::String, size: 16384, filters: ['json']),
+                $this->attribute('error', ColumnType::String, size: 2048),
+            ],
+        ));
 
-        $database->createCollection(new Collection(id: 'indexes', attributes: [
-            $this->attribute('key', ColumnType::String, size: 256),
-            $this->attribute('status', ColumnType::String, size: 64),
-            $this->attribute('databaseInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
-            $this->attribute('databaseId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
-            $this->attribute('collectionInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
-            $this->attribute('collectionId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
-            $this->attribute('type', ColumnType::String, size: 16),
-            $this->attribute('attributes', ColumnType::String, size: 256, array: true),
-            $this->attribute('lengths', ColumnType::Integer, array: true),
-            $this->attribute('orders', ColumnType::String, size: 4, array: true),
-            $this->attribute('error', ColumnType::String, size: 2048),
-        ]));
+        $database->createCollection(new Collection(
+            id: 'indexes',
+            attributes: [
+                $this->attribute('key', ColumnType::String, size: 256),
+                $this->attribute('status', ColumnType::String, size: 64),
+                $this->attribute('databaseInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('databaseId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('collectionInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('collectionId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('type', ColumnType::String, size: 16),
+                $this->attribute('attributes', ColumnType::String, size: 256, array: true),
+                $this->attribute('lengths', ColumnType::Integer, array: true),
+                $this->attribute('orders', ColumnType::String, size: 4, array: true),
+                $this->attribute('error', ColumnType::String, size: 2048),
+            ],
+        ));
 
         return $database;
     }

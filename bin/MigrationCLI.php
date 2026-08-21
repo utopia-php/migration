@@ -21,6 +21,7 @@ use Utopia\Migration\Sources\Supabase;
 use Utopia\Migration\Transfer;
 use Utopia\Query\Schema\ColumnType;
 use Utopia\Query\Schema\IndexType;
+use Utopia\Query\Schema\Order;
 
 /**
  * Migrations CLI Tool
@@ -134,21 +135,21 @@ class MigrationCLI
                 'type' => IndexType::Key->value,
                 'attributes' => ['name'],
                 'lengths' => [Database::LENGTH_KEY],
-                'orders' => ['ASC'],
+                'orders' => [Order::Asc->value],
             ],
             [
                 '$id' => '_key_enabled',
                 'type' => IndexType::Key->value,
                 'attributes' => ['enabled'],
                 'lengths' => [],
-                'orders' => ['ASC'],
+                'orders' => [Order::Asc->value],
             ],
             [
                 '$id' => '_key_documentSecurity',
                 'type' => IndexType::Key->value,
                 'attributes' => ['documentSecurity'],
                 'lengths' => [],
-                'orders' => ['ASC'],
+                'orders' => [Order::Asc->value],
             ],
         ],
     ];

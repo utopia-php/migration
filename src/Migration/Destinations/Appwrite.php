@@ -744,7 +744,11 @@ class Appwrite extends Destination
                         try {
                             $structure = $this->collectionStructureFor($resource);
 
-                            $this->dbForProject->createCollection(new Collection(id: $this->databaseCollectionId($existing), attributes: $this->schemaAttributes($structure['attributes'] ?? []), indexes: $this->schemaIndexes($structure['indexes'] ?? [])));
+                            $this->dbForProject->createCollection(new Collection(
+                                id: $this->databaseCollectionId($existing),
+                                attributes: $this->schemaAttributes($structure['attributes'] ?? []),
+                                indexes: $this->schemaIndexes($structure['indexes'] ?? []),
+                            ));
                         } catch (\Throwable $e) {
                             $this->markDatabaseFailed($resource->getId());
                             throw $e;
@@ -796,7 +800,11 @@ class Appwrite extends Destination
             $resource->setSequence($database->getSequence());
             $structure = $this->collectionStructureFor($resource);
 
-            $this->dbForProject->createCollection(new Collection(id: $this->databaseCollectionId($database), attributes: $this->schemaAttributes($structure['attributes'] ?? []), indexes: $this->schemaIndexes($structure['indexes'] ?? [])));
+            $this->dbForProject->createCollection(new Collection(
+                id: $this->databaseCollectionId($database),
+                attributes: $this->schemaAttributes($structure['attributes'] ?? []),
+                indexes: $this->schemaIndexes($structure['indexes'] ?? []),
+            ));
         } catch (\Throwable $e) {
             $this->markDatabaseFailed($resource->getId());
             throw $e;
@@ -920,7 +928,11 @@ class Appwrite extends Destination
 
         $resource->setSequence($table->getSequence());
 
-        $dbForDatabases->createCollection(new Collection(id: $this->tableCollectionId($database, $table), permissions: $resource->getPermissions(), documentSecurity: $resource->getRowSecurity()));
+        $dbForDatabases->createCollection(new Collection(
+            id: $this->tableCollectionId($database, $table),
+            permissions: $resource->getPermissions(),
+            documentSecurity: $resource->getRowSecurity(),
+        ));
 
         return true;
     }

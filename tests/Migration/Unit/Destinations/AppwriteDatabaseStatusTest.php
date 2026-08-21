@@ -167,7 +167,10 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $attributes[] = $this->attribute('status', ColumnType::String, size: 16);
         }
 
-        $database->createCollection(new Collection(id: 'databases', attributes: $attributes));
+        $database->createCollection(new Collection(
+            id: 'databases',
+            attributes: $attributes,
+        ));
 
         return $database;
     }
