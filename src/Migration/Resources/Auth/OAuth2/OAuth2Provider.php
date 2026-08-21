@@ -49,6 +49,7 @@ final class OAuth2Provider extends Resource
         'github' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'gitlab' => ['clientId' => ['target' => self::TARGET_APP_ID], 'endpoint' => ['target' => self::TARGET_SECRET]],
         'google' => ['clientId' => ['target' => self::TARGET_APP_ID], 'prompt' => ['target' => self::TARGET_SECRET]],
+        'huggingface' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'keycloak' => [
             'clientId' => ['target' => self::TARGET_APP_ID],
             'endpoint' => ['target' => self::TARGET_SECRET, 'key' => 'keycloakDomain'],

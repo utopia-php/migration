@@ -25,6 +25,24 @@ class OAuth2ProviderTest extends TestCase
         $this->assertTrue($provider->isConfigured());
     }
 
+    public function testFromArrayHuggingFace(): void
+    {
+        $provider = OAuth2Provider::fromArray('huggingface', [
+            'id' => 'huggingface',
+            'enabled' => true,
+            'clientId' => 'client-123',
+            'clientSecret' => 'super-secret',
+        ]);
+
+        $this->assertNotNull($provider);
+        $this->assertEquals('huggingface', $provider->getProviderKey());
+        $this->assertTrue($provider->getEnabled());
+        $this->assertEquals(['clientId' => 'client-123'], $provider->getSettings());
+        $this->assertEquals('client-123', $provider->getDestinationAppId());
+        $this->assertEquals([], $provider->getDestinationSecretFields());
+        $this->assertTrue($provider->isConfigured());
+    }
+
     public function testFromArrayNeverCopiesSecrets(): void
     {
         foreach (\array_keys(OAuth2Provider::PROVIDERS) as $providerKey) {
