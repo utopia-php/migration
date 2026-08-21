@@ -1104,7 +1104,19 @@ class Appwrite extends Destination
                 '$updatedAt' => $updatedAt,
             ]);
 
-            $this->dbForProject->checkAttribute($table, $column);
+            $this->dbForProject->checkAttribute($table, UtopiaAttribute::fromArray([
+                'key' => $resource->getKey(),
+                'type' => $type,
+                'size' => $resource->getSize(),
+                'required' => $resource->isRequired(),
+                'signed' => $resource->isSigned(),
+                'default' => $resource->getDefault(),
+                'array' => $resource->isArray(),
+                'format' => $resource->getFormat() !== '' ? $resource->getFormat() : null,
+                'formatOptions' => $resource->getFormatOptions(),
+                'filters' => $resource->getFilters(),
+                'options' => $resource->getOptions() !== [] ? $resource->getOptions() : null,
+            ]));
 
             $column = $this->dbForProject->createDocument(self::META_ATTRIBUTES, $column);
         } catch (DuplicateException $e) {
@@ -1318,7 +1330,7 @@ class Appwrite extends Destination
                 return $attr;
             }
             if ($attr instanceof UtopiaDocument) {
-                return UtopiaAttribute::fromDocument($attr);
+                return UtopiaAttribute::fromArray($attr->getArrayCopy());
             }
 
             return UtopiaAttribute::fromArray(\is_array($attr) ? $attr : []);
@@ -1336,7 +1348,7 @@ class Appwrite extends Destination
                 return $index;
             }
             if ($index instanceof UtopiaDocument) {
-                return UtopiaIndex::fromDocument($index);
+                return UtopiaIndex::fromArray($index->getArrayCopy());
             }
 
             return UtopiaIndex::fromArray(\is_array($index) ? $index : []);
