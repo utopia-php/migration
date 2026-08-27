@@ -74,6 +74,7 @@ final class OAuth2Provider extends Resource
         'paypal' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'paypalSandbox' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'podio' => ['clientId' => ['target' => self::TARGET_APP_ID]],
+        'resend' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'salesforce' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'slack' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'spotify' => ['clientId' => ['target' => self::TARGET_APP_ID]],
