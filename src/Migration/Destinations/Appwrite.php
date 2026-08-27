@@ -684,18 +684,28 @@ class Appwrite extends Destination
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
         $existing = $this->dbForProject->getDocument(self::META_DATABASES, $resource->getId());
-        $isFailed = ! $existing->isEmpty()
+        // Both states mean a prior run created the metadata document and never finished.
+        // `provisioning` is reachable on its own: markDatabaseFailed() swallows its own
+        // error so it cannot mask the caller's throw, so a metadata store that is down
+        // for the reload and the status write strands the document there. Recovering only
+        // `failed` left those stranded documents unretryable -- every retry collided with
+        // the existing metadata id and never created the backing collection.
+        $isIncomplete = ! $existing->isEmpty()
             && $this->getSupportForDatabaseStatus()
-            && $existing->getAttribute('status') === self::DATABASE_STATUS_FAILED;
+            && \in_array(
+                $existing->getAttribute('status'),
+                [self::DATABASE_STATUS_FAILED, self::DATABASE_STATUS_PROVISIONING],
+                true,
+            );
 
-        if ($this->onDuplicate !== OnDuplicate::Fail || $isFailed) {
+        if ($this->onDuplicate !== OnDuplicate::Fail || $isIncomplete) {
             $action = $this->onDuplicate->resolveSchemaAction(
                 !$existing->isEmpty(),
                 $updatedAt,
                 $existing->getUpdatedAt(),
             );
 
-            if ($isFailed) {
+            if ($isIncomplete) {
                 // A prior run created the metadata document but left the database unusable (its backing
                 // collection may be missing). Force Overwrite — regardless of timestamps, spec match, or
                 // OnDuplicate::Fail — so retries recreate the collection instead of hitting the existing ID.
@@ -719,7 +729,7 @@ class Appwrite extends Destination
                     }
                     return false;
                 })(),
-                SchemaAction::Overwrite => (function () use ($resource, $existing, $updatedAt, $isFailed): bool {
+                SchemaAction::Overwrite => (function () use ($resource, $existing, $updatedAt, $isIncomplete): bool {
                     $document = [
                         'name' => $resource->getDatabaseName(),
                         'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
@@ -741,7 +751,7 @@ class Appwrite extends Destination
                     // metadata document but threw before createCollection). Recreate it so we never flip a
                     // database to ready with no collection behind it. A healthy overwrite already has its
                     // collection, so we skip the lookup entirely.
-                    if ($isFailed && $this->dbForProject->getCollection($this->databaseCollectionId($existing))->isEmpty()) {
+                    if ($isIncomplete && $this->dbForProject->getCollection($this->databaseCollectionId($existing))->isEmpty()) {
                         try {
                             $structure = $this->collectionStructureFor($resource);
 
