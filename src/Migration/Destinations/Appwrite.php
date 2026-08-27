@@ -90,6 +90,7 @@ use Utopia\Migration\Transfer;
 use Utopia\Query\Schema\ColumnType;
 use Utopia\Query\Schema\ForeignKeyAction;
 use Utopia\Query\Schema\IndexType;
+use Utopia\Query\Schema\Order;
 
 class Appwrite extends Destination
 {
@@ -1587,7 +1588,15 @@ class Appwrite extends Destination
                     type: IndexType::from($resource->getType()),
                     attributes: $resource->getColumns(),
                     lengths: $lengths,
-                    orders: $resource->getOrders(),
+                    // Sources hand back the 'ASC'/'DESC' strings they were stored
+                    // as, while UtopiaIndex takes Order cases and rejects anything
+                    // else with an InvalidArgumentException -- which is not a
+                    // Migration Exception, so the transfer would abort instead of
+                    // recording a failed index.
+                    orders: \array_map(
+                        static fn (mixed $order): ?Order => Order::tryFrom(\is_string($order) ? \strtoupper($order) : ''),
+                        $resource->getOrders(),
+                    ),
                 ),
             );
 
