@@ -38,6 +38,7 @@ final class OAuth2Provider extends Resource
         'bitbucket' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'bitly' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'box' => ['clientId' => ['target' => self::TARGET_APP_ID]],
+        'cloudflare' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'dailymotion' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'discord' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'disqus' => ['clientId' => ['target' => self::TARGET_APP_ID]],
