@@ -169,7 +169,7 @@ class Appwrite extends Destination
      * longer active. Callers must derive this from their operation lifecycle;
      * without that proof, recovery fails closed.
      *
-     * @var (callable(UtopiaDocument $database): bool)|null
+     * @var callable(UtopiaDocument $database): bool
      */
     private $canRecoverDatabase;
 
@@ -219,10 +219,10 @@ class Appwrite extends Destination
      * @param UtopiaDatabase $dbForProject
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
      * @param array<array<string, mixed>> $collectionStructure
+     * @param callable(UtopiaDocument $database): bool $canRecoverDatabase Returns true only when the operation which owns an existing `provisioning` database is confirmed terminal.
      * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
      * @param (callable(Database $resource): string)|null $getDatabaseDSN Resolver for the destination's `_databases.database` value. Pass when the destination project's DSN differs from the source's, so the destination row carries its own DSN instead of inheriting the source's.
      * @param array<string, array<array<string, mixed>>> $collectionStructures Per-database-type metadata collection structures (e.g. `['vectorsdb' => ...]`), used instead of $collectionStructure when the imported database's type has an entry. Types with an entry also get type-specific metadata written (e.g. vectorsdb collection `dimension`).
-     * @param (callable(UtopiaDocument $database): bool)|null $canRecoverDatabase Returns true only when the operation which owns an existing `provisioning` database is confirmed terminal. Null refuses recovery so concurrent provisioning cannot be overwritten.
      */
     public function __construct(
         string $project,
@@ -233,10 +233,10 @@ class Appwrite extends Destination
         protected array $collectionStructure,
         protected UtopiaDatabase $dbForPlatform,
         protected string $projectInternalId,
+        callable $canRecoverDatabase,
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
         ?callable $getDatabaseDSN = null,
         protected array $collectionStructures = [],
-        ?callable $canRecoverDatabase = null,
     ) {
         $this->projectId = $project;
         $this->endpoint = $endpoint;
@@ -700,7 +700,6 @@ class Appwrite extends Destination
         $status = $supportsStatus ? $existing->getAttribute('status') : null;
         $isProvisioning = $status === self::DATABASE_STATUS_PROVISIONING;
         $canRecoverProvisioning = $isProvisioning
-            && $this->canRecoverDatabase !== null
             && ($this->canRecoverDatabase)($existing);
 
         if ($isProvisioning && ! $canRecoverProvisioning) {

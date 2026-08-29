@@ -205,6 +205,7 @@ final class AppwriteIndexLengthsTest extends TestCase
             ],
             dbForPlatform: $database,
             projectInternalId: '1',
+            canRecoverDatabase: static fn (UtopiaDocument $document): bool => false,
             onDuplicate: $onDuplicate,
         );
 

@@ -360,8 +360,9 @@ final class AppwriteDatabaseStatusTest extends TestCase
             collectionStructure: ['attributes' => [], 'indexes' => []],
             dbForPlatform: $database,
             projectInternalId: '1',
+            canRecoverDatabase: $canRecoverDatabase
+                ?? static fn (UtopiaDocument $document): bool => false,
             onDuplicate: OnDuplicate::Fail,
-            canRecoverDatabase: $canRecoverDatabase,
         );
 
         $transfer = new Transfer($source, $destination);
