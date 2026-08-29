@@ -205,7 +205,8 @@ final class AppwriteIndexLengthsTest extends TestCase
             ],
             dbForPlatform: $database,
             projectInternalId: '1',
-            canRecoverDatabase: static fn (UtopiaDocument $document): bool => false,
+            migrationId: 'migration-test',
+            getRecoverableMigrationId: static fn (UtopiaDocument $document): ?string => null,
             onDuplicate: $onDuplicate,
         );
 

@@ -169,6 +169,8 @@ Usage: php bin/MigrationCLI.php [options]
 
 Options:
   -h, --help                  Show this help.
+  --migration-id=<identifier> Stable owner identifier for this migration.
+                              Required for Appwrite; reuse it for retries.
   --recover-provisioning      Attest that no active migration owns an existing
                               provisioning database and allow its recovery.
                               Recovery is refused by default.
@@ -284,19 +286,40 @@ HELP;
                     collectionStructure: self::STRUCTURE,
                     dbForPlatform: $database,
                     projectInternalId: $_ENV['DESTINATION_APPWRITE_TEST_PROJECT_INTERNAL_ID'],
+                    migrationId: $this->getMigrationId(),
                     // The standalone operator sets this flag only after confirming the lifecycle owner is
                     // terminal. Without that explicit attestation, provisioning recovery fails closed.
-                    canRecoverDatabase: fn (Document $document): bool => \in_array(
-                        '--recover-provisioning',
-                        $this->arguments,
-                        true,
-                    ),
+                    getRecoverableMigrationId: function (Document $document): ?string {
+                        if (! \in_array('--recover-provisioning', $this->arguments, true)) {
+                            return null;
+                        }
+
+                        $migrationId = $document->getAttribute('migrationId');
+
+                        return \is_string($migrationId) && $migrationId !== '' ? $migrationId : null;
+                    },
                 );
             case 'local':
                 return new Local('./localBackup');
             default:
                 throw new Exception('Invalid destination provider');
         }
+    }
+
+    private function getMigrationId(): string
+    {
+        foreach ($this->arguments as $argument) {
+            if (! \str_starts_with($argument, '--migration-id=')) {
+                continue;
+            }
+
+            $migrationId = \substr($argument, \strlen('--migration-id='));
+            if ($migrationId !== '') {
+                return $migrationId;
+            }
+        }
+
+        throw new \InvalidArgumentException('--migration-id is required for an Appwrite destination');
     }
 
     public function getDatabase(string $type): Database

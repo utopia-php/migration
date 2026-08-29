@@ -164,14 +164,17 @@ class Appwrite extends Destination
      */
     protected $getDatabaseDSN;
 
+    /** Immutable owner written with every provisioning transition initiated by this destination. */
+    private readonly string $migrationId;
+
     /**
-     * Confirms that the operation which owns a `provisioning` database is no
-     * longer active. Callers must derive this from their operation lifecycle;
-     * without that proof, recovery fails closed.
+     * Resolves the authoritative terminal owner of a `provisioning` database.
+     * Callers must derive this from their operation lifecycle; null means the
+     * owner is active or unknown and recovery fails closed.
      *
-     * @var callable(UtopiaDocument $database): bool
+     * @var callable(UtopiaDocument $database): ?string
      */
-    private $canRecoverDatabase;
+    private $getRecoverableMigrationId;
 
     /**
      * @var array<UtopiaDocument>
@@ -219,7 +222,8 @@ class Appwrite extends Destination
      * @param UtopiaDatabase $dbForProject
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
      * @param array<array<string, mixed>> $collectionStructure
-     * @param callable(UtopiaDocument $database): bool $canRecoverDatabase Returns true only when the operation which owns an existing `provisioning` database is confirmed terminal.
+     * @param string $migrationId Immutable identifier for the migration that will own databases provisioned by this destination.
+     * @param callable(UtopiaDocument $database): ?string $getRecoverableMigrationId Returns the authoritative terminal migration identifier for an existing `provisioning` database, or null when its owner is active or unknown.
      * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
      * @param (callable(Database $resource): string)|null $getDatabaseDSN Resolver for the destination's `_databases.database` value. Pass when the destination project's DSN differs from the source's, so the destination row carries its own DSN instead of inheriting the source's.
      * @param array<string, array<array<string, mixed>>> $collectionStructures Per-database-type metadata collection structures (e.g. `['vectorsdb' => ...]`), used instead of $collectionStructure when the imported database's type has an entry. Types with an entry also get type-specific metadata written (e.g. vectorsdb collection `dimension`).
@@ -233,7 +237,8 @@ class Appwrite extends Destination
         protected array $collectionStructure,
         protected UtopiaDatabase $dbForPlatform,
         protected string $projectInternalId,
-        callable $canRecoverDatabase,
+        string $migrationId,
+        callable $getRecoverableMigrationId,
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
         ?callable $getDatabaseDSN = null,
         protected array $collectionStructures = [],
@@ -258,7 +263,11 @@ class Appwrite extends Destination
 
         $this->getDatabasesDB = $getDatabasesDB;
         $this->getDatabaseDSN = $getDatabaseDSN;
-        $this->canRecoverDatabase = $canRecoverDatabase;
+        if ($migrationId === '') {
+            throw new \InvalidArgumentException('Migration identifier must not be empty');
+        }
+        $this->migrationId = $migrationId;
+        $this->getRecoverableMigrationId = $getRecoverableMigrationId;
     }
 
     /**
@@ -699,8 +708,15 @@ class Appwrite extends Destination
         $supportsStatus = ! $existing->isEmpty() && $this->getSupportForDatabaseStatus();
         $status = $supportsStatus ? $existing->getAttribute('status') : null;
         $isProvisioning = $status === self::DATABASE_STATUS_PROVISIONING;
+        $existingMigrationId = $isProvisioning ? $existing->getAttribute('migrationId') : null;
+        $recoverableMigrationId = $isProvisioning
+            ? ($this->getRecoverableMigrationId)($existing)
+            : null;
         $canRecoverProvisioning = $isProvisioning
-            && ($this->canRecoverDatabase)($existing);
+            && \is_string($existingMigrationId)
+            && $existingMigrationId !== ''
+            && \is_string($recoverableMigrationId)
+            && $existingMigrationId === $recoverableMigrationId;
 
         if ($isProvisioning && ! $canRecoverProvisioning) {
             throw new DatabaseException('Database '.$resource->getId().' is already being provisioned');
@@ -744,6 +760,7 @@ class Appwrite extends Destination
 
                     if ($this->getSupportForDatabaseStatus()) {
                         $document['status'] = self::DATABASE_STATUS_PROVISIONING;
+                        $document['migrationId'] = $this->migrationId;
                     }
 
                     $this->dbForProject->updateDocument(self::META_DATABASES, $existing->getId(), new UtopiaDocument($document));
@@ -798,6 +815,7 @@ class Appwrite extends Destination
         // source leaves status untouched so the collection default applies. Never copy the source's state.
         if ($this->getSupportForDatabaseStatus()) {
             $document['status'] = self::DATABASE_STATUS_PROVISIONING;
+            $document['migrationId'] = $this->migrationId;
         }
 
         $database = $this->dbForProject->createDocument(self::META_DATABASES, new UtopiaDocument($document));

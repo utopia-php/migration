@@ -42,6 +42,8 @@ final class MigrationCLITest extends TestCase
     public function testHelpExplainsExplicitProvisioningRecoveryAttestation(): void
     {
         $this->assertStringContainsString('--recover-provisioning', \MigrationCLI::getHelp());
+        $this->assertStringContainsString('--migration-id=', \MigrationCLI::getHelp());
+        $this->assertStringContainsString('reuse it for retries', \MigrationCLI::getHelp());
         $this->assertStringContainsString('no active migration', \MigrationCLI::getHelp());
         $this->assertStringContainsString('refused by default', \MigrationCLI::getHelp());
     }
@@ -50,7 +52,10 @@ final class MigrationCLITest extends TestCase
     {
         foreach ([false, true] as $recover) {
             $database = $this->createProjectDatabase();
-            $arguments = $recover ? ['MigrationCLI.php', '--recover-provisioning'] : ['MigrationCLI.php'];
+            $arguments = ['MigrationCLI.php', '--migration-id=migration-current'];
+            if ($recover) {
+                $arguments[] = '--recover-provisioning';
+            }
             $cli = new TestMigrationCLI($arguments, $database);
 
             $destination = $cli->getDestination();
@@ -63,14 +68,26 @@ final class MigrationCLITest extends TestCase
             if (! $recover) {
                 $this->assertNotSame([], $destination->getErrors());
                 $this->assertSame('provisioning', $created->getAttribute('status'));
+                $this->assertSame('migration-terminal', $created->getAttribute('migrationId'));
                 $this->assertTrue($database->getCollection('database_'.$created->getSequence())->isEmpty());
                 continue;
             }
 
             $this->assertSame([], $destination->getErrors());
             $this->assertSame('ready', $created->getAttribute('status'));
+            $this->assertSame('migration-current', $created->getAttribute('migrationId'));
             $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
         }
+    }
+
+    public function testAppwriteDestinationRequiresMigrationIdentifier(): void
+    {
+        $cli = new TestMigrationCLI(['MigrationCLI.php'], $this->createProjectDatabase());
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('--migration-id is required for an Appwrite destination');
+
+        $cli->getDestination();
     }
 
     private function createProjectDatabase(): Database
@@ -90,6 +107,7 @@ final class MigrationCLITest extends TestCase
                 new Attribute(key: 'type', type: ColumnType::String, size: 128, default: 'tablesdb'),
                 new Attribute(key: 'database', type: ColumnType::String, size: 2000),
                 new Attribute(key: 'status', type: ColumnType::String, size: 16),
+                new Attribute(key: 'migrationId', type: ColumnType::String, size: Database::LENGTH_KEY),
             ],
         ));
         $database->getAuthorization()->skip(
@@ -102,6 +120,7 @@ final class MigrationCLITest extends TestCase
                 'type' => 'tablesdb',
                 'database' => '',
                 'status' => 'provisioning',
+                'migrationId' => 'migration-terminal',
             ])),
         );
 
