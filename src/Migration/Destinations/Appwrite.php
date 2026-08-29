@@ -165,6 +165,15 @@ class Appwrite extends Destination
     protected $getDatabaseDSN;
 
     /**
+     * Confirms that the operation which owns a `provisioning` database is no
+     * longer active. Callers must derive this from their operation lifecycle;
+     * without that proof, recovery fails closed.
+     *
+     * @var (callable(UtopiaDocument $database): bool)|null
+     */
+    private $canRecoverDatabase;
+
+    /**
      * @var array<UtopiaDocument>
      */
     private array $rowBuffer = [];
@@ -213,6 +222,7 @@ class Appwrite extends Destination
      * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
      * @param (callable(Database $resource): string)|null $getDatabaseDSN Resolver for the destination's `_databases.database` value. Pass when the destination project's DSN differs from the source's, so the destination row carries its own DSN instead of inheriting the source's.
      * @param array<string, array<array<string, mixed>>> $collectionStructures Per-database-type metadata collection structures (e.g. `['vectorsdb' => ...]`), used instead of $collectionStructure when the imported database's type has an entry. Types with an entry also get type-specific metadata written (e.g. vectorsdb collection `dimension`).
+     * @param (callable(UtopiaDocument $database): bool)|null $canRecoverDatabase Returns true only when the operation which owns an existing `provisioning` database is confirmed terminal. Null refuses recovery so concurrent provisioning cannot be overwritten.
      */
     public function __construct(
         string $project,
@@ -226,6 +236,7 @@ class Appwrite extends Destination
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
         ?callable $getDatabaseDSN = null,
         protected array $collectionStructures = [],
+        ?callable $canRecoverDatabase = null,
     ) {
         $this->projectId = $project;
         $this->endpoint = $endpoint;
@@ -247,6 +258,7 @@ class Appwrite extends Destination
 
         $this->getDatabasesDB = $getDatabasesDB;
         $this->getDatabaseDSN = $getDatabaseDSN;
+        $this->canRecoverDatabase = $canRecoverDatabase;
     }
 
     /**
@@ -684,19 +696,18 @@ class Appwrite extends Destination
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
         $existing = $this->dbForProject->getDocument(self::META_DATABASES, $resource->getId());
-        // Both states mean a prior run created the metadata document and never finished.
-        // `provisioning` is reachable on its own: markDatabaseFailed() swallows its own
-        // error so it cannot mask the caller's throw, so a metadata store that is down
-        // for the reload and the status write strands the document there. Recovering only
-        // `failed` left those stranded documents unretryable -- every retry collided with
-        // the existing metadata id and never created the backing collection.
-        $isIncomplete = ! $existing->isEmpty()
-            && $this->getSupportForDatabaseStatus()
-            && \in_array(
-                $existing->getAttribute('status'),
-                [self::DATABASE_STATUS_FAILED, self::DATABASE_STATUS_PROVISIONING],
-                true,
-            );
+        $supportsStatus = ! $existing->isEmpty() && $this->getSupportForDatabaseStatus();
+        $status = $supportsStatus ? $existing->getAttribute('status') : null;
+        $isProvisioning = $status === self::DATABASE_STATUS_PROVISIONING;
+        $canRecoverProvisioning = $isProvisioning
+            && $this->canRecoverDatabase !== null
+            && ($this->canRecoverDatabase)($existing);
+
+        if ($isProvisioning && ! $canRecoverProvisioning) {
+            throw new DatabaseException('Database '.$resource->getId().' is already being provisioned');
+        }
+
+        $isIncomplete = $status === self::DATABASE_STATUS_FAILED || $canRecoverProvisioning;
 
         if ($this->onDuplicate !== OnDuplicate::Fail || $isIncomplete) {
             $action = $this->onDuplicate->resolveSchemaAction(
@@ -719,14 +730,6 @@ class Appwrite extends Destination
                 SchemaAction::Skip => (function () use ($resource, $existing): bool {
                     $resource->setSequence($existing->getSequence());
                     $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-                    // Recover a database left in `provisioning` by a prior failed run: the spec matches so
-                    // we skip re-import, but the end-of-run sweep should still flip it to `ready`.
-                    if (
-                        $this->getSupportForDatabaseStatus()
-                        && $existing->getAttribute('status') === self::DATABASE_STATUS_PROVISIONING
-                    ) {
-                        $this->provisioningDatabases[$resource->getId()] = true;
-                    }
                     return false;
                 })(),
                 SchemaAction::Overwrite => (function () use ($resource, $existing, $updatedAt, $isIncomplete): bool {
@@ -747,10 +750,9 @@ class Appwrite extends Destination
                     $this->dbForProject->updateDocument(self::META_DATABASES, $existing->getId(), new UtopiaDocument($document));
                     $resource->setSequence($existing->getSequence());
 
-                    // Only a `failed` database can be missing its backing collection (a prior run wrote the
-                    // metadata document but threw before createCollection). Recreate it so we never flip a
-                    // database to ready with no collection behind it. A healthy overwrite already has its
-                    // collection, so we skip the lookup entirely.
+                    // An incomplete database can be missing its backing collection. Recreate it so we never
+                    // flip a database to ready with no collection behind it. A healthy overwrite already has
+                    // its collection, so we skip the lookup entirely.
                     if ($isIncomplete && $this->dbForProject->getCollection($this->databaseCollectionId($existing))->isEmpty()) {
                         try {
                             $structure = $this->collectionStructureFor($resource);

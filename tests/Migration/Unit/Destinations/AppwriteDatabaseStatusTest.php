@@ -91,6 +91,30 @@ class StrandedProvisioningProjectDatabase extends UtopiaDatabase
     }
 }
 
+final class InterleavingProjectDatabase extends UtopiaDatabase
+{
+    public bool $interceptNextDatabasesReload = false;
+
+    /** @var (callable(): void)|null */
+    public $onDatabasesReload = null;
+
+    #[Override]
+    public function getDocument(string $collection, string $id, array $queries = [], bool $forUpdate = false): UtopiaDocument
+    {
+        $document = parent::getDocument($collection, $id, $queries, $forUpdate);
+        if (
+            $this->interceptNextDatabasesReload
+            && $collection === 'databases'
+            && ! $document->isEmpty()
+        ) {
+            $this->interceptNextDatabasesReload = false;
+            ($this->onDatabasesReload)();
+        }
+
+        return $document;
+    }
+}
+
 final class AppwriteDatabaseStatusTest extends TestCase
 {
     public function testDatabaseCreationOmitsStatusThroughLegacyAndExplicitEntrypoints(): void
@@ -204,7 +228,11 @@ final class AppwriteDatabaseStatusTest extends TestCase
             'The backing collection was never created, so the database is unusable',
         );
 
-        $destination = $this->runDatabaseTransfer($database, explicit: false);
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            canRecoverDatabase: static fn (UtopiaDocument $existing): bool => true,
+        );
 
         $recovered = $this->getDatabaseDocument($database);
         $this->assertSame([], $this->errorMessages($destination));
@@ -214,6 +242,45 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $database->getCollection('database_'.$recovered->getSequence())->isEmpty(),
             'A Fail retry must recover a database stranded in provisioning, not keep colliding with its metadata id',
         );
+    }
+
+    public function testConcurrentMigrationDoesNotRecoverAnActivelyProvisioningDatabase(): void
+    {
+        $database = new InterleavingProjectDatabase(
+            new MemoryAdapter(),
+            new Cache(new MemoryCache()),
+        );
+        $this->createProjectDatabase(withStatus: true, database: $database);
+
+        $second = null;
+        $statusDuringOverlap = null;
+        $collectionExistsDuringOverlap = null;
+        $database->onDatabasesReload = function () use (
+            $database,
+            &$second,
+            &$statusDuringOverlap,
+            &$collectionExistsDuringOverlap,
+        ): void {
+            $second = $this->runDatabaseTransfer($database, explicit: false);
+            $provisioning = $this->getDatabaseDocument($database);
+            $statusDuringOverlap = $provisioning->getAttribute('status');
+            $collectionExistsDuringOverlap = ! $database
+                ->getCollection('database_'.$provisioning->getSequence())
+                ->isEmpty();
+        };
+        $database->interceptNextDatabasesReload = true;
+
+        $first = $this->runDatabaseTransfer($database, explicit: false);
+
+        $created = $this->getDatabaseDocument($database);
+        $this->assertSame([], $this->errorMessages($first));
+        $this->assertInstanceOf(CountingAppwriteDestination::class, $second);
+        $this->assertNotSame([], $this->errorMessages($second));
+        $this->assertStringContainsString('already being provisioned', $this->errorMessages($second)[0]);
+        $this->assertSame('provisioning', $statusDuringOverlap);
+        $this->assertFalse($collectionExistsDuringOverlap);
+        $this->assertSame('ready', $created->getAttribute('status'));
+        $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
     }
 
     private function createProjectDatabase(bool $withStatus, ?UtopiaDatabase $database = null): UtopiaDatabase
@@ -264,8 +331,11 @@ final class AppwriteDatabaseStatusTest extends TestCase
         );
     }
 
-    private function runDatabaseTransfer(UtopiaDatabase $database, bool $explicit): CountingAppwriteDestination
-    {
+    private function runDatabaseTransfer(
+        UtopiaDatabase $database,
+        bool $explicit,
+        ?callable $canRecoverDatabase = null,
+    ): CountingAppwriteDestination {
         $source = new class () extends MockSource {
             #[Override]
             public function supportsDatabaseStatus(): bool
@@ -291,6 +361,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
             dbForPlatform: $database,
             projectInternalId: '1',
             onDuplicate: OnDuplicate::Fail,
+            canRecoverDatabase: $canRecoverDatabase,
         );
 
         $transfer = new Transfer($source, $destination);
