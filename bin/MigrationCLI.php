@@ -9,7 +9,6 @@ use Utopia\Cache\Cache;
 use Utopia\Database\Adapter\MariaDB;
 use Utopia\Database\Database;
 use Utopia\Database\Document;
-use Utopia\Database\Validator\Authorization;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Destinations\Appwrite as DestinationsAppwrite;
 use Utopia\Migration\Destinations\Local;
@@ -33,6 +32,9 @@ class MigrationCLI
     protected mixed $source;
 
     protected mixed $destination;
+
+    /** @var list<string> */
+    private readonly array $arguments;
 
     protected const STRUCTURE = [
         '$collection' => 'databases',
@@ -154,6 +156,26 @@ class MigrationCLI
         ],
     ];
 
+    /** @param list<string> $arguments */
+    public function __construct(array $arguments = [])
+    {
+        $this->arguments = $arguments;
+    }
+
+    public static function getHelp(): string
+    {
+        return <<<'HELP'
+Usage: php bin/MigrationCLI.php [options]
+
+Options:
+  -h, --help                  Show this help.
+  --recover-provisioning      Attest that no active migration owns an existing
+                              provisioning database and allow its recovery.
+                              Recovery is refused by default.
+
+HELP;
+    }
+
     /**
      * Prints the current status of migrations as a table after wiping the screen
      */
@@ -251,12 +273,24 @@ class MigrationCLI
     {
         switch ($_ENV['DESTINATION_PROVIDER']) {
             case 'appwrite':
+                $database = $this->getDatabase('destination');
+
                 return new DestinationsAppwrite(
-                    $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
-                    $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
-                    $_ENV['DESTINATION_APPWRITE_TEST_KEY'],
-                    $this->getDatabase('destination'),
-                    self::STRUCTURE
+                    project: $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
+                    endpoint: $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
+                    key: $_ENV['DESTINATION_APPWRITE_TEST_KEY'],
+                    dbForProject: $database,
+                    getDatabasesDB: static fn (Document $document): Database => $database,
+                    collectionStructure: self::STRUCTURE,
+                    dbForPlatform: $database,
+                    projectInternalId: $_ENV['DESTINATION_APPWRITE_TEST_PROJECT_INTERNAL_ID'],
+                    // The standalone operator sets this flag only after confirming the lifecycle owner is
+                    // terminal. Without that explicit attestation, provisioning recovery fails closed.
+                    canRecoverDatabase: fn (Document $document): bool => \in_array(
+                        '--recover-provisioning',
+                        $this->arguments,
+                        true,
+                    ),
                 );
             case 'local':
                 return new Local('./localBackup');
@@ -397,6 +431,7 @@ class MigrationCLI
         $database
             ->setDatabase('appwrite')
             ->setNamespace('_' . $_ENV[$prefix . 'NAMESPACE']);
+        $database->getAuthorization()->disable();
 
         return $database;
     }
@@ -426,15 +461,22 @@ class MigrationCLI
         /**
          * Run Transfer
          */
-        Authorization::skip(fn () => $this->transfer->run(
+        $this->transfer->run(
             $this->source->getSupportedResources(),
             function () {
                 $this->drawFrame();
             }
-        ));
+        );
     }
 }
 
-$instance = new MigrationCLI();
-$instance->start();
-$instance->drawFrame();
+if (\realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
+    $arguments = $_SERVER['argv'] ?? [];
+    if (\in_array('-h', $arguments, true) || \in_array('--help', $arguments, true)) {
+        echo MigrationCLI::getHelp();
+    } else {
+        $instance = new MigrationCLI($arguments);
+        $instance->start();
+        $instance->drawFrame();
+    }
+}
