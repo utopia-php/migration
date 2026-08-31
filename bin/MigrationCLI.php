@@ -501,8 +501,7 @@ HELP;
 
     public function start(): void
     {
-        $dotenv = Dotenv::createImmutable(__DIR__);
-        $dotenv->load();
+        $this->loadEnvironment();
 
         /**
          * Initialise All Source Adapters
@@ -530,6 +529,16 @@ HELP;
                 $this->drawFrame();
             }
         );
+
+        if ($this->source->getErrors() === [] && $this->destination->getErrors() === []) {
+            $this->destination->success();
+        }
+    }
+
+    protected function loadEnvironment(): void
+    {
+        $dotenv = Dotenv::createImmutable(__DIR__);
+        $dotenv->load();
     }
 }
 
