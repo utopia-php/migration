@@ -142,6 +142,8 @@ class RecordingProjectDatabase extends UtopiaDatabase
 
     public bool $failReadyWrite = false;
 
+    public bool $disappearBeforeGuardedWrite = false;
+
     /** @var list<string> */
     public array $failReadyWrites = [];
 
@@ -177,6 +179,17 @@ class RecordingProjectDatabase extends UtopiaDatabase
             && $document->getAttribute('status') === 'ready'
         ) {
             throw new DatabaseException('ready status unavailable');
+        }
+
+        if (
+            $this->disappearBeforeGuardedWrite
+            && $collection === 'databases'
+            && $expectedVersion !== null
+        ) {
+            $this->disappearBeforeGuardedWrite = false;
+            parent::deleteDocument($collection, $id);
+
+            return new UtopiaDocument();
         }
 
         return parent::updateDocument($collection, $id, $document, $expectedVersion);
@@ -626,6 +639,76 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame('provisioning', $created->getAttribute('status'));
         $this->assertSame('migration-ready-failure', $created->getAttribute('migrationId'));
         $this->assertSame('attempt-ready-failure', $created->getAttribute('migrationAttemptId'));
+    }
+
+    public function testDatabaseDisappearanceBeforeReadyWriteLosesFinalizationOwnership(): void
+    {
+        $database = new RecordingProjectDatabase(new MemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $database->disappearBeforeGuardedWrite = true;
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            migrationId: 'migration-disappearing-ready',
+            migrationAttemptId: 'attempt-disappearing-ready',
+        );
+
+        $readyWrites = \array_values(\array_filter(
+            $database->databaseWrites,
+            static fn (array $write): bool => ($write['document']['status'] ?? null) === 'ready',
+        ));
+
+        $this->assertSame(['Database provisioning owner changed before finalization'], $this->errorMessages($destination));
+        $this->assertCount(1, $readyWrites);
+        $this->assertIsInt($readyWrites[0]['expectedVersion']);
+        $this->assertTrue($this->getDatabaseDocument($database)->isEmpty());
+    }
+
+    public function testDatabaseDisappearanceBeforeRecoveryClaimLosesOwnership(): void
+    {
+        $database = new RecordingProjectDatabase(new StandaloneMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $seeded = $this->seedDatabase(
+            $database,
+            status: 'failed',
+            migrationId: 'migration-old',
+            migrationAttemptId: 'attempt-old',
+        );
+        $database->databaseWrites = [];
+        $database->disappearBeforeGuardedWrite = true;
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            migrationId: 'migration-new',
+            migrationAttemptId: 'attempt-new',
+            getRecoverableOwner: static fn (UtopiaDocument $database): ProvisioningOwner => new ProvisioningOwner(
+                'migration-old',
+                'attempt-old',
+            ),
+            success: false,
+        );
+
+        $claimWrites = \array_values(\array_filter(
+            $database->databaseWrites,
+            static fn (array $write): bool => ($write['document']['status'] ?? null) === 'provisioning',
+        ));
+
+        $this->assertSame(
+            ['Database database provisioning owner changed before it could be claimed'],
+            $this->errorMessages($destination),
+        );
+        $this->assertCount(1, $claimWrites);
+        $this->assertSame(
+            [true],
+            \array_map(
+                static fn (array $write): bool => \is_int($write['expectedVersion'] ?? null),
+                $claimWrites,
+            ),
+        );
+        $this->assertTrue($this->getDatabaseDocument($database)->isEmpty());
+        $this->assertTrue($database->getCollection('database_'.$seeded->getSequence())->isEmpty());
     }
 
     public function testDatabaseFinalizersRunOnlyAfterSuccess(): void

@@ -396,14 +396,14 @@ class Appwrite extends Destination
                 throw new DatabaseException('Database provisioning ownership requires a document version');
             }
 
-            $this->dbForProject->updateDocument(
+            $updated = $this->dbForProject->updateDocument(
                 self::META_DATABASES,
                 $databaseId,
                 new UtopiaDocument(['status' => $status]),
                 expectedVersion: $version,
             );
 
-            return true;
+            return ! $updated->isEmpty();
         } catch (ConflictException) {
             return false;
         }
@@ -868,12 +868,15 @@ class Appwrite extends Destination
                     if ($version === null) {
                         throw new DatabaseException('Database provisioning ownership requires a document version');
                     }
-                    $this->dbForProject->updateDocument(
+                    $updated = $this->dbForProject->updateDocument(
                         self::META_DATABASES,
                         $locked->getId(),
                         new UtopiaDocument($document),
                         expectedVersion: $version,
                     );
+                    if ($updated->isEmpty()) {
+                        throw new DatabaseException('Database '.$resource->getId().' provisioning owner changed before it could be claimed');
+                    }
                 }
 
                 return [
