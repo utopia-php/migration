@@ -33,6 +33,7 @@ use Utopia\Database\DateTime;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Exception as DatabaseException;
 use Utopia\Database\Exception\Authorization as AuthorizationException;
+use Utopia\Database\Exception\Conflict as ConflictException;
 use Utopia\Database\Exception\Duplicate as DuplicateException;
 use Utopia\Database\Exception\Limit as LimitException;
 use Utopia\Database\Exception\Structure as StructureException;
@@ -178,9 +179,6 @@ class Appwrite extends Destination
      */
     private $getRecoverableOwner;
 
-    /** @var array<string, ProvisioningOwner> */
-    private array $createdDatabaseOwners = [];
-
     /**
      * @var array<UtopiaDocument>
      */
@@ -310,7 +308,11 @@ class Appwrite extends Destination
         return $this->databaseStatusSupported = false;
     }
 
-    /** Orphan cleanup runs only after a successful migration — a mid-run throw preserves the destination as-is. */
+    /**
+     * Transfer resources without committing terminal destination state. The
+     * caller must first persist its own finalization claim, then invoke
+     * success() while that generation is still authoritative.
+     */
     #[Override]
     public function run(
         array $resources,
@@ -320,9 +322,17 @@ class Appwrite extends Destination
     ): void {
         $this->resetRunState();
         parent::run($resources, $callback, $rootResourceId, $rootResourceType);
-        // parent::run() returning means every resource transferred, so the databases are usable.
-        // Flip status before the orphan sweep so a cleanup failure can't strand them in `provisioning`.
-        $this->markProvisionedDatabasesReady();
+    }
+
+    /** Finalize destination state only after the caller has fenced terminal ownership. */
+    #[Override]
+    public function success(): void
+    {
+        // Flip status before the orphan sweep so a cleanup failure can't strand databases in `provisioning`.
+        if (! $this->markProvisionedDatabasesReady()) {
+            return;
+        }
+
         $this->cleanupOverwriteOrphans();
     }
 
@@ -333,15 +343,18 @@ class Appwrite extends Destination
         $this->orphansByTable = [];
         $this->processedTwoWayPairs = [];
         $this->provisioningDatabases = [];
-        $this->createdDatabaseOwners = [];
     }
 
-    private function markProvisionedDatabasesReady(): void
+    private function markProvisionedDatabasesReady(): bool
     {
+        $ready = true;
         foreach (\array_keys($this->provisioningDatabases) as $databaseId) {
             try {
-                $this->setDatabaseStatus($databaseId, self::DATABASE_STATUS_READY);
+                if (! $this->setDatabaseStatus($databaseId, self::DATABASE_STATUS_READY)) {
+                    throw new DatabaseException('Database provisioning owner changed before finalization');
+                }
             } catch (\Throwable $error) {
+                $ready = false;
                 $this->addError(new Exception(
                     resourceName: Resource::TYPE_DATABASE,
                     resourceGroup: Transfer::GROUP_DATABASES,
@@ -352,15 +365,17 @@ class Appwrite extends Destination
                 ));
             }
         }
+
+        return $ready;
     }
 
-    private function setDatabaseStatus(string $databaseId, string $status): void
+    private function setDatabaseStatus(string $databaseId, string $status): bool
     {
         if (! $this->getSupportForDatabaseStatus()) {
-            return;
+            return true;
         }
 
-        $transition = $this->dbForProject->withTransaction(function () use ($databaseId, $status): ?bool {
+        try {
             $database = $this->dbForProject->getDocument(
                 self::META_DATABASES,
                 $databaseId,
@@ -376,58 +391,22 @@ class Appwrite extends Destination
                 return false;
             }
 
-            if (! $this->supportsAtomicOwnerMutation()) {
-                return null;
+            $version = $database->getVersion();
+            if ($version === null) {
+                throw new DatabaseException('Database provisioning ownership requires a document version');
             }
 
             $this->dbForProject->updateDocument(
                 self::META_DATABASES,
                 $databaseId,
                 new UtopiaDocument(['status' => $status]),
+                expectedVersion: $version,
             );
 
             return true;
-        });
-
-        if ($transition === true) {
-            unset($this->createdDatabaseOwners[$databaseId]);
-            return;
+        } catch (ConflictException) {
+            return false;
         }
-
-        if ($transition === false) {
-            unset($this->createdDatabaseOwners[$databaseId]);
-            return;
-        }
-
-        $createdOwner = $this->createdDatabaseOwners[$databaseId] ?? null;
-        if ($createdOwner === null || ! $createdOwner->equals($this->owner)) {
-            return;
-        }
-
-        // Adapters without an atomic claim primitive may finalize only the exact row this
-        // destination instance just created. forUpdate disables caches even when no lock exists.
-        $database = $this->dbForProject->getDocument(
-            self::META_DATABASES,
-            $databaseId,
-            forUpdate: true,
-        );
-        $owner = $this->getProvisioningOwner($database);
-        if (
-            $database->isEmpty()
-            || $database->getAttribute('status') !== self::DATABASE_STATUS_PROVISIONING
-            || $owner === null
-            || ! $owner->equals($createdOwner)
-        ) {
-            unset($this->createdDatabaseOwners[$databaseId]);
-            return;
-        }
-
-        $this->dbForProject->updateDocument(
-            self::META_DATABASES,
-            $databaseId,
-            new UtopiaDocument(['status' => $status]),
-        );
-        unset($this->createdDatabaseOwners[$databaseId]);
     }
 
     private function getProvisioningOwner(UtopiaDocument $database): ?ProvisioningOwner
@@ -444,29 +423,6 @@ class Appwrite extends Destination
         }
 
         return new ProvisioningOwner($migrationId, $attemptId);
-    }
-
-    /**
-     * This fence depends on the exact utopia-php/database pin in composer.lock:
-     * SQL exposes UpdateLock or TransactionRetries, SQLite uses BEGIN IMMEDIATE,
-     * and replica Mongo exposes TransactionRetries only while a session is active.
-     */
-    private function supportsAtomicOwnerMutation(): bool
-    {
-        $adapter = $this->dbForProject->getAdapter();
-
-        return $adapter->inTransaction()
-            && (
-                $adapter->supports(Capability::UpdateLock)
-                || $adapter->supports(Capability::TransactionRetries)
-            );
-    }
-
-    private function requireAtomicOwnerMutation(): void
-    {
-        if (! $this->supportsAtomicOwnerMutation()) {
-            throw new DatabaseException('Database provisioning ownership requires an atomic transaction with update locks or conflict retries');
-        }
     }
 
     /** Best-effort transition to `failed`; a secondary error here must not mask the caller's original throw. */
@@ -908,13 +864,15 @@ class Appwrite extends Destination
                         $document['migrationAttemptId'] = $this->owner->attemptId;
                     }
 
-                    // This gate must remain inside the transaction and immediately before the
-                    // existing-row mutation so the locked ownership evidence cannot go stale.
-                    $this->requireAtomicOwnerMutation();
+                    $version = $locked->getVersion();
+                    if ($version === null) {
+                        throw new DatabaseException('Database provisioning ownership requires a document version');
+                    }
                     $this->dbForProject->updateDocument(
                         self::META_DATABASES,
                         $locked->getId(),
                         new UtopiaDocument($document),
+                        expectedVersion: $version,
                     );
                 }
 
@@ -985,9 +943,6 @@ class Appwrite extends Destination
         }
 
         $database = $this->dbForProject->createDocument(self::META_DATABASES, new UtopiaDocument($document));
-        if ($supportsStatus) {
-            $this->createdDatabaseOwners[$database->getId()] = $this->owner;
-        }
 
         try {
             $database = $this->dbForProject->getDocument(self::META_DATABASES, $database->getId());

@@ -34,13 +34,13 @@ final class RecordingSQLiteProjectDatabase extends UtopiaDatabase
     public bool $throwAfterBackingCollectionCallback = false;
 
     #[Override]
-    public function updateDocument(string $collection, string $id, UtopiaDocument $document): UtopiaDocument
+    public function updateDocument(string $collection, string $id, UtopiaDocument $document, ?int $expectedVersion = null): UtopiaDocument
     {
         if ($collection === 'databases') {
             $this->databaseWrites[] = $document->getArrayCopy();
         }
 
-        return parent::updateDocument($collection, $id, $document);
+        return parent::updateDocument($collection, $id, $document, $expectedVersion);
     }
 
     #[Override]
@@ -150,7 +150,10 @@ final class AppwriteDatabaseConcurrencyTest extends TestCase
                 static fn (array $document): bool => ($document['status'] ?? null) === 'ready',
             ));
             $this->assertInstanceOf(AppwriteDestination::class, $successor);
-            $this->assertSame([], $this->errorMessages($destination));
+            $this->assertSame(
+                ['Database provisioning owner changed before finalization'],
+                $this->errorMessages($destination),
+            );
             $this->assertSame([], $this->errorMessages($successor));
             $this->assertSame([], $readyWrites);
             $this->assertSame('provisioning', $database->getAttribute('status'));
@@ -253,11 +256,14 @@ final class AppwriteDatabaseConcurrencyTest extends TestCase
 
         $transfer = new Transfer($source, $destination);
         $database->getAuthorization()->skip(
-            static fn () => $transfer->run(
-                [Resource::TYPE_DATABASE],
-                $callback ?? static function (): void {
-                },
-            ),
+            static function () use ($callback, $destination, $transfer): void {
+                $transfer->run(
+                    [Resource::TYPE_DATABASE],
+                    $callback ?? static function (): void {
+                    },
+                );
+                $destination->success();
+            },
         );
     }
 

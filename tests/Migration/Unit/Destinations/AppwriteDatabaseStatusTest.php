@@ -101,13 +101,13 @@ class StrandedProvisioningProjectDatabase extends UtopiaDatabase
     }
 
     #[Override]
-    public function updateDocument(string $collection, string $id, UtopiaDocument $document): UtopiaDocument
+    public function updateDocument(string $collection, string $id, UtopiaDocument $document, ?int $expectedVersion = null): UtopiaDocument
     {
         if ($this->failDatabasesWrites && $collection === 'databases') {
             throw new DatabaseException('metadata store unavailable');
         }
 
-        return parent::updateDocument($collection, $id, $document);
+        return parent::updateDocument($collection, $id, $document, $expectedVersion);
     }
 }
 
@@ -137,7 +137,7 @@ final class InterleavingProjectDatabase extends UtopiaDatabase
 
 class RecordingProjectDatabase extends UtopiaDatabase
 {
-    /** @var list<array{operation: string, id: string, document: array<string, mixed>}> */
+    /** @var list<array{operation: string, id: string, document: array<string, mixed>, expectedVersion?: int|null}> */
     public array $databaseWrites = [];
 
     public bool $failReadyWrite = false;
@@ -160,13 +160,14 @@ class RecordingProjectDatabase extends UtopiaDatabase
     }
 
     #[Override]
-    public function updateDocument(string $collection, string $id, UtopiaDocument $document): UtopiaDocument
+    public function updateDocument(string $collection, string $id, UtopiaDocument $document, ?int $expectedVersion = null): UtopiaDocument
     {
         if ($collection === 'databases') {
             $this->databaseWrites[] = [
                 'operation' => 'update',
                 'id' => $id,
                 'document' => $document->getArrayCopy(),
+                'expectedVersion' => $expectedVersion,
             ];
         }
 
@@ -178,7 +179,7 @@ class RecordingProjectDatabase extends UtopiaDatabase
             throw new DatabaseException('ready status unavailable');
         }
 
-        return parent::updateDocument($collection, $id, $document);
+        return parent::updateDocument($collection, $id, $document, $expectedVersion);
     }
 }
 
@@ -298,8 +299,9 @@ final class AppwriteDatabaseStatusTest extends TestCase
             ),
         ));
         $created = $this->getDatabaseDocument($database);
-        $this->assertSame([], $this->errorMessages($destination));
-        $this->assertSame([], $terminalWrites);
+        $this->assertSame(['Database provisioning owner changed before finalization'], $this->errorMessages($destination));
+        $this->assertCount(1, $terminalWrites);
+        $this->assertIsInt($terminalWrites[0]['expectedVersion']);
         $this->assertSame('provisioning', $created->getAttribute('status'));
         $this->assertSame('migration-successor', $created->getAttribute('migrationId'));
         $this->assertSame('attempt-successor', $created->getAttribute('migrationAttemptId'));
@@ -490,7 +492,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame('attempt-active', $existing->getAttribute('migrationAttemptId'));
     }
 
-    public function testPreExistingRecoveryRequiresAtomicMutationCapability(): void
+    public function testPreExistingRecoveryUsesDocumentVersionCompareAndSet(): void
     {
         foreach ([new MemoryAdapter(), new StandaloneMemoryAdapter()] as $adapter) {
             $database = new RecordingProjectDatabase($adapter, new Cache(new MemoryCache()));
@@ -515,15 +517,15 @@ final class AppwriteDatabaseStatusTest extends TestCase
             );
 
             $existing = $this->getDatabaseDocument($database);
-            $this->assertNotSame([], $this->errorMessages($destination));
-            $this->assertSame([], $database->databaseWrites);
-            $this->assertSame('failed', $existing->getAttribute('status'));
+            $this->assertSame([], $this->errorMessages($destination));
+            $this->assertNotSame([], $database->databaseWrites);
+            $this->assertSame('ready', $existing->getAttribute('status'));
             $this->assertSame('migration-old', $existing->getAttribute('migrationId'));
-            $this->assertSame('attempt-old', $existing->getAttribute('migrationAttemptId'));
+            $this->assertSame('attempt-new', $existing->getAttribute('migrationAttemptId'));
         }
     }
 
-    public function testHealthyOverwriteRequiresAtomicMutationCapability(): void
+    public function testHealthyOverwriteUsesDocumentVersionCompareAndSet(): void
     {
         foreach ([new MemoryAdapter(), new StandaloneMemoryAdapter()] as $adapter) {
             $database = new RecordingProjectDatabase($adapter, new Cache(new MemoryCache()));
@@ -553,11 +555,11 @@ final class AppwriteDatabaseStatusTest extends TestCase
             );
 
             $existing = $this->getDatabaseDocument($database);
-            $this->assertNotSame([], $this->errorMessages($destination));
-            $this->assertSame([], $database->databaseWrites);
+            $this->assertSame([], $this->errorMessages($destination));
+            $this->assertNotSame([], $database->databaseWrites);
             $this->assertSame('ready', $existing->getAttribute('status'));
-            $this->assertSame('migration-old', $existing->getAttribute('migrationId'));
-            $this->assertSame('attempt-old', $existing->getAttribute('migrationAttemptId'));
+            $this->assertSame('migration-new', $existing->getAttribute('migrationId'));
+            $this->assertSame('attempt-new', $existing->getAttribute('migrationAttemptId'));
         }
     }
 
@@ -624,6 +626,29 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame('provisioning', $created->getAttribute('status'));
         $this->assertSame('migration-ready-failure', $created->getAttribute('migrationId'));
         $this->assertSame('attempt-ready-failure', $created->getAttribute('migrationAttemptId'));
+    }
+
+    public function testDatabaseFinalizersRunOnlyAfterSuccess(): void
+    {
+        $database = new RecordingProjectDatabase(new MemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createProjectDatabase(withStatus: true, database: $database);
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            migrationId: 'migration-finalizing',
+            migrationAttemptId: 'attempt-finalizing',
+            success: false,
+        );
+
+        $provisioning = $this->getDatabaseDocument($database);
+        $this->assertSame('provisioning', $provisioning->getAttribute('status'));
+        $this->assertSame('migration-finalizing', $provisioning->getAttribute('migrationId'));
+        $this->assertSame('attempt-finalizing', $provisioning->getAttribute('migrationAttemptId'));
+
+        $database->getAuthorization()->skip($destination->success(...));
+
+        $this->assertSame('ready', $this->getDatabaseDocument($database)->getAttribute('status'));
     }
 
     public function testReadyFinalizationAttemptsEveryDatabaseAndReportsEveryFailure(): void
@@ -937,6 +962,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         OnDuplicate $onDuplicate = OnDuplicate::Fail,
         string $resourceUpdatedAt = '',
         array $databaseIds = ['database'],
+        bool $success = true,
     ): CountingAppwriteDestination {
         $source = new class () extends MockSource {
             #[Override]
@@ -973,7 +999,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
 
         $transfer = new Transfer($source, $destination);
         $database->getAuthorization()->skip(
-            static function () use ($explicit, $transfer): void {
+            static function () use ($destination, $explicit, $success, $transfer): void {
                 if ($explicit) {
                     $transfer->runWithResourceSelector(
                         [Resource::TYPE_DATABASE],
@@ -987,14 +1013,17 @@ final class AppwriteDatabaseStatusTest extends TestCase
                         parentResourceType: '',
                     );
 
-                    return;
+                } else {
+                    $transfer->run(
+                        [Resource::TYPE_DATABASE],
+                        static function (): void {
+                        },
+                    );
                 }
 
-                $transfer->run(
-                    [Resource::TYPE_DATABASE],
-                    static function (): void {
-                    },
-                );
+                if ($success) {
+                    $destination->success();
+                }
             },
         );
 

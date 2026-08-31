@@ -200,8 +200,11 @@ final class MigrationCLITest extends TestCase
 
         $transfer = new Transfer($source, $destination);
         $database->getAuthorization()->skip(
-            static fn () => $transfer->run([Resource::TYPE_DATABASE], static function (): void {
-            }),
+            static function () use ($destination, $transfer): void {
+                $transfer->run([Resource::TYPE_DATABASE], static function (): void {
+                });
+                $destination->success();
+            },
         );
     }
 
