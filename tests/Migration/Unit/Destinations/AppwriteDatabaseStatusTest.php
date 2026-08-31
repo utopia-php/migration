@@ -472,12 +472,8 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $destination = $this->runDatabaseTransfer(
                 $database,
                 explicit: false,
-                migrationId: 'migration-new',
+                migrationId: 'migration-old',
                 migrationAttemptId: 'attempt-new',
-                getRecoverableOwner: static fn (UtopiaDocument $database): ProvisioningOwner => new ProvisioningOwner(
-                    'migration-old',
-                    'attempt-old',
-                ),
             );
 
             $existing = $this->getDatabaseDocument($database);
@@ -629,19 +625,15 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $destination = $this->runDatabaseTransfer(
             $database,
             explicit: false,
-            migrationId: 'migration-recovery',
+            migrationId: 'migration-current',
             migrationAttemptId: 'attempt-recovery',
-            getRecoverableOwner: static fn (UtopiaDocument $existing): ProvisioningOwner => new ProvisioningOwner(
-                'migration-current',
-                'attempt-current',
-            ),
         );
 
         $recovered = $this->getDatabaseDocument($database);
         $this->assertSame([], $this->errorMessages($destination));
         $this->assertSame('ready', $recovered->getAttribute('status'));
         $this->assertSame($failed->getSequence(), $recovered->getSequence());
-        $this->assertSame('migration-recovery', $recovered->getAttribute('migrationId'));
+        $this->assertSame('migration-current', $recovered->getAttribute('migrationId'));
         $this->assertSame('attempt-recovery', $recovered->getAttribute('migrationAttemptId'));
         $this->assertFalse(
             $database->getCollection('database_'.$recovered->getSequence())->isEmpty(),

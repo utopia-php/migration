@@ -180,6 +180,7 @@ Options:
                               Together attest that the exact prior migration attempt is terminal
                               and allow recovery of its provisioning or failed databases.
                               Recovery is refused by default.
+                              Same-migration failed retries need only a fresh attempt identifier.
 
 HELP;
     }

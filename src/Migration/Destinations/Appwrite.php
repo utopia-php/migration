@@ -170,8 +170,10 @@ class Appwrite extends Destination
 
     /**
      * Resolves the authoritative terminal owner of an incomplete database.
-     * Callers must derive this from their operation lifecycle; null means the
-     * owner is active or unknown and recovery fails closed.
+     * Callers must derive this from their operation lifecycle for provisioning
+     * databases and failed databases owned by another logical migration. A
+     * failed database owned by this logical migration is already terminal and
+     * can be retried with a fresh attempt. Null otherwise fails closed.
      *
      * @var callable(UtopiaDocument $database): ?ProvisioningOwner
      */
@@ -227,7 +229,7 @@ class Appwrite extends Destination
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
      * @param array<array<string, mixed>> $collectionStructure
      * @param ProvisioningOwner $owner Immutable logical migration and execution-attempt identifiers for databases provisioned by this destination.
-     * @param callable(UtopiaDocument $database): ?ProvisioningOwner $getRecoverableOwner Returns the exact authoritative terminal owner for an existing `provisioning` or `failed` database, or null when its owner is active or unknown.
+     * @param callable(UtopiaDocument $database): ?ProvisioningOwner $getRecoverableOwner Returns the exact authoritative terminal owner for an existing `provisioning` database or a `failed` database owned by another logical migration. A same-migration `failed` database is terminal and needs only a fresh attempt. Return null when the owner is active or unknown.
      * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
      * @param (callable(Database $resource): string)|null $getDatabaseDSN Resolver for the destination's `_databases.database` value. Pass when the destination project's DSN differs from the source's, so the destination row carries its own DSN instead of inheriting the source's.
      * @param array<string, array<array<string, mixed>>> $collectionStructures Per-database-type metadata collection structures (e.g. `['vectorsdb' => ...]`), used instead of $collectionStructure when the imported database's type has an entry. Types with an entry also get type-specific metadata written (e.g. vectorsdb collection `dimension`).
@@ -821,7 +823,12 @@ class Appwrite extends Destination
         $expectedOwner = null;
         if ($isIncomplete) {
             $snapshotOwner = $this->getProvisioningOwner($existing);
-            $expectedOwner = ($this->getRecoverableOwner)($existing);
+            $isSameMigrationFailure = $status === self::DATABASE_STATUS_FAILED
+                && $snapshotOwner !== null
+                && $snapshotOwner->migrationId === $this->owner->migrationId;
+            $expectedOwner = $isSameMigrationFailure
+                ? $snapshotOwner
+                : ($this->getRecoverableOwner)($existing);
             if (
                 $snapshotOwner === null
                 || ! $expectedOwner instanceof ProvisioningOwner
