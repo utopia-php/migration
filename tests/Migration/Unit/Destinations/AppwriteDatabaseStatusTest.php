@@ -456,6 +456,34 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame('attempt-shared', $existing->getAttribute('migrationAttemptId'));
     }
 
+    public function testSameMigrationFailedRetryRequiresTerminalAttestation(): void
+    {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $this->seedDatabase(
+            $database,
+            status: 'failed',
+            migrationId: 'migration-shared',
+            migrationAttemptId: 'attempt-active',
+        );
+        $database->databaseWrites = [];
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            migrationId: 'migration-shared',
+            migrationAttemptId: 'attempt-retry',
+            getRecoverableOwner: static fn (UtopiaDocument $database): ?ProvisioningOwner => null,
+        );
+
+        $existing = $this->getDatabaseDocument($database);
+        $this->assertNotSame([], $this->errorMessages($destination));
+        $this->assertSame([], $database->databaseWrites);
+        $this->assertSame('failed', $existing->getAttribute('status'));
+        $this->assertSame('migration-shared', $existing->getAttribute('migrationId'));
+        $this->assertSame('attempt-active', $existing->getAttribute('migrationAttemptId'));
+    }
+
     public function testPreExistingRecoveryRequiresAtomicMutationCapability(): void
     {
         foreach ([new MemoryAdapter(), new StandaloneMemoryAdapter()] as $adapter) {
@@ -474,6 +502,10 @@ final class AppwriteDatabaseStatusTest extends TestCase
                 explicit: false,
                 migrationId: 'migration-old',
                 migrationAttemptId: 'attempt-new',
+                getRecoverableOwner: static fn (UtopiaDocument $database): ProvisioningOwner => new ProvisioningOwner(
+                    'migration-old',
+                    'attempt-old',
+                ),
             );
 
             $existing = $this->getDatabaseDocument($database);
@@ -627,6 +659,10 @@ final class AppwriteDatabaseStatusTest extends TestCase
             explicit: false,
             migrationId: 'migration-current',
             migrationAttemptId: 'attempt-recovery',
+            getRecoverableOwner: static fn (UtopiaDocument $existing): ProvisioningOwner => new ProvisioningOwner(
+                'migration-current',
+                'attempt-current',
+            ),
         );
 
         $recovered = $this->getDatabaseDocument($database);
@@ -730,7 +766,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame([], $this->errorMessages($first));
         $this->assertInstanceOf(CountingAppwriteDestination::class, $second);
         $this->assertNotSame([], $this->errorMessages($second));
-        $this->assertStringContainsString('recovery owner', $this->errorMessages($second)[0]);
+        $this->assertStringContainsString('terminal-owner attestation', $this->errorMessages($second)[0]);
         $this->assertSame('provisioning', $statusDuringOverlap);
         $this->assertFalse($collectionExistsDuringOverlap);
         $this->assertSame('ready', $created->getAttribute('status'));

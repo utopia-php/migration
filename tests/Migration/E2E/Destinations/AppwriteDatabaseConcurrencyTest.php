@@ -31,21 +31,7 @@ final class RecordingSQLiteProjectDatabase extends UtopiaDatabase
 
     public ?Closure $beforeBackingCollectionCreate = null;
 
-    public ?Closure $beforeTransaction = null;
-
     public bool $throwAfterBackingCollectionCallback = false;
-
-    #[Override]
-    public function withTransaction(callable $callback): mixed
-    {
-        if ($this->beforeTransaction !== null) {
-            $beforeTransaction = $this->beforeTransaction;
-            $this->beforeTransaction = null;
-            $beforeTransaction();
-        }
-
-        return parent::withTransaction($callback);
-    }
 
     #[Override]
     public function updateDocument(string $collection, string $id, UtopiaDocument $document): UtopiaDocument
@@ -79,43 +65,6 @@ final class RecordingSQLiteProjectDatabase extends UtopiaDatabase
 
 final class AppwriteDatabaseConcurrencyTest extends TestCase
 {
-    public function testSameMigrationFailedFreshAttemptsHaveOneWinner(): void
-    {
-        [$second, $third, $path] = $this->createSharedDatabases();
-
-        try {
-            $this->seedDatabase($second, 'failed', 'migration-shared', 'attempt-first');
-            $winner = $this->createDestination(
-                $third,
-                'migration-shared',
-                'attempt-third',
-                static fn (UtopiaDocument $snapshot): ?ProvisioningOwner => null,
-            );
-            $second->beforeTransaction = function () use ($third, $winner): void {
-                $this->runTransfer($third, $winner);
-            };
-            $loser = $this->createDestination(
-                $second,
-                'migration-shared',
-                'attempt-second',
-                static fn (UtopiaDocument $snapshot): ?ProvisioningOwner => null,
-            );
-            $second->databaseWrites = [];
-
-            $this->runTransfer($second, $loser);
-
-            $database = $this->getDatabaseDocument($third);
-            $this->assertSame([], $this->errorMessages($winner));
-            $this->assertNotSame([], $this->errorMessages($loser));
-            $this->assertSame([], $second->databaseWrites);
-            $this->assertSame('ready', $database->getAttribute('status'));
-            $this->assertSame('migration-shared', $database->getAttribute('migrationId'));
-            $this->assertSame('attempt-third', $database->getAttribute('migrationAttemptId'));
-        } finally {
-            $this->removeSQLiteFiles($path);
-        }
-    }
-
     public function testStaleIncompleteClaimLosesAfterAnotherSuccessorCommits(): void
     {
         foreach (['provisioning', 'failed'] as $status) {

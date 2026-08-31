@@ -61,7 +61,7 @@ final class MigrationCLITest extends TestCase
         $this->assertStringContainsString('fresh attempt', \MigrationCLI::getHelp());
         $this->assertStringContainsString('prior migration attempt is terminal', \MigrationCLI::getHelp());
         $this->assertStringContainsString('refused by default', \MigrationCLI::getHelp());
-        $this->assertStringContainsString('Same-migration failed retries', \MigrationCLI::getHelp());
+        $this->assertStringContainsString('Resource status alone never proves', \MigrationCLI::getHelp());
     }
 
     public function testIncompleteDatabaseRecoveryRequiresExactTerminalMigrationIdentifier(): void

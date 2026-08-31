@@ -44,6 +44,14 @@ $transfer->run(
 );
 ```
 
+## Appwrite database recovery
+
+Appwrite database destinations use a `ProvisioningOwner` made from a stable logical migration identifier and a fresh attempt identifier for every execution. The required `getRecoverableOwner` callback is the recovery authority for an existing database whose status is `provisioning` or `failed`.
+
+A database status is local to that resource. It does not prove that the migration attempt which owns it has stopped, because an import can continue with other resources after recording a database failure. The callback must therefore consult the caller's authoritative operation lifecycle and return the exact stored owner only after that attempt is terminal. Return `null` while it is active or unknown; recovery then fails closed. This rule also applies when the retry uses the same logical migration identifier.
+
+The standalone CLI requires `--migration-id` and a fresh `--migration-attempt-id`. Recovering an incomplete database additionally requires both `--recover-migration-id` and `--recover-migration-attempt-id` for the exact terminal prior attempt.
+
 ## Supported Resources Chart
 
 Sources:
