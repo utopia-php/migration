@@ -58,7 +58,7 @@ final class TestMigrationCLI extends \MigrationCLI
     {
     }
 
-    /** @return list<\Throwable> */
+    /** @return list<\Utopia\Migration\Exception> */
     public function getErrors(): array
     {
         return $this->destination->getErrors();
@@ -200,7 +200,7 @@ final class MigrationCLITest extends TestCase
         $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
     }
 
-    public function testStartDoesNotFinalizeWhenDestinationHasErrors(): void
+    public function testStartFinalizesSuccessfulResourcesWhenDestinationHasErrors(): void
     {
         $database = $this->createProjectDatabase(status: null);
         $valid = new DatabaseResource(
@@ -230,10 +230,13 @@ final class MigrationCLITest extends TestCase
         $cli->start();
 
         $created = $database->getDocument('databases', 'database');
-        $this->assertNotSame([], $cli->getErrors());
+        $errors = $cli->getErrors();
+        $this->assertCount(1, $errors);
+        $this->assertSame('invalid id', $errors[0]->getResourceId());
+        $this->assertSame(Transfer::GROUP_DATABASES, $errors[0]->getResourceGroup());
         $this->assertSame(Resource::STATUS_SUCCESS, $valid->getStatus());
         $this->assertSame(Resource::STATUS_ERROR, $invalid->getStatus());
-        $this->assertSame('provisioning', $created->getAttribute('status'));
+        $this->assertSame('ready', $created->getAttribute('status'));
         $this->assertSame('migration-current', $created->getAttribute('migrationId'));
         $this->assertSame('attempt-current', $created->getAttribute('migrationAttemptId'));
         $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());

@@ -530,9 +530,7 @@ HELP;
             }
         );
 
-        if ($this->source->getErrors() === [] && $this->destination->getErrors() === []) {
-            $this->destination->success();
-        }
+        $this->destination->success();
     }
 
     protected function loadEnvironment(): void
