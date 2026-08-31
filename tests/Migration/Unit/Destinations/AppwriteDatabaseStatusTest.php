@@ -16,6 +16,7 @@ use Utopia\Database\Exception as DatabaseException;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Destinations\OnDuplicate;
+use Utopia\Migration\Exception as MigrationException;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Transfer;
@@ -136,10 +137,13 @@ final class InterleavingProjectDatabase extends UtopiaDatabase
 
 class RecordingProjectDatabase extends UtopiaDatabase
 {
-    /** @var list<array{operation: string, document: array<string, mixed>}> */
+    /** @var list<array{operation: string, id: string, document: array<string, mixed>}> */
     public array $databaseWrites = [];
 
     public bool $failReadyWrite = false;
+
+    /** @var list<string> */
+    public array $failReadyWrites = [];
 
     #[Override]
     public function createDocument(string $collection, UtopiaDocument $document): UtopiaDocument
@@ -147,6 +151,7 @@ class RecordingProjectDatabase extends UtopiaDatabase
         if ($collection === 'databases') {
             $this->databaseWrites[] = [
                 'operation' => 'create',
+                'id' => $document->getId(),
                 'document' => $document->getArrayCopy(),
             ];
         }
@@ -160,12 +165,13 @@ class RecordingProjectDatabase extends UtopiaDatabase
         if ($collection === 'databases') {
             $this->databaseWrites[] = [
                 'operation' => 'update',
+                'id' => $id,
                 'document' => $document->getArrayCopy(),
             ];
         }
 
         if (
-            $this->failReadyWrite
+            ($this->failReadyWrite || \in_array($id, $this->failReadyWrites, true))
             && $collection === 'databases'
             && $document->getAttribute('status') === 'ready'
         ) {
@@ -608,10 +614,50 @@ final class AppwriteDatabaseStatusTest extends TestCase
         );
 
         $created = $this->getDatabaseDocument($database);
-        $this->assertSame([], $this->errorMessages($destination));
+        $errors = $destination->getErrors();
+        $this->assertCount(1, $errors);
+        $this->assertSame(Resource::TYPE_DATABASE, $errors[0]->getResourceName());
+        $this->assertSame(Transfer::GROUP_DATABASES, $errors[0]->getResourceGroup());
+        $this->assertSame('database', $errors[0]->getResourceId());
+        $this->assertSame('ready status unavailable', $errors[0]->getMessage());
+        $this->assertInstanceOf(DatabaseException::class, $errors[0]->getPrevious());
         $this->assertSame('provisioning', $created->getAttribute('status'));
         $this->assertSame('migration-ready-failure', $created->getAttribute('migrationId'));
         $this->assertSame('attempt-ready-failure', $created->getAttribute('migrationAttemptId'));
+    }
+
+    public function testReadyFinalizationAttemptsEveryDatabaseAndReportsEveryFailure(): void
+    {
+        $database = new RecordingProjectDatabase(new MemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $database->failReadyWrites = ['database-first', 'database-third'];
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            migrationId: 'migration-finalizers',
+            migrationAttemptId: 'attempt-finalizers',
+            databaseIds: ['database-first', 'database-second', 'database-third'],
+        );
+
+        $readyAttempts = \array_values(\array_map(
+            static fn (array $write): string => $write['id'],
+            \array_filter(
+                $database->databaseWrites,
+                static fn (array $write): bool => ($write['document']['status'] ?? null) === 'ready',
+            ),
+        ));
+        $errors = $destination->getErrors();
+        $errorIds = \array_map(
+            static fn (MigrationException $error): string => $error->getResourceId(),
+            $errors,
+        );
+
+        $this->assertSame(['database-first', 'database-second', 'database-third'], $readyAttempts);
+        $this->assertSame(['database-first', 'database-third'], $errorIds);
+        $this->assertSame('provisioning', $this->getDatabaseDocument($database, 'database-first')->getAttribute('status'));
+        $this->assertSame('ready', $this->getDatabaseDocument($database, 'database-second')->getAttribute('status'));
+        $this->assertSame('provisioning', $this->getDatabaseDocument($database, 'database-third')->getAttribute('status'));
     }
 
     public function testReloadFailureMarksTheDatabaseFailed(): void
@@ -890,6 +936,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         ?callable $getRecoverableOwner = null,
         OnDuplicate $onDuplicate = OnDuplicate::Fail,
         string $resourceUpdatedAt = '',
+        array $databaseIds = ['database'],
     ): CountingAppwriteDestination {
         $source = new class () extends MockSource {
             #[Override]
@@ -898,14 +945,16 @@ final class AppwriteDatabaseStatusTest extends TestCase
                 return true;
             }
         };
-        $source->pushMockResource(new DatabaseResource(
-            id: 'database',
-            name: 'Database',
-            updatedAt: $resourceUpdatedAt,
-            type: 'tablesdb',
-            database: 'source-dsn',
-            databaseStatus: 'ready',
-        ));
+        foreach ($databaseIds as $databaseId) {
+            $source->pushMockResource(new DatabaseResource(
+                id: $databaseId,
+                name: 'Database',
+                updatedAt: $resourceUpdatedAt,
+                type: 'tablesdb',
+                database: 'source-dsn',
+                databaseStatus: 'ready',
+            ));
+        }
 
         $destination = new CountingAppwriteDestination(
             project: 'destination-project',
@@ -952,10 +1001,10 @@ final class AppwriteDatabaseStatusTest extends TestCase
         return $destination;
     }
 
-    private function getDatabaseDocument(UtopiaDatabase $database): UtopiaDocument
+    private function getDatabaseDocument(UtopiaDatabase $database, string $databaseId = 'database'): UtopiaDocument
     {
         return $database->getAuthorization()->skip(
-            static fn (): UtopiaDocument => $database->getDocument('databases', 'database'),
+            static fn (): UtopiaDocument => $database->getDocument('databases', $databaseId),
         );
     }
 

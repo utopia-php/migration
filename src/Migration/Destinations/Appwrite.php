@@ -341,9 +341,15 @@ class Appwrite extends Destination
         foreach (\array_keys($this->provisioningDatabases) as $databaseId) {
             try {
                 $this->setDatabaseStatus($databaseId, self::DATABASE_STATUS_READY);
-            } catch (\Throwable) {
-                // Best-effort: a transient error on one database must not strand the rest
-                // in provisioning or block the orphan-cleanup sweep that follows.
+            } catch (\Throwable $error) {
+                $this->addError(new Exception(
+                    resourceName: Resource::TYPE_DATABASE,
+                    resourceGroup: Transfer::GROUP_DATABASES,
+                    resourceId: $databaseId,
+                    message: $error->getMessage(),
+                    code: $error->getCode(),
+                    previous: $error,
+                ));
             }
         }
     }
