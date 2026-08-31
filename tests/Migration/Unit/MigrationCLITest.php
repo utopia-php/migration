@@ -11,6 +11,7 @@ use Utopia\Cache\Adapter\Memory as MemoryCache;
 use Utopia\Cache\Cache;
 use Utopia\Database\Adapter\Memory as MemoryAdapter;
 use Utopia\Database\Attribute;
+use Utopia\Database\Capability;
 use Utopia\Database\Collection;
 use Utopia\Database\Database;
 use Utopia\Database\Document;
@@ -36,47 +37,84 @@ final class TestMigrationCLI extends \MigrationCLI
     }
 }
 
+final class TransactionalMemoryAdapter extends MemoryAdapter
+{
+    /** @return array<Capability> */
+    #[Override]
+    public function capabilities(): array
+    {
+        return [...parent::capabilities(), Capability::TransactionRetries];
+    }
+}
+
 #[BackupGlobals(true)]
 final class MigrationCLITest extends TestCase
 {
-    public function testHelpExplainsExplicitProvisioningRecoveryAttestation(): void
+    public function testHelpExplainsExplicitMigrationRecoveryAttestation(): void
     {
-        $this->assertStringContainsString('--recover-provisioning', \MigrationCLI::getHelp());
+        $this->assertStringContainsString('--recover-migration-id=<prior-migration-id>', \MigrationCLI::getHelp());
+        $this->assertStringContainsString('--recover-migration-attempt-id=<prior-attempt-id>', \MigrationCLI::getHelp());
+        $this->assertStringNotContainsString('--recover-provisioning', \MigrationCLI::getHelp());
         $this->assertStringContainsString('--migration-id=', \MigrationCLI::getHelp());
+        $this->assertStringContainsString('--migration-attempt-id=', \MigrationCLI::getHelp());
         $this->assertStringContainsString('reuse it for retries', \MigrationCLI::getHelp());
-        $this->assertStringContainsString('no active migration', \MigrationCLI::getHelp());
+        $this->assertStringContainsString('fresh attempt', \MigrationCLI::getHelp());
+        $this->assertStringContainsString('prior migration attempt is terminal', \MigrationCLI::getHelp());
         $this->assertStringContainsString('refused by default', \MigrationCLI::getHelp());
     }
 
-    public function testProvisioningRecoveryRequiresExplicitOperatorAttestation(): void
+    public function testIncompleteDatabaseRecoveryRequiresExactTerminalMigrationIdentifier(): void
     {
-        foreach ([false, true] as $recover) {
-            $database = $this->createProjectDatabase();
-            $arguments = ['MigrationCLI.php', '--migration-id=migration-current'];
-            if ($recover) {
-                $arguments[] = '--recover-provisioning';
+        $cases = [
+            'absent' => [[], false],
+            'bare migration' => [['--recover-migration-id', '--recover-migration-attempt-id=attempt-terminal'], false],
+            'bare attempt' => [['--recover-migration-id=migration-terminal', '--recover-migration-attempt-id'], false],
+            'empty migration' => [['--recover-migration-id=', '--recover-migration-attempt-id=attempt-terminal'], false],
+            'empty attempt' => [['--recover-migration-id=migration-terminal', '--recover-migration-attempt-id='], false],
+            'migration only' => [['--recover-migration-id=migration-terminal'], false],
+            'attempt only' => [['--recover-migration-attempt-id=attempt-terminal'], false],
+            'migration mismatch' => [['--recover-migration-id=migration-other', '--recover-migration-attempt-id=attempt-terminal'], false],
+            'attempt mismatch' => [['--recover-migration-id=migration-terminal', '--recover-migration-attempt-id=attempt-other'], false],
+            'retired unsafe option' => [['--recover-provisioning'], false],
+            'exact' => [[
+                '--recover-migration-id=migration-terminal',
+                '--recover-migration-attempt-id=attempt-terminal',
+            ], true],
+        ];
+
+        foreach (['provisioning', 'failed'] as $status) {
+            foreach ($cases as [$recoveryArguments, $recover]) {
+                $database = $this->createProjectDatabase($status);
+                $arguments = [
+                    'MigrationCLI.php',
+                    '--migration-id=migration-current',
+                    '--migration-attempt-id=attempt-current',
+                    ...$recoveryArguments,
+                ];
+                $cli = new TestMigrationCLI($arguments, $database);
+
+                $destination = $cli->getDestination();
+                $this->runTransfer($database, $destination);
+
+                $created = $database->getAuthorization()->skip(
+                    static fn (): Document => $database->getDocument('databases', 'database'),
+                );
+
+                if (! $recover) {
+                    $this->assertNotSame([], $destination->getErrors());
+                    $this->assertSame($status, $created->getAttribute('status'));
+                    $this->assertSame('migration-terminal', $created->getAttribute('migrationId'));
+                    $this->assertSame('attempt-terminal', $created->getAttribute('migrationAttemptId'));
+                    $this->assertTrue($database->getCollection('database_'.$created->getSequence())->isEmpty());
+                    continue;
+                }
+
+                $this->assertSame([], $destination->getErrors());
+                $this->assertSame('ready', $created->getAttribute('status'));
+                $this->assertSame('migration-current', $created->getAttribute('migrationId'));
+                $this->assertSame('attempt-current', $created->getAttribute('migrationAttemptId'));
+                $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
             }
-            $cli = new TestMigrationCLI($arguments, $database);
-
-            $destination = $cli->getDestination();
-            $this->runTransfer($database, $destination);
-
-            $created = $database->getAuthorization()->skip(
-                static fn (): Document => $database->getDocument('databases', 'database'),
-            );
-
-            if (! $recover) {
-                $this->assertNotSame([], $destination->getErrors());
-                $this->assertSame('provisioning', $created->getAttribute('status'));
-                $this->assertSame('migration-terminal', $created->getAttribute('migrationId'));
-                $this->assertTrue($database->getCollection('database_'.$created->getSequence())->isEmpty());
-                continue;
-            }
-
-            $this->assertSame([], $destination->getErrors());
-            $this->assertSame('ready', $created->getAttribute('status'));
-            $this->assertSame('migration-current', $created->getAttribute('migrationId'));
-            $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
         }
     }
 
@@ -90,9 +128,22 @@ final class MigrationCLITest extends TestCase
         $cli->getDestination();
     }
 
-    private function createProjectDatabase(): Database
+    public function testAppwriteDestinationRequiresMigrationAttemptIdentifier(): void
     {
-        $database = new Database(new MemoryAdapter(), new Cache(new MemoryCache()));
+        $cli = new TestMigrationCLI(
+            ['MigrationCLI.php', '--migration-id=migration-current'],
+            $this->createProjectDatabase(),
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('--migration-attempt-id is required for an Appwrite destination');
+
+        $cli->getDestination();
+    }
+
+    private function createProjectDatabase(string $status = 'provisioning'): Database
+    {
+        $database = new Database(new TransactionalMemoryAdapter(), new Cache(new MemoryCache()));
         $database
             ->setDatabase('appwrite')
             ->setNamespace('_project');
@@ -108,6 +159,7 @@ final class MigrationCLITest extends TestCase
                 new Attribute(key: 'database', type: ColumnType::String, size: 2000),
                 new Attribute(key: 'status', type: ColumnType::String, size: 16),
                 new Attribute(key: 'migrationId', type: ColumnType::String, size: Database::LENGTH_KEY),
+                new Attribute(key: 'migrationAttemptId', type: ColumnType::String, size: Database::LENGTH_KEY),
             ],
         ));
         $database->getAuthorization()->skip(
@@ -119,8 +171,9 @@ final class MigrationCLITest extends TestCase
                 'originalId' => null,
                 'type' => 'tablesdb',
                 'database' => '',
-                'status' => 'provisioning',
+                'status' => $status,
                 'migrationId' => 'migration-terminal',
+                'migrationAttemptId' => 'attempt-terminal',
             ])),
         );
 

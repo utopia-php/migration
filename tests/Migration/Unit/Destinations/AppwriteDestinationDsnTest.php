@@ -7,6 +7,7 @@ use ReflectionClass;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
+use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Destinations\OnDuplicate;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 
@@ -73,8 +74,8 @@ class AppwriteDestinationDsnTest extends TestCase
             collectionStructure: ['attributes' => [], 'indexes' => []],
             dbForPlatform: $this->createStub(UtopiaDatabase::class),
             projectInternalId: '1',
-            migrationId: 'migration-test',
-            getRecoverableMigrationId: static fn (UtopiaDocument $database): ?string => null,
+            owner: new ProvisioningOwner('migration-test', 'attempt-test'),
+            getRecoverableOwner: static fn (UtopiaDocument $database): ?ProvisioningOwner => null,
             onDuplicate: OnDuplicate::Fail,
             getDatabaseDSN: $getDatabaseDSN,
         );

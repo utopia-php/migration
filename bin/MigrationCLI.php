@@ -11,6 +11,7 @@ use Utopia\Database\Database;
 use Utopia\Database\Document;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Destinations\Appwrite as DestinationsAppwrite;
+use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Destinations\Local;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Appwrite;
@@ -169,10 +170,15 @@ Usage: php bin/MigrationCLI.php [options]
 
 Options:
   -h, --help                  Show this help.
-  --migration-id=<identifier> Stable owner identifier for this migration.
+  --migration-id=<identifier> Stable logical owner identifier for this migration.
                               Required for Appwrite; reuse it for retries.
-  --recover-provisioning      Attest that no active migration owns an existing
-                              provisioning database and allow its recovery.
+  --migration-attempt-id=<identifier>
+                              Required for Appwrite; use a fresh attempt for every
+                              execution or retry.
+  --recover-migration-id=<prior-migration-id>
+  --recover-migration-attempt-id=<prior-attempt-id>
+                              Together attest that the exact prior migration attempt is terminal
+                              and allow recovery of its provisioning or failed databases.
                               Recovery is refused by default.
 
 HELP;
@@ -276,6 +282,7 @@ HELP;
         switch ($_ENV['DESTINATION_PROVIDER']) {
             case 'appwrite':
                 $database = $this->getDatabase('destination');
+                $recoverableOwner = $this->getRecoverableOwner();
 
                 return new DestinationsAppwrite(
                     project: $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
@@ -286,18 +293,10 @@ HELP;
                     collectionStructure: self::STRUCTURE,
                     dbForPlatform: $database,
                     projectInternalId: $_ENV['DESTINATION_APPWRITE_TEST_PROJECT_INTERNAL_ID'],
-                    migrationId: $this->getMigrationId(),
-                    // The standalone operator sets this flag only after confirming the lifecycle owner is
-                    // terminal. Without that explicit attestation, provisioning recovery fails closed.
-                    getRecoverableMigrationId: function (Document $document): ?string {
-                        if (! \in_array('--recover-provisioning', $this->arguments, true)) {
-                            return null;
-                        }
-
-                        $migrationId = $document->getAttribute('migrationId');
-
-                        return \is_string($migrationId) && $migrationId !== '' ? $migrationId : null;
-                    },
+                    owner: new ProvisioningOwner($this->getMigrationId(), $this->getMigrationAttemptId()),
+                    // The standalone operator supplies the fixed pair only after confirming the prior
+                    // lifecycle owner is terminal. The destination independently compares it with the row.
+                    getRecoverableOwner: static fn (Document $document): ?ProvisioningOwner => $recoverableOwner,
                 );
             case 'local':
                 return new Local('./localBackup');
@@ -320,6 +319,46 @@ HELP;
         }
 
         throw new \InvalidArgumentException('--migration-id is required for an Appwrite destination');
+    }
+
+    private function getMigrationAttemptId(): string
+    {
+        foreach ($this->arguments as $argument) {
+            if (! \str_starts_with($argument, '--migration-attempt-id=')) {
+                continue;
+            }
+
+            $attemptId = \substr($argument, \strlen('--migration-attempt-id='));
+            if ($attemptId !== '') {
+                return $attemptId;
+            }
+        }
+
+        throw new \InvalidArgumentException('--migration-attempt-id is required for an Appwrite destination');
+    }
+
+    private function getRecoverableOwner(): ?ProvisioningOwner
+    {
+        $migrationId = null;
+        $attemptId = null;
+
+        foreach ($this->arguments as $argument) {
+            if (\str_starts_with($argument, '--recover-migration-id=')) {
+                $value = \substr($argument, \strlen('--recover-migration-id='));
+                $migrationId = $value !== '' ? $value : null;
+            }
+
+            if (\str_starts_with($argument, '--recover-migration-attempt-id=')) {
+                $value = \substr($argument, \strlen('--recover-migration-attempt-id='));
+                $attemptId = $value !== '' ? $value : null;
+            }
+        }
+
+        if ($migrationId === null || $attemptId === null) {
+            return null;
+        }
+
+        return new ProvisioningOwner($migrationId, $attemptId);
     }
 
     public function getDatabase(string $type): Database

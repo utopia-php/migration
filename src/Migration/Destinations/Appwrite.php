@@ -48,6 +48,7 @@ use Utopia\Database\Validator\Index as IndexValidator;
 use Utopia\Database\Validator\Structure;
 use Utopia\Database\Validator\UID;
 use Utopia\Migration\Destination;
+use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
@@ -165,16 +166,19 @@ class Appwrite extends Destination
     protected $getDatabaseDSN;
 
     /** Immutable owner written with every provisioning transition initiated by this destination. */
-    private readonly string $migrationId;
+    private readonly ProvisioningOwner $owner;
 
     /**
-     * Resolves the authoritative terminal owner of a `provisioning` database.
+     * Resolves the authoritative terminal owner of an incomplete database.
      * Callers must derive this from their operation lifecycle; null means the
      * owner is active or unknown and recovery fails closed.
      *
-     * @var callable(UtopiaDocument $database): ?string
+     * @var callable(UtopiaDocument $database): ?ProvisioningOwner
      */
-    private $getRecoverableMigrationId;
+    private $getRecoverableOwner;
+
+    /** @var array<string, ProvisioningOwner> */
+    private array $createdDatabaseOwners = [];
 
     /**
      * @var array<UtopiaDocument>
@@ -222,8 +226,8 @@ class Appwrite extends Destination
      * @param UtopiaDatabase $dbForProject
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
      * @param array<array<string, mixed>> $collectionStructure
-     * @param string $migrationId Immutable identifier for the migration that will own databases provisioned by this destination.
-     * @param callable(UtopiaDocument $database): ?string $getRecoverableMigrationId Returns the authoritative terminal migration identifier for an existing `provisioning` database, or null when its owner is active or unknown.
+     * @param ProvisioningOwner $owner Immutable logical migration and execution-attempt identifiers for databases provisioned by this destination.
+     * @param callable(UtopiaDocument $database): ?ProvisioningOwner $getRecoverableOwner Returns the exact authoritative terminal owner for an existing `provisioning` or `failed` database, or null when its owner is active or unknown.
      * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
      * @param (callable(Database $resource): string)|null $getDatabaseDSN Resolver for the destination's `_databases.database` value. Pass when the destination project's DSN differs from the source's, so the destination row carries its own DSN instead of inheriting the source's.
      * @param array<string, array<array<string, mixed>>> $collectionStructures Per-database-type metadata collection structures (e.g. `['vectorsdb' => ...]`), used instead of $collectionStructure when the imported database's type has an entry. Types with an entry also get type-specific metadata written (e.g. vectorsdb collection `dimension`).
@@ -237,8 +241,8 @@ class Appwrite extends Destination
         protected array $collectionStructure,
         protected UtopiaDatabase $dbForPlatform,
         protected string $projectInternalId,
-        string $migrationId,
-        callable $getRecoverableMigrationId,
+        ProvisioningOwner $owner,
+        callable $getRecoverableOwner,
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
         ?callable $getDatabaseDSN = null,
         protected array $collectionStructures = [],
@@ -263,11 +267,8 @@ class Appwrite extends Destination
 
         $this->getDatabasesDB = $getDatabasesDB;
         $this->getDatabaseDSN = $getDatabaseDSN;
-        if ($migrationId === '') {
-            throw new \InvalidArgumentException('Migration identifier must not be empty');
-        }
-        $this->migrationId = $migrationId;
-        $this->getRecoverableMigrationId = $getRecoverableMigrationId;
+        $this->owner = $owner;
+        $this->getRecoverableOwner = $getRecoverableOwner;
     }
 
     /**
@@ -331,6 +332,7 @@ class Appwrite extends Destination
         $this->orphansByTable = [];
         $this->processedTwoWayPairs = [];
         $this->provisioningDatabases = [];
+        $this->createdDatabaseOwners = [];
     }
 
     private function markProvisionedDatabasesReady(): void
@@ -351,11 +353,113 @@ class Appwrite extends Destination
             return;
         }
 
+        $transition = $this->dbForProject->withTransaction(function () use ($databaseId, $status): ?bool {
+            $database = $this->dbForProject->getDocument(
+                self::META_DATABASES,
+                $databaseId,
+                forUpdate: true,
+            );
+            $owner = $this->getProvisioningOwner($database);
+            if (
+                $database->isEmpty()
+                || $database->getAttribute('status') !== self::DATABASE_STATUS_PROVISIONING
+                || $owner === null
+                || ! $owner->equals($this->owner)
+            ) {
+                return false;
+            }
+
+            if (! $this->supportsAtomicOwnerMutation()) {
+                return null;
+            }
+
+            $this->dbForProject->updateDocument(
+                self::META_DATABASES,
+                $databaseId,
+                new UtopiaDocument(['status' => $status]),
+            );
+
+            return true;
+        });
+
+        if ($transition === true) {
+            unset($this->createdDatabaseOwners[$databaseId]);
+            return;
+        }
+
+        if ($transition === false) {
+            unset($this->createdDatabaseOwners[$databaseId]);
+            return;
+        }
+
+        $createdOwner = $this->createdDatabaseOwners[$databaseId] ?? null;
+        if ($createdOwner === null || ! $createdOwner->equals($this->owner)) {
+            return;
+        }
+
+        // Adapters without an atomic claim primitive may finalize only the exact row this
+        // destination instance just created. forUpdate disables caches even when no lock exists.
+        $database = $this->dbForProject->getDocument(
+            self::META_DATABASES,
+            $databaseId,
+            forUpdate: true,
+        );
+        $owner = $this->getProvisioningOwner($database);
+        if (
+            $database->isEmpty()
+            || $database->getAttribute('status') !== self::DATABASE_STATUS_PROVISIONING
+            || $owner === null
+            || ! $owner->equals($createdOwner)
+        ) {
+            unset($this->createdDatabaseOwners[$databaseId]);
+            return;
+        }
+
         $this->dbForProject->updateDocument(
             self::META_DATABASES,
             $databaseId,
             new UtopiaDocument(['status' => $status]),
         );
+        unset($this->createdDatabaseOwners[$databaseId]);
+    }
+
+    private function getProvisioningOwner(UtopiaDocument $database): ?ProvisioningOwner
+    {
+        $migrationId = $database->getAttribute('migrationId');
+        $attemptId = $database->getAttribute('migrationAttemptId');
+        if (
+            ! \is_string($migrationId)
+            || $migrationId === ''
+            || ! \is_string($attemptId)
+            || $attemptId === ''
+        ) {
+            return null;
+        }
+
+        return new ProvisioningOwner($migrationId, $attemptId);
+    }
+
+    /**
+     * This fence depends on the exact utopia-php/database pin in composer.lock:
+     * SQL exposes UpdateLock or TransactionRetries, SQLite uses BEGIN IMMEDIATE,
+     * and replica Mongo exposes TransactionRetries only while a session is active.
+     */
+    private function supportsAtomicOwnerMutation(): bool
+    {
+        $adapter = $this->dbForProject->getAdapter();
+
+        return $adapter->inTransaction()
+            && (
+                $adapter->supports(Capability::UpdateLock)
+                || $adapter->supports(Capability::TransactionRetries)
+            );
+    }
+
+    private function requireAtomicOwnerMutation(): void
+    {
+        if (! $this->supportsAtomicOwnerMutation()) {
+            throw new DatabaseException('Database provisioning ownership requires an atomic transaction with update locks or conflict retries');
+        }
     }
 
     /** Best-effort transition to `failed`; a secondary error here must not mask the caller's original throw. */
@@ -705,49 +809,82 @@ class Appwrite extends Destination
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
 
         $existing = $this->dbForProject->getDocument(self::META_DATABASES, $resource->getId());
-        $supportsStatus = ! $existing->isEmpty() && $this->getSupportForDatabaseStatus();
-        $status = $supportsStatus ? $existing->getAttribute('status') : null;
-        $isProvisioning = $status === self::DATABASE_STATUS_PROVISIONING;
-        $existingMigrationId = $isProvisioning ? $existing->getAttribute('migrationId') : null;
-        $recoverableMigrationId = $isProvisioning
-            ? ($this->getRecoverableMigrationId)($existing)
+        $supportsStatus = $this->getSupportForDatabaseStatus();
+        $status = $supportsStatus && ! $existing->isEmpty()
+            ? $existing->getAttribute('status')
             : null;
-        $canRecoverProvisioning = $isProvisioning
-            && \is_string($existingMigrationId)
-            && $existingMigrationId !== ''
-            && \is_string($recoverableMigrationId)
-            && $existingMigrationId === $recoverableMigrationId;
-
-        if ($isProvisioning && ! $canRecoverProvisioning) {
-            throw new DatabaseException('Database '.$resource->getId().' is already being provisioned');
+        $isIncomplete = \in_array(
+            $status,
+            [self::DATABASE_STATUS_PROVISIONING, self::DATABASE_STATUS_FAILED],
+            true,
+        );
+        $expectedOwner = null;
+        if ($isIncomplete) {
+            $snapshotOwner = $this->getProvisioningOwner($existing);
+            $expectedOwner = ($this->getRecoverableOwner)($existing);
+            if (
+                $snapshotOwner === null
+                || ! $expectedOwner instanceof ProvisioningOwner
+                || ! $snapshotOwner->equals($expectedOwner)
+                || $this->owner->attemptId === $expectedOwner->attemptId
+            ) {
+                throw new DatabaseException('Database '.$resource->getId().' recovery owner is active, unknown, mismatched, or reuses the prior attempt');
+            }
         }
 
-        $isIncomplete = $status === self::DATABASE_STATUS_FAILED || $canRecoverProvisioning;
-
         if ($this->onDuplicate !== OnDuplicate::Fail || $isIncomplete) {
-            $action = $this->onDuplicate->resolveSchemaAction(
-                !$existing->isEmpty(),
+            /** @var array{action: SchemaAction, database: UtopiaDocument, incomplete: bool} $claim */
+            $claim = $this->dbForProject->withTransaction(function () use (
+                $resource,
                 $updatedAt,
-                $existing->getUpdatedAt(),
-            );
+                $supportsStatus,
+                $status,
+                $isIncomplete,
+                $expectedOwner,
+            ): array {
+                $locked = $this->dbForProject->getDocument(
+                    self::META_DATABASES,
+                    $resource->getId(),
+                    forUpdate: true,
+                );
+                $lockedStatus = $supportsStatus && ! $locked->isEmpty()
+                    ? $locked->getAttribute('status')
+                    : null;
+                $lockedIncomplete = \in_array(
+                    $lockedStatus,
+                    [self::DATABASE_STATUS_PROVISIONING, self::DATABASE_STATUS_FAILED],
+                    true,
+                );
 
-            if ($isIncomplete) {
-                // A prior run created the metadata document but left the database unusable (its backing
-                // collection may be missing). Force Overwrite — regardless of timestamps, spec match, or
-                // OnDuplicate::Fail — so retries recreate the collection instead of hitting the existing ID.
-                $action = SchemaAction::Overwrite;
-            } elseif ($action !== SchemaAction::Create && $this->databaseSpecMatches($existing, $resource)) {
-                // Spec match → skip work. Create excluded; nothing on dest to match against.
-                $action = SchemaAction::Skip;
-            }
+                if ($isIncomplete) {
+                    $lockedOwner = $this->getProvisioningOwner($locked);
+                    if (
+                        $lockedStatus !== $status
+                        || $lockedOwner === null
+                        || ! $expectedOwner instanceof ProvisioningOwner
+                        || ! $lockedOwner->equals($expectedOwner)
+                    ) {
+                        throw new DatabaseException('Database '.$resource->getId().' recovery owner changed before it could be claimed');
+                    }
+                } elseif ($lockedIncomplete) {
+                    throw new DatabaseException('Database '.$resource->getId().' requires terminal migration attestation before recovery');
+                }
 
-            $earlyReturn = match ($action) {
-                SchemaAction::Skip => (function () use ($resource, $existing): bool {
-                    $resource->setSequence($existing->getSequence());
-                    $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
-                    return false;
-                })(),
-                SchemaAction::Overwrite => (function () use ($resource, $existing, $updatedAt, $isIncomplete): bool {
+                $action = $this->onDuplicate->resolveSchemaAction(
+                    ! $locked->isEmpty(),
+                    $updatedAt,
+                    $locked->getUpdatedAt(),
+                );
+
+                if ($isIncomplete) {
+                    // A prior run created the metadata document but left the database unusable. Force an
+                    // overwrite after the locked ownership check so retries can recreate its collection.
+                    $action = SchemaAction::Overwrite;
+                } elseif ($action !== SchemaAction::Create && $this->databaseSpecMatches($locked, $resource)) {
+                    $action = SchemaAction::Skip;
+                }
+
+                if ($action === SchemaAction::Overwrite) {
                     $document = [
                         'name' => $resource->getDatabaseName(),
                         'search' => implode(' ', [$resource->getId(), $resource->getDatabaseName()]),
@@ -758,42 +895,63 @@ class Appwrite extends Destination
                         '$updatedAt' => $updatedAt,
                     ];
 
-                    if ($this->getSupportForDatabaseStatus()) {
+                    if ($supportsStatus) {
                         $document['status'] = self::DATABASE_STATUS_PROVISIONING;
-                        $document['migrationId'] = $this->migrationId;
+                        $document['migrationId'] = $this->owner->migrationId;
+                        $document['migrationAttemptId'] = $this->owner->attemptId;
                     }
 
-                    $this->dbForProject->updateDocument(self::META_DATABASES, $existing->getId(), new UtopiaDocument($document));
-                    $resource->setSequence($existing->getSequence());
+                    // This gate must remain inside the transaction and immediately before the
+                    // existing-row mutation so the locked ownership evidence cannot go stale.
+                    $this->requireAtomicOwnerMutation();
+                    $this->dbForProject->updateDocument(
+                        self::META_DATABASES,
+                        $locked->getId(),
+                        new UtopiaDocument($document),
+                    );
+                }
 
-                    // An incomplete database can be missing its backing collection. Recreate it so we never
-                    // flip a database to ready with no collection behind it. A healthy overwrite already has
-                    // its collection, so we skip the lookup entirely.
-                    if ($isIncomplete && $this->dbForProject->getCollection($this->databaseCollectionId($existing))->isEmpty()) {
-                        try {
-                            $structure = $this->collectionStructureFor($resource);
+                return [
+                    'action' => $action,
+                    'database' => $locked,
+                    'incomplete' => $isIncomplete,
+                ];
+            });
 
-                            $this->dbForProject->createCollection(new Collection(
-                                id: $this->databaseCollectionId($existing),
-                                attributes: $this->schemaAttributes($structure['attributes'] ?? []),
-                                indexes: $this->schemaIndexes($structure['indexes'] ?? []),
-                            ));
-                        } catch (\Throwable $e) {
-                            $this->markDatabaseFailed($resource->getId());
-                            throw $e;
-                        }
+            $action = $claim['action'];
+            $existing = $claim['database'];
+            $isIncomplete = $claim['incomplete'];
+
+            if ($action === SchemaAction::Skip) {
+                $resource->setSequence($existing->getSequence());
+                $resource->setStatus(Resource::STATUS_SKIPPED, 'Already exists on destination');
+                return false;
+            }
+
+            if ($action === SchemaAction::Overwrite) {
+                $resource->setSequence($existing->getSequence());
+
+                // The claim transaction commits before inspecting or creating the backing collection.
+                if ($isIncomplete && $this->dbForProject->getCollection($this->databaseCollectionId($existing))->isEmpty()) {
+                    try {
+                        $structure = $this->collectionStructureFor($resource);
+
+                        $this->dbForProject->createCollection(new Collection(
+                            id: $this->databaseCollectionId($existing),
+                            attributes: $this->schemaAttributes($structure['attributes'] ?? []),
+                            indexes: $this->schemaIndexes($structure['indexes'] ?? []),
+                        ));
+                    } catch (\Throwable $e) {
+                        $this->markDatabaseFailed($resource->getId());
+                        throw $e;
                     }
+                }
 
-                    if ($this->getSupportForDatabaseStatus()) {
-                        $this->provisioningDatabases[$resource->getId()] = true;
-                    }
+                if ($supportsStatus) {
+                    $this->provisioningDatabases[$resource->getId()] = true;
+                }
 
-                    return true;
-                })(),
-                SchemaAction::Create => null,
-            };
-            if ($earlyReturn !== null) {
-                return $earlyReturn;
+                return true;
             }
         }
 
@@ -815,10 +973,14 @@ class Appwrite extends Destination
         // source leaves status untouched so the collection default applies. Never copy the source's state.
         if ($this->getSupportForDatabaseStatus()) {
             $document['status'] = self::DATABASE_STATUS_PROVISIONING;
-            $document['migrationId'] = $this->migrationId;
+            $document['migrationId'] = $this->owner->migrationId;
+            $document['migrationAttemptId'] = $this->owner->attemptId;
         }
 
         $database = $this->dbForProject->createDocument(self::META_DATABASES, new UtopiaDocument($document));
+        if ($supportsStatus) {
+            $this->createdDatabaseOwners[$database->getId()] = $this->owner;
+        }
 
         try {
             $database = $this->dbForProject->getDocument(self::META_DATABASES, $database->getId());
