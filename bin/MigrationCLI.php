@@ -9,9 +9,9 @@ use Utopia\Cache\Cache;
 use Utopia\Database\Adapter\MariaDB;
 use Utopia\Database\Database;
 use Utopia\Database\Document;
-use Utopia\Database\Validator\Authorization;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Destinations\Appwrite as DestinationsAppwrite;
+use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Destinations\Local;
 use Utopia\Migration\Source;
 use Utopia\Migration\Sources\Appwrite;
@@ -19,6 +19,9 @@ use Utopia\Migration\Sources\Firebase;
 use Utopia\Migration\Sources\NHost;
 use Utopia\Migration\Sources\Supabase;
 use Utopia\Migration\Transfer;
+use Utopia\Query\Schema\ColumnType;
+use Utopia\Query\Schema\IndexType;
+use Utopia\Query\Schema\Order;
 
 /**
  * Migrations CLI Tool
@@ -31,6 +34,9 @@ class MigrationCLI
 
     protected mixed $destination;
 
+    /** @var list<string> */
+    private readonly array $arguments;
+
     protected const STRUCTURE = [
         '$collection' => 'databases',
         '$id' => 'collections',
@@ -38,7 +44,7 @@ class MigrationCLI
         'attributes' => [
             [
                 '$id' => 'databaseInternalId',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'format' => '',
                 'size' => Database::LENGTH_KEY,
                 'signed' => true,
@@ -49,7 +55,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'databaseId',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'signed' => true,
                 'size' => Database::LENGTH_KEY,
                 'format' => '',
@@ -60,7 +66,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'name',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'size' => Database::LENGTH_KEY,
                 'required' => true,
                 'signed' => true,
@@ -69,7 +75,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'enabled',
-                'type' => Database::VAR_BOOLEAN,
+                'type' => ColumnType::Boolean->value,
                 'signed' => true,
                 'size' => 0,
                 'format' => '',
@@ -80,7 +86,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'documentSecurity',
-                'type' => Database::VAR_BOOLEAN,
+                'type' => ColumnType::Boolean->value,
                 'signed' => true,
                 'size' => 0,
                 'format' => '',
@@ -91,7 +97,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'attributes',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'size' => 1000000,
                 'required' => false,
                 'signed' => true,
@@ -100,7 +106,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'indexes',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'size' => 1000000,
                 'required' => false,
                 'signed' => true,
@@ -109,7 +115,7 @@ class MigrationCLI
             ],
             [
                 '$id' => 'search',
-                'type' => Database::VAR_STRING,
+                'type' => ColumnType::String->value,
                 'format' => '',
                 'size' => 16384,
                 'signed' => true,
@@ -122,34 +128,62 @@ class MigrationCLI
         'indexes' => [
             [
                 '$id' => '_fulltext_search',
-                'type' => Database::INDEX_FULLTEXT,
+                'type' => IndexType::Fulltext->value,
                 'attributes' => ['search'],
                 'lengths' => [],
                 'orders' => [],
             ],
             [
                 '$id' => '_key_name',
-                'type' => Database::INDEX_KEY,
+                'type' => IndexType::Key->value,
                 'attributes' => ['name'],
                 'lengths' => [Database::LENGTH_KEY],
-                'orders' => [Database::ORDER_ASC],
+                'orders' => [Order::Asc->value],
             ],
             [
                 '$id' => '_key_enabled',
-                'type' => Database::INDEX_KEY,
+                'type' => IndexType::Key->value,
                 'attributes' => ['enabled'],
                 'lengths' => [],
-                'orders' => [Database::ORDER_ASC],
+                'orders' => [Order::Asc->value],
             ],
             [
                 '$id' => '_key_documentSecurity',
-                'type' => Database::INDEX_KEY,
+                'type' => IndexType::Key->value,
                 'attributes' => ['documentSecurity'],
                 'lengths' => [],
-                'orders' => [Database::ORDER_ASC],
+                'orders' => [Order::Asc->value],
             ],
         ],
     ];
+
+    /** @param list<string> $arguments */
+    public function __construct(array $arguments = [])
+    {
+        $this->arguments = $arguments;
+    }
+
+    public static function getHelp(): string
+    {
+        return <<<'HELP'
+Usage: php bin/MigrationCLI.php [options]
+
+Options:
+  -h, --help                  Show this help.
+  --migration-id=<identifier> Stable logical owner identifier for this migration.
+                              Required for Appwrite; reuse it for retries.
+  --migration-attempt-id=<identifier>
+                              Required for Appwrite; use a fresh attempt for every
+                              execution or retry.
+  --recover-migration-id=<prior-migration-id>
+  --recover-migration-attempt-id=<prior-attempt-id>
+                              Together attest that the exact prior migration attempt is terminal
+                              and allow recovery of its provisioning or failed databases.
+                              Recovery is refused by default.
+                              Resource status alone never proves an attempt terminal.
+
+HELP;
+    }
 
     /**
      * Prints the current status of migrations as a table after wiping the screen
@@ -248,18 +282,84 @@ class MigrationCLI
     {
         switch ($_ENV['DESTINATION_PROVIDER']) {
             case 'appwrite':
+                $database = $this->getDatabase('destination');
+                $recoverableOwner = $this->getRecoverableOwner();
+
                 return new DestinationsAppwrite(
-                    $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
-                    $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
-                    $_ENV['DESTINATION_APPWRITE_TEST_KEY'],
-                    $this->getDatabase('destination'),
-                    self::STRUCTURE
+                    project: $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'],
+                    endpoint: $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'],
+                    key: $_ENV['DESTINATION_APPWRITE_TEST_KEY'],
+                    dbForProject: $database,
+                    getDatabasesDB: static fn (Document $document): Database => $database,
+                    collectionStructure: self::STRUCTURE,
+                    dbForPlatform: $database,
+                    projectInternalId: $_ENV['DESTINATION_APPWRITE_TEST_PROJECT_INTERNAL_ID'],
+                    owner: new ProvisioningOwner($this->getMigrationId(), $this->getMigrationAttemptId()),
+                    // The standalone operator supplies the fixed pair only after confirming the prior
+                    // lifecycle owner is terminal. The destination independently compares it with the row.
+                    getRecoverableOwner: static fn (Document $document): ?ProvisioningOwner => $recoverableOwner,
                 );
             case 'local':
                 return new Local('./localBackup');
             default:
                 throw new Exception('Invalid destination provider');
         }
+    }
+
+    private function getMigrationId(): string
+    {
+        foreach ($this->arguments as $argument) {
+            if (! \str_starts_with($argument, '--migration-id=')) {
+                continue;
+            }
+
+            $migrationId = \substr($argument, \strlen('--migration-id='));
+            if ($migrationId !== '') {
+                return $migrationId;
+            }
+        }
+
+        throw new \InvalidArgumentException('--migration-id is required for an Appwrite destination');
+    }
+
+    private function getMigrationAttemptId(): string
+    {
+        foreach ($this->arguments as $argument) {
+            if (! \str_starts_with($argument, '--migration-attempt-id=')) {
+                continue;
+            }
+
+            $attemptId = \substr($argument, \strlen('--migration-attempt-id='));
+            if ($attemptId !== '') {
+                return $attemptId;
+            }
+        }
+
+        throw new \InvalidArgumentException('--migration-attempt-id is required for an Appwrite destination');
+    }
+
+    private function getRecoverableOwner(): ?ProvisioningOwner
+    {
+        $migrationId = null;
+        $attemptId = null;
+
+        foreach ($this->arguments as $argument) {
+            if (\str_starts_with($argument, '--recover-migration-id=')) {
+                $value = \substr($argument, \strlen('--recover-migration-id='));
+                $migrationId = $value !== '' ? $value : null;
+            }
+
+            if (\str_starts_with($argument, '--recover-migration-attempt-id=')) {
+                $value = \substr($argument, \strlen('--recover-migration-attempt-id='));
+                $attemptId = $value !== '' ? $value : null;
+            }
+        }
+
+        if ($migrationId === null || $attemptId === null) {
+            return null;
+        }
+
+        return new ProvisioningOwner($migrationId, $attemptId);
     }
 
     public function getDatabase(string $type): Database
@@ -280,7 +380,7 @@ class MigrationCLI
                     $attributeType = $attribute->getAttribute('type');
 
                     switch ($attributeType) {
-                        case Database::VAR_RELATIONSHIP:
+                        case ColumnType::Relationship->value:
                             $options = $attribute->getAttribute('options');
                             foreach ($options as $key => $value) {
                                 $attribute->setAttribute($key, $value);
@@ -288,7 +388,7 @@ class MigrationCLI
                             $attribute->removeAttribute('options');
                             break;
 
-                        case Database::VAR_STRING:
+                        case ColumnType::String->value:
                             $filters = $attribute->getAttribute('filters', []);
                             $attribute->setAttribute('encrypt', in_array('encrypt', $filters));
                             break;
@@ -394,14 +494,14 @@ class MigrationCLI
         $database
             ->setDatabase('appwrite')
             ->setNamespace('_' . $_ENV[$prefix . 'NAMESPACE']);
+        $database->getAuthorization()->disable();
 
         return $database;
     }
 
     public function start(): void
     {
-        $dotenv = Dotenv::createImmutable(__DIR__);
-        $dotenv->load();
+        $this->loadEnvironment();
 
         /**
          * Initialise All Source Adapters
@@ -423,15 +523,30 @@ class MigrationCLI
         /**
          * Run Transfer
          */
-        Authorization::skip(fn () => $this->transfer->run(
+        $this->transfer->run(
             $this->source->getSupportedResources(),
             function () {
                 $this->drawFrame();
             }
-        ));
+        );
+
+        $this->destination->success();
+    }
+
+    protected function loadEnvironment(): void
+    {
+        $dotenv = Dotenv::createImmutable(__DIR__);
+        $dotenv->load();
     }
 }
 
-$instance = new MigrationCLI();
-$instance->start();
-$instance->drawFrame();
+if (\realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
+    $arguments = $_SERVER['argv'] ?? [];
+    if (\in_array('-h', $arguments, true) || \in_array('--help', $arguments, true)) {
+        echo MigrationCLI::getHelp();
+    } else {
+        $instance = new MigrationCLI($arguments);
+        $instance->start();
+        $instance->drawFrame();
+    }
+}
