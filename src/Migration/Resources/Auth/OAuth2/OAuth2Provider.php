@@ -51,6 +51,7 @@ final class OAuth2Provider extends Resource
         'gitlab' => ['clientId' => ['target' => self::TARGET_APP_ID], 'endpoint' => ['target' => self::TARGET_SECRET]],
         'google' => ['clientId' => ['target' => self::TARGET_APP_ID], 'prompt' => ['target' => self::TARGET_SECRET]],
         'huggingface' => ['clientId' => ['target' => self::TARGET_APP_ID]],
+        'kakao' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'keycloak' => [
             'clientId' => ['target' => self::TARGET_APP_ID],
             'endpoint' => ['target' => self::TARGET_SECRET, 'key' => 'keycloakDomain'],
@@ -80,6 +81,7 @@ final class OAuth2Provider extends Resource
         'slack' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'spotify' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'stripe' => ['clientId' => ['target' => self::TARGET_APP_ID]],
+        'tiktok' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'tradeshift' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'tradeshiftBox' => ['clientId' => ['target' => self::TARGET_APP_ID]],
         'twitch' => ['clientId' => ['target' => self::TARGET_APP_ID]],
