@@ -1,66 +1,321 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Utopia\Tests\Unit\Destinations;
 
+use Override;
 use PHPUnit\Framework\TestCase;
+use Utopia\Cache\Adapter\Memory as MemoryCache;
+use Utopia\Cache\Cache;
+use Utopia\Database\Adapter\Memory as MemoryAdapter;
 use Utopia\Database\Attribute as UtopiaAttribute;
+use Utopia\Database\Collection;
+use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
+use Utopia\Database\Query;
+use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
+use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
+use Utopia\Migration\Resource;
+use Utopia\Migration\Resources\Database\Columns\Text;
+use Utopia\Migration\Resources\Database\Database as DatabaseResource;
+use Utopia\Migration\Resources\Database\Table;
+use Utopia\Migration\Transfer;
 use Utopia\Query\Schema\ColumnType;
+use Utopia\Tests\Unit\Adapters\MockSource;
 
-class AppwriteCheckAttributeTest extends TestCase
+/**
+ * Records every column the destination offers to the project database's limit
+ * check, and otherwise behaves exactly like the real database.
+ */
+final class CheckedColumnRecordingDatabase extends UtopiaDatabase
 {
-    public function testCheckAttributeUsesAttributeKeyNotMetadataId(): void
+    /** @var list<UtopiaAttribute> */
+    public array $checkedAttributes = [];
+
+    #[Override]
+    public function checkAttribute(UtopiaDocument $collection, UtopiaAttribute $attribute): bool
     {
-        $source = (string) \file_get_contents(\dirname(__DIR__, 4) . '/src/Migration/Destinations/Appwrite.php');
+        $this->checkedAttributes[] = $attribute;
 
-        $this->assertStringContainsString(
-            "checkAttribute(\$table, UtopiaAttribute::fromArray([",
-            $source,
-        );
-        $this->assertStringContainsString(
-            "'key' => \$resource->getKey(),",
-            $source,
-        );
-        $this->assertStringNotContainsString(
-            'checkAttribute($table, $column)',
-            $source,
+        return parent::checkAttribute($collection, $attribute);
+    }
+}
+
+/**
+ * `checkAttribute` decides whether one more column still fits the destination
+ * table, so it has to be offered the column that is about to be created. The
+ * metadata row built alongside it is keyed by the destination's own composite
+ * attribute id, so offering that row instead measures a column the table will
+ * never hold.
+ */
+final class AppwriteCheckAttributeTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+        self::registerSubqueryFilters();
+    }
+
+    public function testTheCheckedColumnIsKeyedByTheResourceKeyNotTheMetadataId(): void
+    {
+        [$database, $destination, $column] = $this->transferColumn();
+
+        $this->assertSame([], $this->errorMessages($destination));
+        $this->assertSame(Resource::STATUS_SUCCESS, $column->getStatus());
+
+        $metadata = $this->attributeDocument($database);
+        $this->assertFalse($metadata->isEmpty(), 'The column metadata row must be written');
+        $this->assertSame('title', $metadata->getAttribute('key'));
+        $this->assertNotSame(
+            'title',
+            $metadata->getId(),
+            'The metadata row must be keyed by something other than the column key, or the two identities cannot be told apart.',
         );
 
-        $column = new UtopiaDocument([
-            '$id' => '1_2_title',
-            'key' => 'title',
-            'type' => 'string',
-            'size' => 128,
-            'required' => true,
+        $this->assertCount(1, $database->checkedAttributes, 'The transfer must offer its column to the limit check');
+        $this->assertSame('title', $database->checkedAttributes[0]->key);
+        $this->assertSame('title', $database->checkedAttributes[0]->getId());
+    }
+
+    public function testTheCheckedColumnCarriesTheSpecificationBeingCreated(): void
+    {
+        [$database] = $this->transferColumn();
+
+        $this->assertCount(1, $database->checkedAttributes);
+        $checked = $database->checkedAttributes[0];
+
+        $this->assertSame(ColumnType::String, $checked->type);
+        $this->assertSame(128, $checked->size);
+        $this->assertTrue($checked->required);
+    }
+
+    private static function registerSubqueryFilters(): void
+    {
+        static $registered = false;
+        if ($registered) {
+            return;
+        }
+        $registered = true;
+
+        // The per-database meta collection exposes its tables' columns and
+        // indexes through the same virtual subquery attributes Appwrite
+        // registers, so the destination reads the table exactly as it does in
+        // production.
+        UtopiaDatabase::addFilter(
+            'subQueryAttributes',
+            static fn (mixed $value) => null,
+            static fn (mixed $value, UtopiaDocument $document, UtopiaDatabase $database): array => $database->getAuthorization()->skip(
+                static fn (): array => $database->find('attributes', [
+                    Query::equal('collectionInternalId', [$document->getSequence()]),
+                    Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
+                ]),
+            ),
+        );
+        UtopiaDatabase::addFilter(
+            'subQueryIndexes',
+            static fn (mixed $value) => null,
+            static fn (mixed $value, UtopiaDocument $document, UtopiaDatabase $database): array => $database->getAuthorization()->skip(
+                static fn (): array => $database->find('indexes', [
+                    Query::equal('collectionInternalId', [$document->getSequence()]),
+                    Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
+                ]),
+            ),
+        );
+    }
+
+    /**
+     * @return array{CheckedColumnRecordingDatabase, AppwriteDestination, Text}
+     */
+    private function transferColumn(): array
+    {
+        $database = $this->projectDatabase();
+
+        $source = new MockSource();
+        $databaseResource = new DatabaseResource(
+            id: 'shop',
+            name: 'Shop',
+            type: 'tablesdb',
+            database: 'source-dsn',
+        );
+        $table = new Table($databaseResource, 'Products', 'products');
+        $column = new Text('title', $table, required: true, size: 128);
+        $column->setId('column-title');
+
+        $source->pushMockResource($databaseResource);
+        $source->pushMockResource($table);
+        $source->pushMockResource($column);
+
+        $destination = new AppwriteDestination(
+            project: 'destination-project',
+            endpoint: 'http://example.test/v1',
+            key: 'test-key',
+            dbForProject: $database,
+            getDatabasesDB: static fn (UtopiaDocument $document): UtopiaDatabase => $database,
+            collectionStructure: [
+                'attributes' => [
+                    $this->attributeArray('databaseInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                    $this->attributeArray('databaseId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                    $this->attributeArray('name', ColumnType::String, size: 256),
+                    $this->attributeArray('enabled', ColumnType::Boolean, default: true),
+                    $this->attributeArray('documentSecurity', ColumnType::Boolean, default: false),
+                    $this->attributeArray('search', ColumnType::String, size: 16384),
+                    $this->attributeArray('attributes', ColumnType::String, size: 16384, filters: ['subQueryAttributes']),
+                    $this->attributeArray('indexes', ColumnType::String, size: 16384, filters: ['subQueryIndexes']),
+                ],
+                'indexes' => [],
+            ],
+            dbForPlatform: $database,
+            projectInternalId: '1',
+            owner: new ProvisioningOwner('migration-test', 'attempt-test'),
+            getRecoverableOwner: static fn (UtopiaDocument $document): ?ProvisioningOwner => null,
+        );
+
+        $transfer = new Transfer($source, $destination);
+        $database->getAuthorization()->skip(
+            static function () use ($transfer): void {
+                $transfer->run(
+                    [Resource::TYPE_DATABASE, Resource::TYPE_TABLE, Resource::TYPE_COLUMN],
+                    static function (): void {
+                    },
+                );
+            },
+        );
+
+        return [$database, $destination, $column];
+    }
+
+    private function projectDatabase(): CheckedColumnRecordingDatabase
+    {
+        $database = new CheckedColumnRecordingDatabase(
+            new MemoryAdapter(),
+            new Cache(new MemoryCache()),
+        );
+        $database
+            ->setDatabase('appwrite')
+            ->setNamespace('_project');
+        $database->create();
+
+        $database->createCollection(new Collection(
+            id: 'databases',
+            attributes: [
+                $this->attribute('name', ColumnType::String, required: true, size: 256),
+                $this->attribute('enabled', ColumnType::Boolean, default: true),
+                $this->attribute('search', ColumnType::String, size: 16384),
+                $this->attribute('originalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('type', ColumnType::String, default: 'tablesdb', size: 128),
+                $this->attribute('database', ColumnType::String, size: 2000),
+            ],
+        ));
+
+        $database->createCollection(new Collection(
+            id: 'attributes',
+            attributes: [
+                $this->attribute('key', ColumnType::String, size: 256),
+                $this->attribute('databaseInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('databaseId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('collectionInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('collectionId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('type', ColumnType::String, size: 256),
+                $this->attribute('status', ColumnType::String, size: 64),
+                $this->attribute('size', ColumnType::Integer),
+                $this->attribute('required', ColumnType::Boolean, default: false),
+                $this->attribute('signed', ColumnType::Boolean, default: true),
+                $this->attribute('default', ColumnType::String, size: 16384),
+                $this->attribute('array', ColumnType::Boolean, default: false),
+                $this->attribute('format', ColumnType::String, size: 64),
+                $this->attribute('formatOptions', ColumnType::String, size: 16384, filters: ['json']),
+                $this->attribute('filters', ColumnType::String, size: 64, array: true),
+                $this->attribute('options', ColumnType::String, size: 16384, filters: ['json']),
+                $this->attribute('error', ColumnType::String, size: 2048),
+            ],
+        ));
+
+        $database->createCollection(new Collection(
+            id: 'indexes',
+            attributes: [
+                $this->attribute('key', ColumnType::String, size: 256),
+                $this->attribute('status', ColumnType::String, size: 64),
+                $this->attribute('databaseInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('databaseId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('collectionInternalId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('collectionId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY),
+                $this->attribute('type', ColumnType::String, size: 16),
+                $this->attribute('attributes', ColumnType::String, size: 256, array: true),
+                $this->attribute('lengths', ColumnType::Integer, array: true),
+                $this->attribute('orders', ColumnType::String, size: 4, array: true),
+                $this->attribute('error', ColumnType::String, size: 2048),
+            ],
+        ));
+
+        return $database;
+    }
+
+    /**
+     * @param array<string> $filters
+     * @return array<string, mixed>
+     */
+    private function attributeArray(
+        string $id,
+        ColumnType $type,
+        bool $required = false,
+        mixed $default = null,
+        int $size = 0,
+        bool $array = false,
+        array $filters = [],
+    ): array {
+        return [
+            '$id' => $id,
+            'type' => $type->value,
+            'size' => $size,
+            'required' => $required,
+            'default' => $default,
+            'array' => $array,
             'signed' => true,
-            'default' => null,
-            'array' => false,
-            'format' => '',
-            'formatOptions' => [],
-            'filters' => [],
-            'options' => [],
-        ]);
+            'filters' => $filters,
+        ];
+    }
 
-        $fromDocumentCopy = UtopiaAttribute::fromArray($column->getArrayCopy());
-        $this->assertSame('1_2_title', $fromDocumentCopy->key);
+    /**
+     * @param array<string> $filters
+     */
+    private function attribute(
+        string $id,
+        ColumnType $type,
+        bool $required = false,
+        mixed $default = null,
+        int $size = 0,
+        bool $array = false,
+        array $filters = [],
+    ): UtopiaAttribute {
+        return new UtopiaAttribute(
+            key: $id,
+            type: $type,
+            size: $size,
+            required: $required,
+            default: $default,
+            array: $array,
+            filters: $filters,
+        );
+    }
 
-        $attribute = UtopiaAttribute::fromArray([
-            'key' => 'title',
-            'type' => 'string',
-            'size' => 128,
-            'required' => true,
-            'signed' => true,
-            'default' => null,
-            'array' => false,
-            'format' => null,
-            'formatOptions' => [],
-            'filters' => [],
-            'options' => null,
-        ]);
+    /**
+     * @return array<string>
+     */
+    private function errorMessages(AppwriteDestination $destination): array
+    {
+        return \array_map(
+            static fn ($error): string => $error->getMessage(),
+            $destination->getErrors(),
+        );
+    }
 
-        $this->assertInstanceOf(UtopiaAttribute::class, $attribute);
-        $this->assertSame('title', $attribute->key);
-        $this->assertSame(ColumnType::String, $attribute->type);
-        $this->assertSame(128, $attribute->size);
+    private function attributeDocument(UtopiaDatabase $database): UtopiaDocument
+    {
+        $attributes = $database->getAuthorization()->skip(
+            static fn (): array => $database->find('attributes'),
+        );
+
+        return $attributes[0] ?? new UtopiaDocument();
     }
 }
