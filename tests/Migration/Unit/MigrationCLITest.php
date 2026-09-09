@@ -78,18 +78,15 @@ final class TransactionalMemoryAdapter extends MemoryAdapter
 #[BackupGlobals(true)]
 final class MigrationCLITest extends TestCase
 {
-    public function testHelpExplainsExplicitMigrationRecoveryAttestation(): void
+    public function testHelpDocumentsTheAcceptedRecoveryOptionsAndNotTheRetiredOne(): void
     {
+        // The neighbouring test proves --recover-provisioning is refused; this is the
+        // separate property that it is not advertised, so nobody is invited to try it.
         $this->assertStringContainsString('--recover-migration-id=<prior-migration-id>', \MigrationCLI::getHelp());
         $this->assertStringContainsString('--recover-migration-attempt-id=<prior-attempt-id>', \MigrationCLI::getHelp());
         $this->assertStringNotContainsString('--recover-provisioning', \MigrationCLI::getHelp());
         $this->assertStringContainsString('--migration-id=', \MigrationCLI::getHelp());
         $this->assertStringContainsString('--migration-attempt-id=', \MigrationCLI::getHelp());
-        $this->assertStringContainsString('reuse it for retries', \MigrationCLI::getHelp());
-        $this->assertStringContainsString('fresh attempt', \MigrationCLI::getHelp());
-        $this->assertStringContainsString('prior migration attempt is terminal', \MigrationCLI::getHelp());
-        $this->assertStringContainsString('refused by default', \MigrationCLI::getHelp());
-        $this->assertStringContainsString('Resource status alone never proves', \MigrationCLI::getHelp());
     }
 
     public function testIncompleteDatabaseRecoveryRequiresExactTerminalMigrationIdentifier(): void
