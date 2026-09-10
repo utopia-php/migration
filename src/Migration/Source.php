@@ -21,6 +21,17 @@ abstract class Source extends Target
         return false;
     }
 
+    /**
+     * Resources this source cannot transfer unless their prerequisites travel
+     * with them, keyed by resource type.
+     *
+     * @return array<string, array<string>>
+     */
+    public function getResourceDependencies(): array
+    {
+        return [];
+    }
+
     public function getAuthBatchSize(): int
     {
         return static::$defaultBatchSize;
@@ -160,8 +171,9 @@ abstract class Source extends Target
      */
     public function exportResources(array $resources): void
     {
+        $requested = $resources;
         $groups = [];
-        foreach ($resources as $resource) {
+        foreach ($requested as $resource) {
             $mapping = [
                 Transfer::GROUP_AUTH => Transfer::GROUP_AUTH_RESOURCES,
                 Transfer::GROUP_DATABASES => Transfer::GROUP_DATABASES_RESOURCES,
@@ -186,6 +198,8 @@ abstract class Source extends Target
         if (empty($groups)) {
             return;
         }
+
+        $this->reportMissingDependencies($requested, $groups);
 
         foreach ($groups as $group => $resources) {
             switch ($group) {
@@ -220,6 +234,50 @@ abstract class Source extends Target
                     $this->exportGroupDomains($this->getDomainsBatchSize(), $resources);
                     break;
             }
+        }
+    }
+
+    /**
+     * Record an error for every requested resource whose prerequisites are absent.
+     *
+     * A resource that outlives its prerequisites is not an error on its own: the
+     * exporter walks a cache the missing prerequisite never filled, and the
+     * transfer finishes reporting success having moved nothing. Naming what is
+     * missing turns that into a failure someone can act on.
+     *
+     * @param array<string> $requested
+     * @param array<string, array<string>> $groups
+     */
+    private function reportMissingDependencies(array $requested, array $groups): void
+    {
+        $groupOf = [];
+        foreach ($groups as $group => $resources) {
+            foreach ($resources as $resource) {
+                $groupOf[$resource] = $group;
+            }
+        }
+
+        foreach ($this->getResourceDependencies() as $resource => $requires) {
+            if (!\in_array($resource, $requested, true)) {
+                continue;
+            }
+
+            $missing = \array_values(\array_diff($requires, $requested));
+
+            if (empty($missing)) {
+                continue;
+            }
+
+            $this->addError(new Exception(
+                $resource,
+                $groupOf[$resource] ?? Transfer::GROUP_GENERAL,
+                message: \sprintf(
+                    'Cannot transfer %s without %s.',
+                    $resource,
+                    \implode(' and ', $missing)
+                ),
+                code: Exception::CODE_VALIDATION,
+            ));
         }
     }
 
