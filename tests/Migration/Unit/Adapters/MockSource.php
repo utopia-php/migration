@@ -11,6 +11,18 @@ class MockSource extends Source
 {
     private array $mockResources = [];
 
+    private array $resourceDependencies = [];
+
+    public function setResourceDependencies(array $dependencies): void
+    {
+        $this->resourceDependencies = $dependencies;
+    }
+
+    public function getResourceDependencies(): array
+    {
+        return $this->resourceDependencies;
+    }
+
     private ?string $resourceChildId = null;
 
     #[Override]
