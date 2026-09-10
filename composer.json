@@ -10,7 +10,8 @@
         "migration"
     ],
     "license": "MIT",
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Utopia\\Migration\\": "src/Migration"
@@ -25,16 +26,16 @@
         "test": "./vendor/bin/phpunit",
         "lint": "./vendor/bin/pint --test",
         "format": "./vendor/bin/pint",
-        "check": "./vendor/bin/phpstan analyse --level 3 src tests --memory-limit 2G"
+        "check": "./vendor/bin/phpstan analyse --level 3 src tests bin --memory-limit 2G"
     },
     "require": {
         "php": ">=8.5",
         "ext-curl": "*",
         "ext-openssl": "*",
         "appwrite/appwrite": "^27.0",
-        "utopia-php/database": "^7.0.0",
-        "utopia-php/storage": "4.*",
-        "utopia-php/dsn": "0.2.*",
+        "utopia-php/database": "dev-feat-query-lib as 7.0.0",
+        "utopia-php/storage": "^4.0",
+        "utopia-php/dsn": "^0.2",
         "halaxa/json-machine": "^1.2"
     },
     "require-dev": {
@@ -44,6 +45,20 @@
         "laravel/pint": "1.*",
         "phpstan/phpstan": "1.*"
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/utopia-php/database.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/utopia-php/query.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/utopia-php/async.git"
+        }
+    ],
     "config": {
         "allow-plugins": {
             "php-http/discovery": true,
