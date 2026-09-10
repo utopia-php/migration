@@ -240,10 +240,11 @@ abstract class Source extends Target
     /**
      * Record an error for every requested resource whose prerequisites are absent.
      *
-     * A resource that outlives its prerequisites is not an error on its own: the
-     * exporter walks a cache the missing prerequisite never filled, and the
-     * transfer finishes reporting success having moved nothing. Naming what is
-     * missing turns that into a failure someone can act on.
+     * A resource requested without its prerequisites is not an error on its own:
+     * its exporter walks a cache the missing prerequisite never filled, or is
+     * only reached by the prerequisite's own exporter. Neither path raises
+     * anything, so the transfer finishes reporting success having moved none of
+     * it. Naming what is absent turns that into a failure someone can act on.
      *
      * @param array<string> $requested
      * @param array<string, array<string>> $groups
