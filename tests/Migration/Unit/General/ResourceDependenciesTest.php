@@ -49,7 +49,8 @@ class ResourceDependenciesTest extends TestCase
 
     public function testMissingPrerequisitesAreReported(): void
     {
-        $this->transfer->run([Resource::TYPE_MEMBERSHIP], function () {});
+        $this->transfer->run([Resource::TYPE_MEMBERSHIP], function () {
+        });
 
         $errors = $this->source->getErrors();
 
@@ -65,7 +66,8 @@ class ResourceDependenciesTest extends TestCase
     {
         $this->transfer->run(
             [Resource::TYPE_USER, Resource::TYPE_MEMBERSHIP],
-            function () {}
+            function () {
+            }
         );
 
         $errors = $this->source->getErrors();
@@ -81,7 +83,8 @@ class ResourceDependenciesTest extends TestCase
     {
         $this->transfer->run(
             [Resource::TYPE_USER, Resource::TYPE_TEAM, Resource::TYPE_MEMBERSHIP],
-            function () {}
+            function () {
+            }
         );
 
         $this->assertEmpty($this->source->getErrors());
@@ -89,7 +92,8 @@ class ResourceDependenciesTest extends TestCase
 
     public function testAResourceWithNoPrerequisitesIsNotReported(): void
     {
-        $this->transfer->run([Resource::TYPE_USER], function () {});
+        $this->transfer->run([Resource::TYPE_USER], function () {
+        });
 
         $this->assertEmpty($this->source->getErrors());
     }
