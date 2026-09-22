@@ -101,13 +101,13 @@ class StrandedProvisioningProjectDatabase extends UtopiaDatabase
     }
 
     #[Override]
-    public function updateDocument(string $collection, string $id, UtopiaDocument $document, ?int $expectedVersion = null): UtopiaDocument
+    public function updateDocument(string $collection, string $id, UtopiaDocument $document): UtopiaDocument
     {
         if ($this->failDatabasesWrites && $collection === 'databases') {
             throw new DatabaseException('metadata store unavailable');
         }
 
-        return parent::updateDocument($collection, $id, $document, $expectedVersion);
+        return parent::updateDocument($collection, $id, $document);
     }
 }
 
@@ -137,7 +137,7 @@ final class InterleavingProjectDatabase extends UtopiaDatabase
 
 class RecordingProjectDatabase extends UtopiaDatabase
 {
-    /** @var list<array{operation: string, id: string, document: array<string, mixed>, expectedVersion?: int|null}> */
+    /** @var list<array{operation: string, id: string, document: array<string, mixed>, guarded?: bool}> */
     public array $databaseWrites = [];
 
     public bool $failReadyWrite = false;
@@ -162,14 +162,14 @@ class RecordingProjectDatabase extends UtopiaDatabase
     }
 
     #[Override]
-    public function updateDocument(string $collection, string $id, UtopiaDocument $document, ?int $expectedVersion = null): UtopiaDocument
+    public function updateDocument(string $collection, string $id, UtopiaDocument $document): UtopiaDocument
     {
         if ($collection === 'databases') {
             $this->databaseWrites[] = [
                 'operation' => 'update',
                 'id' => $id,
                 'document' => $document->getArrayCopy(),
-                'expectedVersion' => $expectedVersion,
+                'guarded' => $this->timestamp !== null,
             ];
         }
 
@@ -184,7 +184,7 @@ class RecordingProjectDatabase extends UtopiaDatabase
         if (
             $this->disappearBeforeGuardedWrite
             && $collection === 'databases'
-            && $expectedVersion !== null
+            && $this->timestamp !== null
         ) {
             $this->disappearBeforeGuardedWrite = false;
             parent::deleteDocument($collection, $id);
@@ -192,7 +192,7 @@ class RecordingProjectDatabase extends UtopiaDatabase
             return new UtopiaDocument();
         }
 
-        return parent::updateDocument($collection, $id, $document, $expectedVersion);
+        return parent::updateDocument($collection, $id, $document);
     }
 }
 
@@ -314,7 +314,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $created = $this->getDatabaseDocument($database);
         $this->assertSame(['Database provisioning owner changed before finalization'], $this->errorMessages($destination));
         $this->assertCount(1, $terminalWrites);
-        $this->assertIsInt($terminalWrites[0]['expectedVersion']);
+        $this->assertTrue($terminalWrites[0]['guarded'] ?? false, 'The terminal write must be pinned to the timestamp read under lock');
         $this->assertSame('provisioning', $created->getAttribute('status'));
         $this->assertSame('migration-successor', $created->getAttribute('migrationId'));
         $this->assertSame('attempt-successor', $created->getAttribute('migrationAttemptId'));
@@ -661,7 +661,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
 
         $this->assertSame(['Database provisioning owner changed before finalization'], $this->errorMessages($destination));
         $this->assertCount(1, $readyWrites);
-        $this->assertIsInt($readyWrites[0]['expectedVersion']);
+        $this->assertTrue($readyWrites[0]['guarded'] ?? false, 'The ready write must be pinned to the timestamp read under lock');
         $this->assertTrue($this->getDatabaseDocument($database)->isEmpty());
     }
 
@@ -703,7 +703,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame(
             [true],
             \array_map(
-                static fn (array $write): bool => \is_int($write['expectedVersion'] ?? null),
+                static fn (array $write): bool => $write['guarded'] ?? false,
                 $claimWrites,
             ),
         );

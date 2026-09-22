@@ -391,22 +391,29 @@ class Appwrite extends Destination
                 return false;
             }
 
-            $version = $database->getVersion();
-            if ($version === null) {
-                throw new DatabaseException('Database provisioning ownership requires a document version');
-            }
-
-            $updated = $this->dbForProject->updateDocument(
-                self::META_DATABASES,
-                $databaseId,
-                new UtopiaDocument(['status' => $status]),
-                expectedVersion: $version,
-            );
+            $updated = $this->updateOwned($database, new UtopiaDocument(['status' => $status]));
 
             return ! $updated->isEmpty();
         } catch (ConflictException) {
             return false;
         }
+    }
+
+    /**
+     * Every update moves `$updatedAt` strictly forward, so a write pinned to the timestamp
+     * the row was read with is refused once another writer got there first.
+     */
+    private function updateOwned(UtopiaDocument $observed, UtopiaDocument $updates): UtopiaDocument
+    {
+        $readAt = $observed->getUpdatedAt();
+        if ($readAt === null || $readAt === '') {
+            throw new DatabaseException('Database provisioning ownership requires an update timestamp');
+        }
+
+        return $this->dbForProject->withRequestTimestamp(
+            new \DateTime($readAt),
+            fn (): UtopiaDocument => $this->dbForProject->updateDocument(self::META_DATABASES, $observed->getId(), $updates),
+        );
     }
 
     private function getProvisioningOwner(UtopiaDocument $database): ?ProvisioningOwner
@@ -864,16 +871,7 @@ class Appwrite extends Destination
                         $document['migrationAttemptId'] = $this->owner->attemptId;
                     }
 
-                    $version = $locked->getVersion();
-                    if ($version === null) {
-                        throw new DatabaseException('Database provisioning ownership requires a document version');
-                    }
-                    $updated = $this->dbForProject->updateDocument(
-                        self::META_DATABASES,
-                        $locked->getId(),
-                        new UtopiaDocument($document),
-                        expectedVersion: $version,
-                    );
+                    $updated = $this->updateOwned($locked, new UtopiaDocument($document));
                     if ($updated->isEmpty()) {
                         throw new DatabaseException('Database '.$resource->getId().' provisioning owner changed before it could be claimed');
                     }

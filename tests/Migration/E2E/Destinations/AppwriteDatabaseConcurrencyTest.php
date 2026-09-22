@@ -34,13 +34,13 @@ final class RecordingSQLiteProjectDatabase extends UtopiaDatabase
     public bool $throwAfterBackingCollectionCallback = false;
 
     #[Override]
-    public function updateDocument(string $collection, string $id, UtopiaDocument $document, ?int $expectedVersion = null): UtopiaDocument
+    public function updateDocument(string $collection, string $id, UtopiaDocument $document): UtopiaDocument
     {
         if ($collection === 'databases') {
             $this->databaseWrites[] = $document->getArrayCopy();
         }
 
-        return parent::updateDocument($collection, $id, $document, $expectedVersion);
+        return parent::updateDocument($collection, $id, $document);
     }
 
     #[Override]
