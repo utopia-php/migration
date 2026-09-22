@@ -2451,12 +2451,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "3b50b690410dbe90d4215dddd8fcfed5c6be3a0d"
+                "reference": "5996ffc73167c48d8be9a916e55e25be2c48f312"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/3b50b690410dbe90d4215dddd8fcfed5c6be3a0d",
-                "reference": "3b50b690410dbe90d4215dddd8fcfed5c6be3a0d",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/5996ffc73167c48d8be9a916e55e25be2c48f312",
+                "reference": "5996ffc73167c48d8be9a916e55e25be2c48f312",
                 "shasum": ""
             },
             "require": {
@@ -2544,7 +2544,7 @@
                 "source": "https://github.com/utopia-php/database/tree/feat-query-lib",
                 "issues": "https://github.com/utopia-php/database/issues"
             },
-            "time": "2026-09-21T11:22:29+00:00"
+            "time": "2026-09-22T05:43:15+00:00"
         },
         {
             "name": "utopia-php/dsn",
