@@ -18,6 +18,7 @@ use Utopia\Database\Exception as DatabaseException;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Destinations\OnDuplicate;
+use Utopia\Migration\Exception\Finalization;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Transfer;
@@ -127,22 +128,27 @@ final class AppwriteDatabaseConcurrencyTest extends TestCase
                 ),
             );
 
-            $this->runTransfer(
-                $second,
-                $destination,
-                function () use ($third, &$successor): void {
-                    $successor = $this->createDestination(
-                        $third,
-                        'migration-shared',
-                        'attempt-third',
-                        static fn (UtopiaDocument $snapshot): ProvisioningOwner => new ProvisioningOwner(
+            $failure = null;
+            try {
+                $this->runTransfer(
+                    $second,
+                    $destination,
+                    function () use ($third, &$successor): void {
+                        $successor = $this->createDestination(
+                            $third,
                             'migration-shared',
-                            'attempt-second',
-                        ),
-                    );
-                    $this->claimWithoutTerminalTransition($third, $successor);
-                },
-            );
+                            'attempt-third',
+                            static fn (UtopiaDocument $snapshot): ProvisioningOwner => new ProvisioningOwner(
+                                'migration-shared',
+                                'attempt-second',
+                            ),
+                        );
+                        $this->claimWithoutTerminalTransition($third, $successor);
+                    },
+                );
+            } catch (Finalization $error) {
+                $failure = $error;
+            }
 
             $database = $this->getDatabaseDocument($third);
             $readyWrites = \array_values(\array_filter(
@@ -150,6 +156,8 @@ final class AppwriteDatabaseConcurrencyTest extends TestCase
                 static fn (array $document): bool => ($document['status'] ?? null) === 'ready',
             ));
             $this->assertInstanceOf(AppwriteDestination::class, $successor);
+            $this->assertInstanceOf(Finalization::class, $failure);
+            $this->assertSame($destination->getErrors(), $failure->failures);
             $this->assertSame(
                 ['Database provisioning owner changed before finalization'],
                 $this->errorMessages($destination),

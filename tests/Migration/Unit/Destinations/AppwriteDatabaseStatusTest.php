@@ -19,6 +19,7 @@ use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Destinations\OnDuplicate;
 use Utopia\Migration\Exception as MigrationException;
+use Utopia\Migration\Exception\Finalization;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Transfer;
@@ -303,7 +304,9 @@ final class AppwriteDatabaseStatusTest extends TestCase
             explicit: false,
             migrationId: 'migration-create',
             migrationAttemptId: 'attempt-create',
+            success: false,
         );
+        $failure = $this->finalizeExpectingFailure($database, $destination);
 
         $terminalWrites = \array_values(\array_filter(
             $database->databaseWrites,
@@ -315,6 +318,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         ));
         $created = $this->getDatabaseDocument($database);
         $this->assertSame(['Database provisioning owner changed before finalization'], $this->errorMessages($destination));
+        $this->assertSame($destination->getErrors(), $failure->failures);
         $this->assertCount(1, $terminalWrites);
         $this->assertTrue($terminalWrites[0]['guarded'] ?? false, 'The terminal write must be pinned to the timestamp read under lock');
         $this->assertSame('provisioning', $created->getAttribute('status'));
@@ -628,11 +632,14 @@ final class AppwriteDatabaseStatusTest extends TestCase
             explicit: false,
             migrationId: 'migration-ready-failure',
             migrationAttemptId: 'attempt-ready-failure',
+            success: false,
         );
+        $failure = $this->finalizeExpectingFailure($database, $destination);
 
         $created = $this->getDatabaseDocument($database);
         $errors = $destination->getErrors();
         $this->assertCount(1, $errors);
+        $this->assertSame($errors, $failure->failures);
         $this->assertSame(Resource::TYPE_DATABASE, $errors[0]->getResourceName());
         $this->assertSame(Transfer::GROUP_DATABASES, $errors[0]->getResourceGroup());
         $this->assertSame('database', $errors[0]->getResourceId());
@@ -654,7 +661,9 @@ final class AppwriteDatabaseStatusTest extends TestCase
             explicit: false,
             migrationId: 'migration-disappearing-ready',
             migrationAttemptId: 'attempt-disappearing-ready',
+            success: false,
         );
+        $failure = $this->finalizeExpectingFailure($database, $destination);
 
         $readyWrites = \array_values(\array_filter(
             $database->databaseWrites,
@@ -662,6 +671,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         ));
 
         $this->assertSame(['Database provisioning owner changed before finalization'], $this->errorMessages($destination));
+        $this->assertSame($destination->getErrors(), $failure->failures);
         $this->assertCount(1, $readyWrites);
         $this->assertTrue($readyWrites[0]['guarded'] ?? false, 'The ready write must be pinned to the timestamp read under lock');
         $this->assertTrue($this->getDatabaseDocument($database)->isEmpty());
@@ -748,7 +758,9 @@ final class AppwriteDatabaseStatusTest extends TestCase
             migrationId: 'migration-finalizers',
             migrationAttemptId: 'attempt-finalizers',
             databaseIds: ['database-first', 'database-second', 'database-third'],
+            success: false,
         );
+        $failure = $this->finalizeExpectingFailure($database, $destination);
 
         $readyAttempts = \array_values(\array_map(
             static fn (array $write): string => $write['id'],
@@ -765,6 +777,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
 
         $this->assertSame(['database-first', 'database-second', 'database-third'], $readyAttempts);
         $this->assertSame(['database-first', 'database-third'], $errorIds);
+        $this->assertSame($errors, $failure->failures);
         $this->assertSame('provisioning', $this->getDatabaseDocument($database, 'database-first')->getAttribute('status'));
         $this->assertSame('ready', $this->getDatabaseDocument($database, 'database-second')->getAttribute('status'));
         $this->assertSame('provisioning', $this->getDatabaseDocument($database, 'database-third')->getAttribute('status'));
@@ -1450,6 +1463,17 @@ final class AppwriteDatabaseStatusTest extends TestCase
         );
 
         return $destination;
+    }
+
+    private function finalizeExpectingFailure(UtopiaDatabase $database, AppwriteDestination $destination): Finalization
+    {
+        try {
+            $database->getAuthorization()->skip($destination->success(...));
+        } catch (Finalization $failure) {
+            return $failure;
+        }
+
+        $this->fail('A failed finalization must throw');
     }
 
     private function getDatabaseDocument(UtopiaDatabase $database, string $databaseId = 'database'): UtopiaDocument

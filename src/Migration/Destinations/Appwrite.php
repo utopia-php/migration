@@ -51,6 +51,7 @@ use Utopia\Database\Validator\UID;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Exception;
+use Utopia\Migration\Exception\Finalization;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -342,13 +343,21 @@ class Appwrite extends Destination
         parent::run($resources, $callback, $rootResourceId, $rootResourceType);
     }
 
-    /** Finalize destination state only after the caller has fenced terminal ownership. */
+    /**
+     * Finalize destination state only after the caller has fenced terminal ownership.
+     *
+     * @throws Finalization
+     */
     #[Override]
     public function success(): void
     {
         // Flip status before the orphan sweep so a cleanup failure can't strand databases in `provisioning`.
-        $this->markProvisionedDatabasesReady();
-        $this->cleanupOverwriteOrphans();
+        $failures = $this->markProvisionedDatabasesReady();
+        \array_push($failures, ...$this->cleanupOverwriteOrphans());
+
+        if ($failures !== []) {
+            throw new Finalization($failures);
+        }
     }
 
     /** Per-run state must not leak across run() invocations on a reused instance. */
@@ -360,24 +369,38 @@ class Appwrite extends Destination
         $this->provisioningDatabases = [];
     }
 
-    private function markProvisionedDatabasesReady(): void
+    /**
+     * @return list<Exception>
+     */
+    private function markProvisionedDatabasesReady(): array
     {
+        $failures = [];
         foreach (\array_keys($this->provisioningDatabases) as $databaseId) {
             try {
                 if (! $this->setDatabaseStatus($databaseId, self::DATABASE_STATUS_READY)) {
                     throw new DatabaseException('Database provisioning owner changed before finalization');
                 }
             } catch (\Throwable $error) {
-                $this->addError(new Exception(
-                    resourceName: Resource::TYPE_DATABASE,
-                    resourceGroup: Transfer::GROUP_DATABASES,
-                    resourceId: $databaseId,
-                    message: $error->getMessage(),
-                    code: $error->getCode(),
-                    previous: $error,
-                ));
+                $failures[] = $this->recordFinalizationFailure(Resource::TYPE_DATABASE, (string) $databaseId, $error);
             }
         }
+
+        return $failures;
+    }
+
+    private function recordFinalizationFailure(string $resourceName, string $resourceId, \Throwable $error): Exception
+    {
+        $failure = new Exception(
+            resourceName: $resourceName,
+            resourceGroup: Transfer::GROUP_DATABASES,
+            resourceId: $resourceId,
+            message: $error->getMessage(),
+            code: $error->getCode(),
+            previous: $error,
+        );
+        $this->addError($failure);
+
+        return $failure;
     }
 
     private function setDatabaseStatus(string $databaseId, string $status): bool
@@ -2417,12 +2440,23 @@ class Appwrite extends Destination
         $this->orphansByTable[$tableId][$kind][] = $key;
     }
 
-    /** End-of-migration sweep — only visits tables that had no rows (rest were cleaned per-table in createRecord). */
-    private function cleanupOverwriteOrphans(): void
+    /**
+     * End-of-migration sweep — only visits tables that had no rows (rest were cleaned per-table in createRecord).
+     *
+     * @return list<Exception>
+     */
+    private function cleanupOverwriteOrphans(): array
     {
-        foreach (\array_keys($this->orphansByTable) as $tableId) {
-            $this->cleanupOverwriteOrphansForTable($tableId);
+        $failures = [];
+        foreach ($this->orphansByTable as $tableId => $tracked) {
+            try {
+                $this->cleanupOverwriteOrphansForTable($tableId);
+            } catch (\Throwable $error) {
+                $failures[] = $this->recordFinalizationFailure(Resource::TYPE_TABLE, $tracked['table']->getId(), $error);
+            }
         }
+
+        return $failures;
     }
 
     /** Called per-table from createRecord before rows land so Structure validator sees the post-cleanup schema. */

@@ -244,7 +244,16 @@ abstract class Target
     }
 
     /**
-     * Success callback
+     * Commit the terminal state of the last run() that returned.
+     *
+     * run() may leave that state uncommitted — the Appwrite destination keeps the databases
+     * it provisions in `provisioning` and defers its overwrite cleanup — so once run() has
+     * returned, the caller persists whatever claim must precede those side effects and then
+     * calls success(). Every step is attempted; if any fails, each failure is recorded with
+     * addError() and success() throws Exception\Finalization carrying them, so a failed
+     * finalization cannot pass for a completed one.
+     *
+     * @throws Exception\Finalization
      */
     public function success(): void
     {

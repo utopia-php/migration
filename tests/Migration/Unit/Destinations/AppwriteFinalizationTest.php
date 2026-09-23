@@ -16,6 +16,7 @@ use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Destinations\OnDuplicate;
 use Utopia\Migration\Exception as MigrationException;
+use Utopia\Migration\Exception\Finalization;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
@@ -29,6 +30,39 @@ final class AppwriteFinalizationTest extends TestCase
     private const SOURCE_OLDER = '2000-01-01 00:00:00';
 
     private const SOURCE_NEWER = '2999-01-01 00:00:00';
+
+    public function testFailedFinalizationThrowsAfterAttemptingEveryDatabase(): void
+    {
+        $database = $this->projectDatabase();
+        $database->failReadyWrites = ['first', 'third'];
+        $destination = $this->destination($database);
+        $this->import($database, $destination, [
+            $this->databaseResource('first'),
+            $this->databaseResource('second'),
+            $this->databaseResource('third'),
+        ]);
+
+        $failure = $this->finalize($database, $destination);
+
+        $this->assertSame('provisioning', $this->databaseStatus($database, 'first'));
+        $this->assertSame('ready', $this->databaseStatus($database, 'second'));
+        $this->assertSame('provisioning', $this->databaseStatus($database, 'third'));
+        $this->assertNotNull($failure, 'A failed finalization must throw, not only append errors');
+        $this->assertInstanceOf(Finalization::class, $failure);
+        $this->assertSame(
+            [
+                [Resource::TYPE_DATABASE, Transfer::GROUP_DATABASES, 'first'],
+                [Resource::TYPE_DATABASE, Transfer::GROUP_DATABASES, 'third'],
+            ],
+            $this->subjects($failure->failures),
+        );
+        $this->assertSame('ready status unavailable', $failure->failures[0]->getMessage());
+        $this->assertSame($failure->failures, $destination->getErrors(), 'Each failure is also recorded for the report');
+        $this->assertSame($failure->failures[0], $failure->getPrevious());
+        $this->assertSame(MigrationException::CODE_INTERNAL, $failure->getCode());
+        $this->assertStringContainsString('first', $failure->getMessage());
+        $this->assertStringContainsString('third', $failure->getMessage());
+    }
 
     public function testOneFailedReadyFlipStillSweepsEveryOverwrittenTable(): void
     {
@@ -45,11 +79,36 @@ final class AppwriteFinalizationTest extends TestCase
         $this->assertSame(['name'], $this->columnKeys($database, 'second', 'second-items'), 'The sweep must run for every other database');
         $this->assertSame('provisioning', $this->databaseStatus($database, 'first'));
         $this->assertSame('ready', $this->databaseStatus($database, 'second'));
-        $this->assertNull($failure);
+        $this->assertInstanceOf(Finalization::class, $failure);
         $this->assertSame(
             [[Resource::TYPE_DATABASE, Transfer::GROUP_DATABASES, 'first']],
-            $this->subjects($destination->getErrors()),
+            $this->subjects($failure->failures),
         );
+    }
+
+    public function testOrphanSweepFailureStillSweepsTheOtherTablesAndThrows(): void
+    {
+        $database = $this->projectDatabase();
+        $this->seedTablesWithLegacyColumns($database);
+
+        $destination = $this->destination($database, 'attempt-overwrite', OnDuplicate::Overwrite);
+        $this->import($database, $destination, $this->newerSchemaWithoutLegacyColumns());
+        $database->failAttributeScanOf = $this->table($database, 'first', 'first-items');
+
+        $failure = $this->finalize($database, $destination);
+
+        $database->failAttributeScanOf = null;
+        $this->assertSame(['legacy', 'name'], $this->columnKeys($database, 'first', 'first-items'));
+        $this->assertSame(['name'], $this->columnKeys($database, 'second', 'second-items'), 'One table\'s failed sweep must not skip the others');
+        $this->assertSame('ready', $this->databaseStatus($database, 'first'), 'Databases are flipped before any sweep can fail');
+        $this->assertSame('ready', $this->databaseStatus($database, 'second'));
+        $this->assertInstanceOf(Finalization::class, $failure, 'A failed sweep must surface as the finalization exception');
+        $this->assertSame(
+            [[Resource::TYPE_TABLE, Transfer::GROUP_DATABASES, 'first-items']],
+            $this->subjects($failure->failures),
+        );
+        $this->assertSame('attribute scan unavailable', $failure->failures[0]->getMessage());
+        $this->assertSame($failure->failures, $destination->getErrors());
     }
 
     private function seedTablesWithLegacyColumns(FailingFinalizationDatabase $database): void
