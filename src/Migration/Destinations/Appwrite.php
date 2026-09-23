@@ -347,10 +347,7 @@ class Appwrite extends Destination
     public function success(): void
     {
         // Flip status before the orphan sweep so a cleanup failure can't strand databases in `provisioning`.
-        if (! $this->markProvisionedDatabasesReady()) {
-            return;
-        }
-
+        $this->markProvisionedDatabasesReady();
         $this->cleanupOverwriteOrphans();
     }
 
@@ -363,16 +360,14 @@ class Appwrite extends Destination
         $this->provisioningDatabases = [];
     }
 
-    private function markProvisionedDatabasesReady(): bool
+    private function markProvisionedDatabasesReady(): void
     {
-        $ready = true;
         foreach (\array_keys($this->provisioningDatabases) as $databaseId) {
             try {
                 if (! $this->setDatabaseStatus($databaseId, self::DATABASE_STATUS_READY)) {
                     throw new DatabaseException('Database provisioning owner changed before finalization');
                 }
             } catch (\Throwable $error) {
-                $ready = false;
                 $this->addError(new Exception(
                     resourceName: Resource::TYPE_DATABASE,
                     resourceGroup: Transfer::GROUP_DATABASES,
@@ -383,8 +378,6 @@ class Appwrite extends Destination
                 ));
             }
         }
-
-        return $ready;
     }
 
     private function setDatabaseStatus(string $databaseId, string $status): bool
