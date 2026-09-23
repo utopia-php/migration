@@ -2129,6 +2129,7 @@ class Appwrite extends Destination
 
         $isTwoWay = (bool) ($destOptions['twoWay'] ?? false);
         $onDeleteChanged = ($sourceOptions['onDelete'] ?? null) !== ($destOptions['onDelete'] ?? null);
+        $onDelete = ForeignKeyAction::tryFrom((string) ($sourceOptions['onDelete'] ?? ''));
 
         if (!$isTwoWay && $onDeleteChanged) {
             return false;
@@ -2138,7 +2139,7 @@ class Appwrite extends Destination
             $dbForDatabases->updateRelationship(
                 collection: $this->tableCollectionId($database, $table),
                 id: $resource->getKey(),
-                onDelete: ForeignKeyAction::from((string) ($sourceOptions['onDelete'] ?? ForeignKeyAction::Restrict->value)),
+                onDelete: $onDelete,
             );
         }
 
@@ -2146,7 +2147,7 @@ class Appwrite extends Destination
             'key' => $resource->getKey(),
             'type' => $type,
             'options' => array_merge($destOptions, [
-                'onDelete' => $sourceOptions['onDelete'] ?? $destOptions['onDelete'] ?? null,
+                'onDelete' => $onDelete?->value ?? $destOptions['onDelete'] ?? null,
             ]),
             '$updatedAt' => $updatedAt,
         ]));
@@ -2155,7 +2156,7 @@ class Appwrite extends Destination
 
         // utopia syncs both physical sides; partner's Appwrite-level meta doc has to be refreshed by hand.
         if ($isTwoWay) {
-            $this->refreshTwoWayPartnerOnDelete($database, $destOptions, $sourceOptions, $updatedAt, $dbForDatabases);
+            $this->refreshTwoWayPartnerOnDelete($database, $destOptions, $onDelete, $updatedAt, $dbForDatabases);
         }
 
         return true;
@@ -2163,12 +2164,11 @@ class Appwrite extends Destination
 
     /**
      * @param array<string, mixed> $destOptions
-     * @param array<string, mixed> $sourceOptions
      */
     private function refreshTwoWayPartnerOnDelete(
         UtopiaDocument $database,
         array $destOptions,
-        array $sourceOptions,
+        ?ForeignKeyAction $onDelete,
         string $updatedAt,
         UtopiaDatabase $dbForDatabases,
     ): void {
@@ -2185,7 +2185,7 @@ class Appwrite extends Destination
         $partnerOptions = $partnerMeta->getAttribute('options', []);
         $this->dbForProject->updateDocument(self::META_ATTRIBUTES, $partnerMeta->getId(), new UtopiaDocument([
             'options' => array_merge($partnerOptions, [
-                'onDelete' => $sourceOptions['onDelete'] ?? $partnerOptions['onDelete'] ?? null,
+                'onDelete' => $onDelete?->value ?? $partnerOptions['onDelete'] ?? null,
             ]),
             '$updatedAt' => $updatedAt,
         ]));
