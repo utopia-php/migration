@@ -987,6 +987,173 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
     }
 
+    public function testStatusOnlySchemaRecoversIncompleteDatabasesWithoutOwner(): void
+    {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createStatusOnlyProjectDatabase($database);
+        $this->seedLegacyDatabase($database, 'database-provisioning', 'provisioning', withCollection: true);
+        $this->seedLegacyDatabase($database, 'database-failed', 'failed');
+        $database->databaseWrites = [];
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            databaseIds: ['database-provisioning', 'database-failed'],
+        );
+
+        $this->assertSame([], $this->errorMessages($destination));
+        foreach (['database-provisioning', 'database-failed'] as $databaseId) {
+            $recovered = $this->getDatabaseDocument($database, $databaseId);
+            $this->assertSame('ready', $recovered->getAttribute('status'), $databaseId);
+            $this->assertFalse($database->getCollection('database_'.$recovered->getSequence())->isEmpty(), $databaseId);
+        }
+        $this->assertNotSame([], $database->databaseWrites);
+        foreach ($database->databaseWrites as $write) {
+            $this->assertArrayNotHasKey('migrationId', $write['document']);
+            $this->assertArrayNotHasKey('migrationAttemptId', $write['document']);
+        }
+    }
+
+    /** @return array<string, array{OnDuplicate, string, string}> */
+    public static function legacyProvisioningResolutions(): array
+    {
+        return [
+            'fail keeps the destination' => [OnDuplicate::Fail, '', 'Legacy database'],
+            'skip keeps the destination' => [OnDuplicate::Skip, '', 'Legacy database'],
+            'overwrite with an older source keeps the destination' => [OnDuplicate::Overwrite, '2000-01-01T00:00:00.000+00:00', 'Legacy database'],
+            'overwrite with a newer source replaces the destination' => [OnDuplicate::Overwrite, '2099-01-01T00:00:00.000+00:00', 'Database'],
+        ];
+    }
+
+    #[DataProvider('legacyProvisioningResolutions')]
+    public function testLegacyProvisioningDatabaseIsRecoveredAndClaimed(
+        OnDuplicate $onDuplicate,
+        string $resourceUpdatedAt,
+        string $expectedName,
+    ): void {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $seeded = $this->seedLegacyDatabase(
+            $database,
+            'database',
+            'provisioning',
+            name: 'Legacy database',
+            withCollection: true,
+        );
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            onDuplicate: $onDuplicate,
+            resourceUpdatedAt: $resourceUpdatedAt,
+        );
+
+        $recovered = $this->getDatabaseDocument($database);
+        $this->assertSame([], $this->errorMessages($destination));
+        $this->assertSame('ready', $recovered->getAttribute('status'));
+        $this->assertSame($expectedName, $recovered->getAttribute('name'));
+        $this->assertSame($seeded->getSequence(), $recovered->getSequence());
+        $this->assertSame('migration-current', $recovered->getAttribute('migrationId'));
+        $this->assertSame('attempt-current', $recovered->getAttribute('migrationAttemptId'));
+        $this->assertFalse($database->getCollection('database_'.$recovered->getSequence())->isEmpty());
+    }
+
+    public function testLegacyProvisioningDatabaseMissingItsCollectionIsRecreated(): void
+    {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $seeded = $this->seedLegacyDatabase($database, 'database', 'provisioning');
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false);
+
+        $recovered = $this->getDatabaseDocument($database);
+        $this->assertSame([], $this->errorMessages($destination));
+        $this->assertSame('ready', $recovered->getAttribute('status'));
+        $this->assertSame($seeded->getSequence(), $recovered->getSequence());
+        $this->assertSame('migration-current', $recovered->getAttribute('migrationId'));
+        $this->assertSame('attempt-current', $recovered->getAttribute('migrationAttemptId'));
+        $this->assertFalse(
+            $database->getCollection('database_'.$recovered->getSequence())->isEmpty(),
+            'A recovered database must never be marked ready without its backing collection',
+        );
+    }
+
+    public function testLegacyFailedDatabaseIsOverwrittenAndClaimed(): void
+    {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $seeded = $this->seedLegacyDatabase($database, 'database', 'failed', name: 'Legacy database');
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false);
+
+        $recovered = $this->getDatabaseDocument($database);
+        $this->assertSame([], $this->errorMessages($destination));
+        $this->assertSame('ready', $recovered->getAttribute('status'));
+        $this->assertSame('Database', $recovered->getAttribute('name'));
+        $this->assertSame($seeded->getSequence(), $recovered->getSequence());
+        $this->assertSame('migration-current', $recovered->getAttribute('migrationId'));
+        $this->assertSame('attempt-current', $recovered->getAttribute('migrationAttemptId'));
+        $this->assertFalse($database->getCollection('database_'.$recovered->getSequence())->isEmpty());
+    }
+
+    public function testOwnedDatabaseWithoutAttestationIsRefusedWhileLegacyDatabaseRecovers(): void
+    {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $this->seedDatabase(
+            $database,
+            status: 'provisioning',
+            migrationId: 'migration-active',
+            migrationAttemptId: 'attempt-active',
+        );
+        $this->seedLegacyDatabase($database, 'database-legacy', 'failed');
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            databaseIds: ['database', 'database-legacy'],
+        );
+
+        $owned = $this->getDatabaseDocument($database);
+        $legacy = $this->getDatabaseDocument($database, 'database-legacy');
+        $this->assertSame(
+            ['Database database recovery requires exact terminal-owner attestation and a fresh attempt'],
+            $this->errorMessages($destination),
+        );
+        $this->assertSame('provisioning', $owned->getAttribute('status'));
+        $this->assertSame('migration-active', $owned->getAttribute('migrationId'));
+        $this->assertSame('attempt-active', $owned->getAttribute('migrationAttemptId'));
+        $this->assertSame('ready', $legacy->getAttribute('status'));
+        $this->assertSame('migration-current', $legacy->getAttribute('migrationId'));
+        $this->assertSame('attempt-current', $legacy->getAttribute('migrationAttemptId'));
+    }
+
+    public function testLegacyRecoveryYieldsToAClaimThatLandsFirst(): void
+    {
+        $database = new InterleavingProjectDatabase(new MemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $this->seedLegacyDatabase($database, 'database', 'failed');
+        $database->onDatabasesReload = static function () use ($database): void {
+            $database->updateDocument('databases', 'database', new UtopiaDocument([
+                'status' => 'provisioning',
+                'migrationId' => 'migration-rival',
+                'migrationAttemptId' => 'attempt-rival',
+            ]));
+        };
+        $database->interceptNextDatabasesReload = true;
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false);
+
+        $claimed = $this->getDatabaseDocument($database);
+        $this->assertSame(
+            ['Database database recovery owner changed before it could be claimed'],
+            $this->errorMessages($destination),
+        );
+        $this->assertSame('provisioning', $claimed->getAttribute('status'));
+        $this->assertSame('migration-rival', $claimed->getAttribute('migrationId'));
+        $this->assertSame('attempt-rival', $claimed->getAttribute('migrationAttemptId'));
+    }
+
     private function createProjectDatabase(bool $withStatus, ?UtopiaDatabase $database = null): UtopiaDatabase
     {
         $database ??= new UtopiaDatabase(
@@ -1055,6 +1222,33 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $database->createAttribute('databases', $this->attribute('status', ColumnType::String, size: 16));
 
         return $database;
+    }
+
+    private function seedLegacyDatabase(
+        UtopiaDatabase $database,
+        string $databaseId,
+        string $status,
+        string $name = 'Database',
+        bool $withCollection = false,
+    ): UtopiaDocument {
+        $seeded = $database->getAuthorization()->skip(
+            static fn (): UtopiaDocument => $database->createDocument('databases', new UtopiaDocument([
+                '$id' => $databaseId,
+                'name' => $name,
+                'enabled' => true,
+                'search' => $databaseId.' '.$name,
+                'originalId' => null,
+                'type' => 'tablesdb',
+                'database' => '',
+                'status' => $status,
+            ])),
+        );
+
+        if ($withCollection) {
+            $database->createCollection(new Collection(id: 'database_'.$seeded->getSequence()));
+        }
+
+        return $seeded;
     }
 
     private function attribute(

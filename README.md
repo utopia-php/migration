@@ -50,7 +50,9 @@ Appwrite database destinations use a `ProvisioningOwner` made from a stable logi
 
 A database status is local to that resource. It does not prove that the migration attempt which owns it has stopped, because an import can continue with other resources after recording a database failure. The callback must therefore consult the caller's authoritative operation lifecycle and return the exact stored owner only after that attempt is terminal. Return `null` while it is active or unknown; recovery then fails closed. This rule also applies when the retry uses the same logical migration identifier.
 
-The standalone CLI requires `--migration-id` and a fresh `--migration-attempt-id`. Recovering an incomplete database additionally requires both `--recover-migration-id` and `--recover-migration-attempt-id` for the exact terminal prior attempt.
+Owners are written and enforced only when the destination's `databases` metadata declares both `migrationId` and `migrationAttemptId`; metadata with `status` alone gets status tracking without ownership. A `provisioning` or `failed` database that names no owner at all was left before ownership could be recorded, so it is recovered without the callback, as it was before ownership existed: a `failed` database is overwritten, a `provisioning` one is resolved like any existing database under the `OnDuplicate` policy (`fail` keeps it instead of colliding) and marked `ready` when the run succeeds, and either is claimed by the current attempt when the metadata can record it. A database naming only part of an owner is refused.
+
+The standalone CLI requires `--migration-id` and a fresh `--migration-attempt-id`. Recovering an incomplete database that names an owner additionally requires both `--recover-migration-id` and `--recover-migration-attempt-id` for the exact terminal prior attempt.
 
 ## Supported Resources Chart
 
