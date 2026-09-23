@@ -416,8 +416,9 @@ class Appwrite extends Destination
     }
 
     /**
-     * Every update moves `$updatedAt` strictly forward, so a write pinned to the timestamp
-     * the row was read with is refused once another writer got there first.
+     * A write pinned to the timestamp the row was read with is refused once another writer got
+     * there first, which holds only while every write moves `$updatedAt` strictly forward.
+     * Writes here never supply `$updatedAt`, and the stored value is checked after each one.
      */
     private function updateOwned(UtopiaDocument $observed, UtopiaDocument $updates): UtopiaDocument
     {
@@ -426,10 +427,24 @@ class Appwrite extends Destination
             throw new DatabaseException('Database provisioning ownership requires an update timestamp');
         }
 
-        return $this->dbForProject->withRequestTimestamp(
+        $updated = $this->dbForProject->withRequestTimestamp(
             new \DateTime($readAt),
             fn (): UtopiaDocument => $this->dbForProject->updateDocument(self::META_DATABASES, $observed->getId(), $updates),
         );
+        if ($updated->isEmpty()) {
+            return $updated;
+        }
+
+        $stored = $this->dbForProject->getDocument(self::META_DATABASES, $observed->getId(), forUpdate: true);
+        if ($stored->isEmpty()) {
+            return $stored;
+        }
+
+        if (new \DateTime((string) $stored->getUpdatedAt()) <= new \DateTime($readAt)) {
+            throw new DatabaseException('Database '.$observed->getId().' provisioning write did not move its update timestamp forward');
+        }
+
+        return $stored;
     }
 
     private function getProvisioningOwner(UtopiaDocument $database): ?ProvisioningOwner
@@ -925,7 +940,6 @@ class Appwrite extends Destination
                         'type' => empty($resource->getType()) ? 'legacy' : $resource->getType(),
                         'originalId' => empty($resource->getOriginalId()) ? null : $resource->getOriginalId(),
                         'database' => $this->resolveDestinationDsn($resource),
-                        '$updatedAt' => $updatedAt,
                     ];
 
                     if ($supportsStatus) {

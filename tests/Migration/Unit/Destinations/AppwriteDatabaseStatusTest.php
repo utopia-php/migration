@@ -14,6 +14,7 @@ use Utopia\Database\Collection;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Exception as DatabaseException;
+use Utopia\Database\Exception\Conflict as ConflictException;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Destinations\OnDuplicate;
@@ -1152,6 +1153,113 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame('provisioning', $claimed->getAttribute('status'));
         $this->assertSame('migration-rival', $claimed->getAttribute('migrationId'));
         $this->assertSame('attempt-rival', $claimed->getAttribute('migrationAttemptId'));
+    }
+
+    public function testRecoveryClaimUnderPreservedDatesStillMovesTheTimestampForward(): void
+    {
+        $database = new class (new ReplicaMemoryAdapter(), new Cache(new MemoryCache())) extends RecordingProjectDatabase {
+            #[Override]
+            public function setPreserveDates(bool $preserve): static
+            {
+                $this->preserveDates = true;
+
+                return $this;
+            }
+        };
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $seeded = $this->seedDatabase(
+            $database,
+            status: 'failed',
+            migrationId: 'migration-old',
+            migrationAttemptId: 'attempt-old',
+        );
+        $readAt = (string) $seeded->getUpdatedAt();
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            migrationId: 'migration-new',
+            migrationAttemptId: 'attempt-new',
+            getRecoverableOwner: static fn (UtopiaDocument $database): ProvisioningOwner => new ProvisioningOwner(
+                'migration-old',
+                'attempt-old',
+            ),
+            resourceUpdatedAt: '2000-01-01T00:00:00.000+00:00',
+            success: false,
+        );
+
+        $claimed = $this->getDatabaseDocument($database);
+        $this->assertSame([], $this->errorMessages($destination));
+        $this->assertSame('attempt-new', $claimed->getAttribute('migrationAttemptId'));
+        $this->assertGreaterThan(
+            new \DateTime($readAt),
+            new \DateTime((string) $claimed->getUpdatedAt()),
+            'The claim must move $updatedAt forward whatever the preserveDates setting',
+        );
+
+        $this->expectException(ConflictException::class);
+        $database->getAuthorization()->skip(
+            static fn (): UtopiaDocument => $database->withRequestTimestamp(
+                new \DateTime($readAt),
+                static fn (): UtopiaDocument => $database->updateDocument(
+                    'databases',
+                    'database',
+                    new UtopiaDocument(['status' => 'ready']),
+                ),
+            ),
+        );
+    }
+
+    public function testGuardedWriteThatDoesNotAdvanceTheTimestampIsRolledBack(): void
+    {
+        $database = new class (new ReplicaMemoryAdapter(), new Cache(new MemoryCache())) extends RecordingProjectDatabase {
+            #[Override]
+            public function updateDocument(string $collection, string $id, UtopiaDocument $document): UtopiaDocument
+            {
+                if ($collection !== 'databases' || $this->timestamp === null) {
+                    return parent::updateDocument($collection, $id, $document);
+                }
+
+                $preserveDates = $this->preserveDates;
+                $this->preserveDates = true;
+                try {
+                    return parent::updateDocument(
+                        $collection,
+                        $id,
+                        $document->setAttribute('$updatedAt', '2000-01-01T00:00:00.000+00:00'),
+                    );
+                } finally {
+                    $this->preserveDates = $preserveDates;
+                }
+            }
+        };
+        $this->createProjectDatabase(withStatus: true, database: $database);
+        $this->seedDatabase(
+            $database,
+            status: 'failed',
+            migrationId: 'migration-old',
+            migrationAttemptId: 'attempt-old',
+        );
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            migrationId: 'migration-new',
+            migrationAttemptId: 'attempt-new',
+            getRecoverableOwner: static fn (UtopiaDocument $database): ProvisioningOwner => new ProvisioningOwner(
+                'migration-old',
+                'attempt-old',
+            ),
+        );
+
+        $existing = $this->getDatabaseDocument($database);
+        $this->assertSame(
+            ['Database database provisioning write did not move its update timestamp forward'],
+            $this->errorMessages($destination),
+        );
+        $this->assertSame('failed', $existing->getAttribute('status'));
+        $this->assertSame('migration-old', $existing->getAttribute('migrationId'));
+        $this->assertSame('attempt-old', $existing->getAttribute('migrationAttemptId'));
     }
 
     private function createProjectDatabase(bool $withStatus, ?UtopiaDatabase $database = null): UtopiaDatabase
