@@ -31,6 +31,105 @@ final class AppwriteFinalizationTest extends TestCase
 
     private const SOURCE_NEWER = '2999-01-01 00:00:00';
 
+    public function testSkippedFinalizationIsReportedWhenTheLifecycleEnds(): void
+    {
+        $database = $this->projectDatabase();
+        $destination = $this->destination($database);
+
+        $this->import($database, $destination, [
+            $this->databaseResource('first'),
+            $this->databaseResource('second'),
+        ]);
+
+        $this->assertSame([], $destination->getErrors(), 'A run awaiting success() must not fail the caller\'s error gate');
+
+        $destination->cleanUp();
+
+        $this->assertSame(
+            [
+                [Resource::TYPE_DATABASE, Transfer::GROUP_DATABASES, 'first'],
+                [Resource::TYPE_DATABASE, Transfer::GROUP_DATABASES, 'second'],
+            ],
+            $this->subjects($destination->getErrors()),
+            'Ending the lifecycle without success() must report every database it left unfinalized',
+        );
+        $this->assertStringContainsString('success()', $destination->getErrors()[0]->getMessage());
+        $this->assertSame('provisioning', $this->databaseStatus($database, 'first'));
+        $this->assertSame('provisioning', $this->databaseStatus($database, 'second'));
+    }
+
+    public function testFinalizedRunReportsNothingWhenTheLifecycleEnds(): void
+    {
+        $database = $this->projectDatabase();
+        $destination = $this->destination($database);
+        $this->import($database, $destination, [$this->databaseResource('first')]);
+
+        $this->assertNull($this->finalize($database, $destination));
+        $destination->cleanUp();
+
+        $this->assertSame([], $destination->getErrors());
+        $this->assertSame('ready', $this->databaseStatus($database, 'first'));
+    }
+
+    public function testAbandonedRunReportsNothingWhenTheLifecycleEnds(): void
+    {
+        $database = $this->projectDatabase();
+        $destination = $this->destination($database);
+        $this->import($database, $destination, [$this->databaseResource('first')]);
+
+        $destination->error();
+        $destination->cleanUp();
+
+        $this->assertSame([], $destination->getErrors());
+        $this->assertSame('provisioning', $this->databaseStatus($database, 'first'));
+    }
+
+    public function testRerunWithoutFinalizationReportsTheDiscardedRun(): void
+    {
+        $database = $this->projectDatabase();
+        $destination = $this->destination($database);
+
+        $this->import($database, $destination, [$this->databaseResource('first')]);
+        $this->import($database, $destination, [$this->databaseResource('second')]);
+
+        $this->assertSame(
+            [[Resource::TYPE_DATABASE, Transfer::GROUP_DATABASES, 'first']],
+            $this->subjects($destination->getErrors()),
+            'A second run must not silently discard the first run\'s unfinalized databases',
+        );
+
+        $this->assertNull($this->finalize($database, $destination));
+
+        $this->assertSame('provisioning', $this->databaseStatus($database, 'first'));
+        $this->assertSame('ready', $this->databaseStatus($database, 'second'));
+    }
+
+    public function testSuccessDoesNotFinalizeAnAbortedRun(): void
+    {
+        $database = $this->projectDatabase();
+        $destination = $this->destination($database);
+
+        try {
+            $this->import(
+                $database,
+                $destination,
+                [$this->databaseResource('first')],
+                static function (): void {
+                    throw new \RuntimeException('transfer aborted');
+                },
+            );
+            $this->fail('The aborted transfer must throw');
+        } catch (\RuntimeException $error) {
+            $this->assertSame('transfer aborted', $error->getMessage());
+        }
+
+        $this->assertNull($this->finalize($database, $destination));
+        $destination->cleanUp();
+
+        $this->assertSame('provisioning', $this->databaseStatus($database, 'first'), 'An interrupted run must never be marked ready');
+        $this->assertSame([], $destination->getErrors());
+    }
+
     public function testFailedFinalizationThrowsAfterAttemptingEveryDatabase(): void
     {
         $database = $this->projectDatabase();
@@ -62,6 +161,10 @@ final class AppwriteFinalizationTest extends TestCase
         $this->assertSame(MigrationException::CODE_INTERNAL, $failure->getCode());
         $this->assertStringContainsString('first', $failure->getMessage());
         $this->assertStringContainsString('third', $failure->getMessage());
+
+        $destination->cleanUp();
+
+        $this->assertCount(2, $destination->getErrors(), 'An attempted finalization is not reported again as skipped');
     }
 
     public function testOneFailedReadyFlipStillSweepsEveryOverwrittenTable(): void
@@ -206,6 +309,7 @@ final class AppwriteFinalizationTest extends TestCase
         FailingFinalizationDatabase $database,
         AppwriteDestination $destination,
         array $resources,
+        ?callable $callback = null,
     ): void {
         $source = new class () extends MockSource {
             #[Override]
@@ -222,7 +326,7 @@ final class AppwriteFinalizationTest extends TestCase
 
         $transfer = new Transfer($source, $destination);
         $database->getAuthorization()->skip(
-            static fn () => $transfer->run(\array_keys($types), static function (): void {
+            static fn () => $transfer->run(\array_keys($types), $callback ?? static function (): void {
             }),
         );
     }

@@ -213,12 +213,14 @@ class Appwrite extends Destination
     private array $processedTwoWayPairs = [];
 
     /**
-     * Databases created this run, held in `provisioning` until the run finishes
-     * successfully. The end-of-run sweep flips each to `ready`. Keyed by database id.
+     * Databases created this run, held in `provisioning` until success() flips
+     * each to `ready`. Keyed by database id.
      *
      * @var array<string, true>
      */
     private array $provisioningDatabases = [];
+
+    private bool $finalizationPending = false;
 
     /** Whether the destination project's database metadata supports lifecycle status. */
     private ?bool $databaseStatusSupported = null;
@@ -339,18 +341,27 @@ class Appwrite extends Destination
         string $rootResourceId = '',
         string $rootResourceType = '',
     ): void {
+        $this->reportSkippedFinalization();
         $this->resetRunState();
         parent::run($resources, $callback, $rootResourceId, $rootResourceType);
+        $this->finalizationPending = $this->provisioningDatabases !== [] || $this->orphansByTable !== [];
     }
 
     /**
      * Finalize destination state only after the caller has fenced terminal ownership.
+     * Only a run that returned is finalized: an interrupted one keeps its databases in
+     * `provisioning` for a later attempt to recover.
      *
      * @throws Finalization
      */
     #[Override]
     public function success(): void
     {
+        if (! $this->finalizationPending) {
+            return;
+        }
+        $this->finalizationPending = false;
+
         // Flip status before the orphan sweep so a cleanup failure can't strand databases in `provisioning`.
         $failures = $this->markProvisionedDatabasesReady();
         \array_push($failures, ...$this->cleanupOverwriteOrphans());
@@ -360,6 +371,20 @@ class Appwrite extends Destination
         }
     }
 
+    #[Override]
+    public function error(): void
+    {
+        $this->finalizationPending = false;
+        parent::error();
+    }
+
+    #[Override]
+    public function cleanUp(): void
+    {
+        $this->reportSkippedFinalization();
+        parent::cleanUp();
+    }
+
     /** Per-run state must not leak across run() invocations on a reused instance. */
     private function resetRunState(): void
     {
@@ -367,6 +392,31 @@ class Appwrite extends Destination
         $this->orphansByTable = [];
         $this->processedTwoWayPairs = [];
         $this->provisioningDatabases = [];
+        $this->finalizationPending = false;
+    }
+
+    /** A returned run that is neither finalized nor abandoned would otherwise leave its databases unusable without a trace. */
+    private function reportSkippedFinalization(): void
+    {
+        if (! $this->finalizationPending) {
+            return;
+        }
+        $this->finalizationPending = false;
+
+        $databaseIds = \array_map(\strval(...), \array_keys($this->provisioningDatabases));
+        foreach ($this->orphansByTable as $tracked) {
+            $databaseIds[] = $tracked['database']->getId();
+        }
+
+        foreach (\array_unique($databaseIds) as $databaseId) {
+            $this->addError(new Exception(
+                resourceName: Resource::TYPE_DATABASE,
+                resourceGroup: Transfer::GROUP_DATABASES,
+                resourceId: $databaseId,
+                message: 'Database was not finalized: success() was not called after the transfer',
+                code: Exception::CODE_INTERNAL,
+            ));
+        }
     }
 
     /**

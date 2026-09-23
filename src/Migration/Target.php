@@ -251,7 +251,8 @@ abstract class Target
      * returned, the caller persists whatever claim must precede those side effects and then
      * calls success(). Every step is attempted; if any fails, each failure is recorded with
      * addError() and success() throws Exception\Finalization carrying them, so a failed
-     * finalization cannot pass for a completed one.
+     * finalization cannot pass for a completed one. Call error() instead for a run that will
+     * not be finalized.
      *
      * @throws Exception\Finalization
      */
@@ -260,14 +261,16 @@ abstract class Target
     }
 
     /**
-     * Error callback
+     * Called instead of success() when the run failed or will not be finalized.
      */
     public function error(): void
     {
     }
 
     /**
-     * Clean up callback
+     * End the lifecycle. A target that defers work to success() records an error here for
+     * each resource a returned run left unfinalized when neither success() nor error() was
+     * called, so skipping success() is reported rather than passing silently.
      */
     public function cleanUp(): void
     {
