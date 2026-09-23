@@ -3,6 +3,7 @@
 namespace Utopia\Migration\Sources;
 
 use Utopia\Migration\Exception;
+use Utopia\Migration\Exception\Aborted;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\User;
@@ -376,6 +377,8 @@ class Supabase extends NHost
             if (\in_array(Resource::TYPE_USER, $resources)) {
                 $this->exportUsers($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
@@ -450,6 +453,8 @@ class Supabase extends NHost
             if (\in_array(Resource::TYPE_BUCKET, $resources)) {
                 $this->exportBuckets($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
@@ -464,6 +469,8 @@ class Supabase extends NHost
             if (\in_array(Resource::TYPE_FILE, $resources)) {
                 $this->exportFiles($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,

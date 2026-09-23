@@ -8,6 +8,7 @@ use JsonMachine\JsonDecoder\ExtJsonDecoder;
 use JsonMachine\JsonDecoder\PassThruDecoder;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Migration\Exception;
+use Utopia\Migration\Exception\Aborted;
 use Utopia\Migration\Resource as UtopiaResource;
 use Utopia\Migration\Resources\Database\Database;
 use Utopia\Migration\Resources\Database\Row;
@@ -119,6 +120,8 @@ class JSON extends Source
             if (UtopiaResource::isSupported(UtopiaResource::TYPE_ROW, $resources)) {
                 $this->exportRows($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(

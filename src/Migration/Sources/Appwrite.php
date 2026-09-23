@@ -24,6 +24,7 @@ use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\RelationSide;
 use Utopia\Migration\Exception;
+use Utopia\Migration\Exception\Aborted;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\AuthMethods;
 use Utopia\Migration\Resources\Auth\Hash;
@@ -702,6 +703,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_USER, $resources)) {
                 $this->exportUsers($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_USER,
@@ -716,6 +719,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_TEAM, $resources)) {
                 $this->exportTeams($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_TEAM,
@@ -730,6 +735,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_MEMBERSHIP, $resources)) {
                 $this->exportMemberships($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_MEMBERSHIP,
@@ -744,6 +751,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_AUTH_METHODS, $resources)) {
                 $this->exportAuthMethods();
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_AUTH_METHODS,
@@ -758,6 +767,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_OAUTH2_PROVIDER, $resources)) {
                 $this->exportOAuth2Providers();
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_OAUTH2_PROVIDER,
@@ -772,6 +783,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_POLICIES, $resources)) {
                 $this->exportPolicies();
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_POLICIES,
@@ -1053,6 +1066,8 @@ class Appwrite extends Source
                     if (\in_array($entityResource[$resourceKey], $resources)) {
                         $callback($entityKey, $entityResource);
                     }
+                } catch (Aborted $abort) {
+                    throw $abort;
                 } catch (\Throwable $e) {
                     $this->addError(
                         new Exception(
@@ -1074,6 +1089,8 @@ class Appwrite extends Source
             if (Resource::isSupported(array_keys(Resource::DATABASE_TYPE_RESOURCE_MAP), $resources)) {
                 $this->exportDatabases($batchSize, $resources);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -1093,6 +1110,8 @@ class Appwrite extends Source
                 if (\in_array($databaseResource['entity'], $resources)) {
                     $this->exportEntities($databaseKey, $batchSize);
                 }
+            } catch (Aborted $abort) {
+                throw $abort;
             } catch (\Throwable $e) {
                 $this->addError(
                     new Exception(
@@ -1493,6 +1512,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_BUCKET, $resources)) {
                 $this->exportBuckets($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -1509,6 +1530,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_FILE, $resources)) {
                 $this->exportFiles($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -1597,6 +1620,8 @@ class Appwrite extends Source
                             $file->permissions,
                             $file->sizeOriginal,
                         ));
+                    } catch (Aborted $abort) {
+                        throw $abort;
                     } catch (\Throwable $e) {
                         $this->addError(new Exception(
                             resourceName: Resource::TYPE_FILE,
@@ -1665,6 +1690,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_FUNCTION, $resources)) {
                 $this->exportFunctions($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_FUNCTION,
@@ -1678,6 +1705,8 @@ class Appwrite extends Source
         try {
             $exportOnlyActive = !\in_array(Resource::TYPE_DEPLOYMENT, $resources);
             $this->exportDeployments($batchSize, $exportOnlyActive);
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_DEPLOYMENT,
@@ -1695,6 +1724,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_SITE, $resources)) {
                 $this->exportSites($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_SITE,
@@ -1708,6 +1739,8 @@ class Appwrite extends Source
         try {
             $exportOnlyActive = !\in_array(Resource::TYPE_SITE_DEPLOYMENT, $resources);
             $this->exportSiteDeployments($batchSize, $exportOnlyActive);
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_SITE_DEPLOYMENT,
@@ -1799,6 +1832,8 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_PROJECT_VARIABLE, $resources)) {
             try {
                 $this->exportProjectVariables($batchSize);
+            } catch (Aborted $abort) {
+                throw $abort;
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_PROJECT_VARIABLE,
@@ -1814,6 +1849,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_PROJECT_PROTOCOLS, $resources)) {
                 $this->exportProtocols();
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_PROJECT_PROTOCOLS,
@@ -1828,6 +1865,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_PROJECT_LABELS, $resources)) {
                 $this->exportLabels();
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_PROJECT_LABELS,
@@ -1842,6 +1881,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_PROJECT_SERVICES, $resources)) {
                 $this->exportServices();
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_PROJECT_SERVICES,
@@ -1855,6 +1896,8 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_PROJECT_EMAIL_TEMPLATE, $resources)) {
             try {
                 $this->exportEmailTemplates($batchSize);
+            } catch (Aborted $abort) {
+                throw $abort;
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_PROJECT_EMAIL_TEMPLATE,
@@ -1948,6 +1991,8 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_RULE, $resources)) {
             try {
                 $this->exportRules($batchSize);
+            } catch (Aborted $abort) {
+                throw $abort;
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_RULE,
@@ -2247,6 +2292,8 @@ class Appwrite extends Source
 
                 try {
                     $this->exportDeploymentData($func, $deployment);
+                } catch (Aborted $abort) {
+                    throw $abort;
                 } catch (\Throwable $e) {
                     $func->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                 }
@@ -2269,6 +2316,8 @@ class Appwrite extends Source
                 foreach ($response->deployments as $deployment) {
                     try {
                         $this->exportDeploymentData($func, $deployment);
+                    } catch (Aborted $abort) {
+                        throw $abort;
                     } catch (\Throwable $e) {
                         $func->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                     }
@@ -2483,6 +2532,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_PROVIDER, $resources)) {
                 $this->exportProviders($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_PROVIDER,
@@ -2497,6 +2548,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_TOPIC, $resources)) {
                 $this->exportTopics($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_TOPIC,
@@ -2511,6 +2564,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_SUBSCRIBER, $resources)) {
                 $this->exportSubscribers($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_SUBSCRIBER,
@@ -2525,6 +2580,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_MESSAGE, $resources)) {
                 $this->exportMessages($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_MESSAGE,
@@ -2833,6 +2890,8 @@ class Appwrite extends Source
 
                 try {
                     $this->exportSiteDeploymentData($site, $deployment);
+                } catch (Aborted $abort) {
+                    throw $abort;
                 } catch (\Throwable $e) {
                     $site->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                 }
@@ -2855,6 +2914,8 @@ class Appwrite extends Source
                 foreach ($response->deployments as $deployment) {
                     try {
                         $this->exportSiteDeploymentData($site, $deployment);
+                    } catch (Aborted $abort) {
+                        throw $abort;
                     } catch (\Throwable $e) {
                         $site->setStatus(Resource::STATUS_ERROR, $e->getMessage());
                     }
@@ -3044,6 +3105,8 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_PLATFORM, $resources)) {
             try {
                 $this->exportPlatforms($batchSize);
+            } catch (Aborted $abort) {
+                throw $abort;
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_PLATFORM,
@@ -3058,6 +3121,8 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_API_KEY, $resources)) {
             try {
                 $this->exportApiKeys($batchSize);
+            } catch (Aborted $abort) {
+                throw $abort;
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_API_KEY,
@@ -3072,6 +3137,8 @@ class Appwrite extends Source
         if (\in_array(Resource::TYPE_WEBHOOK, $resources)) {
             try {
                 $this->exportWebhooks($batchSize);
+            } catch (Aborted $abort) {
+                throw $abort;
             } catch (\Throwable $e) {
                 $this->addError(new Exception(
                     Resource::TYPE_WEBHOOK,
@@ -3087,6 +3154,8 @@ class Appwrite extends Source
             if (\in_array(Resource::TYPE_SMTP, $resources)) {
                 $this->exportSMTP();
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_SMTP,
