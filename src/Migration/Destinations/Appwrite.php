@@ -116,6 +116,10 @@ class Appwrite extends Destination
     private const DATABASE_STATUS_READY = 'ready';
     private const DATABASE_STATUS_FAILED = 'failed';
 
+    /** Attributes naming the migration attempt that provisions a database; a destination schema gains them after `status`. */
+    private const OWNER_MIGRATION_ID = 'migrationId';
+    private const OWNER_ATTEMPT_ID = 'migrationAttemptId';
+
     /** Attribute fields the SDK can't update in place (no per-type updateX endpoint exposes them); a change here forces drop+recreate. */
     private const ATTRIBUTE_IMMUTABLE_FIELDS = [
         'type',
@@ -218,6 +222,9 @@ class Appwrite extends Destination
     /** Whether the destination project's database metadata supports lifecycle status. */
     private ?bool $databaseStatusSupported = null;
 
+    /** Whether the destination project's database metadata can record which migration attempt provisions a database. */
+    private ?bool $provisioningOwnerSupported = null;
+
     /**
      * @param string $project
      * @param string $endpoint
@@ -294,18 +301,29 @@ class Appwrite extends Destination
             return false;
         }
 
-        if ($this->databaseStatusSupported !== null) {
-            return $this->databaseStatusSupported;
+        return $this->databaseStatusSupported ??= $this->declaresDatabaseAttributes('status');
+    }
+
+    private function getSupportForProvisioningOwner(): bool
+    {
+        if (! $this->getSupportForDatabaseStatus()) {
+            return false;
         }
 
-        $collection = $this->dbForProject->getCollection(self::META_DATABASES);
-        foreach ($collection->getAttribute('attributes', []) as $attribute) {
-            if ($attribute->getId() === 'status') {
-                return $this->databaseStatusSupported = true;
-            }
+        return $this->provisioningOwnerSupported ??= $this->declaresDatabaseAttributes(
+            self::OWNER_MIGRATION_ID,
+            self::OWNER_ATTEMPT_ID,
+        );
+    }
+
+    private function declaresDatabaseAttributes(string ...$keys): bool
+    {
+        $declared = [];
+        foreach ($this->dbForProject->getCollection(self::META_DATABASES)->getAttribute('attributes', []) as $attribute) {
+            $declared[] = $attribute->getId();
         }
 
-        return $this->databaseStatusSupported = false;
+        return \array_diff($keys, $declared) === [];
     }
 
     /**
@@ -385,8 +403,7 @@ class Appwrite extends Destination
             if (
                 $database->isEmpty()
                 || $database->getAttribute('status') !== self::DATABASE_STATUS_PROVISIONING
-                || $owner === null
-                || ! $owner->equals($this->owner)
+                || ($this->getSupportForProvisioningOwner() && ($owner === null || ! $owner->equals($this->owner)))
             ) {
                 return false;
             }
@@ -418,8 +435,8 @@ class Appwrite extends Destination
 
     private function getProvisioningOwner(UtopiaDocument $database): ?ProvisioningOwner
     {
-        $migrationId = $database->getAttribute('migrationId');
-        $attemptId = $database->getAttribute('migrationAttemptId');
+        $migrationId = $database->getAttribute(self::OWNER_MIGRATION_ID);
+        $attemptId = $database->getAttribute(self::OWNER_ATTEMPT_ID);
         if (
             ! \is_string($migrationId)
             || $migrationId === ''
@@ -430,6 +447,19 @@ class Appwrite extends Destination
         }
 
         return new ProvisioningOwner($migrationId, $attemptId);
+    }
+
+    /** @return array<string, string> */
+    private function provisioningOwnerAttributes(): array
+    {
+        if (! $this->getSupportForProvisioningOwner()) {
+            return [];
+        }
+
+        return [
+            self::OWNER_MIGRATION_ID => $this->owner->migrationId,
+            self::OWNER_ATTEMPT_ID => $this->owner->attemptId,
+        ];
     }
 
     /** Best-effort transition to `failed`; a secondary error here must not mask the caller's original throw. */
@@ -867,8 +897,7 @@ class Appwrite extends Destination
 
                     if ($supportsStatus) {
                         $document['status'] = self::DATABASE_STATUS_PROVISIONING;
-                        $document['migrationId'] = $this->owner->migrationId;
-                        $document['migrationAttemptId'] = $this->owner->attemptId;
+                        $document = [...$document, ...$this->provisioningOwnerAttributes()];
                     }
 
                     $updated = $this->updateOwned($locked, new UtopiaDocument($document));
@@ -939,8 +968,7 @@ class Appwrite extends Destination
         // source leaves status untouched so the collection default applies. Never copy the source's state.
         if ($this->getSupportForDatabaseStatus()) {
             $document['status'] = self::DATABASE_STATUS_PROVISIONING;
-            $document['migrationId'] = $this->owner->migrationId;
-            $document['migrationAttemptId'] = $this->owner->attemptId;
+            $document = [...$document, ...$this->provisioningOwnerAttributes()];
         }
 
         $database = $this->dbForProject->createDocument(self::META_DATABASES, new UtopiaDocument($document));

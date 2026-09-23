@@ -3,6 +3,7 @@
 namespace Utopia\Tests\Unit\Destinations;
 
 use Override;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Utopia\Cache\Adapter\Memory as MemoryCache;
 use Utopia\Cache\Cache;
@@ -958,6 +959,34 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame('attempt-successor', $recovered->getAttribute('migrationAttemptId'));
     }
 
+    /** @return array<string, array{bool}> */
+    public static function unknownAttributePolicies(): array
+    {
+        return [
+            'unknown attributes rejected' => [false],
+            'unknown attributes dropped' => [true],
+        ];
+    }
+
+    #[DataProvider('unknownAttributePolicies')]
+    public function testStatusOnlySchemaImportsWithoutProvisioningOwner(bool $dropUnknownAttributes): void
+    {
+        $database = new RecordingProjectDatabase(new MemoryAdapter(), new Cache(new MemoryCache()));
+        $database->setDropUnknownAttributes($dropUnknownAttributes);
+        $this->createStatusOnlyProjectDatabase($database);
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false);
+
+        $created = $this->getDatabaseDocument($database);
+        $this->assertSame([], $this->errorMessages($destination));
+        $this->assertSame('create', $database->databaseWrites[0]['operation']);
+        $this->assertSame('provisioning', $database->databaseWrites[0]['document']['status']);
+        $this->assertArrayNotHasKey('migrationId', $database->databaseWrites[0]['document']);
+        $this->assertArrayNotHasKey('migrationAttemptId', $database->databaseWrites[0]['document']);
+        $this->assertSame('ready', $created->getAttribute('status'));
+        $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
+    }
+
     private function createProjectDatabase(bool $withStatus, ?UtopiaDatabase $database = null): UtopiaDatabase
     {
         $database ??= new UtopiaDatabase(
@@ -1018,6 +1047,14 @@ final class AppwriteDatabaseStatusTest extends TestCase
         return $database->getAuthorization()->skip(
             static fn (): UtopiaDocument => $database->createDocument('databases', new UtopiaDocument($document)),
         );
+    }
+
+    private function createStatusOnlyProjectDatabase(UtopiaDatabase $database): UtopiaDatabase
+    {
+        $this->createProjectDatabase(withStatus: false, database: $database);
+        $database->createAttribute('databases', $this->attribute('status', ColumnType::String, size: 16));
+
+        return $database;
     }
 
     private function attribute(
