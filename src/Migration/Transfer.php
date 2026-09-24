@@ -406,6 +406,8 @@ class Transfer
         }
 
         if ($abort !== null) {
+            $this->destination->markAborted();
+
             throw $abort;
         }
     }

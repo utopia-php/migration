@@ -4,6 +4,7 @@ namespace Utopia\Tests\Unit\Destinations;
 
 use Override;
 use PHPUnit\Framework\TestCase;
+use Throwable;
 use Utopia\Cache\Adapter\Memory as MemoryCache;
 use Utopia\Cache\Cache;
 use Utopia\Database\Adapter\Memory as MemoryAdapter;
@@ -15,6 +16,7 @@ use Utopia\Database\Query;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Destinations\OnDuplicate;
+use Utopia\Migration\Exception\Aborted;
 use Utopia\Migration\Exception as MigrationException;
 use Utopia\Migration\Exception\Finalization;
 use Utopia\Migration\Resource;
@@ -130,6 +132,34 @@ final class AppwriteFinalizationTest extends TestCase
         $this->assertSame([], $destination->getErrors());
     }
 
+    public function testSuccessFinalizesNothingWhenTheSourceSwallowedTheAbort(): void
+    {
+        $database = $this->projectDatabase();
+        $this->seedTablesWithLegacyColumns($database);
+
+        $abort = new Aborted('Migration attempt was superseded');
+        $destination = $this->destination($database, 'attempt-overwrite', OnDuplicate::Overwrite);
+
+        try {
+            $this->importSwallowingAbort($database, $destination, $this->newerSchemaWithoutLegacyColumns(), $abort);
+            $this->fail('The swallowed abort must still end the transfer');
+        } catch (Aborted $caught) {
+            $this->assertSame($abort, $caught);
+        }
+
+        $this->assertNull($this->finalize($database, $destination));
+
+        $this->assertSame('provisioning', $this->databaseStatus($database, 'first'), 'An aborted run must never be marked ready');
+        $this->assertSame('provisioning', $this->databaseStatus($database, 'second'), 'An aborted run must never be marked ready');
+        $this->assertSame(['legacy', 'name'], $this->columnKeys($database, 'first', 'first-items'), 'An aborted run must not sweep its overwrite orphans');
+        $this->assertSame(['legacy', 'name'], $this->columnKeys($database, 'second', 'second-items'), 'An aborted run must not sweep its overwrite orphans');
+
+        $errors = $destination->getErrors();
+        $destination->cleanUp();
+
+        $this->assertSame($errors, $destination->getErrors(), 'An aborted run is not reported as a skipped finalization');
+    }
+
     public function testFailedFinalizationThrowsAfterAttemptingEveryDatabase(): void
     {
         $database = $this->projectDatabase();
@@ -212,6 +242,50 @@ final class AppwriteFinalizationTest extends TestCase
         );
         $this->assertSame('attribute scan unavailable', $failure->failures[0]->getMessage());
         $this->assertSame($failure->failures, $destination->getErrors());
+    }
+
+    /**
+     * A source that records the export failure and carries on, the way the library sources did
+     * before they rethrew aborts.
+     *
+     * @param list<Resource> $resources
+     */
+    private function importSwallowingAbort(
+        FailingFinalizationDatabase $database,
+        AppwriteDestination $destination,
+        array $resources,
+        Aborted $abort,
+    ): void {
+        $source = new class () extends MockSource {
+            #[Override]
+            public function supportsDatabaseStatus(): bool
+            {
+                return true;
+            }
+
+            #[Override]
+            protected function exportGroupDatabases(int $batchSize, array $resources): void
+            {
+                foreach ($resources as $resource) {
+                    try {
+                        parent::exportGroupDatabases($batchSize, [$resource]);
+                    } catch (Throwable $error) {
+                        $this->addError(new MigrationException($resource, Transfer::GROUP_DATABASES, message: $error->getMessage(), previous: $error));
+                    }
+                }
+            }
+        };
+
+        $types = [];
+        foreach ($resources as $resource) {
+            $source->pushMockResource($resource);
+            $types[$resource->getName()] = true;
+        }
+
+        $transfer = new Transfer($source, $destination);
+        $database->getAuthorization()->skip(
+            static fn () => $transfer->run(\array_keys($types), static fn () => throw $abort),
+        );
     }
 
     private function seedTablesWithLegacyColumns(FailingFinalizationDatabase $database): void

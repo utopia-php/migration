@@ -97,6 +97,15 @@ abstract class Destination extends Target
     }
 
     /**
+     * Report that the run ended with an abort, before Transfer rethrows it. A destination that
+     * defers its terminal state to success() drops that state here, so a later success()
+     * finalizes nothing, exactly as after a run that threw.
+     */
+    public function markAborted(): void
+    {
+    }
+
+    /**
      * Import Resources
      *
      * @param  Resource[]  $resources  Resources to import

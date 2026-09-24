@@ -378,6 +378,16 @@ class Appwrite extends Destination
         parent::error();
     }
 
+    /**
+     * An aborted run is not finalized, whatever the source did with the abort: its databases stay
+     * in `provisioning` for a later attempt, as after an interrupted run.
+     */
+    #[Override]
+    public function markAborted(): void
+    {
+        $this->finalizationPending = false;
+    }
+
     #[Override]
     public function cleanUp(): void
     {

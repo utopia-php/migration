@@ -92,6 +92,35 @@ final class TransferAbortTest extends TestCase
         $this->assertSame(['database'], $destination->getResourceTypeData(Transfer::GROUP_DATABASES, Resource::TYPE_DATABASE));
     }
 
+    public function testALatchedAbortTellsTheDestinationTheRunWasAborted(): void
+    {
+        $abort = new Aborted('Stopped');
+        $destination = new class () extends MockDestination {
+            public int $aborts = 0;
+
+            #[Override]
+            public function markAborted(): void
+            {
+                $this->aborts++;
+            }
+        };
+        $transfer = new Transfer($this->swallowingSource(), $destination);
+
+        try {
+            $transfer->run([Resource::TYPE_USER], static fn () => throw $abort);
+            $this->fail('The abort did not stop the transfer.');
+        } catch (Aborted $caught) {
+            $this->assertSame($abort, $caught);
+        }
+
+        $this->assertSame(1, $destination->aborts, 'A latched abort must tell the destination the run was aborted.');
+
+        $transfer->run([Resource::TYPE_DATABASE], static function (): void {
+        });
+
+        $this->assertSame(1, $destination->aborts, 'A run that completed must not be reported as aborted.');
+    }
+
     /**
      * A source that records every failure of a resource type and moves on, the way the
      * library sources did before they rethrew aborts.
