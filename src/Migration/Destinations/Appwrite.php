@@ -240,6 +240,7 @@ class Appwrite extends Destination
      * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
      * @param (callable(Database $resource): string)|null $getDatabaseDSN Resolver for the destination's `_databases.database` value. Pass when the destination project's DSN differs from the source's, so the destination row carries its own DSN instead of inheriting the source's.
      * @param array<string, array<array<string, mixed>>> $collectionStructures Per-database-type metadata collection structures (e.g. `['vectorsdb' => ...]`), used instead of $collectionStructure when the imported database's type has an entry. Types with an entry also get type-specific metadata written (e.g. vectorsdb collection `dimension`).
+     * @param int $provisioningLease Seconds an existing `provisioning` or `failed` database that names no owner may go without an update before another migration may recover it. Such a row carries no owner for $getRecoverableOwner to judge, so its update timestamp stands in: one fresher than the lease may still belong to a migration that is provisioning it, and fails closed. Defaults to 24 hours, the longest lease a live Appwrite attempt holds. `0` recovers it at once; a negative value is rejected.
      */
     public function __construct(
         string $project,
@@ -255,7 +256,12 @@ class Appwrite extends Destination
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
         ?callable $getDatabaseDSN = null,
         protected array $collectionStructures = [],
+        protected int $provisioningLease = 86_400,
     ) {
+        if ($provisioningLease < 0) {
+            throw new \InvalidArgumentException('Provisioning lease must not be negative');
+        }
+
         $this->projectId = $project;
         $this->endpoint = $endpoint;
         $this->key = $key;
@@ -556,6 +562,28 @@ class Appwrite extends Destination
         }
 
         return true;
+    }
+
+    /**
+     * A row that names no owner has nothing for the caller's recovery authority to judge, so its
+     * update timestamp stands in: it is abandoned only once it has gone a whole provisioning lease
+     * without a write. Judged against this destination's clock, never a source timestamp.
+     *
+     * @throws \Exception
+     */
+    private function isStale(UtopiaDocument $database): bool
+    {
+        if ($this->provisioningLease === 0) {
+            return true;
+        }
+
+        $updatedAt = $database->getUpdatedAt();
+        if ($updatedAt === null || $updatedAt === '') {
+            return false;
+        }
+
+        return (new \DateTimeImmutable($updatedAt))->getTimestamp() + $this->provisioningLease
+            < (new \DateTimeImmutable())->getTimestamp();
     }
 
     /** Whether the row names exactly $owner, or no owner at all when $owner is null. */
@@ -952,6 +980,8 @@ class Appwrite extends Destination
             ) {
                 throw new DatabaseException('Database '.$resource->getId().' recovery requires exact terminal-owner attestation and a fresh attempt');
             }
+        } elseif ($isUnowned && ! $this->isStale($existing)) {
+            throw new DatabaseException('Database '.$resource->getId().' names no owner and another migration may still be provisioning it; it becomes recoverable after '.$this->provisioningLease.' seconds without an update');
         }
 
         if ($this->onDuplicate !== OnDuplicate::Fail || $isIncomplete) {
@@ -982,6 +1012,9 @@ class Appwrite extends Destination
                 if ($isIncomplete) {
                     if ($lockedStatus !== $status || ! $this->carriesOwner($locked, $expectedOwner)) {
                         throw new DatabaseException('Database '.$resource->getId().' recovery owner changed before it could be claimed');
+                    }
+                    if ($isUnowned && ! $this->isStale($locked)) {
+                        throw new DatabaseException('Database '.$resource->getId().' names no owner and was updated before it could be claimed');
                     }
                 } elseif ($lockedIncomplete) {
                     throw new DatabaseException('Database '.$resource->getId().' requires terminal migration attestation before recovery');

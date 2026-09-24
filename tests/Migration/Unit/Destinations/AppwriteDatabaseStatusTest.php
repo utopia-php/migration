@@ -12,6 +12,7 @@ use Utopia\Database\Attribute as UtopiaAttribute;
 use Utopia\Database\Capability;
 use Utopia\Database\Collection;
 use Utopia\Database\Database as UtopiaDatabase;
+use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Exception as DatabaseException;
 use Utopia\Database\Exception\Conflict as ConflictException;
@@ -219,6 +220,8 @@ final class FinalizerInterleavingProjectDatabase extends RecordingProjectDatabas
 
 final class AppwriteDatabaseStatusTest extends TestCase
 {
+    private const string LAPSED_UPDATED_AT = '2020-01-01 00:00:00.000';
+
     public function testDatabaseCreationOmitsStatusThroughLegacyAndExplicitEntrypoints(): void
     {
         foreach ([false, true] as $explicit) {
@@ -1275,6 +1278,171 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame('attempt-old', $existing->getAttribute('migrationAttemptId'));
     }
 
+
+    public function testOwnerlessProvisioningDatabaseWithinTheLeaseIsNotRecovered(): void
+    {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createStatusOnlyProjectDatabase($database);
+        $seeded = $this->seedLegacyDatabase(
+            $database,
+            'database',
+            'provisioning',
+            name: 'Provisioning database',
+            withCollection: true,
+            updatedAt: $this->secondsAgo(5),
+        );
+        $database->databaseWrites = [];
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false);
+
+        $untouched = $this->getDatabaseDocument($database);
+        $this->assertSame(
+            ['Database database names no owner and another migration may still be provisioning it; it becomes recoverable after 86400 seconds without an update'],
+            $this->errorMessages($destination),
+        );
+        $this->assertSame('provisioning', $untouched->getAttribute('status'));
+        $this->assertSame('Provisioning database', $untouched->getAttribute('name'));
+        $this->assertSame($seeded->getUpdatedAt(), $untouched->getUpdatedAt());
+        $this->assertSame([], $database->databaseWrites, 'A refused database must not be written, and success() must flip nothing');
+    }
+
+    public function testOwnerlessFailedDatabaseWithinTheLeaseIsNotOverwritten(): void
+    {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createStatusOnlyProjectDatabase($database);
+        $seeded = $this->seedLegacyDatabase(
+            $database,
+            'database',
+            'failed',
+            name: 'Failed database',
+            updatedAt: $this->secondsAgo(5),
+        );
+        $database->databaseWrites = [];
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false);
+
+        $untouched = $this->getDatabaseDocument($database);
+        $this->assertSame(
+            ['Database database names no owner and another migration may still be provisioning it; it becomes recoverable after 86400 seconds without an update'],
+            $this->errorMessages($destination),
+        );
+        $this->assertSame('failed', $untouched->getAttribute('status'));
+        $this->assertSame('Failed database', $untouched->getAttribute('name'));
+        $this->assertSame($seeded->getUpdatedAt(), $untouched->getUpdatedAt());
+        $this->assertSame([], $database->databaseWrites, 'A refused database must not be overwritten');
+    }
+
+    public function testOwnerlessDatabasesPastTheLeaseAreRecovered(): void
+    {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createStatusOnlyProjectDatabase($database);
+        $this->seedLegacyDatabase(
+            $database,
+            'database-provisioning',
+            'provisioning',
+            withCollection: true,
+            updatedAt: $this->secondsAgo(86_401),
+        );
+        $this->seedLegacyDatabase(
+            $database,
+            'database-failed',
+            'failed',
+            updatedAt: $this->secondsAgo(86_401),
+        );
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            databaseIds: ['database-provisioning', 'database-failed'],
+        );
+
+        $this->assertSame([], $this->errorMessages($destination));
+        foreach (['database-provisioning', 'database-failed'] as $databaseId) {
+            $recovered = $this->getDatabaseDocument($database, $databaseId);
+            $this->assertSame('ready', $recovered->getAttribute('status'), $databaseId);
+            $this->assertFalse($database->getCollection('database_'.$recovered->getSequence())->isEmpty(), $databaseId);
+        }
+    }
+
+    public function testProvisioningLeaseMovesTheOwnerlessRecoveryBoundary(): void
+    {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createStatusOnlyProjectDatabase($database);
+        $this->seedLegacyDatabase($database, 'database-lapsed', 'provisioning', withCollection: true, updatedAt: $this->secondsAgo(61));
+        $this->seedLegacyDatabase($database, 'database-live', 'provisioning', withCollection: true, updatedAt: $this->secondsAgo(59));
+
+        $destination = $this->runDatabaseTransfer(
+            $database,
+            explicit: false,
+            databaseIds: ['database-lapsed', 'database-live'],
+            provisioningLease: 60,
+        );
+
+        $this->assertSame(
+            ['Database database-live names no owner and another migration may still be provisioning it; it becomes recoverable after 60 seconds without an update'],
+            $this->errorMessages($destination),
+        );
+        $this->assertSame('ready', $this->getDatabaseDocument($database, 'database-lapsed')->getAttribute('status'));
+        $this->assertSame('provisioning', $this->getDatabaseDocument($database, 'database-live')->getAttribute('status'));
+    }
+
+    public function testZeroProvisioningLeaseRecoversAnOwnerlessDatabaseAtOnce(): void
+    {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createStatusOnlyProjectDatabase($database);
+        $this->seedLegacyDatabase($database, 'database', 'provisioning', withCollection: true, updatedAt: $this->secondsAgo(1));
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false, provisioningLease: 0);
+
+        $this->assertSame([], $this->errorMessages($destination));
+        $this->assertSame('ready', $this->getDatabaseDocument($database)->getAttribute('status'));
+    }
+
+    public function testNegativeProvisioningLeaseIsRejected(): void
+    {
+        $database = new UtopiaDatabase(new MemoryAdapter(), new Cache(new MemoryCache()));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Provisioning lease must not be negative');
+
+        new AppwriteDestination(
+            project: 'destination-project',
+            endpoint: 'http://example.test/v1',
+            key: 'test-key',
+            dbForProject: $database,
+            getDatabasesDB: static fn (UtopiaDocument $document): UtopiaDatabase => $database,
+            collectionStructure: ['attributes' => [], 'indexes' => []],
+            dbForPlatform: $database,
+            projectInternalId: '1',
+            owner: new ProvisioningOwner('migration-current', 'attempt-current'),
+            getRecoverableOwner: static fn (UtopiaDocument $document): ?ProvisioningOwner => null,
+            provisioningLease: -1,
+        );
+    }
+
+    public function testOwnerlessRecoveryYieldsToAnUpdateThatLandsFirst(): void
+    {
+        $database = new InterleavingProjectDatabase(new MemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createStatusOnlyProjectDatabase($database);
+        $this->seedLegacyDatabase($database, 'database', 'failed', updatedAt: $this->secondsAgo(86_401));
+        $database->onDatabasesReload = static function () use ($database): void {
+            $database->updateDocument('databases', 'database', new UtopiaDocument([
+                'name' => 'Database claimed elsewhere',
+            ]));
+        };
+        $database->interceptNextDatabasesReload = true;
+
+        $destination = $this->runDatabaseTransfer($database, explicit: false);
+
+        $claimed = $this->getDatabaseDocument($database);
+        $this->assertSame(
+            ['Database database names no owner and was updated before it could be claimed'],
+            $this->errorMessages($destination),
+        );
+        $this->assertSame('failed', $claimed->getAttribute('status'));
+        $this->assertSame('Database claimed elsewhere', $claimed->getAttribute('name'));
+    }
+
     private function createProjectDatabase(bool $withStatus, ?UtopiaDatabase $database = null): UtopiaDatabase
     {
         $database ??= new UtopiaDatabase(
@@ -1351,18 +1519,23 @@ final class AppwriteDatabaseStatusTest extends TestCase
         string $status,
         string $name = 'Database',
         bool $withCollection = false,
+        string $updatedAt = self::LAPSED_UPDATED_AT,
     ): UtopiaDocument {
         $seeded = $database->getAuthorization()->skip(
-            static fn (): UtopiaDocument => $database->createDocument('databases', new UtopiaDocument([
-                '$id' => $databaseId,
-                'name' => $name,
-                'enabled' => true,
-                'search' => $databaseId.' '.$name,
-                'originalId' => null,
-                'type' => 'tablesdb',
-                'database' => '',
-                'status' => $status,
-            ])),
+            static fn (): UtopiaDocument => $database->withPreserveDates(
+                static fn (): UtopiaDocument => $database->createDocument('databases', new UtopiaDocument([
+                    '$id' => $databaseId,
+                    'name' => $name,
+                    'enabled' => true,
+                    'search' => $databaseId.' '.$name,
+                    'originalId' => null,
+                    'type' => 'tablesdb',
+                    'database' => '',
+                    'status' => $status,
+                    '$createdAt' => $updatedAt,
+                    '$updatedAt' => $updatedAt,
+                ])),
+            ),
         );
 
         if ($withCollection) {
@@ -1370,6 +1543,11 @@ final class AppwriteDatabaseStatusTest extends TestCase
         }
 
         return $seeded;
+    }
+
+    private function secondsAgo(int $seconds): string
+    {
+        return UtopiaDateTime::format(new \DateTime('-'.$seconds.' seconds'));
     }
 
     private function attribute(
@@ -1398,6 +1576,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         string $resourceUpdatedAt = '',
         array $databaseIds = ['database'],
         bool $success = true,
+        int $provisioningLease = 86_400,
     ): CountingAppwriteDestination {
         $source = new class () extends MockSource {
             #[Override]
@@ -1430,6 +1609,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
             getRecoverableOwner: $getRecoverableOwner
                 ?? static fn (UtopiaDocument $document): ?ProvisioningOwner => null,
             onDuplicate: $onDuplicate,
+            provisioningLease: $provisioningLease,
         );
 
         $transfer = new Transfer($source, $destination);
