@@ -2451,12 +2451,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "5996ffc73167c48d8be9a916e55e25be2c48f312"
+                "reference": "d82a7ec5454c8e5086d205b715ff4e9499533d80"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/5996ffc73167c48d8be9a916e55e25be2c48f312",
-                "reference": "5996ffc73167c48d8be9a916e55e25be2c48f312",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/d82a7ec5454c8e5086d205b715ff4e9499533d80",
+                "reference": "d82a7ec5454c8e5086d205b715ff4e9499533d80",
                 "shasum": ""
             },
             "require": {
@@ -2465,13 +2465,13 @@
                 "ext-pdo": "*",
                 "ext-redis": "*",
                 "php": ">=8.5",
-                "utopia-php/async": "^0.1",
-                "utopia-php/cache": "^4.0 || ^5.0",
-                "utopia-php/console": "^0.1 || ^0.2",
+                "utopia-php/async": "0.1.*",
+                "utopia-php/cache": "4.* || 5.*",
+                "utopia-php/console": "0.1.* || 0.2.*",
                 "utopia-php/mongo": "1.*",
                 "utopia-php/pools": "2.*",
                 "utopia-php/query": "0.6.*",
-                "utopia-php/validators": "^1.0"
+                "utopia-php/validators": "1.*"
             },
             "require-dev": {
                 "brianium/paratest": "7.20.*",
@@ -2491,6 +2491,12 @@
                 "mongodb/mongodb": "Needed to support MongoDB Database Adapter"
             },
             "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-feat-query-lib": "8.0.x-dev",
+                    "dev-main": "8.0.x-dev"
+                }
+            },
             "autoload": {
                 "psr-4": {
                     "Utopia\\Database\\": "src/Database"
@@ -2544,7 +2550,7 @@
                 "source": "https://github.com/utopia-php/database/tree/feat-query-lib",
                 "issues": "https://github.com/utopia-php/database/issues"
             },
-            "time": "2026-09-22T05:43:15+00:00"
+            "time": "2026-09-24T03:03:02+00:00"
         },
         {
             "name": "utopia-php/dsn",
