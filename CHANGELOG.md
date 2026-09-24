@@ -12,15 +12,17 @@ database library it builds on; read the upgrade notes before you upgrade from 2.
   - `Destinations\Appwrite::__construct()` takes a `ProvisioningOwner $owner`, made from a stable logical migration
     id and a fresh attempt id for every execution.
   - It also takes a `getRecoverableOwner` callback that attests the terminal owner of an incomplete database.
-  - It takes a trailing `int $provisioningLease`, 86400 seconds by default. A negative value is rejected.
+  - It takes a trailing `int $provisioningLease`, 86400 seconds by default. A negative value is rejected with an
+    `InvalidArgumentException`.
   - Owners are written and enforced only where the destination's `databases` metadata declares both owner
     attributes.
 - Recovering an incomplete database is gated.
   - A `provisioning` or `failed` database that names an owner is recovered only when `getRecoverableOwner` attests
     that owner.
   - A `provisioning` or `failed` database that names no owner is recovered only once it has not been updated for
-    the destination's provisioning lease. A fresher one is refused, because another migration may still be
-    provisioning it. `provisioningLease: 0` recovers it at once, which is how 2.x behaved.
+    the destination's provisioning lease. A fresher one is refused: `createDatabase()` fails closed with an error
+    naming the database, because another migration may still be provisioning it. `provisioningLease: 0` recovers it
+    at once, which is how 2.x behaved.
   - The standalone CLI requires `--migration-id` and a fresh `--migration-attempt-id`. Recovering a database that
     names an owner also requires `--recover-migration-id` and `--recover-migration-attempt-id`.
 - `Destinations\Appwrite::run()` no longer finalizes.
