@@ -34,7 +34,7 @@
         "appwrite/appwrite": "^27.0",
         "utopia-php/database": "^7.0.0",
         "utopia-php/storage": "4.*",
-        "utopia-php/dsn": "0.2.*",
+        "utopia-php/dsn": "0.2.* || ^1.0",
         "halaxa/json-machine": "^1.2"
     },
     "require-dev": {
