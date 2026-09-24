@@ -1295,7 +1295,7 @@ class Appwrite extends Destination
         }
 
         if (!empty($resource->getFormat())) {
-            if (!Structure::hasFormat($resource->getFormat(), ColumnType::from($type))) {
+            if (!Structure::hasFormat($resource->getFormat(), UtopiaAttribute::normalizeType($type))) {
                 $resource->setStatus(Resource::STATUS_ERROR, "Format {$resource->getFormat()} not available for column type {$type}");
                 $this->addError(new Exception(
                     resourceName: $resource->getName(),
@@ -1567,7 +1567,7 @@ class Appwrite extends Destination
                         $this->tableCollectionId($database, $table),
                         new UtopiaAttribute(
                             key: $resource->getKey(),
-                            type: ColumnType::from($type),
+                            type: UtopiaAttribute::normalizeType($type),
                             size: $resource->getSize(),
                             required: $resource->isRequired(),
                             default: $resource->getDefault(),
@@ -1617,26 +1617,26 @@ class Appwrite extends Destination
     private function schemaColumnType(Column|Attribute $resource): string
     {
         return match ($resource->getType()) {
-            Column::TYPE_DATETIME => ColumnType::Datetime->value,
-            Column::TYPE_BOOLEAN => ColumnType::Boolean->value,
-            Column::TYPE_INTEGER => ColumnType::Integer->value,
-            Column::TYPE_BIG_INT => ColumnType::BigInteger->value,
-            Column::TYPE_FLOAT => ColumnType::Double->value,
-            Column::TYPE_RELATIONSHIP => ColumnType::Relationship->value,
+            Column::TYPE_DATETIME => UtopiaAttribute::persistedType(ColumnType::Datetime),
+            Column::TYPE_BOOLEAN => UtopiaAttribute::persistedType(ColumnType::Boolean),
+            Column::TYPE_INTEGER => UtopiaAttribute::persistedType(ColumnType::Integer),
+            Column::TYPE_BIG_INT => UtopiaAttribute::persistedType(ColumnType::BigInteger),
+            Column::TYPE_FLOAT => UtopiaAttribute::persistedType(ColumnType::Double),
+            Column::TYPE_RELATIONSHIP => UtopiaAttribute::persistedType(ColumnType::Relationship),
             Column::TYPE_STRING,
             Column::TYPE_IP,
             Column::TYPE_EMAIL,
             Column::TYPE_URL,
-            Column::TYPE_ENUM => ColumnType::String->value,
-            Column::TYPE_POINT => ColumnType::Point->value,
-            Column::TYPE_LINE => ColumnType::Linestring->value,
-            Column::TYPE_POLYGON => ColumnType::Polygon->value,
-            Column::TYPE_TEXT => ColumnType::Text->value,
-            Column::TYPE_VARCHAR => ColumnType::Varchar->value,
-            Column::TYPE_MEDIUMTEXT => ColumnType::MediumText->value,
-            Column::TYPE_LONGTEXT => ColumnType::LongText->value,
-            Column::TYPE_OBJECT => ColumnType::Object->value,
-            Column::TYPE_VECTOR => ColumnType::Vector->value,
+            Column::TYPE_ENUM => UtopiaAttribute::persistedType(ColumnType::String),
+            Column::TYPE_POINT => UtopiaAttribute::persistedType(ColumnType::Point),
+            Column::TYPE_LINE => UtopiaAttribute::persistedType(ColumnType::Linestring),
+            Column::TYPE_POLYGON => UtopiaAttribute::persistedType(ColumnType::Polygon),
+            Column::TYPE_TEXT => UtopiaAttribute::persistedType(ColumnType::Text),
+            Column::TYPE_VARCHAR => UtopiaAttribute::persistedType(ColumnType::Varchar),
+            Column::TYPE_MEDIUMTEXT => UtopiaAttribute::persistedType(ColumnType::MediumText),
+            Column::TYPE_LONGTEXT => UtopiaAttribute::persistedType(ColumnType::LongText),
+            Column::TYPE_OBJECT => UtopiaAttribute::persistedType(ColumnType::Object),
+            Column::TYPE_VECTOR => UtopiaAttribute::persistedType(ColumnType::Vector),
             default => throw new \Exception('Invalid resource type ' . $resource->getType(), Exception::CODE_VALIDATION),
         };
     }
