@@ -65,4 +65,5 @@ database library it builds on; read the upgrade notes before you upgrade from 2.
 - **`getRecoverableOwner` is unchanged.** It is now called only for rows that name an owner, so existing callbacks
   need no change.
 - **Custom destinations** inherit `markAborted()` as a no-op. Override it only to drop state a later `success()`
-  would otherwise commit; `Transfer` calls it with the abort still in flight.
+  would otherwise commit; `Transfer` calls it with the abort still in flight. It runs only for an abort a source
+  recorded and `Transfer` latched — an abort that propagates straight out of `run()` never reaches it.

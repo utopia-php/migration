@@ -124,7 +124,10 @@ class Appwrite extends Destination
     /** 24 hours, the longest lease a live Appwrite attempt holds. */
     public const int DEFAULT_PROVISIONING_LEASE = 86_400;
 
-    /** Attribute fields the SDK can't update in place (no per-type updateX endpoint exposes them); a change here forces drop+recreate. The type is immutable too, but is compared through {@see self::typeMatches()}. */
+    /**
+     * Attribute fields the SDK can't update in place (no per-type updateX endpoint exposes them); a change here
+     * forces drop+recreate. The type is immutable too, but is compared through {@see self::typeMatches()}.
+     */
     private const ATTRIBUTE_IMMUTABLE_FIELDS = [
         'array',
         'signed',
