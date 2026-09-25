@@ -15,6 +15,7 @@ use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Query;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
+use Utopia\Migration\Destinations\OnDuplicate;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Columns\BigInt;
@@ -33,6 +34,8 @@ use Utopia\Tests\Unit\Adapters\MockSource;
 final class AppwriteBigIntSpellingTest extends TestCase
 {
     public const string FORMAT = 'range';
+
+    private const string NEWER_UPDATED_AT = '2030-01-01T00:00:00.000+00:00';
 
     protected function setUp(): void
     {
@@ -87,6 +90,50 @@ final class AppwriteBigIntSpellingTest extends TestCase
         );
     }
 
+    public function testAStoredBigIntegerSpellingIsNotDroppedAndRecreated(): void
+    {
+        $database = $this->projectDatabase();
+        $this->transferColumn(
+            static fn (Table $table): Column => new BigInt('total', $table, required: true),
+            $database,
+        );
+
+        $created = $this->attributeDocument($database);
+        $database->getAuthorization()->skip(
+            static fn (): UtopiaDocument => $database->updateDocument(
+                'attributes',
+                $created->getId(),
+                new UtopiaDocument(['type' => ColumnType::BigInteger->value]),
+            ),
+        );
+
+        [, $destination, $column] = $this->transferColumn(
+            static fn (Table $table): Column => new BigInt('total', $table, required: true),
+            $database,
+            OnDuplicate::Overwrite,
+            self::NEWER_UPDATED_AT,
+        );
+
+        $stored = $this->attributeDocument($database);
+        $this->assertSame([], $this->errorMessages($destination));
+        $this->assertSame(Resource::STATUS_SKIPPED, $column->getStatus());
+        $this->assertSame(
+            ColumnType::BigInteger->value,
+            $stored->getAttribute('type'),
+            'A row holding the other big-integer spelling must match the desired column instead of being recreated.',
+        );
+        $this->assertSame(
+            (string) $created->getCreatedAt(),
+            (string) $stored->getCreatedAt(),
+            'The column metadata row must be the one the first transfer wrote.',
+        );
+        $this->assertSame(
+            ColumnType::BigInteger,
+            $this->physicalColumn($database, 'total')->type,
+            'The table itself must still hold a big integer column.',
+        );
+    }
+
     private static function registerSubqueryFilters(): void
     {
         static $registered = false;
@@ -121,9 +168,13 @@ final class AppwriteBigIntSpellingTest extends TestCase
      * @param callable(Table): Column $makeColumn
      * @return array{UtopiaDatabase, AppwriteDestination, Column}
      */
-    private function transferColumn(callable $makeColumn): array
-    {
-        $database = $this->projectDatabase();
+    private function transferColumn(
+        callable $makeColumn,
+        ?UtopiaDatabase $database = null,
+        OnDuplicate $onDuplicate = OnDuplicate::Fail,
+        string $updatedAt = '',
+    ): array {
+        $database ??= $this->projectDatabase();
 
         $source = new MockSource();
         $databaseResource = new DatabaseResource(
@@ -135,6 +186,7 @@ final class AppwriteBigIntSpellingTest extends TestCase
         $table = new Table($databaseResource, 'Products', 'products');
         $column = $makeColumn($table);
         $column->setId('column-'.$column->getKey());
+        $column->setUpdatedAt($updatedAt);
 
         $source->pushMockResource($databaseResource);
         $source->pushMockResource($table);
@@ -163,6 +215,7 @@ final class AppwriteBigIntSpellingTest extends TestCase
             projectInternalId: '1',
             owner: new ProvisioningOwner('migration-test', 'attempt-test'),
             getRecoverableOwner: static fn (UtopiaDocument $document): ?ProvisioningOwner => null,
+            onDuplicate: $onDuplicate,
         );
 
         $transfer = new Transfer($source, $destination);

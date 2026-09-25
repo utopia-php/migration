@@ -121,9 +121,8 @@ class Appwrite extends Destination
     private const OWNER_MIGRATION_ID = 'migrationId';
     private const OWNER_ATTEMPT_ID = 'migrationAttemptId';
 
-    /** Attribute fields the SDK can't update in place (no per-type updateX endpoint exposes them); a change here forces drop+recreate. */
+    /** Attribute fields the SDK can't update in place (no per-type updateX endpoint exposes them); a change here forces drop+recreate. The type is immutable too, but is compared through {@see self::typeMatches()}. */
     private const ATTRIBUTE_IMMUTABLE_FIELDS = [
-        'type',
         'array',
         'signed',
         'format',
@@ -2172,8 +2171,11 @@ class Appwrite extends Destination
         UtopiaDocument $existingAttr,
         UtopiaDatabase $dbForDatabases,
     ): bool {
+        if (!$this->typeMatches($existingAttr->getAttribute('type'), $type)) {
+            return false;
+        }
+
         $sourceFields = [
-            'type'          => $type,
             'array'         => $resource->isArray(),
             'signed'        => $resource->isSigned(),
             'format'        => $resource->getFormat(),
@@ -2339,7 +2341,7 @@ class Appwrite extends Destination
     /** Full-spec equality: short-circuits Overwrite to Skip when nothing changed. */
     private function attributeSpecMatches(UtopiaDocument $existing, Column|Attribute $resource, string $type, bool $isRelationship): bool
     {
-        if ($existing->getAttribute('type') !== $type) {
+        if (!$this->typeMatches($existing->getAttribute('type'), $type)) {
             return false;
         }
         if ($isRelationship) {
@@ -2362,6 +2364,21 @@ class Appwrite extends Destination
             && $existing->getAttribute('format')   === $resource->getFormat()
             && $this->valuesMatch($existing->getAttribute('formatOptions'), $resource->getFormatOptions())
             && $existing->getAttribute('filters')  === $resource->getFilters();
+    }
+
+    /** A big integer is stored under either spelling, so an unchanged type is not always an identical string. */
+    private function typeMatches(mixed $existing, string $type): bool
+    {
+        if (!\is_string($existing)) {
+            return false;
+        }
+        if ($existing === $type) {
+            return true;
+        }
+
+        $stored = UtopiaAttribute::tryNormalizeType($existing);
+
+        return $stored !== null && $stored === UtopiaAttribute::tryNormalizeType($type);
     }
 
     /**
