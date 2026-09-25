@@ -1364,6 +1364,41 @@ final class AppwriteDatabaseStatusTest extends TestCase
         }
     }
 
+    public function testTheOwnerlessProvisioningClaimRestartsTheLease(): void
+    {
+        $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
+        $this->createStatusOnlyProjectDatabase($database);
+        $seeded = $this->seedLegacyDatabase(
+            $database,
+            'database',
+            'provisioning',
+            withCollection: true,
+            updatedAt: $this->secondsAgo(86_401),
+        );
+
+        $claiming = $this->runDatabaseTransfer($database, explicit: false, success: false);
+
+        $claimed = $this->getDatabaseDocument($database);
+        $this->assertSame([], $this->errorMessages($claiming));
+        $this->assertSame('provisioning', $claimed->getAttribute('status'));
+        $this->assertGreaterThan(
+            new \DateTime((string) $seeded->getUpdatedAt()),
+            new \DateTime((string) $claimed->getUpdatedAt()),
+            'The claim must restart the lease on the row it recovered',
+        );
+
+        $second = $this->runDatabaseTransfer($database, explicit: false, success: false);
+
+        $refused = $this->getDatabaseDocument($database);
+        $this->assertSame(
+            ['Database database names no owner and another migration may still be provisioning it; it becomes recoverable after 86400 seconds without an update'],
+            $this->errorMessages($second),
+            'A migration arriving inside the restarted lease must not recover the same database',
+        );
+        $this->assertSame('provisioning', $refused->getAttribute('status'));
+        $this->assertSame((string) $claimed->getUpdatedAt(), (string) $refused->getUpdatedAt());
+    }
+
     public function testProvisioningLeaseMovesTheOwnerlessRecoveryBoundary(): void
     {
         $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));

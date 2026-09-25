@@ -1060,6 +1060,13 @@ class Appwrite extends Destination
                     $document = [...$document, ...$this->provisioningOwnerAttributes()];
                 }
 
+                if ($document === [] && $isUnowned && $supportsStatus) {
+                    $document = [
+                        'status' => self::DATABASE_STATUS_PROVISIONING,
+                        '$updatedAt' => DateTime::nowAfter($locked->getUpdatedAt()),
+                    ];
+                }
+
                 if ($document !== []) {
                     $updated = $this->updateOwned($locked, new UtopiaDocument($document));
                     if ($updated->isEmpty()) {
