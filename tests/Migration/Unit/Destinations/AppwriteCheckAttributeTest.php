@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Utopia\Tests\Unit\Destinations;
 
+use Override;
 use PHPUnit\Framework\TestCase;
 use Utopia\Cache\Adapter\Memory as MemoryCache;
 use Utopia\Cache\Cache;
@@ -12,33 +13,81 @@ use Utopia\Database\Attribute as UtopiaAttribute;
 use Utopia\Database\Collection;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
+use Utopia\Database\Query;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
-use Utopia\Migration\Destinations\OnDuplicate;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Columns\Text;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
-use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Transfer;
 use Utopia\Query\Schema\ColumnType;
-use Utopia\Query\Schema\Order;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
 /**
- * A restored index must carry the source's own prefix lengths. The source
- * recorded them because the index only fits under the adapter's byte limit
- * with them; deriving lengths from the destination columns instead recreates
- * the index full-width and a backup of a healthy database fails to restore
- * its own indexes with "Index length is longer than the maximum" (DAT-2113,
- * nine consecutive customer restore failures).
+ * Records every column the destination offers to the project database's limit
+ * check, and otherwise behaves exactly like the real database.
  */
-final class AppwriteIndexLengthsTest extends TestCase
+final class CheckedColumnRecordingDatabase extends UtopiaDatabase
+{
+    /** @var list<UtopiaAttribute> */
+    public array $checkedAttributes = [];
+
+    #[Override]
+    public function checkAttribute(UtopiaDocument $collection, UtopiaAttribute $attribute): bool
+    {
+        $this->checkedAttributes[] = $attribute;
+
+        return parent::checkAttribute($collection, $attribute);
+    }
+}
+
+/**
+ * `checkAttribute` decides whether one more column still fits the destination
+ * table, so it has to be offered the column that is about to be created. The
+ * metadata row built alongside it is keyed by the destination's own composite
+ * attribute id, so offering that row instead measures a column the table will
+ * never hold.
+ */
+final class AppwriteCheckAttributeTest extends TestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
         self::registerSubqueryFilters();
+    }
+
+    public function testTheCheckedColumnIsKeyedByTheResourceKeyNotTheMetadataId(): void
+    {
+        [$database, $destination, $column] = $this->transferColumn();
+
+        $this->assertSame([], $this->errorMessages($destination));
+        $this->assertSame(Resource::STATUS_SUCCESS, $column->getStatus());
+
+        $metadata = $this->attributeDocument($database);
+        $this->assertFalse($metadata->isEmpty(), 'The column metadata row must be written');
+        $this->assertSame('title', $metadata->getAttribute('key'));
+        $this->assertNotSame(
+            'title',
+            $metadata->getId(),
+            'The metadata row must be keyed by something other than the column key, or the two identities cannot be told apart.',
+        );
+
+        $this->assertCount(1, $database->checkedAttributes, 'The transfer must offer its column to the limit check');
+        $this->assertSame('title', $database->checkedAttributes[0]->key);
+        $this->assertSame('title', $database->checkedAttributes[0]->getId());
+    }
+
+    public function testTheCheckedColumnCarriesTheSpecificationBeingCreated(): void
+    {
+        [$database] = $this->transferColumn();
+
+        $this->assertCount(1, $database->checkedAttributes);
+        $checked = $database->checkedAttributes[0];
+
+        $this->assertSame(ColumnType::String, $checked->type);
+        $this->assertSame(128, $checked->size);
+        $this->assertTrue($checked->required);
     }
 
     private static function registerSubqueryFilters(): void
@@ -58,8 +107,8 @@ final class AppwriteIndexLengthsTest extends TestCase
             static fn (mixed $value) => null,
             static fn (mixed $value, UtopiaDocument $document, UtopiaDatabase $database): array => $database->getAuthorization()->skip(
                 static fn (): array => $database->find('attributes', [
-                    \Utopia\Database\Query::equal('collectionInternalId', [$document->getSequence()]),
-                    \Utopia\Database\Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
+                    Query::equal('collectionInternalId', [$document->getSequence()]),
+                    Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
                 ]),
             ),
         );
@@ -68,91 +117,18 @@ final class AppwriteIndexLengthsTest extends TestCase
             static fn (mixed $value) => null,
             static fn (mixed $value, UtopiaDocument $document, UtopiaDatabase $database): array => $database->getAuthorization()->skip(
                 static fn (): array => $database->find('indexes', [
-                    \Utopia\Database\Query::equal('collectionInternalId', [$document->getSequence()]),
-                    \Utopia\Database\Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
+                    Query::equal('collectionInternalId', [$document->getSequence()]),
+                    Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
                 ]),
             ),
         );
     }
 
-    public function testRestoredIndexCarriesTheSourcePrefixLengths(): void
-    {
-        [$destination, $database] = $this->transferIndex(lengths: [100, 20]);
-
-        $this->assertSame([], $this->errorMessages($destination));
-
-        $created = $this->indexDocument($database);
-        $this->assertFalse($created->isEmpty(), 'The index must be created');
-        $this->assertSame([100, 20], $created->getAttribute('lengths'));
-    }
-
-    public function testRestoredIndexWithoutSourceLengthsFailsTheAdapterLimit(): void
-    {
-        // The two 600-char columns exceed the Memory adapter's 1024-byte index
-        // cap without prefixes, exactly like the production 767-byte MySQL cap:
-        // an index that NEEDS its source lengths cannot be recreated without
-        // them, which is the customer-facing failure this suite pins.
-        [$destination, $database] = $this->transferIndex(lengths: []);
-
-        $messages = $this->errorMessages($destination);
-        $this->assertNotSame([], $messages, 'Expected the full-width index to exceed the adapter limit');
-        $this->assertStringContainsString('Index length is longer than the maximum', $messages[0]);
-        $this->assertTrue($this->indexDocument($database)->isEmpty(), 'The failed index must not be recorded');
-    }
-
-    public function testZeroSourceLengthMeansNoPrefix(): void
-    {
-        // Zero is how a source records "no prefix" for a position (a short
-        // column needs none), and it must stay no-prefix rather than becoming a
-        // zero-length one. The metadata collection types `lengths` as an integer
-        // array, so no-prefix reads back as 0 — the shape a live production row
-        // for exactly this case carries ([100, 0]).
-        [$destination, $database] = $this->transferIndex(lengths: [100, 0], columnSizes: [600, 30]);
-
-        $this->assertSame([], $this->errorMessages($destination));
-        $this->assertSame([100, 0], $this->indexDocument($database)->getAttribute('lengths'));
-    }
-
     /**
-     * An Overwrite migration onto an index whose ONLY difference is its prefix
-     * lengths must recreate it. The spec comparison used to omit lengths, so
-     * the index was treated as already matching and the destination silently
-     * kept its own prefixes — the shape Greptile flagged on this PR.
+     * @return array{CheckedColumnRecordingDatabase, AppwriteDestination, Text}
      */
-    public function testAnOverwriteDoesNotTreatALengthOnlyDifferenceAsAMatch(): void
+    private function transferColumn(): array
     {
-        [, , $overwritten] = $this->transferIndex(
-            lengths: [100, 20],
-            onDuplicate: OnDuplicate::Overwrite,
-            existingLengths: [50, 20],
-        );
-
-        // The observable is the decision, not the recreate: an index whose only
-        // difference is its prefix was reported as already matching and skipped,
-        // so the destination silently kept its own lengths. The drop-and-recreate
-        // that follows cannot be asserted on the in-memory adapter, which does
-        // not support dropping an index the destination believes it holds — that
-        // is an adapter limit, not the behaviour under test, and saying so beats
-        // asserting an artifact of it.
-        $this->assertNotSame(
-            Resource::STATUS_SKIPPED,
-            $overwritten->getStatus(),
-            'A length-only difference must not be reported as already existing on the destination.',
-        );
-    }
-
-    /**
-     * @param array<int> $lengths
-     * @param array<int> $columnSizes
-     * @param array<int> $existingLengths
-     * @return array{AppwriteDestination, UtopiaDatabase, Index}
-     */
-    private function transferIndex(
-        array $lengths,
-        array $columnSizes = [600, 600],
-        OnDuplicate $onDuplicate = OnDuplicate::Fail,
-        array $existingLengths = [],
-    ): array {
         $database = $this->projectDatabase();
 
         $source = new MockSource();
@@ -162,28 +138,13 @@ final class AppwriteIndexLengthsTest extends TestCase
             type: 'tablesdb',
             database: 'source-dsn',
         );
-        $table = new Table($databaseResource, 'Orders', 'orders');
+        $table = new Table($databaseResource, 'Products', 'products');
+        $column = new Text('title', $table, required: true, size: 128);
+        $column->setId('column-title');
+
         $source->pushMockResource($databaseResource);
         $source->pushMockResource($table);
-        // Distinct ids: MockSource keys its map by resource id, and a Column
-        // carries none by default, so two columns would collide onto one.
-        $source->pushMockResource((new Text('reference', $table, size: $columnSizes[0]))->setId('reference'));
-        $source->pushMockResource((new Text('channel', $table, size: $columnSizes[1]))->setId('channel'));
-
-        // An Overwrite only applies when the source is newer than what the
-        // destination holds, so the seeded index is stamped older than the one
-        // that replaces it.
-        $index = static fn (array $withLengths, string $updatedAt = ''): Index => new Index(
-            id: 'idx_reference_channel',
-            key: 'idx_reference_channel',
-            table: $table,
-            type: 'key',
-            columns: ['reference', 'channel'],
-            lengths: $withLengths,
-            orders: [Order::Asc->value, Order::Asc->value],
-            createdAt: $updatedAt,
-            updatedAt: $updatedAt,
-        );
+        $source->pushMockResource($column);
 
         $destination = new AppwriteDestination(
             project: 'destination-project',
@@ -208,41 +169,25 @@ final class AppwriteIndexLengthsTest extends TestCase
             projectInternalId: '1',
             owner: new ProvisioningOwner('migration-test', 'attempt-test'),
             getRecoverableOwner: static fn (UtopiaDocument $document): ?ProvisioningOwner => null,
-            onDuplicate: $onDuplicate,
         );
-
-        // Two passes: Transfer::GROUP_DATABASES_RESOURCES replays indexes BEFORE
-        // columns, the reverse of what a real source emits, so a single call
-        // would offer the index against a table with no columns yet. Selecting
-        // the schema first and the index second reproduces the production order
-        // this defect lives in.
-        $transferred = $index($lengths, $existingLengths !== [] ? '2026-06-01 00:00:00' : '');
 
         $transfer = new Transfer($source, $destination);
         $database->getAuthorization()->skip(
-            static function () use ($transfer, $source, $index, $transferred, $existingLengths): void {
-                $noop = static function (): void {
-                };
-                $transfer->run([Resource::TYPE_DATABASE, Resource::TYPE_TABLE, Resource::TYPE_COLUMN], $noop);
-
-                if ($existingLengths !== []) {
-                    // Seed the index the overwrite will meet, carrying the
-                    // prefixes the destination already has.
-                    $source->pushMockResource($index($existingLengths, '2026-01-01 00:00:00'));
-                    $transfer->run([Resource::TYPE_INDEX], $noop);
-                }
-
-                $source->pushMockResource($transferred);
-                $transfer->run([Resource::TYPE_INDEX], $noop);
+            static function () use ($transfer): void {
+                $transfer->run(
+                    [Resource::TYPE_DATABASE, Resource::TYPE_TABLE, Resource::TYPE_COLUMN],
+                    static function (): void {
+                    },
+                );
             },
         );
 
-        return [$destination, $database, $transferred];
+        return [$database, $destination, $column];
     }
 
-    private function projectDatabase(): UtopiaDatabase
+    private function projectDatabase(): CheckedColumnRecordingDatabase
     {
-        $database = new UtopiaDatabase(
+        $database = new CheckedColumnRecordingDatabase(
             new MemoryAdapter(),
             new Cache(new MemoryCache()),
         );
@@ -365,12 +310,12 @@ final class AppwriteIndexLengthsTest extends TestCase
         );
     }
 
-    private function indexDocument(UtopiaDatabase $database): UtopiaDocument
+    private function attributeDocument(UtopiaDatabase $database): UtopiaDocument
     {
-        $indexes = $database->getAuthorization()->skip(
-            static fn (): array => $database->find('indexes'),
+        $attributes = $database->getAuthorization()->skip(
+            static fn (): array => $database->find('attributes'),
         );
 
-        return $indexes[0] ?? new UtopiaDocument();
+        return $attributes[0] ?? new UtopiaDocument();
     }
 }

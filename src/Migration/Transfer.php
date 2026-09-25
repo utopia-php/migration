@@ -2,6 +2,8 @@
 
 namespace Utopia\Migration;
 
+use Utopia\Migration\Exception\Aborted;
+
 class Transfer
 {
     public const GROUP_GENERAL = 'general';
@@ -321,8 +323,9 @@ class Transfer
      * Transfer Resources between adapters
      *
      * @param array<string> $resources Resources to transfer
-     * @param callable $callback Callback to run after transfer
+     * @param callable $callback Callback to run after transfer; throw Aborted from it to stop the transfer
      * @param string|null $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
+     * @throws Aborted The callback stopped the transfer
      * @throws \Exception
      */
     public function run(
@@ -370,10 +373,27 @@ class Transfer
 
         $this->resources = $computedResources;
 
+        // A source can still catch the abort as an export failure and carry on; keep it so
+        // later batches rethrow it and the run ends with it.
+        $abort = null;
+        $progress = static function (array $resources) use ($callback, &$abort): void {
+            if ($abort !== null) {
+                throw $abort;
+            }
+
+            try {
+                $callback($resources);
+            } catch (Aborted $aborted) {
+                $abort = $aborted;
+
+                throw $aborted;
+            }
+        };
+
         if ($this->resourceSelector !== null) {
             $this->destination->runWithResourceSelector(
                 $computedResources,
-                $callback,
+                $progress,
                 $this->resourceSelector->resourceId,
                 $this->resourceSelector->resourceInternalId,
                 $this->resourceSelector->resourceType,
@@ -381,18 +401,23 @@ class Transfer
                 $this->resourceSelector->parentResourceInternalId,
                 $this->resourceSelector->parentResourceType,
             );
-
-            return;
+        } else {
+            $this->destination->run($computedResources, $progress, $rootResourceId, $rootResourceType);
         }
 
-        $this->destination->run($computedResources, $callback, $rootResourceId, $rootResourceType);
+        if ($abort !== null) {
+            $this->destination->markAborted();
+
+            throw $abort;
+        }
     }
 
     /**
      * Transfer resources using Appwrite's canonical resource relation fields.
      *
      * @param array<string|array<string>> $resources Resources to transfer
-     * @param callable $callback Callback to run after transfer
+     * @param callable $callback Callback to run after transfer; throw Aborted from it to stop the transfer
+     * @throws Aborted The callback stopped the transfer
      * @throws \Exception
      */
     public function runWithResourceSelector(

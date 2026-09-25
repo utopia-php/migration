@@ -10,7 +10,8 @@
         "migration"
     ],
     "license": "MIT",
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Utopia\\Migration\\": "src/Migration"
@@ -25,14 +26,14 @@
         "test": "./vendor/bin/phpunit",
         "lint": "./vendor/bin/pint --test",
         "format": "./vendor/bin/pint",
-        "check": "./vendor/bin/phpstan analyse --level 3 src tests --memory-limit 2G"
+        "check": "./vendor/bin/phpstan analyse --level 3 src tests bin --memory-limit 2G"
     },
     "require": {
         "php": ">=8.5",
         "ext-curl": "*",
         "ext-openssl": "*",
         "appwrite/appwrite": "^27.0",
-        "utopia-php/database": "^7.0.0",
+        "utopia-php/database": "^8.0",
         "utopia-php/storage": "4.*",
         "utopia-php/dsn": "0.2.*",
         "halaxa/json-machine": "^1.2"
@@ -48,6 +49,12 @@
         "allow-plugins": {
             "php-http/discovery": true,
             "tbachert/spi": true
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-feat-query-lib": "3.0.x-dev",
+            "dev-main": "3.0.x-dev"
         }
     }
 }
