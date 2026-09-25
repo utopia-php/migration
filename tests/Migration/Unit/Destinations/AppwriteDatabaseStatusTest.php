@@ -1404,7 +1404,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $database = new RecordingProjectDatabase(new ReplicaMemoryAdapter(), new Cache(new MemoryCache()));
         $this->createStatusOnlyProjectDatabase($database);
         $this->seedLegacyDatabase($database, 'database-lapsed', 'provisioning', withCollection: true, updatedAt: $this->secondsAgo(61));
-        $this->seedLegacyDatabase($database, 'database-live', 'provisioning', withCollection: true, updatedAt: $this->secondsAgo(59));
+        $this->seedLegacyDatabase($database, 'database-live', 'provisioning', withCollection: true, updatedAt: $this->secondsAgo(1));
 
         $destination = $this->runDatabaseTransfer(
             $database,
