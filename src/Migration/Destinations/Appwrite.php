@@ -121,6 +121,9 @@ class Appwrite extends Destination
     private const OWNER_MIGRATION_ID = 'migrationId';
     private const OWNER_ATTEMPT_ID = 'migrationAttemptId';
 
+    /** 24 hours, the longest lease a live Appwrite attempt holds. */
+    public const int DEFAULT_PROVISIONING_LEASE = 86_400;
+
     /** Attribute fields the SDK can't update in place (no per-type updateX endpoint exposes them); a change here forces drop+recreate. The type is immutable too, but is compared through {@see self::typeMatches()}. */
     private const ATTRIBUTE_IMMUTABLE_FIELDS = [
         'array',
@@ -255,7 +258,7 @@ class Appwrite extends Destination
         protected OnDuplicate $onDuplicate = OnDuplicate::Fail,
         ?callable $getDatabaseDSN = null,
         protected array $collectionStructures = [],
-        protected int $provisioningLease = 86_400,
+        protected int $provisioningLease = self::DEFAULT_PROVISIONING_LEASE,
     ) {
         if ($provisioningLease < 0) {
             throw new \InvalidArgumentException('Provisioning lease must not be negative');

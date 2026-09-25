@@ -1341,13 +1341,13 @@ final class AppwriteDatabaseStatusTest extends TestCase
             'database-provisioning',
             'provisioning',
             withCollection: true,
-            updatedAt: $this->secondsAgo(86_401),
+            updatedAt: $this->secondsAgo(AppwriteDestination::DEFAULT_PROVISIONING_LEASE + 1),
         );
         $this->seedLegacyDatabase(
             $database,
             'database-failed',
             'failed',
-            updatedAt: $this->secondsAgo(86_401),
+            updatedAt: $this->secondsAgo(AppwriteDestination::DEFAULT_PROVISIONING_LEASE + 1),
         );
 
         $destination = $this->runDatabaseTransfer(
@@ -1373,7 +1373,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
             'database',
             'provisioning',
             withCollection: true,
-            updatedAt: $this->secondsAgo(86_401),
+            updatedAt: $this->secondsAgo(AppwriteDestination::DEFAULT_PROVISIONING_LEASE + 1),
         );
 
         $claiming = $this->runDatabaseTransfer($database, explicit: false, success: false);
@@ -1459,7 +1459,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
     {
         $database = new InterleavingProjectDatabase(new MemoryAdapter(), new Cache(new MemoryCache()));
         $this->createStatusOnlyProjectDatabase($database);
-        $this->seedLegacyDatabase($database, 'database', 'failed', updatedAt: $this->secondsAgo(86_401));
+        $this->seedLegacyDatabase($database, 'database', 'failed', updatedAt: $this->secondsAgo(AppwriteDestination::DEFAULT_PROVISIONING_LEASE + 1));
         $database->onDatabasesReload = static function () use ($database): void {
             $database->updateDocument('databases', 'database', new UtopiaDocument([
                 'name' => 'Database claimed elsewhere',
@@ -1611,7 +1611,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         string $resourceUpdatedAt = '',
         array $databaseIds = ['database'],
         bool $success = true,
-        int $provisioningLease = 86_400,
+        int $provisioningLease = AppwriteDestination::DEFAULT_PROVISIONING_LEASE,
     ): CountingAppwriteDestination {
         $source = new class () extends MockSource {
             #[Override]
