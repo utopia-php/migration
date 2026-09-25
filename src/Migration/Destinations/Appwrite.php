@@ -567,10 +567,6 @@ class Appwrite extends Destination
     }
 
     /**
-     * A row that names no owner has nothing for the caller's recovery authority to judge, so its
-     * update timestamp stands in: it is abandoned only once it has gone a whole provisioning lease
-     * without a write. Judged against this destination's clock, never a source timestamp.
-     *
      * @throws \Exception
      */
     private function isStale(UtopiaDocument $database): bool
