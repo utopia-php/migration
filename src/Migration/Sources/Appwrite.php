@@ -3,7 +3,6 @@
 namespace Utopia\Migration\Sources;
 
 use Appwrite\AppwriteException;
-use Appwrite\Client;
 use Appwrite\Enums\ProjectAuthMethodId;
 use Appwrite\Enums\ProjectPolicyId;
 use Appwrite\Enums\ProjectProtocolId;
@@ -18,6 +17,7 @@ use Appwrite\Services\TablesDB;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Appwrite\Services\Webhooks;
+use Override;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Database\Document as UtopiaDocument;
@@ -83,6 +83,7 @@ use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Source;
+use Utopia\Migration\Sources\Appwrite\Client;
 use Utopia\Migration\Sources\Appwrite\Reader;
 use Utopia\Migration\Sources\Appwrite\Reader\API as APIReader;
 use Utopia\Migration\Sources\Appwrite\Reader\Database as DatabaseReader;
@@ -134,7 +135,8 @@ class Appwrite extends Source
         protected ?UtopiaDatabase $dbForProject = null,
         protected array $queries = [],
     ) {
-        $this->client = (new Client())
+        $this->client = new Client();
+        $this->client
             ->setEndpoint($endpoint)
             ->setProject($projectId)
             ->setKey($key);
@@ -178,6 +180,14 @@ class Appwrite extends Source
     public static function getName(): string
     {
         return 'Appwrite';
+    }
+
+    #[Override]
+    public function setResolver(?\Closure $resolver): static
+    {
+        $this->client->setResolver($resolver);
+
+        return parent::setResolver($resolver);
     }
 
     /**
