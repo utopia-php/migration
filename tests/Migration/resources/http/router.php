@@ -12,7 +12,12 @@ if ($log !== false && $log !== '') {
 
 if ($path === '/echo') {
     \header('Content-Type: application/json; charset=utf-8');
-    echo \json_encode(['method' => $method, 'host' => $host, 'uri' => $uri]);
+    echo \json_encode([
+        'method' => $method,
+        'host' => $host,
+        'uri' => $uri,
+        'authorization' => $_SERVER['HTTP_AUTHORIZATION'] ?? '',
+    ]);
 
     return;
 }
