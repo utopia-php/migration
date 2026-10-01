@@ -4,6 +4,8 @@ namespace Utopia\Migration;
 
 abstract class Target
 {
+    private const string PROTOCOLS = 'http,https';
+
     /**
      * Global Headers
      *
@@ -31,6 +33,13 @@ abstract class Target
 
     protected string $endpoint = '';
 
+    protected bool $followRedirects = false;
+
+    /**
+     * @var (\Closure(string): array<string>)|null
+     */
+    protected ?\Closure $resolver = null;
+
     protected string $rootResourceId = '';
 
     protected string $rootResourceType = '';
@@ -42,6 +51,27 @@ abstract class Target
     public function registerCache(Cache &$cache): void
     {
         $this->cache = &$cache;
+    }
+
+    public function setFollowRedirects(bool $followRedirects): static
+    {
+        $this->followRedirects = $followRedirects;
+
+        return $this;
+    }
+
+    /**
+     * The resolver receives each request URL and returns the CURLOPT_RESOLVE
+     * entries ("host:port:address[,address]") the connection must use. It
+     * throws to refuse the URL.
+     *
+     * @param  (\Closure(string): array<string>)|null  $resolver
+     */
+    public function setResolver(?\Closure $resolver): static
+    {
+        $this->resolver = $resolver;
+
+        return $this;
     }
 
     /**
@@ -88,15 +118,13 @@ abstract class Target
         array &$responseHeaders = []
     ): array|string {
         $headers = \array_merge($this->headers, $headers);
-        $ch = \curl_init((
-            \str_contains($path, 'http')
-            ? $path.(($method == 'GET' && ! empty($params)) ? '?'.\http_build_query($params) : '')
-            : $this->endpoint.$path.(
-                ($method == 'GET' && ! empty($params))
-                ? '?'.\http_build_query($params)
-                : ''
-            )
-        ));
+
+        $url = \str_contains($path, 'http') ? $path : $this->endpoint.$path;
+        if ($method === 'GET' && ! empty($params)) {
+            $url .= '?'.\http_build_query($params);
+        }
+
+        $ch = \curl_init($url);
 
         $query = match ($headers['Content-Type']) {
             'application/json' => \json_encode($params),
@@ -117,7 +145,12 @@ abstract class Target
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         \curl_setopt($ch, CURLOPT_USERAGENT, php_uname('s').'-'.php_uname('r').':php-'.phpversion());
         \curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        \curl_setopt($ch, CURLOPT_PROTOCOLS_STR, self::PROTOCOLS);
+        \curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS_STR, self::PROTOCOLS);
+        \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $this->followRedirects);
+        if ($this->resolver !== null) {
+            \curl_setopt($ch, CURLOPT_RESOLVE, ($this->resolver)($url));
+        }
         \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
             $len = strlen($header);
             $header = explode(':', strtolower($header), 2);
@@ -150,6 +183,9 @@ abstract class Target
             throw new \Exception(\curl_error($ch), Exception::CODE_INTERNAL);
         }
 
+        if (! $this->followRedirects && $responseStatus >= 300 && $responseStatus < 400) {
+            throw new \Exception($responseStatus.': Redirects are not followed', $responseStatus);
+        }
 
         if ($responseStatus >= 400) {
             if (\is_array($responseBody)) {
