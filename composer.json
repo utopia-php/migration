@@ -43,7 +43,7 @@
         "phpunit/phpunit": "11.*",
         "vlucas/phpdotenv": "5.*",
         "laravel/pint": "1.*",
-        "phpstan/phpstan": "1.*"
+        "phpstan/phpstan": "^2.1"
     },
     "config": {
         "allow-plugins": {

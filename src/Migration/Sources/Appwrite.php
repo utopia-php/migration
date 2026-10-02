@@ -124,7 +124,7 @@ class Appwrite extends Source
     private ?string $resourceChildId = null;
 
     /**
-     * @var callable(UtopiaDocument $database|null): UtopiaDatabase
+     * @var callable(?UtopiaDocument): UtopiaDatabase
      */
     protected mixed $getDatabasesDB;
 
@@ -2385,7 +2385,7 @@ class Appwrite extends Source
             return;
         }
 
-        $fileSize = $responseHeaders['content-length'];
+        $fileSize = (int) $responseHeaders['content-length'];
 
         if ($end >= $fileSize) {
             $end = $fileSize - 1;
@@ -2979,7 +2979,7 @@ class Appwrite extends Source
             return;
         }
 
-        $fileSize = $responseHeaders['content-length'];
+        $fileSize = (int) $responseHeaders['content-length'];
 
         if ($end >= $fileSize) {
             $end = $fileSize - 1;
