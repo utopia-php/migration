@@ -63,7 +63,8 @@ abstract class Target
     /**
      * The resolver receives each request URL and returns the CURLOPT_RESOLVE
      * entries ("host:port:address[,address]") the connection must use. It
-     * throws to refuse the URL.
+     * throws to refuse the URL. While a resolver is set, requests never go
+     * through a proxy, which would resolve the host itself.
      *
      * @param  (\Closure(string): array<string>)|null  $resolver
      */
@@ -150,6 +151,7 @@ abstract class Target
         \curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $this->followRedirects);
         if ($this->resolver !== null) {
             \curl_setopt($ch, CURLOPT_RESOLVE, ($this->resolver)($url));
+            \curl_setopt($ch, CURLOPT_PROXY, '');
         }
         \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
             $len = strlen($header);

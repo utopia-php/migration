@@ -76,6 +76,23 @@ final class AppwriteClientTest extends TestCase
         $this->assertSame([$endpoint.'/echo?a=b', $endpoint.'/echo'], $urls);
     }
 
+    public function testResolverBypassesTheEnvironmentProxy(): void
+    {
+        $port = $this->server->getPort();
+        $client = $this->client('http://pinned.invalid:'.$port)->setResolver(fn (string $url): array => ['pinned.invalid:'.$port.':127.0.0.1']);
+
+        \putenv('http_proxy=http://127.0.0.1:1');
+
+        try {
+            $response = $client->call(Client::METHOD_GET, '/echo');
+        } finally {
+            \putenv('http_proxy');
+        }
+
+        $this->assertIsArray($response);
+        $this->assertSame('pinned.invalid:'.$port, $response['host']);
+    }
+
     public function testResolverRunsAgainWhenTheEndpointChanges(): void
     {
         $port = $this->server->getPort();

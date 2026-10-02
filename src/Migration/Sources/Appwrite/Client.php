@@ -21,7 +21,8 @@ class Client extends Base
     /**
      * The resolver receives each request URL and returns the CURLOPT_RESOLVE
      * entries ("host:port:address[,address]") the connection must use. It
-     * throws to refuse the URL.
+     * throws to refuse the URL. While a resolver is set, requests never go
+     * through a proxy, which would resolve the host itself.
      *
      * @param  (\Closure(string): array<string>)|null  $resolver
      */
@@ -82,6 +83,7 @@ class Client extends Base
         \curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
         if ($resolve !== null) {
             \curl_setopt($curl, CURLOPT_RESOLVE, $resolve);
+            \curl_setopt($curl, CURLOPT_PROXY, '');
         }
         \curl_setopt($curl, CURLOPT_HEADERFUNCTION, function ($curl, string $header) use (&$responseHeaders): int {
             $length = \strlen($header);
