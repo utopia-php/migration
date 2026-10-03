@@ -3,6 +3,7 @@
 namespace Utopia\Migration\Sources;
 
 use Utopia\Migration\Exception;
+use Utopia\Migration\Exception\Aborted;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\User;
@@ -189,6 +190,8 @@ class Firebase extends Source
             if (\in_array(Resource::TYPE_USER, $resources)) {
                 $this->exportUsers($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -287,6 +290,8 @@ class Firebase extends Source
             if (\in_array(Resource::TYPE_DATABASE, $resources)) {
                 $this->callback([$database]);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -304,6 +309,8 @@ class Firebase extends Source
                 $hasInResources = Resource::isSupported(Resource::TYPE_ROW, $resources);
                 $this->exportDB($batchSize, $hasInResources, $database);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -644,6 +651,8 @@ class Firebase extends Source
             if (\in_array(Resource::TYPE_BUCKET, $resources)) {
                 $this->exportBuckets($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_BUCKET,
@@ -658,6 +667,8 @@ class Firebase extends Source
             if (\in_array(Resource::TYPE_FILE, $resources)) {
                 $this->exportFiles($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_FILE,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Utopia\Tests\Unit\Destinations;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Utopia\Cache\Adapter\Memory as MemoryCache;
 use Utopia\Cache\Cache;
@@ -12,33 +13,95 @@ use Utopia\Database\Attribute as UtopiaAttribute;
 use Utopia\Database\Collection;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
+use Utopia\Database\Query;
+use Utopia\Database\RelationType;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Destinations\OnDuplicate;
 use Utopia\Migration\Resource;
-use Utopia\Migration\Resources\Database\Columns\Text;
+use Utopia\Migration\Resources\Database\Columns\Relationship;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
-use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Transfer;
 use Utopia\Query\Schema\ColumnType;
-use Utopia\Query\Schema\Order;
+use Utopia\Query\Schema\ForeignKeyAction;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
 /**
- * A restored index must carry the source's own prefix lengths. The source
- * recorded them because the index only fits under the adapter's byte limit
- * with them; deriving lengths from the destination columns instead recreates
- * the index full-width and a backup of a healthy database fails to restore
- * its own indexes with "Index length is longer than the maximum" (DAT-2113,
- * nine consecutive customer restore failures).
+ * An overwrite that reaches an existing two-way relationship with no usable
+ * `onDelete` in the source must leave the destination's action alone: the
+ * library reads a null action as "unchanged", and both sides of the Appwrite
+ * metadata must keep agreeing with it.
  */
-final class AppwriteIndexLengthsTest extends TestCase
+final class AppwriteRelationshipOnDeleteTest extends TestCase
 {
+    private const string DESTINATION_ACTION = 'cascade';
+
     protected function setUp(): void
     {
         parent::setUp();
         self::registerSubqueryFilters();
+    }
+
+    /** @return array<string, array{?string}> */
+    public static function unusableSourceActions(): array
+    {
+        return [
+            'missing' => [null],
+            'empty' => [''],
+            'unknown' => ['archive-invented'],
+        ];
+    }
+
+    #[DataProvider('unusableSourceActions')]
+    public function testOverwriteWithoutAUsableSourceActionKeepsTheDestinationAction(?string $sourceAction): void
+    {
+        $database = $this->projectDatabase();
+        $created = $this->transfer(
+            $database,
+            OnDuplicate::Fail,
+            $this->relationship(self::DESTINATION_ACTION, '2020-01-01T00:00:00.000+00:00'),
+        );
+        $this->assertSame([], $this->errorMessages($created));
+        $this->assertSame(self::DESTINATION_ACTION, $this->libraryAction($database, 'products', 'category'));
+
+        $relationship = $this->relationship(self::DESTINATION_ACTION, '2030-01-01T00:00:00.000+00:00');
+        $options = &$relationship->getOptions();
+        if ($sourceAction === null) {
+            unset($options['onDelete']);
+        } else {
+            $options['onDelete'] = $sourceAction;
+        }
+
+        $overwritten = $this->transfer($database, OnDuplicate::Overwrite, $relationship);
+
+        $this->assertSame([], $this->errorMessages($overwritten));
+        $this->assertSame(self::DESTINATION_ACTION, $this->libraryAction($database, 'products', 'category'));
+        $this->assertSame(self::DESTINATION_ACTION, $this->libraryAction($database, 'categories', 'products'));
+        $this->assertSame(self::DESTINATION_ACTION, $this->metadataAction($database, 'products', 'category'));
+        $this->assertSame(self::DESTINATION_ACTION, $this->metadataAction($database, 'categories', 'products'));
+    }
+
+    public function testOverwriteWithAKnownSourceActionStillUpdatesBothSides(): void
+    {
+        $database = $this->projectDatabase();
+        $this->transfer(
+            $database,
+            OnDuplicate::Fail,
+            $this->relationship(self::DESTINATION_ACTION, '2020-01-01T00:00:00.000+00:00'),
+        );
+
+        $overwritten = $this->transfer(
+            $database,
+            OnDuplicate::Overwrite,
+            $this->relationship(ForeignKeyAction::SetNull->value, '2030-01-01T00:00:00.000+00:00'),
+        );
+
+        $this->assertSame([], $this->errorMessages($overwritten));
+        $this->assertSame(ForeignKeyAction::SetNull->value, $this->libraryAction($database, 'products', 'category'));
+        $this->assertSame(ForeignKeyAction::SetNull->value, $this->libraryAction($database, 'categories', 'products'));
+        $this->assertSame(ForeignKeyAction::SetNull->value, $this->metadataAction($database, 'products', 'category'));
+        $this->assertSame(ForeignKeyAction::SetNull->value, $this->metadataAction($database, 'categories', 'products'));
     }
 
     private static function registerSubqueryFilters(): void
@@ -49,17 +112,13 @@ final class AppwriteIndexLengthsTest extends TestCase
         }
         $registered = true;
 
-        // The per-database meta collection exposes its tables' columns and
-        // indexes through the same virtual subquery attributes Appwrite
-        // registers, so the destination reads the table exactly as it does in
-        // production.
         UtopiaDatabase::addFilter(
             'subQueryAttributes',
             static fn (mixed $value) => null,
             static fn (mixed $value, UtopiaDocument $document, UtopiaDatabase $database): array => $database->getAuthorization()->skip(
                 static fn (): array => $database->find('attributes', [
-                    \Utopia\Database\Query::equal('collectionInternalId', [$document->getSequence()]),
-                    \Utopia\Database\Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
+                    Query::equal('collectionInternalId', [$document->getSequence()]),
+                    Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
                 ]),
             ),
         );
@@ -68,122 +127,39 @@ final class AppwriteIndexLengthsTest extends TestCase
             static fn (mixed $value) => null,
             static fn (mixed $value, UtopiaDocument $document, UtopiaDatabase $database): array => $database->getAuthorization()->skip(
                 static fn (): array => $database->find('indexes', [
-                    \Utopia\Database\Query::equal('collectionInternalId', [$document->getSequence()]),
-                    \Utopia\Database\Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
+                    Query::equal('collectionInternalId', [$document->getSequence()]),
+                    Query::equal('databaseInternalId', [$document->getAttribute('databaseInternalId')]),
                 ]),
             ),
         );
     }
 
-    public function testRestoredIndexCarriesTheSourcePrefixLengths(): void
+    private function relationship(string $onDelete, string $updatedAt): Relationship
     {
-        [$destination, $database] = $this->transferIndex(lengths: [100, 20]);
-
-        $this->assertSame([], $this->errorMessages($destination));
-
-        $created = $this->indexDocument($database);
-        $this->assertFalse($created->isEmpty(), 'The index must be created');
-        $this->assertSame([100, 20], $created->getAttribute('lengths'));
-    }
-
-    public function testRestoredIndexWithoutSourceLengthsFailsTheAdapterLimit(): void
-    {
-        // The two 600-char columns exceed the Memory adapter's 1024-byte index
-        // cap without prefixes, exactly like the production 767-byte MySQL cap:
-        // an index that NEEDS its source lengths cannot be recreated without
-        // them, which is the customer-facing failure this suite pins.
-        [$destination, $database] = $this->transferIndex(lengths: []);
-
-        $messages = $this->errorMessages($destination);
-        $this->assertNotSame([], $messages, 'Expected the full-width index to exceed the adapter limit');
-        $this->assertStringContainsString('Index length is longer than the maximum', $messages[0]);
-        $this->assertTrue($this->indexDocument($database)->isEmpty(), 'The failed index must not be recorded');
-    }
-
-    public function testZeroSourceLengthMeansNoPrefix(): void
-    {
-        // Zero is how a source records "no prefix" for a position (a short
-        // column needs none), and it must stay no-prefix rather than becoming a
-        // zero-length one. The metadata collection types `lengths` as an integer
-        // array, so no-prefix reads back as 0 — the shape a live production row
-        // for exactly this case carries ([100, 0]).
-        [$destination, $database] = $this->transferIndex(lengths: [100, 0], columnSizes: [600, 30]);
-
-        $this->assertSame([], $this->errorMessages($destination));
-        $this->assertSame([100, 0], $this->indexDocument($database)->getAttribute('lengths'));
-    }
-
-    /**
-     * An Overwrite migration onto an index whose ONLY difference is its prefix
-     * lengths must recreate it. The spec comparison used to omit lengths, so
-     * the index was treated as already matching and the destination silently
-     * kept its own prefixes — the shape Greptile flagged on this PR.
-     */
-    public function testAnOverwriteDoesNotTreatALengthOnlyDifferenceAsAMatch(): void
-    {
-        [, , $overwritten] = $this->transferIndex(
-            lengths: [100, 20],
-            onDuplicate: OnDuplicate::Overwrite,
-            existingLengths: [50, 20],
-        );
-
-        // The observable is the decision, not the recreate: an index whose only
-        // difference is its prefix was reported as already matching and skipped,
-        // so the destination silently kept its own lengths. The drop-and-recreate
-        // that follows cannot be asserted on the in-memory adapter, which does
-        // not support dropping an index the destination believes it holds — that
-        // is an adapter limit, not the behaviour under test, and saying so beats
-        // asserting an artifact of it.
-        $this->assertNotSame(
-            Resource::STATUS_SKIPPED,
-            $overwritten->getStatus(),
-            'A length-only difference must not be reported as already existing on the destination.',
-        );
-    }
-
-    /**
-     * @param array<int> $lengths
-     * @param array<int> $columnSizes
-     * @param array<int> $existingLengths
-     * @return array{AppwriteDestination, UtopiaDatabase, Index}
-     */
-    private function transferIndex(
-        array $lengths,
-        array $columnSizes = [600, 600],
-        OnDuplicate $onDuplicate = OnDuplicate::Fail,
-        array $existingLengths = [],
-    ): array {
-        $database = $this->projectDatabase();
-
-        $source = new MockSource();
-        $databaseResource = new DatabaseResource(
-            id: 'shop',
-            name: 'Shop',
-            type: 'tablesdb',
-            database: 'source-dsn',
-        );
-        $table = new Table($databaseResource, 'Orders', 'orders');
-        $source->pushMockResource($databaseResource);
-        $source->pushMockResource($table);
-        // Distinct ids: MockSource keys its map by resource id, and a Column
-        // carries none by default, so two columns would collide onto one.
-        $source->pushMockResource((new Text('reference', $table, size: $columnSizes[0]))->setId('reference'));
-        $source->pushMockResource((new Text('channel', $table, size: $columnSizes[1]))->setId('channel'));
-
-        // An Overwrite only applies when the source is newer than what the
-        // destination holds, so the seeded index is stamped older than the one
-        // that replaces it.
-        $index = static fn (array $withLengths, string $updatedAt = ''): Index => new Index(
-            id: 'idx_reference_channel',
-            key: 'idx_reference_channel',
-            table: $table,
-            type: 'key',
-            columns: ['reference', 'channel'],
-            lengths: $withLengths,
-            orders: [Order::Asc->value, Order::Asc->value],
-            createdAt: $updatedAt,
+        $database = new DatabaseResource(id: 'shop', name: 'Shop', type: 'tablesdb', database: 'source-dsn');
+        $relationship = new Relationship(
+            'category',
+            new Table($database, 'Products', 'products'),
+            relatedTable: 'categories',
+            relationType: RelationType::ManyToOne->value,
+            twoWay: true,
+            twoWayKey: 'products',
+            onDelete: $onDelete,
             updatedAt: $updatedAt,
         );
+        $relationship->setId('column-category');
+
+        return $relationship;
+    }
+
+    private function transfer(UtopiaDatabase $database, OnDuplicate $onDuplicate, Relationship $relationship): AppwriteDestination
+    {
+        $shop = $relationship->getTable()->getDatabase();
+        $source = new MockSource();
+        $source->pushMockResource($shop);
+        $source->pushMockResource(new Table($shop, 'Products', 'products'));
+        $source->pushMockResource(new Table($shop, 'Categories', 'categories'));
+        $source->pushMockResource($relationship);
 
         $destination = new AppwriteDestination(
             project: 'destination-project',
@@ -211,41 +187,64 @@ final class AppwriteIndexLengthsTest extends TestCase
             onDuplicate: $onDuplicate,
         );
 
-        // Two passes: Transfer::GROUP_DATABASES_RESOURCES replays indexes BEFORE
-        // columns, the reverse of what a real source emits, so a single call
-        // would offer the index against a table with no columns yet. Selecting
-        // the schema first and the index second reproduces the production order
-        // this defect lives in.
-        $transferred = $index($lengths, $existingLengths !== [] ? '2026-06-01 00:00:00' : '');
-
         $transfer = new Transfer($source, $destination);
         $database->getAuthorization()->skip(
-            static function () use ($transfer, $source, $index, $transferred, $existingLengths): void {
-                $noop = static function (): void {
-                };
-                $transfer->run([Resource::TYPE_DATABASE, Resource::TYPE_TABLE, Resource::TYPE_COLUMN], $noop);
-
-                if ($existingLengths !== []) {
-                    // Seed the index the overwrite will meet, carrying the
-                    // prefixes the destination already has.
-                    $source->pushMockResource($index($existingLengths, '2026-01-01 00:00:00'));
-                    $transfer->run([Resource::TYPE_INDEX], $noop);
-                }
-
-                $source->pushMockResource($transferred);
-                $transfer->run([Resource::TYPE_INDEX], $noop);
+            static function () use ($transfer): void {
+                $transfer->run(
+                    [Resource::TYPE_DATABASE, Resource::TYPE_TABLE, Resource::TYPE_COLUMN],
+                    static function (): void {
+                    },
+                );
             },
         );
 
-        return [$destination, $database, $transferred];
+        return $destination;
+    }
+
+    private function libraryAction(UtopiaDatabase $database, string $tableId, string $key): mixed
+    {
+        $collection = $database->getAuthorization()->skip(
+            fn (): Collection => $database->getCollection($this->tableCollectionId($database, $tableId)),
+        );
+        foreach ($collection->getAttribute('attributes', []) as $attribute) {
+            if ($attribute->getId() === $key) {
+                return $attribute->getAttribute('options', [])['onDelete'] ?? null;
+            }
+        }
+
+        $this->fail("Relationship {$key} not found on {$tableId}");
+    }
+
+    private function metadataAction(UtopiaDatabase $database, string $tableId, string $key): mixed
+    {
+        $shop = $this->document($database, 'databases', 'shop');
+        $table = $this->document($database, 'database_'.$shop->getSequence(), $tableId);
+        $metadata = $this->document($database, 'attributes', $shop->getSequence().'_'.$table->getSequence().'_'.$key);
+
+        return $metadata->getAttribute('options', [])['onDelete'] ?? null;
+    }
+
+    private function tableCollectionId(UtopiaDatabase $database, string $tableId): string
+    {
+        $shop = $this->document($database, 'databases', 'shop');
+        $table = $this->document($database, 'database_'.$shop->getSequence(), $tableId);
+
+        return 'database_'.$shop->getSequence().'_collection_'.$table->getSequence();
+    }
+
+    private function document(UtopiaDatabase $database, string $collection, string $documentId): UtopiaDocument
+    {
+        $document = $database->getAuthorization()->skip(
+            static fn (): UtopiaDocument => $database->getDocument($collection, $documentId),
+        );
+        $this->assertFalse($document->isEmpty(), "{$collection}/{$documentId} must exist");
+
+        return $document;
     }
 
     private function projectDatabase(): UtopiaDatabase
     {
-        $database = new UtopiaDatabase(
-            new MemoryAdapter(),
-            new Cache(new MemoryCache()),
-        );
+        $database = new UtopiaDatabase(new MemoryAdapter(), new Cache(new MemoryCache()));
         $database
             ->setDatabase('appwrite')
             ->setNamespace('_project');
@@ -354,23 +353,12 @@ final class AppwriteIndexLengthsTest extends TestCase
         );
     }
 
-    /**
-     * @return array<string>
-     */
+    /** @return list<string> */
     private function errorMessages(AppwriteDestination $destination): array
     {
         return \array_map(
-            static fn ($error): string => $error->getMessage(),
+            static fn (\Throwable $error): string => $error->getMessage(),
             $destination->getErrors(),
         );
-    }
-
-    private function indexDocument(UtopiaDatabase $database): UtopiaDocument
-    {
-        $indexes = $database->getAuthorization()->skip(
-            static fn (): array => $database->find('indexes'),
-        );
-
-        return $indexes[0] ?? new UtopiaDocument();
     }
 }

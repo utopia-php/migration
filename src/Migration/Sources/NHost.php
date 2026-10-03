@@ -4,6 +4,7 @@ namespace Utopia\Migration\Sources;
 
 use PDO;
 use Utopia\Migration\Exception;
+use Utopia\Migration\Exception\Aborted;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Auth\Hash;
 use Utopia\Migration\Resources\Auth\User;
@@ -316,6 +317,8 @@ class NHost extends Source
             if (\in_array(Resource::TYPE_USER, $resources)) {
                 $this->exportUsers($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(new Exception(
                 Resource::TYPE_USER,
@@ -381,6 +384,8 @@ class NHost extends Source
             if (\in_array(Resource::TYPE_DATABASE, $resources)) {
                 $this->exportDatabases($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -397,6 +402,8 @@ class NHost extends Source
             if (Resource::isSupported(Resource::TYPE_TABLE, $resources)) {
                 $this->exportTables($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -413,6 +420,8 @@ class NHost extends Source
             if (Resource::isSupported(Resource::TYPE_COLUMN, $resources)) {
                 $this->exportColumns($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -429,6 +438,8 @@ class NHost extends Source
             if (Resource::isSupported(Resource::TYPE_ROW, $resources)) {
                 $this->exportRows($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -445,6 +456,8 @@ class NHost extends Source
             if (\in_array(Resource::TYPE_INDEX, $resources)) {
                 $this->exportIndexes($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -793,6 +806,8 @@ class NHost extends Source
             if (\in_array(Resource::TYPE_BUCKET, $resources)) {
                 $this->exportBuckets($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
@@ -809,6 +824,8 @@ class NHost extends Source
             if (\in_array(Resource::TYPE_FILE, $resources)) {
                 $this->exportFiles($batchSize);
             }
+        } catch (Aborted $abort) {
+            throw $abort;
         } catch (\Throwable $e) {
             $this->addError(
                 new Exception(
