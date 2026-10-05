@@ -2395,12 +2395,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/database.git",
-                "reference": "4519cf6466406b5e2c2ba8253da6131e2579a2dd"
+                "reference": "54022b2fc3ddfb7fe034aede8c628e46896443f1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/4519cf6466406b5e2c2ba8253da6131e2579a2dd",
-                "reference": "4519cf6466406b5e2c2ba8253da6131e2579a2dd",
+                "url": "https://api.github.com/repos/utopia-php/database/zipball/54022b2fc3ddfb7fe034aede8c628e46896443f1",
+                "reference": "54022b2fc3ddfb7fe034aede8c628e46896443f1",
                 "shasum": ""
             },
             "require": {
@@ -2412,7 +2412,7 @@
                 "utopia-php/async": "^0.2",
                 "utopia-php/cache": "^4.0 || ^5.0",
                 "utopia-php/console": "^0.1 || ^0.2",
-                "utopia-php/mongo": "^1.0",
+                "utopia-php/mongo": "^1.5.4",
                 "utopia-php/pools": "^2.0",
                 "utopia-php/query": "^0.6",
                 "utopia-php/validators": "^1.0"
@@ -2430,14 +2430,13 @@
             "suggest": {
                 "ext-pdo": "Needed to support MariaDB, MySQL or SQLite Database Adapter",
                 "ext-redis": "Needed to support Redis Cache Adapter",
-                "ext-swoole": "Needed to scope lifecycle hook silencing per coroutine and to detect lost connections",
-                "mongodb/mongodb": "Needed to support MongoDB Database Adapter"
+                "ext-swoole": "Needed to scope lifecycle hook silencing per coroutine and to detect lost connections"
             },
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-feat-query-lib": "8.0.x-dev",
-                    "dev-main": "8.0.x-dev"
+                    "dev-main": "8.0.x-dev",
+                    "dev-feat-query-lib": "8.0.x-dev"
                 }
             },
             "autoload": {
@@ -2445,36 +2444,7 @@
                     "Utopia\\Database\\": "src/Database"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "Tests\\E2E\\": "tests/e2e",
-                    "Tests\\Unit\\": "tests/unit"
-                }
-            },
-            "scripts": {
-                "build": [
-                    "Composer\\Config::disableProcessTimeout",
-                    "docker compose build"
-                ],
-                "start": [
-                    "Composer\\Config::disableProcessTimeout",
-                    "docker compose up -d"
-                ],
-                "test": [
-                    "Composer\\Config::disableProcessTimeout",
-                    "docker compose exec tests vendor/bin/paratest --configuration phpunit.xml --functional --processes 4"
-                ],
-                "lint": [
-                    "php -d memory_limit=2G ./vendor/bin/pint --test"
-                ],
-                "format": [
-                    "php -d memory_limit=2G ./vendor/bin/pint"
-                ],
-                "check": [
-                    "./vendor/bin/phpstan analyse --memory-limit 2G",
-                    "./vendor/bin/phpstan analyse -c phpstan-bin.neon --memory-limit 2G"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -2487,10 +2457,10 @@
                 "utopia"
             ],
             "support": {
-                "source": "https://github.com/utopia-php/database/tree/feat-query-lib",
-                "issues": "https://github.com/utopia-php/database/issues"
+                "issues": "https://github.com/utopia-php/database/issues",
+                "source": "https://github.com/utopia-php/database/tree/feat-query-lib"
             },
-            "time": "2026-10-02T23:12:25+00:00"
+            "time": "2026-10-05T03:11:01+00:00"
         },
         {
             "name": "utopia-php/dsn",
