@@ -738,7 +738,7 @@ class NHost extends Source
                     required: $column['is_nullable'] === 'NO',
                     default: $column['column_default'],
                     array: $isArray,
-                    size: $column['character_maximum_length'] ?? $column['character_octet_length'] ?? 10485760,
+                    size: $column['character_maximum_length'] ?? ($column['data_type'] === 'text' ? 10485760 : ($column['character_octet_length'] ?? 10485760)),
                 );
         }
     }
