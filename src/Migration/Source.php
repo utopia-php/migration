@@ -23,9 +23,10 @@ abstract class Source extends Target
 
     /**
      * Resources this source cannot transfer unless their prerequisites travel
-     * with them, keyed by resource type.
+     * with them, keyed by resource type. A nested list names alternatives, any
+     * one of which satisfies the prerequisite.
      *
-     * @return array<string, array<string>>
+     * @return array<string, array<string|array<string>>>
      */
     public function getResourceDependencies(): array
     {
@@ -263,7 +264,13 @@ abstract class Source extends Target
                 continue;
             }
 
-            $missing = \array_values(\array_diff($requires, $requested));
+            $missing = [];
+            foreach ($requires as $required) {
+                $alternatives = (array) $required;
+                if (empty(\array_intersect($alternatives, $requested))) {
+                    $missing[] = \implode(' or ', $alternatives);
+                }
+            }
 
             if (empty($missing)) {
                 continue;

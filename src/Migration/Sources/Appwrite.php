@@ -329,11 +329,11 @@ class Appwrite extends Source
      * the parent's own exporter, so a request naming the child alone moves
      * nothing at all.
      *
-     * Index, collection, attribute and document are deliberately absent. They
-     * are shared between the tables, documents and vectors flavours, whose
-     * parents differ, and naming one flavour's parents would reject the others.
+     * Collections, their attributes and documents belong to either documents or
+     * vectors databases, and indexes to either tables or collections, so those
+     * parents are alternatives.
      *
-     * @return array<string, array<string>>
+     * @return array<string, array<string|array<string>>>
      */
     #[Override]
     public function getResourceDependencies(): array
@@ -344,6 +344,10 @@ class Appwrite extends Source
             Resource::TYPE_TABLE => [Resource::TYPE_DATABASE],
             Resource::TYPE_COLUMN => [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
             Resource::TYPE_ROW => [Resource::TYPE_DATABASE, Resource::TYPE_TABLE, Resource::TYPE_COLUMN],
+            Resource::TYPE_COLLECTION => [[Resource::TYPE_DATABASE_DOCUMENTSDB, Resource::TYPE_DATABASE_VECTORSDB]],
+            Resource::TYPE_ATTRIBUTE => [[Resource::TYPE_DATABASE_DOCUMENTSDB, Resource::TYPE_DATABASE_VECTORSDB], Resource::TYPE_COLLECTION],
+            Resource::TYPE_DOCUMENT => [[Resource::TYPE_DATABASE_DOCUMENTSDB, Resource::TYPE_DATABASE_VECTORSDB], Resource::TYPE_COLLECTION],
+            Resource::TYPE_INDEX => [[Resource::TYPE_TABLE, Resource::TYPE_COLLECTION]],
             Resource::TYPE_FILE => [Resource::TYPE_BUCKET],
             Resource::TYPE_ENVIRONMENT_VARIABLE => [Resource::TYPE_FUNCTION],
             Resource::TYPE_DEPLOYMENT => [Resource::TYPE_FUNCTION],
