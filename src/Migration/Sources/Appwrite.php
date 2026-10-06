@@ -1475,7 +1475,7 @@ class Appwrite extends Source
                     unset($row['$tableId']);
                     unset($row['$table']);
 
-                    $row = self::getRecord($table->getDatabase()->getType(), [
+                    $record = self::getRecord($table->getDatabase()->getType(), [
                         'id' => $id,
                         'table' => [
                             'id' => $table->getId(),
@@ -1493,8 +1493,8 @@ class Appwrite extends Source
                         'permissions' => $permissions
                     ]);
 
-                    $rows[] = $row;
-                    $lastRow = $row;
+                    $rows[] = $record;
+                    $lastRow = $record;
                 }
 
                 $this->callback($rows);
@@ -1562,7 +1562,7 @@ class Appwrite extends Source
         $convertedBuckets = [];
 
         foreach ($buckets->buckets as $bucket) {
-            $bucket = new Bucket(
+            $convertedBuckets[] = new Bucket(
                 $bucket->id,
                 $bucket->name,
                 $bucket->permissions,
@@ -1576,7 +1576,6 @@ class Appwrite extends Source
                 false,
                 $bucket->transformations ?? false,
             );
-            $convertedBuckets[] = $bucket;
         }
 
         if (empty($convertedBuckets)) {
