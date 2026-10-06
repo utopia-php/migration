@@ -2063,26 +2063,21 @@ class Appwrite extends Destination
                 );
                 // Strip row payload fields the table doesn't declare — guards against orphans surviving in source archives.
                 if ($dbForDatabases->getAdapter()->supports(Capability::DefinedAttributes)) {
+                    $declaredKeys = [];
+                    foreach ($table->getAttribute('attributes', []) as $attribute) {
+                        $declaredKey = $attribute instanceof UtopiaAttribute
+                            ? $attribute->getKey()
+                            : (string) $attribute->getAttribute('key', '');
+                        $declaredKeys[$declaredKey] = true;
+                    }
+
                     foreach ($this->rowBuffer as $row) {
-                        foreach ($row as $key => $value) {
-                            if (\str_starts_with($key, '$')) {
+                        foreach (\array_keys($row->getAttributes()) as $key) {
+                            if (\str_starts_with((string) $key, '$') || isset($declaredKeys[$key])) {
                                 continue;
                             }
 
-                            $found = false;
-                            foreach ($table->getAttribute('attributes', []) as $attribute) {
-                                $attrKey = $attribute instanceof UtopiaAttribute
-                                    ? $attribute->key
-                                    : $attribute->getAttribute('key');
-                                if ($attrKey == $key) {
-                                    $found = true;
-                                    break;
-                                }
-                            }
-
-                            if (! $found) {
-                                $row->removeAttribute($key);
-                            }
+                            $row->removeAttribute((string) $key);
                         }
                     }
                 }
