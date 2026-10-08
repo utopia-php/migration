@@ -1216,8 +1216,7 @@ class Appwrite extends Destination
 
         $dbForDatabases = ($this->getDatabasesDB)($database);
 
-        // passing null in creates only creates the metadata collection
-        if (!$dbForDatabases->collectionExists(UtopiaDatabase::METADATA, null)) {
+        if (!$dbForDatabases->collectionExists(UtopiaDatabase::METADATA)) {
             $dbForDatabases->create();
         }
 
@@ -1440,8 +1439,6 @@ class Appwrite extends Destination
 
             if ($action === SchemaAction::Overwrite) {
                 $this->dropAttributeForRecreate($database, $table, $resource, $dbForDatabases, $existingAttr);
-                // Reload $table — in-memory copy still holds the dropped attribute.
-                $table = $this->dbForProject->getDocument($this->databaseCollectionId($database), $table->getId());
             }
         }
 
@@ -1476,7 +1473,7 @@ class Appwrite extends Destination
                 'signed' => $resource->isSigned(),
                 'default' => $resource->getDefault(),
                 'array' => $resource->isArray(),
-                'format' => $resource->getFormat() !== '' ? $resource->getFormat() : null,
+                'format' => $resource->getFormat(),
                 'formatOptions' => $resource->getFormatOptions(),
                 'filters' => $resource->getFilters(),
                 'options' => $resource->getOptions() !== [] ? $resource->getOptions() : null,
@@ -1605,7 +1602,7 @@ class Appwrite extends Destination
                             'default' => $resource->getDefault(),
                             'signed' => $resource->isSigned(),
                             'array' => $resource->isArray(),
-                            'format' => $resource->getFormat() !== '' ? $resource->getFormat() : null,
+                            'format' => $resource->getFormat(),
                             'formatOptions' => $resource->getFormatOptions(),
                             'filters' => $resource->getFilters(),
                         ]),
