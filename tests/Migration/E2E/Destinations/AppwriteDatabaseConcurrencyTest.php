@@ -325,7 +325,7 @@ final class AppwriteDatabaseConcurrencyTest extends TestCase
         }
 
         $second->create();
-        $second->createCollection(new Collection(
+        $second->createCollection(Collection::create(
             id: 'databases',
             attributes: [
                 $this->attribute('name', ColumnType::String, required: true, size: 256),
@@ -372,13 +372,13 @@ final class AppwriteDatabaseConcurrencyTest extends TestCase
         mixed $default = null,
         int $size = 0,
     ): UtopiaAttribute {
-        return new UtopiaAttribute(
-            key: $id,
-            type: $type,
-            size: $size,
-            required: $required,
-            default: $default,
-        );
+        return UtopiaAttribute::fromArray([
+            'key' => $id,
+            'type' => $type,
+            'size' => $size,
+            'required' => $required,
+            'default' => $default,
+        ]);
     }
 
     private function getDatabaseDocument(UtopiaDatabase $database): UtopiaDocument

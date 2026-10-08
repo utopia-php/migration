@@ -20,7 +20,6 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
-use Utopia\Query\Schema\ColumnType;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
 final class TestMigrationCLI extends \MigrationCLI
@@ -131,7 +130,7 @@ final class MigrationCLITest extends TestCase
                     $this->assertSame($status, $created->getAttribute('status'));
                     $this->assertSame('migration-terminal', $created->getAttribute('migrationId'));
                     $this->assertSame('attempt-terminal', $created->getAttribute('migrationAttemptId'));
-                    $this->assertTrue($database->getCollection('database_'.$created->getSequence())->isEmpty());
+                    $this->assertNull($database->findCollection('database_'.$created->getSequence()));
                     continue;
                 }
 
@@ -139,7 +138,7 @@ final class MigrationCLITest extends TestCase
                 $this->assertSame('ready', $created->getAttribute('status'));
                 $this->assertSame('migration-current', $created->getAttribute('migrationId'));
                 $this->assertSame('attempt-current', $created->getAttribute('migrationAttemptId'));
-                $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
+                $this->assertNotNull($database->findCollection('database_'.$created->getSequence()));
             }
         }
     }
@@ -194,7 +193,7 @@ final class MigrationCLITest extends TestCase
         $this->assertSame('ready', $created->getAttribute('status'));
         $this->assertSame('migration-current', $created->getAttribute('migrationId'));
         $this->assertSame('attempt-current', $created->getAttribute('migrationAttemptId'));
-        $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
+        $this->assertNotNull($database->findCollection('database_'.$created->getSequence()));
     }
 
     public function testStartFinalizesSuccessfulResourcesWhenDestinationHasErrors(): void
@@ -236,7 +235,7 @@ final class MigrationCLITest extends TestCase
         $this->assertSame('ready', $created->getAttribute('status'));
         $this->assertSame('migration-current', $created->getAttribute('migrationId'));
         $this->assertSame('attempt-current', $created->getAttribute('migrationAttemptId'));
-        $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
+        $this->assertNotNull($database->findCollection('database_'.$created->getSequence()));
     }
 
     private function createProjectDatabase(?string $status = 'provisioning'): Database
@@ -246,18 +245,18 @@ final class MigrationCLITest extends TestCase
             ->setDatabase('appwrite')
             ->setNamespace('_project');
         $database->create();
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'databases',
             attributes: [
-                new Attribute(key: 'name', type: ColumnType::String, size: 256, required: true),
-                new Attribute(key: 'enabled', type: ColumnType::Boolean, default: true),
-                new Attribute(key: 'search', type: ColumnType::String, size: 16384),
-                new Attribute(key: 'originalId', type: ColumnType::String, size: Database::LENGTH_KEY),
-                new Attribute(key: 'type', type: ColumnType::String, size: 128, default: 'tablesdb'),
-                new Attribute(key: 'database', type: ColumnType::String, size: 2000),
-                new Attribute(key: 'status', type: ColumnType::String, size: 16),
-                new Attribute(key: 'migrationId', type: ColumnType::String, size: Database::LENGTH_KEY),
-                new Attribute(key: 'migrationAttemptId', type: ColumnType::String, size: Database::LENGTH_KEY),
+                Attribute::string(key: 'name', size: 256, required: true),
+                Attribute::boolean(key: 'enabled', default: true),
+                Attribute::string(key: 'search', size: 16384),
+                Attribute::string(key: 'originalId', size: Database::LENGTH_KEY),
+                Attribute::string(key: 'type', size: 128, default: 'tablesdb'),
+                Attribute::string(key: 'database', size: 2000),
+                Attribute::string(key: 'status', size: 16),
+                Attribute::string(key: 'migrationId', size: Database::LENGTH_KEY),
+                Attribute::string(key: 'migrationAttemptId', size: Database::LENGTH_KEY),
             ],
         ));
         if ($status !== null) {

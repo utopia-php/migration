@@ -141,7 +141,7 @@ final class AppwriteDestinationDsnTest extends TestCase
             ->setNamespace('_project');
         $database->create();
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'databases',
             attributes: [
                 $this->attribute('name', ColumnType::String, required: true, size: 256),
@@ -163,12 +163,12 @@ final class AppwriteDestinationDsnTest extends TestCase
         mixed $default = null,
         int $size = 0,
     ): UtopiaAttribute {
-        return new UtopiaAttribute(
-            key: $id,
-            type: $type,
-            size: $size,
-            required: $required,
-            default: $default,
-        );
+        return UtopiaAttribute::fromArray([
+            'key' => $id,
+            'type' => $type,
+            'size' => $size,
+            'required' => $required,
+            'default' => $default,
+        ]);
     }
 }

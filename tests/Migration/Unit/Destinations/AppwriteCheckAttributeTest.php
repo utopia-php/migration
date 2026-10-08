@@ -196,7 +196,7 @@ final class AppwriteCheckAttributeTest extends TestCase
             ->setNamespace('_project');
         $database->create();
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'databases',
             attributes: [
                 $this->attribute('name', ColumnType::String, required: true, size: 256),
@@ -208,7 +208,7 @@ final class AppwriteCheckAttributeTest extends TestCase
             ],
         ));
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'attributes',
             attributes: [
                 $this->attribute('key', ColumnType::String, size: 256),
@@ -231,7 +231,7 @@ final class AppwriteCheckAttributeTest extends TestCase
             ],
         ));
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'indexes',
             attributes: [
                 $this->attribute('key', ColumnType::String, size: 256),
@@ -288,15 +288,15 @@ final class AppwriteCheckAttributeTest extends TestCase
         bool $array = false,
         array $filters = [],
     ): UtopiaAttribute {
-        return new UtopiaAttribute(
-            key: $id,
-            type: $type,
-            size: $size,
-            required: $required,
-            default: $default,
-            array: $array,
-            filters: $filters,
-        );
+        return UtopiaAttribute::fromArray([
+            'key' => $id,
+            'type' => $type,
+            'size' => $size,
+            'required' => $required,
+            'default' => $default,
+            'array' => $array,
+            'filters' => $filters,
+        ]);
     }
 
     /**

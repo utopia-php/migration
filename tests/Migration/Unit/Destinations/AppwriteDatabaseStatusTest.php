@@ -234,8 +234,8 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $this->assertSame(1, $destination->runCount);
             $this->assertFalse($created->isEmpty());
             $this->assertArrayNotHasKey('status', $created->getArrayCopy());
-            $this->assertFalse(
-                $database->getCollection('database_'.$created->getSequence())->isEmpty(),
+            $this->assertNotNull(
+                $database->findCollection('database_'.$created->getSequence()),
                 'Metadata collection must use the persisted database sequence',
             );
         }
@@ -257,8 +257,8 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $this->assertSame(1, $destination->runCount);
             $this->assertFalse($created->isEmpty());
             $this->assertSame('ready', $created->getAttribute('status'));
-            $this->assertFalse(
-                $database->getCollection('database_'.$created->getSequence())->isEmpty(),
+            $this->assertNotNull(
+                $database->findCollection('database_'.$created->getSequence()),
                 'Metadata collection must use the persisted database sequence',
             );
         }
@@ -723,7 +723,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
             ),
         );
         $this->assertTrue($this->getDatabaseDocument($database)->isEmpty());
-        $this->assertTrue($database->getCollection('database_'.$seeded->getSequence())->isEmpty());
+        $this->assertNull($database->findCollection('database_'.$seeded->getSequence()));
     }
 
     public function testDatabaseFinalizersRunOnlyAfterSuccess(): void
@@ -803,8 +803,8 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame('failed', $created->getAttribute('status'));
         $this->assertSame('migration-current', $created->getAttribute('migrationId'));
         $this->assertSame('attempt-current', $created->getAttribute('migrationAttemptId'));
-        $this->assertTrue(
-            $database->getCollection('database_'.$created->getSequence())->isEmpty(),
+        $this->assertNull(
+            $database->findCollection('database_'.$created->getSequence()),
             'A reload failure must not leave a backing collection behind the metadata document',
         );
     }
@@ -822,8 +822,8 @@ final class AppwriteDatabaseStatusTest extends TestCase
 
         $failed = $this->getDatabaseDocument($database);
         $this->assertSame('failed', $failed->getAttribute('status'));
-        $this->assertTrue(
-            $database->getCollection('database_'.$failed->getSequence())->isEmpty(),
+        $this->assertNull(
+            $database->findCollection('database_'.$failed->getSequence()),
         );
 
         $destination = $this->runDatabaseTransfer(
@@ -843,8 +843,8 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame($failed->getSequence(), $recovered->getSequence());
         $this->assertSame('migration-current', $recovered->getAttribute('migrationId'));
         $this->assertSame('attempt-recovery', $recovered->getAttribute('migrationAttemptId'));
-        $this->assertFalse(
-            $database->getCollection('database_'.$recovered->getSequence())->isEmpty(),
+        $this->assertNotNull(
+            $database->findCollection('database_'.$recovered->getSequence()),
             'A Fail retry must recreate the backing collection for a previously failed database',
         );
     }
@@ -867,8 +867,8 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $stranded->getAttribute('status'),
             'The reload threw and the write that would record the failure threw too, so the document is stranded mid-provision',
         );
-        $this->assertTrue(
-            $database->getCollection('database_'.$stranded->getSequence())->isEmpty(),
+        $this->assertNull(
+            $database->findCollection('database_'.$stranded->getSequence()),
             'The backing collection was never created, so the database is unusable',
         );
         $database->failDatabasesWrites = false;
@@ -890,8 +890,8 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame($stranded->getSequence(), $recovered->getSequence());
         $this->assertSame('migration-recovery', $recovered->getAttribute('migrationId'));
         $this->assertSame('attempt-recovery', $recovered->getAttribute('migrationAttemptId'));
-        $this->assertFalse(
-            $database->getCollection('database_'.$recovered->getSequence())->isEmpty(),
+        $this->assertNotNull(
+            $database->findCollection('database_'.$recovered->getSequence()),
             'A Fail retry must recover a database stranded in provisioning, not keep colliding with its metadata id',
         );
     }
@@ -921,9 +921,8 @@ final class AppwriteDatabaseStatusTest extends TestCase
             );
             $provisioning = $this->getDatabaseDocument($database);
             $statusDuringOverlap = $provisioning->getAttribute('status');
-            $collectionExistsDuringOverlap = ! $database
-                ->getCollection('database_'.$provisioning->getSequence())
-                ->isEmpty();
+            $collectionExistsDuringOverlap = $database
+                ->findCollection('database_'.$provisioning->getSequence()) !== null;
         };
         $database->interceptNextDatabasesReload = true;
 
@@ -944,7 +943,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame('ready', $created->getAttribute('status'));
         $this->assertSame('migration-first', $created->getAttribute('migrationId'));
         $this->assertSame('attempt-first', $created->getAttribute('migrationAttemptId'));
-        $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
+        $this->assertNotNull($database->findCollection('database_'.$created->getSequence()));
     }
 
     public function testAuthorizedOverwriteReplacesTerminalOwner(): void
@@ -1001,7 +1000,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertArrayNotHasKey('migrationId', $database->databaseWrites[0]['document']);
         $this->assertArrayNotHasKey('migrationAttemptId', $database->databaseWrites[0]['document']);
         $this->assertSame('ready', $created->getAttribute('status'));
-        $this->assertFalse($database->getCollection('database_'.$created->getSequence())->isEmpty());
+        $this->assertNotNull($database->findCollection('database_'.$created->getSequence()));
     }
 
     public function testStatusOnlySchemaRecoversIncompleteDatabasesWithoutOwner(): void
@@ -1022,7 +1021,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         foreach (['database-provisioning', 'database-failed'] as $databaseId) {
             $recovered = $this->getDatabaseDocument($database, $databaseId);
             $this->assertSame('ready', $recovered->getAttribute('status'), $databaseId);
-            $this->assertFalse($database->getCollection('database_'.$recovered->getSequence())->isEmpty(), $databaseId);
+            $this->assertNotNull($database->findCollection('database_'.$recovered->getSequence()), $databaseId);
         }
         $this->assertNotSame([], $database->databaseWrites);
         foreach ($database->databaseWrites as $write) {
@@ -1072,7 +1071,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame($seeded->getSequence(), $recovered->getSequence());
         $this->assertSame('migration-current', $recovered->getAttribute('migrationId'));
         $this->assertSame('attempt-current', $recovered->getAttribute('migrationAttemptId'));
-        $this->assertFalse($database->getCollection('database_'.$recovered->getSequence())->isEmpty());
+        $this->assertNotNull($database->findCollection('database_'.$recovered->getSequence()));
     }
 
     public function testLegacyProvisioningDatabaseMissingItsCollectionIsRecreated(): void
@@ -1089,8 +1088,8 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame($seeded->getSequence(), $recovered->getSequence());
         $this->assertSame('migration-current', $recovered->getAttribute('migrationId'));
         $this->assertSame('attempt-current', $recovered->getAttribute('migrationAttemptId'));
-        $this->assertFalse(
-            $database->getCollection('database_'.$recovered->getSequence())->isEmpty(),
+        $this->assertNotNull(
+            $database->findCollection('database_'.$recovered->getSequence()),
             'A recovered database must never be marked ready without its backing collection',
         );
     }
@@ -1110,7 +1109,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         $this->assertSame($seeded->getSequence(), $recovered->getSequence());
         $this->assertSame('migration-current', $recovered->getAttribute('migrationId'));
         $this->assertSame('attempt-current', $recovered->getAttribute('migrationAttemptId'));
-        $this->assertFalse($database->getCollection('database_'.$recovered->getSequence())->isEmpty());
+        $this->assertNotNull($database->findCollection('database_'.$recovered->getSequence()));
     }
 
     public function testOwnedDatabaseWithoutAttestationIsRefusedWhileLegacyDatabaseRecovers(): void
@@ -1360,7 +1359,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         foreach (['database-provisioning', 'database-failed'] as $databaseId) {
             $recovered = $this->getDatabaseDocument($database, $databaseId);
             $this->assertSame('ready', $recovered->getAttribute('status'), $databaseId);
-            $this->assertFalse($database->getCollection('database_'.$recovered->getSequence())->isEmpty(), $databaseId);
+            $this->assertNotNull($database->findCollection('database_'.$recovered->getSequence()), $databaseId);
         }
     }
 
@@ -1504,7 +1503,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
             $attributes[] = $this->attribute('migrationAttemptId', ColumnType::String, size: UtopiaDatabase::LENGTH_KEY);
         }
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'databases',
             attributes: $attributes,
         ));
@@ -1574,7 +1573,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
         );
 
         if ($withCollection) {
-            $database->createCollection(new Collection(id: 'database_'.$seeded->getSequence()));
+            $database->createCollection(Collection::create(id: 'database_'.$seeded->getSequence()));
         }
 
         return $seeded;
@@ -1592,13 +1591,13 @@ final class AppwriteDatabaseStatusTest extends TestCase
         mixed $default = null,
         int $size = 0,
     ): UtopiaAttribute {
-        return new UtopiaAttribute(
-            key: $id,
-            type: $type,
-            size: $size,
-            required: $required,
-            default: $default,
-        );
+        return UtopiaAttribute::fromArray([
+            'key' => $id,
+            'type' => $type,
+            'size' => $size,
+            'required' => $required,
+            'default' => $default,
+        ]);
     }
 
     private function runDatabaseTransfer(

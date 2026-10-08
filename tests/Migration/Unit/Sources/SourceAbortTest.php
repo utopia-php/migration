@@ -25,7 +25,6 @@ use Utopia\Migration\Sources\JSON;
 use Utopia\Migration\Sources\NHost;
 use Utopia\Migration\Sources\Supabase;
 use Utopia\Migration\Transfer;
-use Utopia\Query\Schema\ColumnType;
 use Utopia\Storage\Device\Local;
 use Utopia\Tests\Unit\Adapters\MockDestination;
 
@@ -296,11 +295,11 @@ final class SourceAbortTest extends TestCase
         $database->create();
         $database->getAuthorization()->disable();
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'databases',
             attributes: [
-                new Attribute(key: 'name', type: ColumnType::String, size: 256),
-                new Attribute(key: 'type', type: ColumnType::String, size: 128),
+                Attribute::string(key: 'name', size: 256),
+                Attribute::string(key: 'type', size: 128),
             ],
         ));
         $metadata = $database->createDocument('databases', new Document([
@@ -310,17 +309,17 @@ final class SourceAbortTest extends TestCase
         ]));
 
         $tables = 'database_' . $metadata->getSequence();
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: $tables,
-            attributes: [new Attribute(key: 'name', type: ColumnType::String, size: 256)],
+            attributes: [Attribute::string(key: 'name', size: 256)],
         ));
         $database->createDocument($tables, new Document(['$id' => 'table', 'name' => 'Table']));
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'attributes',
             attributes: [
-                new Attribute(key: 'databaseInternalId', type: ColumnType::String, size: 64),
-                new Attribute(key: 'collectionInternalId', type: ColumnType::String, size: 64),
+                Attribute::string(key: 'databaseInternalId', size: 64),
+                Attribute::string(key: 'collectionInternalId', size: 64),
             ],
         ));
 

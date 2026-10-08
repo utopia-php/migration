@@ -21,8 +21,8 @@ use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Transfer;
+use Utopia\Query\OrderDirection;
 use Utopia\Query\Schema\ColumnType;
-use Utopia\Query\Schema\Order;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
 /**
@@ -180,7 +180,7 @@ final class AppwriteIndexLengthsTest extends TestCase
             type: 'key',
             columns: ['reference', 'channel'],
             lengths: $withLengths,
-            orders: [Order::Asc->value, Order::Asc->value],
+            orders: [OrderDirection::Asc->value, OrderDirection::Asc->value],
             createdAt: $updatedAt,
             updatedAt: $updatedAt,
         );
@@ -251,7 +251,7 @@ final class AppwriteIndexLengthsTest extends TestCase
             ->setNamespace('_project');
         $database->create();
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'databases',
             attributes: [
                 $this->attribute('name', ColumnType::String, required: true, size: 256),
@@ -263,7 +263,7 @@ final class AppwriteIndexLengthsTest extends TestCase
             ],
         ));
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'attributes',
             attributes: [
                 $this->attribute('key', ColumnType::String, size: 256),
@@ -286,7 +286,7 @@ final class AppwriteIndexLengthsTest extends TestCase
             ],
         ));
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'indexes',
             attributes: [
                 $this->attribute('key', ColumnType::String, size: 256),
@@ -343,15 +343,15 @@ final class AppwriteIndexLengthsTest extends TestCase
         bool $array = false,
         array $filters = [],
     ): UtopiaAttribute {
-        return new UtopiaAttribute(
-            key: $id,
-            type: $type,
-            size: $size,
-            required: $required,
-            default: $default,
-            array: $array,
-            filters: $filters,
-        );
+        return UtopiaAttribute::fromArray([
+            'key' => $id,
+            'type' => $type,
+            'size' => $size,
+            'required' => $required,
+            'default' => $default,
+            'array' => $array,
+            'filters' => $filters,
+        ]);
     }
 
     /**

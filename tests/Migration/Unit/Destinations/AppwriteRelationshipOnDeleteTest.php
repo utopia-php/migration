@@ -14,7 +14,8 @@ use Utopia\Database\Collection;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\Document as UtopiaDocument;
 use Utopia\Database\Query;
-use Utopia\Database\RelationType;
+use Utopia\Database\RelationshipDeleteAction;
+use Utopia\Database\RelationshipType;
 use Utopia\Migration\Destinations\Appwrite as AppwriteDestination;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
 use Utopia\Migration\Destinations\OnDuplicate;
@@ -24,7 +25,6 @@ use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Transfer;
 use Utopia\Query\Schema\ColumnType;
-use Utopia\Query\Schema\ForeignKeyAction;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
 /**
@@ -94,14 +94,14 @@ final class AppwriteRelationshipOnDeleteTest extends TestCase
         $overwritten = $this->transfer(
             $database,
             OnDuplicate::Overwrite,
-            $this->relationship(ForeignKeyAction::SetNull->value, '2030-01-01T00:00:00.000+00:00'),
+            $this->relationship(RelationshipDeleteAction::SetNull->value, '2030-01-01T00:00:00.000+00:00'),
         );
 
         $this->assertSame([], $this->errorMessages($overwritten));
-        $this->assertSame(ForeignKeyAction::SetNull->value, $this->libraryAction($database, 'products', 'category'));
-        $this->assertSame(ForeignKeyAction::SetNull->value, $this->libraryAction($database, 'categories', 'products'));
-        $this->assertSame(ForeignKeyAction::SetNull->value, $this->metadataAction($database, 'products', 'category'));
-        $this->assertSame(ForeignKeyAction::SetNull->value, $this->metadataAction($database, 'categories', 'products'));
+        $this->assertSame(RelationshipDeleteAction::SetNull->value, $this->libraryAction($database, 'products', 'category'));
+        $this->assertSame(RelationshipDeleteAction::SetNull->value, $this->libraryAction($database, 'categories', 'products'));
+        $this->assertSame(RelationshipDeleteAction::SetNull->value, $this->metadataAction($database, 'products', 'category'));
+        $this->assertSame(RelationshipDeleteAction::SetNull->value, $this->metadataAction($database, 'categories', 'products'));
     }
 
     private static function registerSubqueryFilters(): void
@@ -141,7 +141,7 @@ final class AppwriteRelationshipOnDeleteTest extends TestCase
             'category',
             new Table($database, 'Products', 'products'),
             relatedTable: 'categories',
-            relationType: RelationType::ManyToOne->value,
+            relationType: RelationshipType::ManyToOne->value,
             twoWay: true,
             twoWayKey: 'products',
             onDelete: $onDelete,
@@ -250,7 +250,7 @@ final class AppwriteRelationshipOnDeleteTest extends TestCase
             ->setNamespace('_project');
         $database->create();
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'databases',
             attributes: [
                 $this->attribute('name', ColumnType::String, required: true, size: 256),
@@ -262,7 +262,7 @@ final class AppwriteRelationshipOnDeleteTest extends TestCase
             ],
         ));
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'attributes',
             attributes: [
                 $this->attribute('key', ColumnType::String, size: 256),
@@ -285,7 +285,7 @@ final class AppwriteRelationshipOnDeleteTest extends TestCase
             ],
         ));
 
-        $database->createCollection(new Collection(
+        $database->createCollection(Collection::create(
             id: 'indexes',
             attributes: [
                 $this->attribute('key', ColumnType::String, size: 256),
@@ -342,15 +342,15 @@ final class AppwriteRelationshipOnDeleteTest extends TestCase
         bool $array = false,
         array $filters = [],
     ): UtopiaAttribute {
-        return new UtopiaAttribute(
-            key: $id,
-            type: $type,
-            size: $size,
-            required: $required,
-            default: $default,
-            array: $array,
-            filters: $filters,
-        );
+        return UtopiaAttribute::fromArray([
+            'key' => $id,
+            'type' => $type,
+            'size' => $size,
+            'required' => $required,
+            'default' => $default,
+            'array' => $array,
+            'filters' => $filters,
+        ]);
     }
 
     /** @return list<string> */
