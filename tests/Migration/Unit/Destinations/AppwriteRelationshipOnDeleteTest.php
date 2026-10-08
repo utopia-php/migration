@@ -37,6 +37,7 @@ final class AppwriteRelationshipOnDeleteTest extends TestCase
 {
     private const string DESTINATION_ACTION = 'cascade';
 
+    #[\Override]
     protected function setUp(): void
     {
         parent::setUp();
@@ -102,6 +103,35 @@ final class AppwriteRelationshipOnDeleteTest extends TestCase
         $this->assertSame(RelationshipDeleteAction::SetNull->value, $this->libraryAction($database, 'categories', 'products'));
         $this->assertSame(RelationshipDeleteAction::SetNull->value, $this->metadataAction($database, 'products', 'category'));
         $this->assertSame(RelationshipDeleteAction::SetNull->value, $this->metadataAction($database, 'categories', 'products'));
+    }
+
+    /** @return array<string, array{string}> */
+    public static function retiredDeleteActions(): array
+    {
+        return [
+            'set default' => ['setDefault'],
+            'no action' => ['noAction'],
+        ];
+    }
+
+    #[DataProvider('retiredDeleteActions')]
+    public function testARelationshipWithARetiredDeleteActionIsRejected(string $onDelete): void
+    {
+        $database = $this->projectDatabase();
+
+        $destination = $this->transfer(
+            $database,
+            OnDuplicate::Fail,
+            $this->relationship($onDelete, '2020-01-01T00:00:00.000+00:00'),
+        );
+
+        $messages = $this->errorMessages($destination);
+        $this->assertCount(1, $messages, 'A delete action outside cascade, restrict and setNull must fail the column.');
+        $this->assertStringStartsWith('Unsupported relationship onDelete action "'.$onDelete.'"', $messages[0]);
+        $this->assertNull(
+            $this->metadataDocument($database, 'products', 'category'),
+            'A rejected relationship must not leave its metadata row behind.',
+        );
     }
 
     private static function registerSubqueryFilters(): void
@@ -217,11 +247,19 @@ final class AppwriteRelationshipOnDeleteTest extends TestCase
 
     private function metadataAction(UtopiaDatabase $database, string $tableId, string $key): mixed
     {
+        return $this->metadataDocument($database, $tableId, $key)?->getAttribute('options', [])['onDelete'] ?? null;
+    }
+
+    private function metadataDocument(UtopiaDatabase $database, string $tableId, string $key): ?UtopiaDocument
+    {
         $shop = $this->document($database, 'databases', 'shop');
         $table = $this->document($database, 'database_'.$shop->getSequence(), $tableId);
-        $metadata = $this->document($database, 'attributes', $shop->getSequence().'_'.$table->getSequence().'_'.$key);
+        $metadataId = $shop->getSequence().'_'.$table->getSequence().'_'.$key;
+        $metadata = $database->getAuthorization()->skip(
+            static fn (): UtopiaDocument => $database->getDocument('attributes', $metadataId),
+        );
 
-        return $metadata->getAttribute('options', [])['onDelete'] ?? null;
+        return $metadata->isEmpty() ? null : $metadata;
     }
 
     private function tableCollectionId(UtopiaDatabase $database, string $tableId): string
