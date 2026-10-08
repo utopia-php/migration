@@ -48,17 +48,11 @@ final class SpatialMemoryAdapter extends MemoryAdapter implements Spatial
     }
 }
 
-/**
- * Production destinations reach their databases through a connection Pool. The
- * Pool forwards spatial support to the adapter it borrows rather than
- * implementing the feature itself, so the spatial check the destination runs
- * before creating an index has to ask the database, not test the Pool's own
- * class (BUG-02).
- */
 final class AppwriteSpatialIndexTest extends TestCase
 {
     private const string INDEX_KEY = 'idx_location';
 
+    #[\Override]
     protected function setUp(): void
     {
         parent::setUp();
@@ -322,7 +316,7 @@ final class AppwriteSpatialIndexTest extends TestCase
     private function errorMessages(AppwriteDestination $destination): array
     {
         return \array_map(
-            static fn ($error): string => $error->getMessage(),
+            static fn (\Throwable $error): string => $error->getMessage(),
             $destination->getErrors(),
         );
     }

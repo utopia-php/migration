@@ -55,6 +55,7 @@ final class CheckedColumnRecordingDatabase extends UtopiaDatabase
  */
 final class AppwriteCheckAttributeTest extends TestCase
 {
+    #[\Override]
     protected function setUp(): void
     {
         parent::setUp();
@@ -79,7 +80,11 @@ final class AppwriteCheckAttributeTest extends TestCase
 
         $this->assertCount(1, $database->checkedAttributes, 'The transfer must offer its column to the limit check');
         $this->assertSame('title', $database->checkedAttributes[0]->key);
-        $this->assertSame('title', $database->checkedAttributes[0]->toDocument()->getId());
+        $this->assertSame(
+            'string',
+            $database->checkedAttributes[0]->toDocument()->getAttribute('type'),
+            'The checked column must be the text column the transfer creates.',
+        );
     }
 
     public function testTheLimitCheckMeasuresThePhysicalTableCollection(): void
@@ -321,7 +326,7 @@ final class AppwriteCheckAttributeTest extends TestCase
     private function errorMessages(AppwriteDestination $destination): array
     {
         return \array_map(
-            static fn ($error): string => $error->getMessage(),
+            static fn (\Throwable $error): string => $error->getMessage(),
             $destination->getErrors(),
         );
     }

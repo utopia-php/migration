@@ -243,7 +243,7 @@ trait TransfersColumns
     private function errorMessages(AppwriteDestination $destination): array
     {
         return \array_map(
-            static fn ($error): string => $error->getMessage(),
+            static fn (\Throwable $error): string => $error->getMessage(),
             $destination->getErrors(),
         );
     }
