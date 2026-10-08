@@ -33,10 +33,14 @@ final class CheckedColumnRecordingDatabase extends UtopiaDatabase
     /** @var list<UtopiaAttribute> */
     public array $checkedAttributes = [];
 
+    /** @var list<string> */
+    public array $checkedCollections = [];
+
     #[Override]
-    public function checkAttribute(UtopiaDocument $collection, UtopiaAttribute $attribute): bool
+    public function checkAttribute(string $collection, UtopiaAttribute $attribute): bool
     {
         $this->checkedAttributes[] = $attribute;
+        $this->checkedCollections[] = $collection;
 
         return parent::checkAttribute($collection, $attribute);
     }
@@ -75,7 +79,19 @@ final class AppwriteCheckAttributeTest extends TestCase
 
         $this->assertCount(1, $database->checkedAttributes, 'The transfer must offer its column to the limit check');
         $this->assertSame('title', $database->checkedAttributes[0]->key);
-        $this->assertSame('title', $database->checkedAttributes[0]->getId());
+        $this->assertSame('title', $database->checkedAttributes[0]->toDocument()->getId());
+    }
+
+    public function testTheLimitCheckMeasuresThePhysicalTableCollection(): void
+    {
+        [$database] = $this->transferColumn();
+
+        $metadata = $this->attributeDocument($database);
+        $this->assertSame(
+            ['database_'.$metadata->getAttribute('databaseInternalId').'_collection_'.$metadata->getAttribute('collectionInternalId')],
+            $database->checkedCollections,
+            'The limit check must measure the collection the column is created in, not the table metadata row.',
+        );
     }
 
     public function testTheCheckedColumnCarriesTheSpecificationBeingCreated(): void
