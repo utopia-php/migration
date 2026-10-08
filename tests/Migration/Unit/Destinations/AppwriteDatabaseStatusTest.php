@@ -1557,7 +1557,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
     ): UtopiaDocument {
         $seeded = $database->getAuthorization()->skip(
             static fn (): UtopiaDocument => $database->withPreserveDates(
-                static fn (): UtopiaDocument => $database->createDocument('databases', new UtopiaDocument([
+                true, static fn (): UtopiaDocument => $database->createDocument('databases', new UtopiaDocument([
                     '$id' => $databaseId,
                     'name' => $name,
                     'enabled' => true,
