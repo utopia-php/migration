@@ -92,9 +92,7 @@ use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Transfer;
-use Utopia\Query\OrderDirection;
 use Utopia\Query\Schema\ColumnType;
-use Utopia\Query\Schema\IndexType;
 
 class Appwrite extends Destination
 {
@@ -1904,13 +1902,10 @@ class Appwrite extends Destination
                 $this->tableCollectionId($database, $table),
                 UtopiaIndex::fromArray([
                     'key' => $resource->getKey(),
-                    'type' => IndexType::from($resource->getType()),
+                    'type' => $resource->getType(),
                     'attributes' => $resource->getColumns(),
                     'lengths' => $lengths,
-                    'orders' => \array_map(
-                        static fn (mixed $order): ?OrderDirection => OrderDirection::tryFrom(\is_string($order) ? \strtoupper($order) : ''),
-                        $resource->getOrders(),
-                    ),
+                    'orders' => $resource->getOrders(),
                 ]),
             );
         } catch (\Throwable $th) {
