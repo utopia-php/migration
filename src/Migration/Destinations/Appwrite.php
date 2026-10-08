@@ -27,7 +27,7 @@ use Override;
 use Utopia\Database\Attribute as UtopiaAttribute;
 use Utopia\Database\AttributeUpdate;
 use Utopia\Database\Capability;
-use Utopia\Database\Collection;
+use Utopia\Database\Collection as UtopiaCollection;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime;
 use Utopia\Database\Document as UtopiaDocument;
@@ -45,7 +45,6 @@ use Utopia\Database\Query;
 use Utopia\Database\Relationship as UtopiaRelationship;
 use Utopia\Database\RelationshipDeleteAction;
 use Utopia\Database\RelationshipSide;
-use Utopia\Database\RelationshipType;
 use Utopia\Database\RelationshipUpdate;
 use Utopia\Database\Role;
 use Utopia\Database\Validator\IndexDefinition as IndexValidator;
@@ -95,7 +94,6 @@ use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Transfer;
 use Utopia\Query\OrderDirection;
 use Utopia\Query\Schema\ColumnType;
-use Utopia\Query\Schema\ForeignKeyAction;
 use Utopia\Query\Schema\IndexType;
 
 class Appwrite extends Destination
@@ -336,8 +334,8 @@ class Appwrite extends Destination
     private function declaresDatabaseAttributes(string ...$keys): bool
     {
         $declared = [];
-        foreach ($this->dbForProject->getCollection(self::META_DATABASES)->getAttribute('attributes', []) as $attribute) {
-            $declared[] = $attribute->getId();
+        foreach ($this->dbForProject->findCollection(self::META_DATABASES)?->attributes() ?? [] as $attribute) {
+            $declared[] = $attribute->key;
         }
 
         return \array_diff($keys, $declared) === [];
@@ -1097,7 +1095,7 @@ class Appwrite extends Destination
                     try {
                         $structure = $this->collectionStructureFor($resource);
 
-                        $this->dbForProject->createCollection(Collection::create(
+                        $this->dbForProject->createCollection(UtopiaCollection::create(
                             id: $this->databaseCollectionId($existing),
                             attributes: $this->schemaAttributes($structure['attributes'] ?? []),
                             indexes: $this->schemaIndexes($structure['indexes'] ?? []),
@@ -1154,7 +1152,7 @@ class Appwrite extends Destination
             $resource->setSequence($database->getSequence());
             $structure = $this->collectionStructureFor($resource);
 
-            $this->dbForProject->createCollection(Collection::create(
+            $this->dbForProject->createCollection(UtopiaCollection::create(
                 id: $this->databaseCollectionId($database),
                 attributes: $this->schemaAttributes($structure['attributes'] ?? []),
                 indexes: $this->schemaIndexes($structure['indexes'] ?? []),
@@ -1282,7 +1280,7 @@ class Appwrite extends Destination
 
         $resource->setSequence($table->getSequence());
 
-        $dbForDatabases->createCollection(Collection::create(
+        $dbForDatabases->createCollection(UtopiaCollection::create(
             id: $this->tableCollectionId($database, $table),
             permissions: $resource->getPermissions(),
             documentSecurity: $resource->getRowSecurity(),
@@ -1442,7 +1440,7 @@ class Appwrite extends Destination
 
             if ($action === SchemaAction::Overwrite) {
                 $this->dropAttributeForRecreate($database, $table, $resource, $dbForDatabases, $existingAttr);
-                // Reload $table — in-memory copy still holds the dropped attribute, so checkAttribute would over-count.
+                // Reload $table — in-memory copy still holds the dropped attribute.
                 $table = $this->dbForProject->getDocument($this->databaseCollectionId($database), $table->getId());
             }
         }
@@ -1470,7 +1468,7 @@ class Appwrite extends Destination
                 '$updatedAt' => $updatedAt,
             ]);
 
-            $this->dbForProject->checkAttribute($table->getId(), UtopiaAttribute::fromArray([
+            $dbForDatabases->checkAttribute($this->tableCollectionId($database, $table), UtopiaAttribute::fromArray([
                 'key' => $resource->getKey(),
                 'type' => $type,
                 'size' => $resource->getSize(),
@@ -1589,11 +1587,11 @@ class Appwrite extends Destination
                     }
                     $dbForDatabases->createRelationship($this->tableCollectionId($database, $table), UtopiaRelationship::fromArray([
                         'relatedCollection' => $this->tableCollectionId($database, $relatedTable),
-                        'relationType' => RelationshipType::from($options['relationType']),
+                        'relationType' => $options['relationType'],
                         'twoWay' => $options['twoWay'],
                         'key' => $resource->getKey(),
                         'twoWayKey' => (string) ($options['twoWay'] ? $twoWayKey : $options['twoWayKey'] ?? ''),
-                        'onDelete' => ForeignKeyAction::from($options['onDelete']),
+                        'onDelete' => $options['onDelete'],
                     ]));
                     break;
                 default:
@@ -1601,7 +1599,7 @@ class Appwrite extends Destination
                         $this->tableCollectionId($database, $table),
                         UtopiaAttribute::fromArray([
                             'key' => $resource->getKey(),
-                            'type' => UtopiaAttribute::typeFromStored($type),
+                            'type' => $type,
                             'size' => $resource->getSize(),
                             'required' => $resource->isRequired(),
                             'default' => $resource->getDefault(),
@@ -1885,7 +1883,6 @@ class Appwrite extends Destination
         $tableColumns = $table->getAttribute('attributes', []);
         $tableIndexes = $table->getAttribute('indexes', []);
 
-        $adapter = $dbForDatabases->getAdapter();
         $validator = new IndexValidator(
             $tableColumns,
             $tableIndexes,
@@ -1906,7 +1903,7 @@ class Appwrite extends Destination
         $index = $this->dbForProject->createDocument(self::META_INDEXES, $index);
 
         try {
-            $result = $dbForDatabases->createIndex(
+            $dbForDatabases->createIndex(
                 $this->tableCollectionId($database, $table),
                 UtopiaIndex::fromArray([
                     'key' => $resource->getKey(),
@@ -1919,15 +1916,6 @@ class Appwrite extends Destination
                     ),
                 ]),
             );
-
-            if (!$result) {
-                throw new Exception(
-                    resourceName: $resource->getName(),
-                    resourceGroup: $resource->getGroup(),
-                    resourceId: $resource->getId(),
-                    message: 'Failed to create index',
-                );
-            }
         } catch (\Throwable $th) {
             $this->dbForProject->deleteDocument(self::META_INDEXES, $index->getId());
 
@@ -2036,7 +2024,7 @@ class Appwrite extends Destination
                     $declaredKeys = [];
                     foreach ($table->getAttribute('attributes', []) as $attribute) {
                         $declaredKey = $attribute instanceof UtopiaAttribute
-                            ? $attribute->getKey()
+                            ? $attribute->key
                             : (string) $attribute->getAttribute('key', '');
                         $declaredKeys[$declaredKey] = true;
                     }
@@ -2164,13 +2152,13 @@ class Appwrite extends Destination
             collection: $this->tableCollectionId($database, $table),
             key: $resource->getKey(),
             update: new AttributeUpdate(
-                type: $type,
+                type: UtopiaAttribute::typeFromStored($type),
                 size: $resource->getSize(),
                 required: $resource->isRequired(),
                 default: $resource->getDefault(),
                 signed: $existingAttr->getAttribute('signed'),
                 array: $existingAttr->getAttribute('array'),
-                format: new Format($resource->getFormat(), $resource->getFormatOptions()),
+                format: $resource->getFormat() !== '' ? new Format($resource->getFormat(), $resource->getFormatOptions()) : null,
                 filters: $existingAttr->getAttribute('filters'),
             ),
         );
@@ -2215,7 +2203,7 @@ class Appwrite extends Destination
 
         $isTwoWay = (bool) ($destOptions['twoWay'] ?? false);
         $onDeleteChanged = ($sourceOptions['onDelete'] ?? null) !== ($destOptions['onDelete'] ?? null);
-        $onDelete = ForeignKeyAction::tryFrom((string) ($sourceOptions['onDelete'] ?? ''));
+        $onDelete = RelationshipDeleteAction::tryFrom((string) ($sourceOptions['onDelete'] ?? ''));
 
         if (!$isTwoWay && $onDeleteChanged) {
             return false;
@@ -2344,9 +2332,18 @@ class Appwrite extends Destination
             return true;
         }
 
-        $stored = UtopiaAttribute::tryNormalizeType($existing);
+        $stored = $this->storedColumnType($existing);
 
-        return $stored !== null && $stored === UtopiaAttribute::tryNormalizeType($type);
+        return $stored !== null && $stored === $this->storedColumnType($type);
+    }
+
+    private function storedColumnType(string $type): ?ColumnType
+    {
+        try {
+            return UtopiaAttribute::typeFromStored($type);
+        } catch (StructureException) {
+            return null;
+        }
     }
 
     /**
