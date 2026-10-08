@@ -2,13 +2,13 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Appwrite\Query;
 use Dotenv\Dotenv;
 use Utopia\Cache\Adapter\None;
 use Utopia\Cache\Cache;
 use Utopia\Database\Adapter\MariaDB;
 use Utopia\Database\Database;
 use Utopia\Database\Document;
+use Utopia\Database\Query;
 use Utopia\Migration\Destination;
 use Utopia\Migration\Destinations\Appwrite as DestinationsAppwrite;
 use Utopia\Migration\Destinations\Appwrite\ProvisioningOwner;
@@ -364,6 +364,37 @@ HELP;
 
     public function getDatabase(string $type): Database
     {
+        self::registerFilters();
+
+        $prefix = match ($type) {
+            'source' => 'SOURCE_APPWRITE_TEST_',
+            'destination' => 'DESTINATION_APPWRITE_TEST_',
+            default => throw new Exception('Invalid type for database'),
+        };
+
+        $database = new Database(new MariaDB(new PDO(
+            $_ENV[$prefix . 'DSN'],
+            $_ENV[$prefix . 'USER'],
+            $_ENV[$prefix . 'PASSWORD'],
+            [
+                PDO::ATTR_TIMEOUT => 3,
+                PDO::ATTR_PERSISTENT => true,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => true,
+                PDO::ATTR_STRINGIFY_FETCHES => true
+            ],
+        )), new Cache(new None()));
+
+        $database
+            ->setDatabase('appwrite')
+            ->setNamespace('_' . $_ENV[$prefix . 'NAMESPACE']);
+        $database->getAuthorization()->disable();
+
+        return $database;
+    }
+
+    public static function registerFilters(): void
+    {
         Database::addFilter(
             'subQueryAttributes',
             function (mixed $value) {
@@ -471,32 +502,6 @@ HELP;
                 return $value;
             }
         );
-
-        $prefix = match ($type) {
-            'source' => 'SOURCE_APPWRITE_TEST_',
-            'destination' => 'DESTINATION_APPWRITE_TEST_',
-            default => throw new Exception('Invalid type for database'),
-        };
-
-        $database = new Database(new MariaDB(new PDO(
-            $_ENV[$prefix . 'DSN'],
-            $_ENV[$prefix . 'USER'],
-            $_ENV[$prefix . 'PASSWORD'],
-            [
-                PDO::ATTR_TIMEOUT => 3,
-                PDO::ATTR_PERSISTENT => true,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => true,
-                PDO::ATTR_STRINGIFY_FETCHES => true
-            ],
-        )), new Cache(new None()));
-
-        $database
-            ->setDatabase('appwrite')
-            ->setNamespace('_' . $_ENV[$prefix . 'NAMESPACE']);
-        $database->getAuthorization()->disable();
-
-        return $database;
     }
 
     public function start(): void

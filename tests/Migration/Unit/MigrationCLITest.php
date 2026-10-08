@@ -20,6 +20,7 @@ use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
 use Utopia\Migration\Source;
 use Utopia\Migration\Transfer;
+use Utopia\Query\Schema\ColumnType;
 use Utopia\Tests\Unit\Adapters\MockSource;
 
 final class TestMigrationCLI extends \MigrationCLI
@@ -77,6 +78,11 @@ final class TransactionalMemoryAdapter extends MemoryAdapter
 #[BackupGlobals(true)]
 final class MigrationCLITest extends TestCase
 {
+    private const array FILTER_STATE = ['filters', 'defaultFiltersRegistered'];
+
+    /** @var array<string, mixed> */
+    private array $filterState = [];
+
     public function testHelpDocumentsTheAcceptedRecoveryOptionsAndNotTheRetiredOne(): void
     {
         // The neighbouring test proves --recover-provisioning is refused; this is the
@@ -238,6 +244,91 @@ final class MigrationCLITest extends TestCase
         $this->assertNotNull($database->findCollection('database_'.$created->getSequence()));
     }
 
+    public function testTheMetadataSubqueryFiltersLoadTheTableColumnsAndIndexes(): void
+    {
+        \MigrationCLI::registerFilters();
+        $database = $this->createMetadataDatabase();
+
+        $table = $database->getDocument('tables', 'products');
+
+        $columns = $table->getAttribute('attributes');
+        $this->assertSame(
+            ['title', 'orders'],
+            \array_map(static fn (Document $column): string => $column->getAttribute('key'), $columns),
+            'Only the columns of this table and database must be loaded.',
+        );
+        $this->assertTrue($columns[0]->getAttribute('encrypt'), 'A string column must expose whether it is encrypted.');
+        $this->assertSame('orders', $columns[1]->getAttribute('relatedCollection'), 'A relationship column must expose its options.');
+        $this->assertFalse($columns[1]->isSet('options'));
+
+        $this->assertSame(
+            ['idx_title'],
+            \array_map(static fn (Document $index): string => $index->getAttribute('key'), $table->getAttribute('indexes')),
+            'Only the indexes of this table and database must be loaded.',
+        );
+    }
+
+    private function createMetadataDatabase(): Database
+    {
+        $database = new Database(new MemoryAdapter(), new Cache(new MemoryCache()));
+        $database
+            ->setDatabase('appwrite')
+            ->setNamespace('_metadata');
+        $database->create();
+        $database->getAuthorization()->disable();
+
+        $database->createCollection(Collection::create(
+            id: 'attributes',
+            attributes: [
+                Attribute::string(key: 'key', size: 256),
+                Attribute::string(key: 'type', size: 256),
+                Attribute::string(key: 'collectionInternalId', size: Database::LENGTH_KEY),
+                Attribute::string(key: 'databaseInternalId', size: Database::LENGTH_KEY),
+                Attribute::string(key: 'filters', size: 64, array: true),
+                Attribute::string(key: 'options', size: 16384, filters: ['json']),
+            ],
+        ));
+        $database->createCollection(Collection::create(
+            id: 'indexes',
+            attributes: [
+                Attribute::string(key: 'key', size: 256),
+                Attribute::string(key: 'collectionInternalId', size: Database::LENGTH_KEY),
+                Attribute::string(key: 'databaseInternalId', size: Database::LENGTH_KEY),
+            ],
+        ));
+        $database->createCollection(Collection::create(
+            id: 'tables',
+            attributes: [
+                Attribute::string(key: 'databaseInternalId', size: Database::LENGTH_KEY),
+                Attribute::string(key: 'attributes', size: 16384, filters: ['subQueryAttributes']),
+                Attribute::string(key: 'indexes', size: 16384, filters: ['subQueryIndexes']),
+            ],
+        ));
+
+        $table = $database->createDocument('tables', new Document(['$id' => 'products', 'databaseInternalId' => '1']));
+        $other = $database->createDocument('tables', new Document(['$id' => 'customers', 'databaseInternalId' => '1']));
+
+        $rows = [
+            ['key' => 'title', 'type' => ColumnType::String->value, 'collectionInternalId' => $table->getSequence(), 'databaseInternalId' => '1', 'filters' => ['encrypt']],
+            ['key' => 'orders', 'type' => ColumnType::Relationship->value, 'collectionInternalId' => $table->getSequence(), 'databaseInternalId' => '1', 'options' => ['relatedCollection' => 'orders']],
+            ['key' => 'name', 'type' => ColumnType::String->value, 'collectionInternalId' => $other->getSequence(), 'databaseInternalId' => '1'],
+            ['key' => 'title', 'type' => ColumnType::String->value, 'collectionInternalId' => $table->getSequence(), 'databaseInternalId' => '2'],
+        ];
+        foreach ($rows as $row) {
+            $database->createDocument('attributes', new Document($row));
+        }
+
+        $indexes = [
+            ['key' => 'idx_title', 'collectionInternalId' => $table->getSequence(), 'databaseInternalId' => '1'],
+            ['key' => 'idx_name', 'collectionInternalId' => $other->getSequence(), 'databaseInternalId' => '1'],
+        ];
+        foreach ($indexes as $index) {
+            $database->createDocument('indexes', new Document($index));
+        }
+
+        return $database;
+    }
+
     private function createProjectDatabase(?string $status = 'provisioning'): Database
     {
         $database = new Database(new TransactionalMemoryAdapter(), new Cache(new MemoryCache()));
@@ -329,13 +420,26 @@ final class MigrationCLITest extends TestCase
         );
     }
 
+    #[Override]
     protected function setUp(): void
     {
         parent::setUp();
+        foreach (self::FILTER_STATE as $property) {
+            $this->filterState[$property] = (new \ReflectionProperty(Database::class, $property))->getValue();
+        }
         $_ENV['DESTINATION_PROVIDER'] = 'appwrite';
         $_ENV['DESTINATION_APPWRITE_TEST_PROJECT'] = 'destination-project';
         $_ENV['DESTINATION_APPWRITE_TEST_ENDPOINT'] = 'http://example.test/v1';
         $_ENV['DESTINATION_APPWRITE_TEST_KEY'] = 'test-key';
         $_ENV['DESTINATION_APPWRITE_TEST_PROJECT_INTERNAL_ID'] = '1';
+    }
+
+    #[Override]
+    protected function tearDown(): void
+    {
+        foreach ($this->filterState as $property => $value) {
+            (new \ReflectionProperty(Database::class, $property))->setValue(null, $value);
+        }
+        parent::tearDown();
     }
 }
