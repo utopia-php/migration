@@ -24,7 +24,6 @@ use Appwrite\Services\Storage;
 use Appwrite\Services\Teams;
 use Appwrite\Services\Users;
 use Override;
-use Utopia\Database\Adapter\Feature\Spatial;
 use Utopia\Database\Attribute as UtopiaAttribute;
 use Utopia\Database\AttributeUpdate;
 use Utopia\Database\Capability;
@@ -39,17 +38,17 @@ use Utopia\Database\Exception\Duplicate as DuplicateException;
 use Utopia\Database\Exception\Limit as LimitException;
 use Utopia\Database\Exception\Structure as StructureException;
 use Utopia\Database\Format;
-use Utopia\Database\Helpers\ID;
-use Utopia\Database\Helpers\Permission;
-use Utopia\Database\Helpers\Role;
+use Utopia\Database\Id;
 use Utopia\Database\Index as UtopiaIndex;
+use Utopia\Database\Permission;
 use Utopia\Database\Query;
 use Utopia\Database\Relationship as UtopiaRelationship;
 use Utopia\Database\RelationshipDeleteAction;
 use Utopia\Database\RelationshipSide;
 use Utopia\Database\RelationshipType;
 use Utopia\Database\RelationshipUpdate;
-use Utopia\Database\Validator\Index as IndexValidator;
+use Utopia\Database\Role;
+use Utopia\Database\Validator\IndexDefinition as IndexValidator;
 use Utopia\Database\Validator\Structure;
 use Utopia\Database\Validator\UID;
 use Utopia\Migration\Destination;
@@ -943,7 +942,7 @@ class Appwrite extends Destination
     protected function createDatabase(Database $resource): bool
     {
         if ($resource->getId() == 'unique()') {
-            $resource->setId(ID::unique());
+            $resource->setId(Id::unique());
         }
 
         $validator = new UID();
@@ -1182,7 +1181,7 @@ class Appwrite extends Destination
     protected function createEntity(Table $resource): bool
     {
         if ($resource->getId() == 'unique()') {
-            $resource->setId(ID::unique());
+            $resource->setId(Id::unique());
         }
 
         $validator = new UID();
@@ -1220,7 +1219,7 @@ class Appwrite extends Destination
         $dbForDatabases = ($this->getDatabasesDB)($database);
 
         // passing null in creates only creates the metadata collection
-        if (!$dbForDatabases->exists(null, UtopiaDatabase::METADATA)) {
+        if (!$dbForDatabases->collectionExists(UtopiaDatabase::METADATA, null)) {
             $dbForDatabases->create();
         }
 
@@ -1340,7 +1339,7 @@ class Appwrite extends Destination
         }
 
         if (!empty($resource->getFormat())) {
-            if (!Structure::hasFormat($resource->getFormat(), UtopiaAttribute::normalizeType($type))) {
+            if (!Structure::hasFormat($resource->getFormat(), UtopiaAttribute::typeFromStored($type))) {
                 $resource->setStatus(Resource::STATUS_ERROR, "Format {$resource->getFormat()} not available for column type {$type}");
                 $this->addError(new Exception(
                     resourceName: $resource->getName(),
@@ -1450,7 +1449,7 @@ class Appwrite extends Destination
 
         try {
             $column = new UtopiaDocument([
-                '$id' => ID::custom($attributeMetaId),
+                '$id' => Id::custom($attributeMetaId),
                 'key' => $resource->getKey(),
                 'databaseInternalId' => $database->getSequence(),
                 'databaseId' => $database->getId(),
@@ -1524,7 +1523,7 @@ class Appwrite extends Destination
 
             try {
                 $twoWayAttribute = new UtopiaDocument([
-                    '$id' => ID::custom($this->attributeIndexMetaId($database, $relatedTable, $twoWayKey)),
+                    '$id' => Id::custom($this->attributeIndexMetaId($database, $relatedTable, $twoWayKey)),
                     'key' => $twoWayKey,
                     'databaseInternalId' => $database->getSequence(),
                     'databaseId' => $database->getId(),
@@ -1602,7 +1601,7 @@ class Appwrite extends Destination
                         $this->tableCollectionId($database, $table),
                         UtopiaAttribute::fromArray([
                             'key' => $resource->getKey(),
-                            'type' => UtopiaAttribute::normalizeType($type),
+                            'type' => UtopiaAttribute::typeFromStored($type),
                             'size' => $resource->getSize(),
                             'required' => $resource->isRequired(),
                             'default' => $resource->getDefault(),
@@ -1650,26 +1649,26 @@ class Appwrite extends Destination
     private function schemaColumnType(Column|Attribute $resource): string
     {
         return match ($resource->getType()) {
-            Column::TYPE_DATETIME => UtopiaAttribute::persistedType(ColumnType::Datetime),
-            Column::TYPE_BOOLEAN => UtopiaAttribute::persistedType(ColumnType::Boolean),
-            Column::TYPE_INTEGER => UtopiaAttribute::persistedType(ColumnType::Integer),
-            Column::TYPE_BIG_INT => UtopiaAttribute::persistedType(ColumnType::BigInteger),
-            Column::TYPE_FLOAT => UtopiaAttribute::persistedType(ColumnType::Double),
-            Column::TYPE_RELATIONSHIP => UtopiaAttribute::persistedType(ColumnType::Relationship),
+            Column::TYPE_DATETIME => UtopiaAttribute::storedType(ColumnType::Datetime),
+            Column::TYPE_BOOLEAN => UtopiaAttribute::storedType(ColumnType::Boolean),
+            Column::TYPE_INTEGER => UtopiaAttribute::storedType(ColumnType::Integer),
+            Column::TYPE_BIG_INT => UtopiaAttribute::storedType(ColumnType::BigInteger),
+            Column::TYPE_FLOAT => UtopiaAttribute::storedType(ColumnType::Double),
+            Column::TYPE_RELATIONSHIP => UtopiaAttribute::storedType(ColumnType::Relationship),
             Column::TYPE_STRING,
             Column::TYPE_IP,
             Column::TYPE_EMAIL,
             Column::TYPE_URL,
-            Column::TYPE_ENUM => UtopiaAttribute::persistedType(ColumnType::String),
-            Column::TYPE_POINT => UtopiaAttribute::persistedType(ColumnType::Point),
-            Column::TYPE_LINE => UtopiaAttribute::persistedType(ColumnType::Linestring),
-            Column::TYPE_POLYGON => UtopiaAttribute::persistedType(ColumnType::Polygon),
-            Column::TYPE_TEXT => UtopiaAttribute::persistedType(ColumnType::Text),
-            Column::TYPE_VARCHAR => UtopiaAttribute::persistedType(ColumnType::Varchar),
-            Column::TYPE_MEDIUMTEXT => UtopiaAttribute::persistedType(ColumnType::MediumText),
-            Column::TYPE_LONGTEXT => UtopiaAttribute::persistedType(ColumnType::LongText),
-            Column::TYPE_OBJECT => UtopiaAttribute::persistedType(ColumnType::Object),
-            Column::TYPE_VECTOR => UtopiaAttribute::persistedType(ColumnType::Vector),
+            Column::TYPE_ENUM => UtopiaAttribute::storedType(ColumnType::String),
+            Column::TYPE_POINT => UtopiaAttribute::storedType(ColumnType::Point),
+            Column::TYPE_LINE => UtopiaAttribute::storedType(ColumnType::Linestring),
+            Column::TYPE_POLYGON => UtopiaAttribute::storedType(ColumnType::Polygon),
+            Column::TYPE_TEXT => UtopiaAttribute::storedType(ColumnType::Text),
+            Column::TYPE_VARCHAR => UtopiaAttribute::storedType(ColumnType::Varchar),
+            Column::TYPE_MEDIUMTEXT => UtopiaAttribute::storedType(ColumnType::MediumText),
+            Column::TYPE_LONGTEXT => UtopiaAttribute::storedType(ColumnType::LongText),
+            Column::TYPE_OBJECT => UtopiaAttribute::storedType(ColumnType::Object),
+            Column::TYPE_VECTOR => UtopiaAttribute::storedType(ColumnType::Vector),
             default => throw new \Exception('Invalid resource type ' . $resource->getType(), Exception::CODE_VALIDATION),
         };
     }
@@ -1865,7 +1864,7 @@ class Appwrite extends Destination
         }
 
         $index = new UtopiaDocument([
-            '$id' => ID::custom($indexMetaId),
+            '$id' => Id::custom($indexMetaId),
             'key' => $resource->getKey(),
             'status' => 'available', // processing, available, failed, deleting, stuck
             'databaseInternalId' => $database->getSequence(),
@@ -1890,23 +1889,7 @@ class Appwrite extends Destination
         $validator = new IndexValidator(
             $tableColumns,
             $tableIndexes,
-            $adapter->getMaxIndexLength(),
-            $adapter->getInternalIndexesKeys(),
-            $adapter->supports(Capability::IndexArray),
-            $adapter->supports(Capability::SpatialIndexNull),
-            $adapter->supports(Capability::SpatialIndexOrder),
-            $adapter->supports(Capability::Vectors),
-            $adapter->supports(Capability::DefinedAttributes),
-            $adapter->supports(Capability::MultipleFulltextIndexes),
-            $adapter->supports(Capability::IdenticalIndexes),
-            $adapter->supports(Capability::ObjectIndexes),
-            $adapter->supports(Capability::TrigramIndex),
-            $adapter instanceof Spatial,
-            $adapter->supports(Capability::Index),
-            $adapter->supports(Capability::UniqueIndex),
-            $adapter->supports(Capability::Fulltext),
-            $adapter->supports(Capability::TTLIndexes),
-            $adapter->supports(Capability::Objects),
+            $dbForDatabases->profile(),
         );
 
         if (!$validator->isValid($index)) {
@@ -1965,7 +1948,7 @@ class Appwrite extends Destination
     protected function createRecord(Row $resource, bool $isLast): bool
     {
         if ($resource->getId() == 'unique()') {
-            $resource->setId(ID::unique());
+            $resource->setId(Id::unique());
         }
 
         $validator = new UID();
@@ -2075,7 +2058,7 @@ class Appwrite extends Destination
                         OnDuplicate::Overwrite => $dbForDatabases->skipRelationshipsExistCheck(
                             fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
                         ),
-                        OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
+                        OnDuplicate::Skip => $dbForDatabases->ignoreDuplicates(
                             fn () => $dbForDatabases->skipRelationshipsExistCheck(
                                 fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
                             )
@@ -3812,7 +3795,7 @@ class Appwrite extends Destination
 
         $createdAt = $this->normalizeDateTime($resource->getCreatedAt());
         $updatedAt = $this->normalizeDateTime($resource->getUpdatedAt(), $createdAt);
-        $variableId = ID::unique();
+        $variableId = Id::unique();
 
         try {
             $this->dbForProject->createDocument('variables', new UtopiaDocument([
@@ -4055,7 +4038,7 @@ class Appwrite extends Destination
 
         try {
             $this->dbForPlatform->createDocument('webhooks', new UtopiaDocument([
-                '$id' => ID::unique(),
+                '$id' => Id::unique(),
                 '$permissions' => $resource->getPermissions(),
                 'projectInternalId' => $this->projectInternalId,
                 'projectId' => $this->projectId,
@@ -4103,7 +4086,7 @@ class Appwrite extends Destination
 
         try {
             $this->dbForPlatform->createDocument('platforms', new UtopiaDocument([
-                '$id' => ID::unique(),
+                '$id' => Id::unique(),
                 '$permissions' => $resource->getPermissions(),
                 'projectInternalId' => $this->projectInternalId,
                 'projectId' => $this->projectId,
@@ -4261,7 +4244,7 @@ class Appwrite extends Destination
 
         try {
             $this->dbForPlatform->createDocument('keys', new UtopiaDocument([
-                '$id' => ID::unique(),
+                '$id' => Id::unique(),
                 '$permissions' => $resource->getPermissions(),
                 'resourceInternalId' => $this->projectInternalId,
                 'resourceId' => $this->projectId,
