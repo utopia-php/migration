@@ -3,8 +3,8 @@
 namespace Utopia\Migration\Sources;
 
 use Utopia\Database\Database as UtopiaDatabase;
-use Utopia\Database\RelationSide;
-use Utopia\Database\RelationType;
+use Utopia\Database\RelationshipSide;
+use Utopia\Database\RelationshipType;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Exception\Aborted;
 use Utopia\Migration\Resource;
@@ -237,7 +237,7 @@ class CSV extends Source
 
             if (
                 $type === Column::TYPE_RELATIONSHIP &&
-                $relationSide === RelationSide::Child->value
+                $relationSide === RelationshipSide::Child->value
             ) {
                 continue;
             }
@@ -249,8 +249,8 @@ class CSV extends Source
 
             if (
                 $type === Column::TYPE_RELATIONSHIP &&
-                $relationType === RelationType::ManyToMany->value &&
-                $relationSide === RelationSide::Parent->value
+                $relationType === RelationshipType::ManyToMany->value &&
+                $relationSide === RelationshipSide::Parent->value
             ) {
                 $manyToManyKeys[$key] = true;
             }

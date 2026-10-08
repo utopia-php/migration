@@ -26,6 +26,7 @@ use Appwrite\Services\Users;
 use Override;
 use Utopia\Database\Adapter\Feature\Spatial;
 use Utopia\Database\Attribute as UtopiaAttribute;
+use Utopia\Database\AttributeUpdate;
 use Utopia\Database\Capability;
 use Utopia\Database\Collection;
 use Utopia\Database\Database as UtopiaDatabase;
@@ -37,14 +38,17 @@ use Utopia\Database\Exception\Conflict as ConflictException;
 use Utopia\Database\Exception\Duplicate as DuplicateException;
 use Utopia\Database\Exception\Limit as LimitException;
 use Utopia\Database\Exception\Structure as StructureException;
+use Utopia\Database\Format;
 use Utopia\Database\Helpers\ID;
 use Utopia\Database\Helpers\Permission;
 use Utopia\Database\Helpers\Role;
 use Utopia\Database\Index as UtopiaIndex;
 use Utopia\Database\Query;
 use Utopia\Database\Relationship as UtopiaRelationship;
-use Utopia\Database\RelationSide;
-use Utopia\Database\RelationType;
+use Utopia\Database\RelationshipDeleteAction;
+use Utopia\Database\RelationshipSide;
+use Utopia\Database\RelationshipType;
+use Utopia\Database\RelationshipUpdate;
 use Utopia\Database\Validator\Index as IndexValidator;
 use Utopia\Database\Validator\Structure;
 use Utopia\Database\Validator\UID;
@@ -90,10 +94,10 @@ use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Transfer;
+use Utopia\Query\OrderDirection;
 use Utopia\Query\Schema\ColumnType;
 use Utopia\Query\Schema\ForeignKeyAction;
 use Utopia\Query\Schema\IndexType;
-use Utopia\Query\Schema\Order;
 
 class Appwrite extends Destination
 {
@@ -1090,11 +1094,11 @@ class Appwrite extends Destination
                 $resource->setSequence($existing->getSequence());
 
                 // The claim transaction commits before inspecting or creating the backing collection.
-                if ($isIncomplete && $this->dbForProject->getCollection($this->databaseCollectionId($existing))->isEmpty()) {
+                if ($isIncomplete && $this->dbForProject->findCollection($this->databaseCollectionId($existing)) === null) {
                     try {
                         $structure = $this->collectionStructureFor($resource);
 
-                        $this->dbForProject->createCollection(new Collection(
+                        $this->dbForProject->createCollection(Collection::create(
                             id: $this->databaseCollectionId($existing),
                             attributes: $this->schemaAttributes($structure['attributes'] ?? []),
                             indexes: $this->schemaIndexes($structure['indexes'] ?? []),
@@ -1151,7 +1155,7 @@ class Appwrite extends Destination
             $resource->setSequence($database->getSequence());
             $structure = $this->collectionStructureFor($resource);
 
-            $this->dbForProject->createCollection(new Collection(
+            $this->dbForProject->createCollection(Collection::create(
                 id: $this->databaseCollectionId($database),
                 attributes: $this->schemaAttributes($structure['attributes'] ?? []),
                 indexes: $this->schemaIndexes($structure['indexes'] ?? []),
@@ -1279,7 +1283,7 @@ class Appwrite extends Destination
 
         $resource->setSequence($table->getSequence());
 
-        $dbForDatabases->createCollection(new Collection(
+        $dbForDatabases->createCollection(Collection::create(
             id: $this->tableCollectionId($database, $table),
             permissions: $resource->getPermissions(),
             documentSecurity: $resource->getRowSecurity(),
@@ -1372,7 +1376,7 @@ class Appwrite extends Destination
 
         $relatedTable = null;
         if ($type === ColumnType::Relationship->value) {
-            $resource->getOptions()['side'] = RelationSide::Parent->value;
+            $resource->getOptions()['side'] = RelationshipSide::Parent->value;
             $relatedTable = $this->dbForProject->getDocument(
                 $this->databaseCollectionId($database),
                 $resource->getOptions()['relatedCollection']
@@ -1467,7 +1471,7 @@ class Appwrite extends Destination
                 '$updatedAt' => $updatedAt,
             ]);
 
-            $this->dbForProject->checkAttribute($table, UtopiaAttribute::fromArray([
+            $this->dbForProject->checkAttribute($table->getId(), UtopiaAttribute::fromArray([
                 'key' => $resource->getKey(),
                 'type' => $type,
                 'size' => $resource->getSize(),
@@ -1516,7 +1520,7 @@ class Appwrite extends Destination
             $twoWayKey = $options['twoWayKey'];
             $options['relatedCollection'] = $table->getId();
             $options['twoWayKey'] = $resource->getKey();
-            $options['side'] = RelationSide::Child->value;
+            $options['side'] = RelationshipSide::Child->value;
 
             try {
                 $twoWayAttribute = new UtopiaDocument([
@@ -1584,43 +1588,31 @@ class Appwrite extends Destination
                             message: 'Related table not found',
                         );
                     }
-                    if (!$dbForDatabases->createRelationship(
-                        new UtopiaRelationship(
-                            collection: $this->tableCollectionId($database, $table),
-                            relatedCollection: $this->tableCollectionId($database, $relatedTable),
-                            type: RelationType::from($options['relationType']),
-                            twoWay: $options['twoWay'],
-                            key: $resource->getKey(),
-                            twoWayKey: (string) ($options['twoWay'] ? $twoWayKey : $options['twoWayKey'] ?? ''),
-                            onDelete: ForeignKeyAction::from($options['onDelete']),
-                        )
-                    )) {
-                        throw new Exception(
-                            resourceName: $resource->getName(),
-                            resourceGroup: $resource->getGroup(),
-                            resourceId: $resource->getId(),
-                            message: 'Failed to create relationship',
-                        );
-                    }
+                    $dbForDatabases->createRelationship($this->tableCollectionId($database, $table), UtopiaRelationship::fromArray([
+                        'relatedCollection' => $this->tableCollectionId($database, $relatedTable),
+                        'relationType' => RelationshipType::from($options['relationType']),
+                        'twoWay' => $options['twoWay'],
+                        'key' => $resource->getKey(),
+                        'twoWayKey' => (string) ($options['twoWay'] ? $twoWayKey : $options['twoWayKey'] ?? ''),
+                        'onDelete' => ForeignKeyAction::from($options['onDelete']),
+                    ]));
                     break;
                 default:
-                    if (!$dbForDatabases->createAttribute(
+                    $dbForDatabases->createAttribute(
                         $this->tableCollectionId($database, $table),
-                        new UtopiaAttribute(
-                            key: $resource->getKey(),
-                            type: UtopiaAttribute::normalizeType($type),
-                            size: $resource->getSize(),
-                            required: $resource->isRequired(),
-                            default: $resource->getDefault(),
-                            signed: $resource->isSigned(),
-                            array: $resource->isArray(),
-                            format: $resource->getFormat() !== '' ? $resource->getFormat() : null,
-                            formatOptions: $resource->getFormatOptions(),
-                            filters: $resource->getFilters(),
-                        ),
-                    )) {
-                        throw new \Exception('Failed to create Column', Exception::CODE_INTERNAL);
-                    }
+                        UtopiaAttribute::fromArray([
+                            'key' => $resource->getKey(),
+                            'type' => UtopiaAttribute::normalizeType($type),
+                            'size' => $resource->getSize(),
+                            'required' => $resource->isRequired(),
+                            'default' => $resource->getDefault(),
+                            'signed' => $resource->isSigned(),
+                            'array' => $resource->isArray(),
+                            'format' => $resource->getFormat() !== '' ? $resource->getFormat() : null,
+                            'formatOptions' => $resource->getFormatOptions(),
+                            'filters' => $resource->getFilters(),
+                        ]),
+                    );
             }
         } catch (\Throwable $e) {
             $this->dbForProject->deleteDocument(self::META_ATTRIBUTES, $column->getId());
@@ -1933,21 +1925,16 @@ class Appwrite extends Destination
         try {
             $result = $dbForDatabases->createIndex(
                 $this->tableCollectionId($database, $table),
-                new UtopiaIndex(
-                    key: $resource->getKey(),
-                    type: IndexType::from($resource->getType()),
-                    attributes: $resource->getColumns(),
-                    lengths: $lengths,
-                    // Sources hand back the 'ASC'/'DESC' strings they were stored
-                    // as, while UtopiaIndex takes Order cases and rejects anything
-                    // else with an InvalidArgumentException -- which is not a
-                    // Migration Exception, so the transfer would abort instead of
-                    // recording a failed index.
-                    orders: \array_map(
-                        static fn (mixed $order): ?Order => Order::tryFrom(\is_string($order) ? \strtoupper($order) : ''),
+                UtopiaIndex::fromArray([
+                    'key' => $resource->getKey(),
+                    'type' => IndexType::from($resource->getType()),
+                    'attributes' => $resource->getColumns(),
+                    'lengths' => $lengths,
+                    'orders' => \array_map(
+                        static fn (mixed $order): ?OrderDirection => OrderDirection::tryFrom(\is_string($order) ? \strtoupper($order) : ''),
                         $resource->getOrders(),
                     ),
-                ),
+                ]),
             );
 
             if (!$result) {
@@ -2192,16 +2179,17 @@ class Appwrite extends Destination
         // Pass existing values for non-SDK fields so utopia doesn't trigger an ALTER for unchanged fields.
         $dbForDatabases->updateAttribute(
             collection: $this->tableCollectionId($database, $table),
-            id: $resource->getKey(),
-            type: $type,
-            size: $resource->getSize(),
-            required: $resource->isRequired(),
-            default: $resource->getDefault(),
-            signed: $existingAttr->getAttribute('signed'),
-            array: $existingAttr->getAttribute('array'),
-            format: $resource->getFormat(),
-            formatOptions: $resource->getFormatOptions(),
-            filters: $existingAttr->getAttribute('filters'),
+            key: $resource->getKey(),
+            update: new AttributeUpdate(
+                type: $type,
+                size: $resource->getSize(),
+                required: $resource->isRequired(),
+                default: $resource->getDefault(),
+                signed: $existingAttr->getAttribute('signed'),
+                array: $existingAttr->getAttribute('array'),
+                format: new Format($resource->getFormat(), $resource->getFormatOptions()),
+                filters: $existingAttr->getAttribute('filters'),
+            ),
         );
 
         $this->dbForProject->updateDocument(self::META_ATTRIBUTES, $existingAttr->getId(), new UtopiaDocument([
@@ -2253,8 +2241,8 @@ class Appwrite extends Destination
         if ($onDeleteChanged) {
             $dbForDatabases->updateRelationship(
                 collection: $this->tableCollectionId($database, $table),
-                id: $resource->getKey(),
-                onDelete: $onDelete,
+                key: $resource->getKey(),
+                update: new RelationshipUpdate(onDelete: $onDelete),
             );
         }
 
@@ -2283,7 +2271,7 @@ class Appwrite extends Destination
     private function refreshTwoWayPartnerOnDelete(
         UtopiaDocument $database,
         array $destOptions,
-        ?ForeignKeyAction $onDelete,
+        ?RelationshipDeleteAction $onDelete,
         string $updatedAt,
         UtopiaDatabase $dbForDatabases,
     ): void {

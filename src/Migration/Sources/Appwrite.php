@@ -22,7 +22,7 @@ use Override;
 use Utopia\Database\Database as UtopiaDatabase;
 use Utopia\Database\DateTime as UtopiaDateTime;
 use Utopia\Database\Document as UtopiaDocument;
-use Utopia\Database\RelationSide;
+use Utopia\Database\RelationshipSide;
 use Utopia\Migration\Exception;
 use Utopia\Migration\Exception\Aborted;
 use Utopia\Migration\Resource;
@@ -1305,7 +1305,7 @@ class Appwrite extends Source
                 foreach ($response as $column) {
                     if (
                         $column['type'] === ColumnType::Relationship->value
-                        && $column['side'] === RelationSide::Child->value
+                        && $column['side'] === RelationshipSide::Child->value
                     ) {
                         continue;
                     }
