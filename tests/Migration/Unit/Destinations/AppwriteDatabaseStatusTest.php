@@ -151,6 +151,20 @@ class RecordingProjectDatabase extends UtopiaDatabase
     /** @var list<string> */
     public array $failReadyWrites = [];
 
+    protected ?\DateTime $guardedAt = null;
+
+    #[Override]
+    public function withRequestTimestamp(?\DateTime $requestTimestamp, callable $callback): mixed
+    {
+        $previous = $this->guardedAt;
+        $this->guardedAt = $requestTimestamp;
+        try {
+            return parent::withRequestTimestamp($requestTimestamp, $callback);
+        } finally {
+            $this->guardedAt = $previous;
+        }
+    }
+
     #[Override]
     public function createDocument(string $collection, UtopiaDocument $document): UtopiaDocument
     {
@@ -173,7 +187,7 @@ class RecordingProjectDatabase extends UtopiaDatabase
                 'operation' => 'update',
                 'id' => $id,
                 'document' => $document->getArrayCopy(),
-                'guarded' => $this->timestamp !== null,
+                'guarded' => $this->guardedAt !== null,
             ];
         }
 
@@ -188,7 +202,7 @@ class RecordingProjectDatabase extends UtopiaDatabase
         if (
             $this->disappearBeforeGuardedWrite
             && $collection === 'databases'
-            && $this->timestamp !== null
+            && $this->guardedAt !== null
         ) {
             $this->disappearBeforeGuardedWrite = false;
             parent::deleteDocument($collection, $id);
@@ -1176,9 +1190,7 @@ final class AppwriteDatabaseStatusTest extends TestCase
             #[Override]
             public function setPreserveDates(bool $preserve): static
             {
-                $this->preserveDates = true;
-
-                return $this;
+                return parent::setPreserveDates(true);
             }
         };
         $this->createProjectDatabase(withStatus: true, database: $database);
@@ -1231,21 +1243,18 @@ final class AppwriteDatabaseStatusTest extends TestCase
             #[Override]
             public function updateDocument(string $collection, string $id, UtopiaDocument $document): UtopiaDocument
             {
-                if ($collection !== 'databases' || $this->timestamp === null) {
+                if ($collection !== 'databases' || $this->guardedAt === null) {
                     return parent::updateDocument($collection, $id, $document);
                 }
 
-                $preserveDates = $this->preserveDates;
-                $this->preserveDates = true;
-                try {
-                    return parent::updateDocument(
+                return $this->withPreserveDates(
+                    true,
+                    fn (): UtopiaDocument => parent::updateDocument(
                         $collection,
                         $id,
                         $document->setAttribute('$updatedAt', '2000-01-01T00:00:00.000+00:00'),
-                    );
-                } finally {
-                    $this->preserveDates = $preserveDates;
-                }
+                    ),
+                );
             }
         };
         $this->createProjectDatabase(withStatus: true, database: $database);
@@ -1557,7 +1566,8 @@ final class AppwriteDatabaseStatusTest extends TestCase
     ): UtopiaDocument {
         $seeded = $database->getAuthorization()->skip(
             static fn (): UtopiaDocument => $database->withPreserveDates(
-                true, static fn (): UtopiaDocument => $database->createDocument('databases', new UtopiaDocument([
+                true,
+                static fn (): UtopiaDocument => $database->createDocument('databases', new UtopiaDocument([
                     '$id' => $databaseId,
                     'name' => $name,
                     'enabled' => true,

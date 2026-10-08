@@ -66,6 +66,18 @@ final class RecordingSQLiteProjectDatabase extends UtopiaDatabase
 
 final class AppwriteDatabaseConcurrencyTest extends TestCase
 {
+    /**
+     * @var array<int, mixed>
+     */
+    private const array PDO_ATTRIBUTES = [
+        PDO::ATTR_TIMEOUT => 3,
+        PDO::ATTR_PERSISTENT => false,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_EMULATE_PREPARES => true,
+        PDO::ATTR_STRINGIFY_FETCHES => true,
+    ];
+
     public function testStaleIncompleteClaimLosesAfterAnotherSuccessorCommits(): void
     {
         foreach (['provisioning', 'failed'] as $status) {
@@ -301,10 +313,8 @@ final class AppwriteDatabaseConcurrencyTest extends TestCase
             throw new \RuntimeException('Failed to create SQLite test database');
         }
 
-        $attributes = SQLite::getPDOAttributes();
-        $attributes[PDO::ATTR_PERSISTENT] = false;
-        $secondConnection = new SQLiteConnection('sqlite:'.$path, null, null, $attributes);
-        $thirdConnection = new SQLiteConnection('sqlite:'.$path, null, null, $attributes);
+        $secondConnection = new SQLiteConnection('sqlite:'.$path, null, null, self::PDO_ATTRIBUTES);
+        $thirdConnection = new SQLiteConnection('sqlite:'.$path, null, null, self::PDO_ATTRIBUTES);
         $secondConnection->exec('PRAGMA journal_mode = WAL');
         $secondConnection->exec('PRAGMA busy_timeout = 1000');
         $thirdConnection->exec('PRAGMA busy_timeout = 1000');

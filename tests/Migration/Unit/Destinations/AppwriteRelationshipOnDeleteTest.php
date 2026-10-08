@@ -206,9 +206,9 @@ final class AppwriteRelationshipOnDeleteTest extends TestCase
         $collection = $database->getAuthorization()->skip(
             fn (): Collection => $database->getCollection($this->tableCollectionId($database, $tableId)),
         );
-        foreach ($collection->getAttribute('attributes', []) as $attribute) {
-            if ($attribute->getId() === $key) {
-                return $attribute->getAttribute('options', [])['onDelete'] ?? null;
+        foreach ($collection->attributes() as $attribute) {
+            if ($attribute->key === $key) {
+                return $attribute->relationship?->onDelete->value;
             }
         }
 

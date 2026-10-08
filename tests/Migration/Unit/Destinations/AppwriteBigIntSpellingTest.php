@@ -376,8 +376,8 @@ final class AppwriteBigIntSpellingTest extends TestCase
             static fn (): Collection => $database->getCollection($collectionId),
         );
 
-        foreach ($collection->getAttribute('attributes', []) as $attribute) {
-            if ($attribute->getId() === $key) {
+        foreach ($collection->attributes() as $attribute) {
+            if ($attribute->key === $key) {
                 return $attribute;
             }
         }
