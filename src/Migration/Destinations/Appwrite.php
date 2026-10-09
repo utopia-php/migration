@@ -1473,19 +1473,7 @@ class Appwrite extends Destination
                 '$updatedAt' => $updatedAt,
             ]);
 
-            $dbForDatabases->checkAttribute($this->tableCollectionId($database, $table), UtopiaAttribute::fromArray([
-                'key' => $resource->getKey(),
-                'type' => $type,
-                'size' => $resource->getSize(),
-                'required' => $resource->isRequired(),
-                'signed' => $resource->isSigned(),
-                'default' => $resource->getDefault(),
-                'array' => $resource->isArray(),
-                'format' => $resource->getFormat(),
-                'formatOptions' => $resource->getFormatOptions(),
-                'filters' => $resource->getFilters(),
-                'options' => $resource->getOptions() !== [] ? $resource->getOptions() : null,
-            ]));
+            $dbForDatabases->checkAttribute($this->tableCollectionId($database, $table), $this->resourceAttribute($resource, $type));
 
             $column = $this->dbForProject->createDocument(self::META_ATTRIBUTES, $column);
         } catch (DuplicateException $e) {
@@ -2132,20 +2120,13 @@ class Appwrite extends Destination
             return false;
         }
 
-        $sourceFields = [
-            'array'         => $resource->isArray(),
-            'signed'        => $resource->isSigned(),
-            'format'        => $resource->getFormat(),
-            'formatOptions' => $resource->getFormatOptions(),
-            'filters'       => $resource->getFilters(),
-        ];
-
-        $existingFields = [];
-        foreach (self::ATTRIBUTE_IMMUTABLE_FIELDS as $field) {
-            $existingFields[$field] = $existingAttr->getAttribute($field);
+        $attributes = $this->normalisedAttributes($existingAttr, $resource, $type);
+        if ($attributes === null) {
+            return false;
         }
+        [$existing, $wanted] = $attributes;
 
-        if ($this->arraysDifferOnKeys($sourceFields, $existingFields, self::ATTRIBUTE_IMMUTABLE_FIELDS)) {
+        if (!$this->immutableFieldsMatch($existingAttr, $existing, $resource, $wanted)) {
             return false;
         }
 
@@ -2158,10 +2139,10 @@ class Appwrite extends Destination
                 size: $resource->getSize(),
                 required: $resource->isRequired(),
                 default: $resource->getDefault(),
-                signed: $existingAttr->getAttribute('signed'),
-                array: $existingAttr->getAttribute('array'),
+                signed: $existing->signed,
+                array: $existing->array,
                 format: $resource->getFormat() !== '' ? new Format($resource->getFormat(), $resource->getFormatOptions()) : null,
-                filters: $existingAttr->getAttribute('filters'),
+                filters: $existing->filters,
             ),
         );
 
@@ -2314,14 +2295,73 @@ class Appwrite extends Destination
             return $this->valuesMatch($sourceOptions['onDelete'] ?? null, $destOptions['onDelete'] ?? null);
         }
 
-        return $existing->getAttribute('size')     === $resource->getSize()
-            && $existing->getAttribute('required') === $resource->isRequired()
-            && $existing->getAttribute('default')  === $resource->getDefault()
-            && $existing->getAttribute('array')    === $resource->isArray()
-            && $existing->getAttribute('signed')   === $resource->isSigned()
-            && $existing->getAttribute('format')   === $resource->getFormat()
-            && $this->valuesMatch($existing->getAttribute('formatOptions'), $resource->getFormatOptions())
-            && $existing->getAttribute('filters')  === $resource->getFilters();
+        $attributes = $this->normalisedAttributes($existing, $resource, $type);
+        if ($attributes === null) {
+            return false;
+        }
+        [$deployed, $wanted] = $attributes;
+
+        return $deployed->size === $wanted->size
+            && $deployed->required === $wanted->required
+            && $deployed->default === $wanted->default
+            && $this->immutableFieldsMatch($existing, $deployed, $resource, $wanted);
+    }
+
+    private function immutableFieldsMatch(UtopiaDocument $existing, UtopiaAttribute $deployed, Column|Attribute $resource, UtopiaAttribute $wanted): bool
+    {
+        return !$this->arraysDifferOnKeys(
+            $this->immutableFields($deployed, $existing->getAttribute('formatOptions', [])),
+            $this->immutableFields($wanted, $resource->getFormatOptions()),
+            self::ATTRIBUTE_IMMUTABLE_FIELDS,
+        );
+    }
+
+    /**
+     * formatOptions is taken raw: an integer carries its min/max there without naming a format.
+     *
+     * @return array<string, mixed>
+     */
+    private function immutableFields(UtopiaAttribute $attribute, mixed $formatOptions): array
+    {
+        return [
+            'array' => $attribute->array,
+            'signed' => $attribute->signed,
+            'format' => $attribute->format?->name,
+            'formatOptions' => $formatOptions,
+            'filters' => $attribute->filters,
+        ];
+    }
+
+    /**
+     * @return array{UtopiaAttribute, UtopiaAttribute}|null null when either side is not a valid attribute
+     */
+    private function normalisedAttributes(UtopiaDocument $existing, Column|Attribute $resource, string $type): ?array
+    {
+        try {
+            return [
+                UtopiaAttribute::fromDocument($existing)->apply(new AttributeUpdate()),
+                $this->resourceAttribute($resource, $type)->apply(new AttributeUpdate()),
+            ];
+        } catch (DatabaseException) {
+            return null;
+        }
+    }
+
+    private function resourceAttribute(Column|Attribute $resource, string $type): UtopiaAttribute
+    {
+        return UtopiaAttribute::fromArray([
+            'key' => $resource->getKey(),
+            'type' => $type,
+            'size' => $resource->getSize(),
+            'required' => $resource->isRequired(),
+            'signed' => $resource->isSigned(),
+            'default' => $resource->getDefault(),
+            'array' => $resource->isArray(),
+            'format' => $resource->getFormat(),
+            'formatOptions' => $resource->getFormatOptions(),
+            'filters' => $resource->getFilters(),
+            'options' => $resource->getOptions() !== [] ? $resource->getOptions() : null,
+        ]);
     }
 
     /** A big integer is stored under either spelling, so an unchanged type is not always an identical string. */
