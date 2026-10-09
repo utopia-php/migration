@@ -94,6 +94,16 @@ use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Transfer;
 use Utopia\Query\Schema\ColumnType;
 
+/**
+ * @phpstan-type CollectionStructure array{
+ *     '$collection'?: string,
+ *     '$id'?: string,
+ *     name?: string,
+ *     attributes?: list<UtopiaAttribute|UtopiaDocument|array<string, mixed>>,
+ *     indexes?: list<UtopiaIndex|UtopiaDocument|array<string, mixed>>,
+ *     ...
+ * }
+ */
 class Appwrite extends Destination
 {
     /** Names of the project-DB collections holding Appwrite schema metadata. */
@@ -238,12 +248,12 @@ class Appwrite extends Destination
      * @param string $key
      * @param UtopiaDatabase $dbForProject
      * @param callable(UtopiaDocument $database):UtopiaDatabase $getDatabasesDB
-     * @param array<array<string, mixed>> $collectionStructure
+     * @param CollectionStructure $collectionStructure
      * @param ProvisioningOwner $owner Immutable logical migration and execution-attempt identifiers for databases provisioned by this destination.
      * @param callable(UtopiaDocument $database): ?ProvisioningOwner $getRecoverableOwner Returns the exact authoritative terminal owner for an existing `provisioning` or `failed` database that names an owner. Resource status alone is not lifecycle proof; return null while the owning migration attempt is active or unknown. A database naming no owner predates ownership and is recovered without it.
      * @param OnDuplicate $onDuplicate Behavior when a row with an existing $id is encountered.
      * @param (callable(Database $resource): string)|null $getDatabaseDSN Resolver for the destination's `_databases.database` value. Pass when the destination project's DSN differs from the source's, so the destination row carries its own DSN instead of inheriting the source's.
-     * @param array<string, array<array<string, mixed>>> $collectionStructures Per-database-type metadata collection structures (e.g. `['vectorsdb' => ...]`), used instead of $collectionStructure when the imported database's type has an entry. Types with an entry also get type-specific metadata written (e.g. vectorsdb collection `dimension`).
+     * @param array<string, CollectionStructure> $collectionStructures Per-database-type metadata collection structures (e.g. `['vectorsdb' => ...]`), used instead of $collectionStructure when the imported database's type has an entry. Types with an entry also get type-specific metadata written (e.g. vectorsdb collection `dimension`).
      * @param int $provisioningLease Seconds an existing `provisioning` or `failed` database that names no owner may go without an update before another migration may recover it. Such a row carries no owner for $getRecoverableOwner to judge, so its update timestamp stands in: one fresher than the lease may still belong to a migration that is provisioning it, and fails closed. Defaults to 24 hours, the longest lease a live Appwrite attempt holds. `0` recovers it at once; a negative value is rejected.
      */
     public function __construct(
@@ -1632,7 +1642,7 @@ class Appwrite extends Destination
     }
 
     /**
-     * @return array<array<string, mixed>>
+     * @return CollectionStructure
      */
     private function collectionStructureFor(Database $resource): array
     {
