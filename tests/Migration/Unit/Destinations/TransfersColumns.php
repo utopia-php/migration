@@ -18,6 +18,7 @@ use Utopia\Migration\Destinations\OnDuplicate;
 use Utopia\Migration\Resource;
 use Utopia\Migration\Resources\Database\Column;
 use Utopia\Migration\Resources\Database\Database as DatabaseResource;
+use Utopia\Migration\Resources\Database\Index;
 use Utopia\Migration\Resources\Database\Table;
 use Utopia\Migration\Transfer;
 use Utopia\Query\Schema\ColumnType;
@@ -83,7 +84,65 @@ trait TransfersColumns
         $source->pushMockResource($table);
         $source->pushMockResource($column);
 
-        $destination = new AppwriteDestination(
+        $destination = $this->destination($database, $onDuplicate);
+
+        $transfer = new Transfer($source, $destination);
+        $database->getAuthorization()->skip(
+            static function () use ($transfer): void {
+                $transfer->run(
+                    [Resource::TYPE_DATABASE, Resource::TYPE_TABLE, Resource::TYPE_COLUMN],
+                    static function (): void {
+                    },
+                );
+            },
+        );
+
+        return [$database, $destination, $column];
+    }
+
+    /**
+     * Columns go through before indexes, the order a real source emits them in.
+     *
+     * @param callable(Table): list<Column|Index> $makeResources
+     * @return array{AppwriteDestination, list<Column|Index>}
+     */
+    private function transferSchema(callable $makeResources, UtopiaDatabase $database, OnDuplicate $onDuplicate, string $updatedAt): array
+    {
+        $source = new MockSource();
+        $databaseResource = new DatabaseResource(
+            id: 'shop',
+            name: 'Shop',
+            type: 'tablesdb',
+            database: 'source-dsn',
+        );
+        $table = new Table($databaseResource, 'Products', 'products');
+        $resources = $makeResources($table);
+
+        $source->pushMockResource($databaseResource);
+        $source->pushMockResource($table);
+        foreach ($resources as $resource) {
+            $resource->setId($resource->getName().'-'.$resource->getKey());
+            $resource->setUpdatedAt($updatedAt);
+            $source->pushMockResource($resource);
+        }
+
+        $destination = $this->destination($database, $onDuplicate);
+        $transfer = new Transfer($source, $destination);
+        $database->getAuthorization()->skip(
+            static function () use ($transfer): void {
+                $noop = static function (): void {
+                };
+                $transfer->run([Resource::TYPE_DATABASE, Resource::TYPE_TABLE, Resource::TYPE_COLUMN], $noop);
+                $transfer->run([Resource::TYPE_INDEX], $noop);
+            },
+        );
+
+        return [$destination, $resources];
+    }
+
+    private function destination(UtopiaDatabase $database, OnDuplicate $onDuplicate): AppwriteDestination
+    {
+        return new AppwriteDestination(
             project: 'destination-project',
             endpoint: 'http://example.test/v1',
             key: 'test-key',
@@ -108,19 +167,6 @@ trait TransfersColumns
             getRecoverableOwner: static fn (UtopiaDocument $document): ?ProvisioningOwner => null,
             onDuplicate: $onDuplicate,
         );
-
-        $transfer = new Transfer($source, $destination);
-        $database->getAuthorization()->skip(
-            static function () use ($transfer): void {
-                $transfer->run(
-                    [Resource::TYPE_DATABASE, Resource::TYPE_TABLE, Resource::TYPE_COLUMN],
-                    static function (): void {
-                    },
-                );
-            },
-        );
-
-        return [$database, $destination, $column];
     }
 
     private function projectDatabase(): UtopiaDatabase
