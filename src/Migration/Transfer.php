@@ -2,6 +2,8 @@
 
 namespace Utopia\Migration;
 
+use Utopia\Migration\Exception\Aborted;
+
 class Transfer
 {
     public const GROUP_GENERAL = 'general';
@@ -229,12 +231,15 @@ class Transfer
         $this->destination->setSource($source);
     }
 
+    /**
+     * @return array<string, array<string, mixed>>
+     */
     public function getStatusCounters(): array
     {
         $status = [];
 
-        foreach ($this->resources as $resource) {
-            $status[$resource] = [
+        foreach ($this->resources as $requestedType) {
+            $status[$requestedType] = [
                 Resource::STATUS_PENDING => 0,
                 Resource::STATUS_SUCCESS => 0,
                 Resource::STATUS_ERROR => 0,
@@ -245,72 +250,69 @@ class Transfer
         }
 
         if ($this->source->previousReport) {
-            foreach ($this->source->previousReport as $resource => $data) {
-                if ($resource != 'size' && $resource != 'version' && isset($status[$resource])) {
-                    $status[$resource]['pending'] = $data;
+            foreach ($this->source->previousReport as $reportedType => $reportedTotal) {
+                if ($reportedType != 'size' && $reportedType != 'version' && isset($status[$reportedType])) {
+                    $status[$reportedType][Resource::STATUS_PENDING] = $reportedTotal;
                 }
             }
         }
 
-        foreach ($this->cache->getAll() as $resourceType => $resources) {
-            foreach ($resources as $k => $resource) {
-                if (($resourceType === Resource::TYPE_ROW || $resourceType === Resource::TYPE_DOCUMENT) && is_string($resource)) {
-                    // Only report status for resource types that were requested,
-                    // mirroring the isset() guard below. Row/document counts can be
-                    // aggregated into the cache for an unrequested type, which would
-                    // otherwise read an unseeded 'pending' key and leave a phantom,
-                    // non-empty counter.
-                    if (!isset($status[$resourceType])) {
+        foreach ($this->cache->getAll() as $cachedType => $entries) {
+            $isRecordType = $cachedType === Resource::TYPE_ROW || $cachedType === Resource::TYPE_DOCUMENT;
+
+            foreach ($entries as $key => $entry) {
+                if ($isRecordType && \is_string($entry)) {
+                    if (!isset($status[$cachedType])) {
                         continue;
                     }
 
-                    $resource = intval($resource);
+                    $count = \intval($entry);
+                    $status[$cachedType][$key] = $count;
 
-                    $status[$resourceType][$k] = $resource;
-
-                    if ($status[$resourceType]['pending'] > 0) {
-                        $status[$resourceType]['pending'] -= \min($status[$resourceType]['pending'], $resource);
+                    if ($status[$cachedType][Resource::STATUS_PENDING] > 0) {
+                        $status[$cachedType][Resource::STATUS_PENDING] -= \min($status[$cachedType][Resource::STATUS_PENDING], $count);
                     }
 
                     continue;
                 }
 
-                if (isset($status[$resource->getName()])) {
-                    $status[$resource->getName()][$resource->getStatus()]++;
+                $resourceType = $entry->getName();
 
-                    if ($status[$resource->getName()]['pending'] > 0) {
-                        $status[$resource->getName()]['pending']--;
-                    }
+                if (!isset($status[$resourceType])) {
+                    continue;
+                }
+
+                $status[$resourceType][$entry->getStatus()]++;
+
+                if ($status[$resourceType][Resource::STATUS_PENDING] > 0) {
+                    $status[$resourceType][Resource::STATUS_PENDING]--;
                 }
             }
         }
 
-        // Process Destination Errors
         foreach ($this->destination->getErrors() as $error) {
             if (isset($status[$error->getResourceGroup()])) {
                 $status[$error->getResourceGroup()][Resource::STATUS_ERROR]++;
             }
         }
 
-        // Process source errors
         foreach ($this->source->getErrors() as $error) {
             if (isset($status[$error->getResourceGroup()])) {
                 $status[$error->getResourceGroup()][Resource::STATUS_ERROR]++;
             }
         }
 
-        // Remove all empty resources
-        foreach ($status as $resource => $data) {
+        foreach ($status as $statusType => $counters) {
             $allEmpty = true;
 
-            foreach ($data as $count) {
-                if ($count > 0) {
+            foreach ($counters as $counter) {
+                if ($counter > 0) {
                     $allEmpty = false;
                 }
             }
 
             if ($allEmpty) {
-                unset($status[$resource]);
+                unset($status[$statusType]);
             }
         }
 
@@ -321,8 +323,9 @@ class Transfer
      * Transfer Resources between adapters
      *
      * @param array<string> $resources Resources to transfer
-     * @param callable $callback Callback to run after transfer
+     * @param callable $callback Callback to run after transfer; throw Aborted from it to stop the transfer
      * @param string|null $rootResourceId Root resource ID, If enabled you can only transfer a single root resource
+     * @throws Aborted The callback stopped the transfer
      * @throws \Exception
      */
     public function run(
@@ -370,10 +373,27 @@ class Transfer
 
         $this->resources = $computedResources;
 
+        // A source can still catch the abort as an export failure and carry on; keep it so
+        // later batches rethrow it and the run ends with it.
+        $abort = null;
+        $progress = static function (array $resources) use ($callback, &$abort): void {
+            if ($abort !== null) {
+                throw $abort;
+            }
+
+            try {
+                $callback($resources);
+            } catch (Aborted $aborted) {
+                $abort = $aborted;
+
+                throw $aborted;
+            }
+        };
+
         if ($this->resourceSelector !== null) {
             $this->destination->runWithResourceSelector(
                 $computedResources,
-                $callback,
+                $progress,
                 $this->resourceSelector->resourceId,
                 $this->resourceSelector->resourceInternalId,
                 $this->resourceSelector->resourceType,
@@ -381,18 +401,23 @@ class Transfer
                 $this->resourceSelector->parentResourceInternalId,
                 $this->resourceSelector->parentResourceType,
             );
-
-            return;
+        } else {
+            $this->destination->run($computedResources, $progress, $rootResourceId, $rootResourceType);
         }
 
-        $this->destination->run($computedResources, $callback, $rootResourceId, $rootResourceType);
+        if ($abort !== null) {
+            $this->destination->markAborted();
+
+            throw $abort;
+        }
     }
 
     /**
      * Transfer resources using Appwrite's canonical resource relation fields.
      *
      * @param array<string|array<string>> $resources Resources to transfer
-     * @param callable $callback Callback to run after transfer
+     * @param callable $callback Callback to run after transfer; throw Aborted from it to stop the transfer
+     * @throws Aborted The callback stopped the transfer
      * @throws \Exception
      */
     public function runWithResourceSelector(
