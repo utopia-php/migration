@@ -327,6 +327,39 @@ class Appwrite extends Source
     }
 
     /**
+     * Prerequisites each resource needs in the same request. Every exporter here
+     * either walks its parent out of the transfer cache, or is emitted inline by
+     * the parent's own exporter, so a request naming the child alone moves
+     * nothing at all.
+     *
+     * Collections, their attributes and documents belong to either documents or
+     * vectors databases, and indexes to either tables or collections, so those
+     * parents are alternatives.
+     *
+     * @return array<string, array<string|array<string>>>
+     */
+    #[Override]
+    public function getResourceDependencies(): array
+    {
+        return [
+            Resource::TYPE_MEMBERSHIP => [Resource::TYPE_USER, Resource::TYPE_TEAM],
+            Resource::TYPE_SUBSCRIBER => [Resource::TYPE_TOPIC, Resource::TYPE_USER],
+            Resource::TYPE_TABLE => [Resource::TYPE_DATABASE],
+            Resource::TYPE_COLUMN => [Resource::TYPE_DATABASE, Resource::TYPE_TABLE],
+            Resource::TYPE_ROW => [Resource::TYPE_DATABASE, Resource::TYPE_TABLE, Resource::TYPE_COLUMN],
+            Resource::TYPE_COLLECTION => [[Resource::TYPE_DATABASE_DOCUMENTSDB, Resource::TYPE_DATABASE_VECTORSDB]],
+            Resource::TYPE_ATTRIBUTE => [[Resource::TYPE_DATABASE_DOCUMENTSDB, Resource::TYPE_DATABASE_VECTORSDB], Resource::TYPE_COLLECTION],
+            Resource::TYPE_DOCUMENT => [[Resource::TYPE_DATABASE_DOCUMENTSDB, Resource::TYPE_DATABASE_VECTORSDB], Resource::TYPE_COLLECTION],
+            Resource::TYPE_INDEX => [[Resource::TYPE_TABLE, Resource::TYPE_COLLECTION]],
+            Resource::TYPE_FILE => [Resource::TYPE_BUCKET],
+            Resource::TYPE_ENVIRONMENT_VARIABLE => [Resource::TYPE_FUNCTION],
+            Resource::TYPE_DEPLOYMENT => [Resource::TYPE_FUNCTION],
+            Resource::TYPE_SITE_VARIABLE => [Resource::TYPE_SITE],
+            Resource::TYPE_SITE_DEPLOYMENT => [Resource::TYPE_SITE],
+        ];
+    }
+
+    /**
      * @return int
      */
     public function getDatabasesBatchSize(): int
