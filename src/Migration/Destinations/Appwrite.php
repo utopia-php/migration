@@ -2348,6 +2348,7 @@ class Appwrite extends Destination
                     'fileId' => $file->getId(),
                     'file' => new \CURLFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
                     'permissions' => $file->getPermissions(),
+                    ...($file->getFolder() === '' ? [] : ['folder' => $file->getFolder()]),
                 ]
             );
 
@@ -2370,6 +2371,7 @@ class Appwrite extends Destination
                 'fileId' => $file->getId(),
                 'file' => new \CURLFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
                 'permissions' => $file->getPermissions(),
+                ...($file->getFolder() === '' ? [] : ['folder' => $file->getFolder()]),
             ]
         );
 
@@ -2604,6 +2606,7 @@ class Appwrite extends Destination
                     variableId: $resource->getId(),
                     key: $resource->getKey(),
                     value: $resource->getValue(),
+                    secret: $resource->isSecret(),
                 );
                 break;
             case Resource::TYPE_DEPLOYMENT:
@@ -2636,6 +2639,7 @@ class Appwrite extends Destination
             scopes: $resource->getScopes(),
             buildSpecification: $resource->getBuildSpecification() ?: null,
             runtimeSpecification: $resource->getRuntimeSpecification() ?: null,
+            deploymentRetention: $resource->getDeploymentRetention(),
             interval: $interval,
         );
     }
@@ -2805,9 +2809,12 @@ class Appwrite extends Destination
                     buildCommand: $resource->getBuildCommand(),
                     outputDirectory: $resource->getOutputDirectory(),
                     adapter: $adapter,
+                    startCommand: $resource->getStartCommand() ?: null,
                     fallbackFile: $resource->getFallbackFile(),
                     buildSpecification: $resource->getBuildSpecification() ?: null,
                     runtimeSpecification: $resource->getRuntimeSpecification() ?: null,
+                    deploymentRetention: $resource->getDeploymentRetention(),
+                    scopes: $resource->getScopes(),
                 );
                 break;
             case Resource::TYPE_SITE_VARIABLE:
@@ -2817,6 +2824,7 @@ class Appwrite extends Destination
                     variableId: $resource->getId(),
                     key: $resource->getKey(),
                     value: $resource->getValue(),
+                    secret: $resource->isSecret(),
                 );
                 break;
             case Resource::TYPE_SITE_DEPLOYMENT:
@@ -3822,6 +3830,21 @@ class Appwrite extends Destination
         $auths['membershipsUserName']  = $resource->getMembershipsUserName();
         $auths['membershipsMfa']       = $resource->getMembershipsUserMfa();
         $auths['membershipsUserPhone'] = $resource->getMembershipsUserPhone();
+
+        $reported = [
+            'membershipsUserAccessedAt' => $resource->getMembershipsUserAccessedAt(),
+            'passwordStrength' => $resource->getPasswordStrength(),
+            'mfaFactors' => $resource->getMfaFactors(),
+            'canonicalEmails' => $resource->getDenyAliasedEmail(),
+            'disposableEmails' => $resource->getDenyDisposableEmail(),
+            'freeEmails' => $resource->getDenyFreeEmail(),
+            'corporateEmails' => $resource->getDenyCorporateEmail(),
+        ];
+        foreach ($reported as $key => $value) {
+            if ($value !== null) {
+                $auths[$key] = $value;
+            }
+        }
 
         $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
             'projects',
