@@ -79,6 +79,7 @@ use Utopia\Migration\Resources\Storage\Bucket;
 use Utopia\Migration\Resources\Storage\File;
 use Utopia\Migration\Resources\Templates\EmailTemplate;
 use Utopia\Migration\Transfer;
+use Utopia\Migration\Warning;
 
 class Appwrite extends Destination
 {
@@ -88,6 +89,8 @@ class Appwrite extends Destination
     private const META_INDEXES = 'indexes';
 
     private const VECTORSDB_EMBEDDINGS_KEY = 'embeddings';
+
+    private const ERROR_BILLING_FEATURE_UNSUPPORTED = 'billing_feature_unsupported';
 
     /**
      * Variable keys become environment variable names at build and runtime, so
@@ -1246,7 +1249,6 @@ class Appwrite extends Destination
                 case UtopiaDatabase::VAR_RELATIONSHIP:
                     if (!$dbForDatabases->createRelationship(
                         collection: $this->tableCollectionId($database, $table),
-                        // @phpstan-ignore-next-line — $relatedTable is set when type is VAR_RELATIONSHIP.
                         relatedCollection: $this->tableCollectionId($database, $relatedTable),
                         type: $options['relationType'],
                         twoWay: $options['twoWay'],
@@ -1290,7 +1292,6 @@ class Appwrite extends Destination
         }
 
         if ($type === UtopiaDatabase::VAR_RELATIONSHIP && $options['twoWay']) {
-            // @phpstan-ignore-next-line — $relatedTable is set when type is VAR_RELATIONSHIP.
             $this->dbForProject->purgeCachedDocument($this->databaseCollectionId($database), $relatedTable->getId());
         }
 
@@ -2347,6 +2348,7 @@ class Appwrite extends Destination
                     'fileId' => $file->getId(),
                     'file' => new \CURLFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
                     'permissions' => $file->getPermissions(),
+                    ...($file->getFolder() === '' ? [] : ['folder' => $file->getFolder()]),
                 ]
             );
 
@@ -2369,6 +2371,7 @@ class Appwrite extends Destination
                 'fileId' => $file->getId(),
                 'file' => new \CURLFile('data://' . $file->getMimeType() . ';base64,' . base64_encode($file->getData()), $file->getMimeType(), $file->getFileName()),
                 'permissions' => $file->getPermissions(),
+                ...($file->getFolder() === '' ? [] : ['folder' => $file->getFolder()]),
             ]
         );
 
@@ -2580,22 +2583,21 @@ class Appwrite extends Destination
                     throw new \Exception('Invalid Runtime: ' . $resource->getRuntime(), Exception::CODE_VALIDATION, $e);
                 }
 
-                $this->functions->create(
-                    functionId: $resource->getId(),
-                    name: $resource->getFunctionName(),
-                    runtime: $runtime,
-                    execute: $resource->getExecute(),
-                    events: $resource->getEvents(),
-                    schedule: $resource->getSchedule(),
-                    timeout: $resource->getTimeout(),
-                    enabled: $resource->getEnabled(),
-                    logging: $resource->getLogging(),
-                    entrypoint: $resource->getEntrypoint(),
-                    commands: $resource->getCommands(),
-                    scopes: $resource->getScopes(),
-                    buildSpecification: $resource->getBuildSpecification() ?: null,
-                    runtimeSpecification: $resource->getRuntimeSpecification() ?: null,
-                );
+                try {
+                    $this->createFunction($resource, $runtime, $resource->getInterval() ?: null);
+                } catch (AppwriteException $e) {
+                    if ($resource->getInterval() === 0 || $e->getType() !== self::ERROR_BILLING_FEATURE_UNSUPPORTED) {
+                        throw $e;
+                    }
+
+                    $this->createFunction($resource, $runtime, null);
+                    $this->addWarning(new Warning(
+                        Resource::TYPE_FUNCTION,
+                        Transfer::GROUP_FUNCTIONS,
+                        'Function "' . $resource->getId() . '" ran every ' . $resource->getInterval() . ' minutes, which this plan does not allow, so it was imported without a schedule.',
+                        $resource->getId(),
+                    ));
+                }
                 break;
             case Resource::TYPE_ENVIRONMENT_VARIABLE:
                 /** @var EnvVar $resource */
@@ -2604,6 +2606,7 @@ class Appwrite extends Destination
                     variableId: $resource->getId(),
                     key: $resource->getKey(),
                     value: $resource->getValue(),
+                    secret: $resource->isSecret(),
                 );
                 break;
             case Resource::TYPE_DEPLOYMENT:
@@ -2614,6 +2617,31 @@ class Appwrite extends Destination
         $resource->setStatus(Resource::STATUS_SUCCESS);
 
         return $resource;
+    }
+
+    /**
+     * @throws AppwriteException
+     */
+    private function createFunction(Func $resource, Runtime $runtime, ?int $interval): void
+    {
+        $this->functions->create(
+            functionId: $resource->getId(),
+            name: $resource->getFunctionName(),
+            runtime: $runtime,
+            execute: $resource->getExecute(),
+            events: $resource->getEvents(),
+            schedule: $resource->getSchedule(),
+            timeout: $resource->getTimeout(),
+            enabled: $resource->getEnabled(),
+            logging: $resource->getLogging(),
+            entrypoint: $resource->getEntrypoint(),
+            commands: $resource->getCommands(),
+            scopes: $resource->getScopes(),
+            buildSpecification: $resource->getBuildSpecification() ?: null,
+            runtimeSpecification: $resource->getRuntimeSpecification() ?: null,
+            deploymentRetention: $resource->getDeploymentRetention(),
+            interval: $interval,
+        );
     }
 
     public function importBackupResource(Resource $resource): Resource
@@ -2781,9 +2809,12 @@ class Appwrite extends Destination
                     buildCommand: $resource->getBuildCommand(),
                     outputDirectory: $resource->getOutputDirectory(),
                     adapter: $adapter,
+                    startCommand: $resource->getStartCommand() ?: null,
                     fallbackFile: $resource->getFallbackFile(),
                     buildSpecification: $resource->getBuildSpecification() ?: null,
                     runtimeSpecification: $resource->getRuntimeSpecification() ?: null,
+                    deploymentRetention: $resource->getDeploymentRetention(),
+                    scopes: $resource->getScopes(),
                 );
                 break;
             case Resource::TYPE_SITE_VARIABLE:
@@ -2793,6 +2824,7 @@ class Appwrite extends Destination
                     variableId: $resource->getId(),
                     key: $resource->getKey(),
                     value: $resource->getValue(),
+                    secret: $resource->isSecret(),
                 );
                 break;
             case Resource::TYPE_SITE_DEPLOYMENT:
@@ -3798,6 +3830,21 @@ class Appwrite extends Destination
         $auths['membershipsUserName']  = $resource->getMembershipsUserName();
         $auths['membershipsMfa']       = $resource->getMembershipsUserMfa();
         $auths['membershipsUserPhone'] = $resource->getMembershipsUserPhone();
+
+        $reported = [
+            'membershipsUserAccessedAt' => $resource->getMembershipsUserAccessedAt(),
+            'passwordStrength' => $resource->getPasswordStrength(),
+            'mfaFactors' => $resource->getMfaFactors(),
+            'canonicalEmails' => $resource->getDenyAliasedEmail(),
+            'disposableEmails' => $resource->getDenyDisposableEmail(),
+            'freeEmails' => $resource->getDenyFreeEmail(),
+            'corporateEmails' => $resource->getDenyCorporateEmail(),
+        ];
+        foreach ($reported as $key => $value) {
+            if ($value !== null) {
+                $auths[$key] = $value;
+            }
+        }
 
         $this->dbForPlatform->getAuthorization()->skip(fn () => $this->dbForPlatform->updateDocument(
             'projects',
