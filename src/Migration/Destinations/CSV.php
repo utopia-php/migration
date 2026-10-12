@@ -240,8 +240,14 @@ class CSV extends Destination
         $parts = [];
 
         foreach ($fields as $field) {
+            if ($field === null) {
+                $parts[] = 'null';
+                continue;
+            }
+
             $field = (string)$field;
-            if (\strpbrk($field, $this->delimiter . "\n\r" . $this->enclosure) !== false) {
+            // Quoted, the text "null" is not read back as NULL.
+            if ($field === 'null' || \strpbrk($field, $this->delimiter . "\n\r" . $this->enclosure) !== false) {
                 $parts[] = $this->enclosure . \str_replace($this->enclosure, $this->enclosure . $this->enclosure, $field) . $this->enclosure;
             } else {
                 $parts[] = $field;
@@ -316,10 +322,10 @@ class CSV extends Destination
     /**
      * Convert a single value to CSV-compatible format
      */
-    protected function convertValueToCSV(mixed $value): string
+    protected function convertValueToCSV(mixed $value): ?string
     {
         if (\is_null($value)) {
-            return 'null';
+            return null;
         }
         if (\is_bool($value)) {
             return $value ? 'true' : 'false';
