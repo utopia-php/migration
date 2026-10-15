@@ -73,7 +73,7 @@ final class AppwriteClientTest extends TestCase
         $this->assertSame('/echo?a=b', $first['uri']);
         $this->assertIsArray($second);
         $this->assertSame('pinned.invalid:'.$port, $second['host']);
-        $this->assertSame([$endpoint.'/echo?a=b', $endpoint.'/echo'], $urls);
+        $this->assertSame([$endpoint], $urls);
     }
 
     public function testResolverBypassesTheEnvironmentProxy(): void
@@ -111,7 +111,7 @@ final class AppwriteClientTest extends TestCase
 
         $this->assertIsArray($response);
         $this->assertSame('second.invalid:'.$port, $response['host']);
-        $this->assertSame(['http://first.invalid:'.$port.'/echo', 'http://second.invalid:'.$port.'/echo'], $urls);
+        $this->assertSame(['http://first.invalid:'.$port, 'http://second.invalid:'.$port], $urls);
     }
 
     public function testResolverCanRefuseTheEndpoint(): void

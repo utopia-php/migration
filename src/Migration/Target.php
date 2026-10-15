@@ -7,6 +7,23 @@ abstract class Target
     private const string PROTOCOLS = 'http,https';
 
     /**
+     * Seconds to wait for a remote to accept the connection.
+     */
+    public const int CONNECT_TIMEOUT = 10;
+
+    /**
+     * Seconds a request may go without receiving a byte before it is abandoned.
+     * Transfers of any length stay alive as long as data keeps arriving.
+     */
+    public const int STALL_TIMEOUT = 30;
+
+    /**
+     * Seconds an Appwrite SDK request may take in total. The SDK transport only
+     * takes a total timeout; its requests are single API pages and file chunks.
+     */
+    public const int REQUEST_TIMEOUT = 30;
+
+    /**
      * Global Headers
      *
      * @var array<string, string>
@@ -153,6 +170,9 @@ abstract class Target
             \curl_setopt($ch, CURLOPT_RESOLVE, ($this->resolver)($url));
             \curl_setopt($ch, CURLOPT_PROXY, '');
         }
+        \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, static::CONNECT_TIMEOUT);
+        \curl_setopt($ch, CURLOPT_LOW_SPEED_LIMIT, 1);
+        \curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, static::STALL_TIMEOUT);
         \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
             $len = strlen($header);
             $header = explode(':', strtolower($header), 2);
