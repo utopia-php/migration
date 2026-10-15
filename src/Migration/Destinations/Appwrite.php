@@ -161,6 +161,13 @@ class Appwrite extends Destination
     private array $rowBuffer = [];
 
     /**
+     * The rows whose documents are in $rowBuffer.
+     *
+     * @var array<Row>
+     */
+    private array $rowBufferResources = [];
+
+    /**
      * Overwrite-mode orphan tracking, keyed by (database, table). Orphans are
      * destination keys not in `attributeKeys` / `indexKeys`. Entries removed
      * after their cleanup runs so the end-of-run sweep only visits tables
@@ -300,6 +307,7 @@ class Appwrite extends Destination
     private function resetRunState(): void
     {
         $this->rowBuffer = [];
+        $this->rowBufferResources = [];
         $this->orphansByTable = [];
         $this->processedTwoWayPairs = [];
         $this->provisioningDatabases = [];
@@ -549,6 +557,7 @@ class Appwrite extends Destination
         }
 
         $total = \count($resources);
+        $records = [];
 
         foreach ($resources as $index => $resource) {
             $resource->setStatus(Resource::STATUS_PROCESSING);
@@ -590,8 +599,16 @@ class Appwrite extends Destination
                 $this->dbForPlatform->setPreserveDates(false);
             }
 
+            // Rows are counted once their batch is written, since writing it can still fail them.
+            if ($responseResource instanceof Row) {
+                $records[] = $responseResource;
+                continue;
+            }
+
             $this->cache->update($responseResource);
         }
+
+        $this->cache->updateAll($records);
 
         $callback($resources);
     }
@@ -1552,13 +1569,7 @@ class Appwrite extends Destination
         return true;
     }
 
-    /**
-     * @throws AuthorizationException
-     * @throws DatabaseException
-     * @throws StructureException
-     * @throws Exception
-     */
-    protected function createRecord(Row $resource, bool $isLast): bool
+    private function bufferRecord(Row $resource): bool
     {
         if ($resource->getId() == 'unique()') {
             $resource->setId(ID::unique());
@@ -1622,8 +1633,25 @@ class Appwrite extends Destination
             '$id' => $resource->getId(),
             '$permissions' => $resource->getPermissions(),
         ], $data));
+        $this->rowBufferResources[] = $resource;
 
-        if ($isLast) {
+        return true;
+    }
+
+    /**
+     * Rows are written in one batch, so a failed write fails every row in it.
+     *
+     * @throws AuthorizationException
+     * @throws DatabaseException
+     * @throws StructureException
+     * @throws Exception
+     */
+    protected function createRecord(Row $resource, bool $isLast): bool
+    {
+        $buffered = $this->bufferRecord($resource);
+
+        // Write the batch even when its last row was rejected, or the rows before it are lost.
+        if ($isLast && !empty($this->rowBuffer)) {
             try {
                 $database = $this->dbForProject->getDocument(
                     self::META_DATABASES,
@@ -1669,48 +1697,45 @@ class Appwrite extends Destination
                 }
                 $collectionId = $this->tableCollectionId($database, $table);
 
-                try {
-                    match ($this->onDuplicate) {
-                        OnDuplicate::Overwrite => $dbForDatabases->skipRelationshipsExistCheck(
-                            fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
-                        ),
-                        OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
-                            fn () => $dbForDatabases->skipRelationshipsExistCheck(
-                                fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
-                            )
-                        ),
-                        OnDuplicate::Fail => $dbForDatabases->skipRelationshipsExistCheck(
+                match ($this->onDuplicate) {
+                    OnDuplicate::Overwrite => $dbForDatabases->skipRelationshipsExistCheck(
+                        fn () => $dbForDatabases->upsertDocuments($collectionId, $this->rowBuffer)
+                    ),
+                    OnDuplicate::Skip => $dbForDatabases->skipDuplicates(
+                        fn () => $dbForDatabases->skipRelationshipsExistCheck(
                             fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
-                        ),
-                    };
-                } catch (DuplicateException $e) {
-                    $resource->setStatus(Resource::STATUS_ERROR, 'Document already exists');
-                    $this->addError(new Exception(
-                        resourceName: $resource->getName(),
-                        resourceGroup: $resource->getGroup(),
-                        resourceId: $resource->getId(),
-                        message: 'Document already exists',
-                        previous: $e,
-                    ));
-                    return false;
-                } catch (StructureException $e) {
-                    $resource->setStatus(Resource::STATUS_ERROR, $e->getMessage());
-                    $this->addError(new Exception(
-                        resourceName: $resource->getName(),
-                        resourceGroup: $resource->getGroup(),
-                        resourceId: $resource->getId(),
-                        message: $e->getMessage(),
-                        previous: $e,
-                    ));
-                    return false;
+                        )
+                    ),
+                    OnDuplicate::Fail => $dbForDatabases->skipRelationshipsExistCheck(
+                        fn () => $dbForDatabases->createDocuments($collectionId, $this->rowBuffer)
+                    ),
+                };
+            } catch (\Throwable $e) {
+                $message = $e instanceof DuplicateException ? 'Document already exists' : $e->getMessage();
+
+                foreach ($this->rowBufferResources as $row) {
+                    $row->setStatus(Resource::STATUS_ERROR, $message);
                 }
+
+                if (!$e instanceof DuplicateException && !$e instanceof StructureException) {
+                    throw $e;
+                }
+
+                $this->addError(new Exception(
+                    resourceName: $resource->getName(),
+                    resourceGroup: $resource->getGroup(),
+                    resourceId: $resource->getId(),
+                    message: $message,
+                    previous: $e,
+                ));
+                return false;
             } finally {
                 $this->rowBuffer = [];
+                $this->rowBufferResources = [];
             }
         }
 
-
-        return true;
+        return $buffered;
     }
 
     /** Relationships route through deleteRelationship since deleteAttribute throws for VAR_RELATIONSHIP. */
