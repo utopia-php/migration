@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.2.0
+
+### Added
+
+- `Target::setDestinations()` confines a target's requests to a `Utopia\Client\Destinations`. Each connection and
+  redirect hop is checked against the address it actually reached, so DNS cannot answer differently between a check
+  and the connection. Without it, requests connect anywhere, as before.
+- The Appwrite source applies its destinations to its SDK client, `Sources\Appwrite\Client`, as well as to its own
+  requests.
+
 ## 3.1.2
 
 3.1.2 reverses the 3.0.0 notes below on `Aborted`, `markAborted()` and finalizing with `success()`.

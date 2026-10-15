@@ -5,6 +5,7 @@ namespace Utopia\Migration;
 use Psr\Http\Client\ClientExceptionInterface;
 use Utopia\Client\Adapter\Curl\Client as CurlAdapter;
 use Utopia\Client\Client;
+use Utopia\Client\Destinations;
 use Utopia\Psr7\ContentType;
 use Utopia\Psr7\Request\Factory as RequestFactory;
 
@@ -55,6 +56,8 @@ abstract class Target
     protected string $endpoint = '';
 
     private ?Client $client = null;
+
+    private ?Destinations $destinations = null;
 
     protected string $rootResourceId = '';
 
@@ -158,6 +161,19 @@ abstract class Target
     }
 
     /**
+     * Where this target's requests may connect. Each connection and redirect hop is
+     * checked against the address it actually reached, so DNS cannot answer differently
+     * between a check and the connection. Unset, requests may connect anywhere.
+     */
+    public function setDestinations(Destinations $destinations): static
+    {
+        $this->destinations = $destinations;
+        $this->client = null;
+
+        return $this;
+    }
+
+    /**
      * The HTTP client for {@see call()}, built once per target so connections are reused.
      */
     protected function client(): Client
@@ -166,7 +182,7 @@ abstract class Target
             \CURLOPT_TIMEOUT_MS => 0,
             \CURLOPT_LOW_SPEED_LIMIT => 1,
             \CURLOPT_LOW_SPEED_TIME => static::STALL_TIMEOUT,
-        ])))
+        ]), $this->destinations))
             ->withFollowRedirects()
             ->withConnectTimeout(static::CONNECT_TIMEOUT);
     }
