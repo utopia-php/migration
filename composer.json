@@ -35,7 +35,8 @@
         "utopia-php/database": "^7.0.0",
         "utopia-php/storage": "4.*",
         "utopia-php/dsn": "0.2.*",
-        "halaxa/json-machine": "^1.2"
+        "halaxa/json-machine": "^1.2",
+        "utopia-php/client": "^0.6"
     },
     "require-dev": {
         "ext-pdo": "*",
